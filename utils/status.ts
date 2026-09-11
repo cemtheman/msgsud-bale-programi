@@ -1,4 +1,4 @@
-import { ComputedStatus, DayKey, Lesson } from '@/types/schedule';
+import { ComputedStatus, DayKey } from '@/types/schedule';
 import { scheduleData } from '@/data/scheduleData';
 import { getLessonsForDay, getNextSchoolDayLesson } from './schedule';
 import { timeStringToMinutes } from './time';
@@ -6,12 +6,13 @@ import { timeStringToMinutes } from './time';
 export function calculateStatus(dayKey: DayKey, currentMinutes: number): ComputedStatus {
   const lessons = getLessonsForDay(dayKey);
 
+  // 1. Ders olmayan gün (Hafta sonı vb.)
   if (!lessons || lessons.length === 0) {
     const nextInfo = getNextSchoolDayLesson(dayKey);
-    return {
-      type: 'no_school',
-      nextLesson: nextInfo?.lesson,
-      nextLessonDayLabel: nextInfo?.dayLabel,
+    return { 
+      type: 'no_school', 
+      nextLesson: nextInfo?.lesson, 
+      nextLessonDayLabel: nextInfo?.dayLabel 
     };
   }
 
@@ -20,26 +21,26 @@ export function calculateStatus(dayKey: DayKey, currentMinutes: number): Compute
   const firstStartMins = timeStringToMinutes(firstLesson.start);
   const lastEndMins = timeStringToMinutes(lastLesson.end);
 
-  // 1. İlk dersten önce mi?
+  // 2. İlk dersten önce mi?
   if (currentMinutes < firstStartMins) {
-    return {
-      type: 'before_school',
-      nextLesson: firstLesson,
-      minutesUntilNext: firstStartMins - currentMinutes,
+    return { 
+      type: 'before_school', 
+      nextLesson: firstLesson, 
+      minutesUntilNext: firstStartMins - currentMinutes 
     };
   }
 
-  // 2. Son dersten sonra mı?
+  // 3. Son dersten sonra mı?
   if (currentMinutes >= lastEndMins) {
     const nextInfo = getNextSchoolDayLesson(dayKey);
-    return {
-      type: 'finished',
-      nextLesson: nextInfo?.lesson,
-      nextLessonDayLabel: nextInfo?.dayLabel,
+    return { 
+      type: 'finished', 
+      nextLesson: nextInfo?.lesson, 
+      nextLessonDayLabel: nextInfo?.dayLabel 
     };
   }
 
-  // 3. Aktif ders var mı?
+  // 4. Aktif ders var mı?
   for (let i = 0; i < lessons.length; i++) {
     const lesson = lessons[i];
     const startMins = timeStringToMinutes(lesson.start);
@@ -48,57 +49,41 @@ export function calculateStatus(dayKey: DayKey, currentMinutes: number): Compute
     if (currentMinutes >= startMins && currentMinutes < endMins) {
       const duration = endMins - startMins;
       const passed = currentMinutes - startMins;
-      const remaining = endMins - currentMinutes;
-      const progress = Math.min(100, Math.max(0, Math.round((passed / duration) * 100)));
-
       return {
         type: 'in_lesson',
         currentLesson: lesson,
         nextLesson: lessons[i + 1] || getNextSchoolDayLesson(dayKey)?.lesson,
-        progressPercent: progress,
+        progressPercent: Math.min(100, Math.max(0, Math.round((passed / duration) * 100))),
         minutesPassed: passed,
-        minutesRemaining: remaining,
+        minutesRemaining: endMins - currentMinutes,
       };
     }
   }
 
-  // 4. Yemek arasında mı? (12:20 - 13:00)
+  // 5. Yemek arasında mı? (12:20 - 13:00)
   const lunchStart = timeStringToMinutes(scheduleData.school.lunchBreak.start);
   const lunchEnd = timeStringToMinutes(scheduleData.school.lunchBreak.end);
 
   if (currentMinutes >= lunchStart && currentMinutes < lunchEnd) {
-    const nextLesson = lessons.find((l) => timeStringToMinutes(l.start) >= lunchEnd);
-    return {
-      type: 'lunch',
-      nextLesson,
-      minutesUntilNext: lunchEnd - currentMinutes,
+    return { 
+      type: 'lunch', 
+      nextLesson: lessons.find(l => timeStringToMinutes(l.start) >= lunchEnd), 
+      minutesUntilNext: lunchEnd - currentMinutes 
     };
   }
 
-  // 5. Aradaki boşluklar (Teneffüs vs. Serbest Zaman)
+  // 6. Dersler arası boşluklar (10 dk Teneffüs veya Uzun Serbest Zaman)
   for (let i = 0; i < lessons.length - 1; i++) {
-    const prevLessonEnd = timeStringToMinutes(lessons[i].end);
-    const nextLessonStart = timeStringToMinutes(lessons[i + 1].start);
+    const prevEnd = timeStringToMinutes(lessons[i].end);
+    const nextStart = timeStringToMinutes(lessons[i + 1].start);
 
-    if (currentMinutes >= prevLessonEnd && currentMinutes < nextLessonStart) {
-      const gapDuration = nextLessonStart - prevLessonEnd;
+    if (currentMinutes >= prevEnd && currentMinutes < nextStart) {
+      const gap = nextStart - prevEnd;
       const nextLesson = lessons[i + 1];
-
-      // Ardışık iki ders arasında tam 10 dk standart boşluk varsa
-      if (gapDuration === 10) {
-        return {
-          type: 'break',
-          nextLesson,
-          minutesUntilNext: nextLessonStart - currentMinutes,
-        };
-      }
-
-      // 10 dakikadan uzun boşluk
-      return {
-        type: 'free_time',
-        nextLesson,
-        minutesUntilNext: nextLessonStart - currentMinutes,
-      };
+      
+      return gap === 10
+        ? { type: 'break', nextLesson, minutesUntilNext: nextStart - currentMinutes }
+        : { type: 'free_time', nextLesson, minutesUntilNext: nextStart - currentMinutes };
     }
   }
 
