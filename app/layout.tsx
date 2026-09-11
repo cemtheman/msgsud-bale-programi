@@ -4,8 +4,15 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'MSGSÜ Bale Programı',
   description: 'MSGSÜ Bale Anasanat Dalı Ders Programı',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Bale Programı' },
-  icons: { icon: '/icon.svg', apple: '/icon.svg' }
+  appleWebApp: { 
+    capable: true, 
+    statusBarStyle: 'default', 
+    title: 'Bale Programı' 
+  },
+  icons: { 
+    icon: '/icon.svg', 
+    apple: '/apple-touch-icon.png',
+  }
 };
 
 export const viewport: Viewport = {
