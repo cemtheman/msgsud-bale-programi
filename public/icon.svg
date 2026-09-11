@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Background (iOS Safe Area Fill) -->
+  <rect width="512" height="512" rx="112" fill="#FAFAF8"/>
+  
+  <!-- Outer Soft Accent Ring -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#CFE8E5" stroke-width="8" opacity="0.6"/>
+
+  <g transform="translate(136, 96)">
+    <!-- Ribbons (Bale Kurdeleleri) -->
+    <path d="M70 180 C85 130, 115 90, 120 40 C125 90, 155 130, 170 180" 
+          fill="none" stroke="#D94B55" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <path d="M50 160 C80 120, 110 80, 120 20 C130 80, 160 120, 190 160" 
+          fill="none" stroke="#D94B55" stroke-dasharray="8 12" stroke-width="8" stroke-linecap="round" opacity="0.5"/>
+
+    <!-- Pointe Shoes Main Body (Bale Patiği Silüeti) -->
+    <!-- Left Shoe -->
+    <path d="M70 180 C50 230, 52 280, 68 310 C78 328, 92 332, 104 320 C118 304, 122 250, 115 180 Z" 
+          fill="#CFE8E5" stroke="#76AAA5" stroke-width="10" stroke-linejoin="round"/>
+    
+    <!-- Right Shoe -->
+    <path d="M170 180 C190 230, 188 280, 172 310 C162 328, 148 332, 136 320 C122 304, 118 250, 125 180 Z" 
+          fill="#244A47" stroke="#244A47" stroke-width="10" stroke-linejoin="round"/>
+
+    <!-- Shoe Platform Block (Parmak Ucu Platformu) -->
+    <ellipse cx="86" cy="318" rx="14" ry="7" fill="#76AAA5"/>
+    <ellipse cx="154" cy="318" rx="14" ry="7" fill="#1A3735"/>
+
+    <!-- Center Cross Ribbon Knot (Kurdele Düğüm Vurgusu) -->
+    <circle cx="120" cy="180" r="10" fill="#D94B55"/>
+  </g>
+</svg>
