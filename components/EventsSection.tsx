@@ -1,16 +1,38 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { specialEvents, eventTypeLabels } from '@/data/eventsData';
+import { specialEvents, eventTypeLabels, SpecialEvent } from '@/data/eventsData';
 
 export function EventsSection() {
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
   const [showModal, setShowModal] = useState<boolean>(false);
+  const [allEvents, setAllEvents] = useState<SpecialEvent[]>(specialEvents);
 
   useEffect(() => {
+    // 1. LocalStorage ve Notification Kontrolü
     const savedPref = localStorage.getItem('notifications_enabled') === 'true';
     const hasPermission = 'Notification' in window && Notification.permission === 'granted';
     setIsEnabled(savedPref && hasPermission);
+
+    // 2. Google Tatil Takvimini API'den Çekme
+    async function fetchHolidays() {
+      try {
+        const res = await fetch('/api/holidays');
+        if (res.ok) {
+          const fetchedHolidays: SpecialEvent[] = await res.json();
+          
+          // Bugünden sonraki ve yakın tarihli tatilleri alıp mevcut etkinliklerle birleştir
+          const combined = [...specialEvents, ...fetchedHolidays]
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            
+          setAllEvents(combined);
+        }
+      } catch (err) {
+        console.error('Tatiller yüklenirken hata oluştu:', err);
+      }
+    }
+
+    fetchHolidays();
   }, []);
 
   const handleToggleClick = () => {
@@ -49,7 +71,7 @@ export function EventsSection() {
     <div className="space-y-3 relative w-full overflow-hidden">
       <div className="flex justify-between items-center gap-2">
         <h2 className="text-[11px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate">
-          Yaklaşan Etkinlikler
+          Yaklaşan Etkinlikler & Tatiller
         </h2>
         
         <button
@@ -66,13 +88,18 @@ export function EventsSection() {
 
       {/* Kart Listesi */}
       <div className="space-y-2 w-full">
-        {specialEvents.length === 0 ? (
+        {allEvents.length === 0 ? (
           <div className="py-6 text-center text-xs font-medium text-gray-400">
-            Yaklaşan özel etkinlik bulunmuyor.
+            Yaklaşan etkinlik veya tatil bulunmuyor.
           </div>
         ) : (
-          specialEvents.map((event) => {
-            const badge = eventTypeLabels[event.type];
+          allEvents.map((event) => {
+            const badge = eventTypeLabels[event.type] || {
+              label: 'TATİL',
+              bg: 'bg-blue-500/10 dark:bg-blue-500/20',
+              text: 'text-blue-600 dark:text-blue-400',
+            };
+
             return (
               <div
                 key={event.id}
