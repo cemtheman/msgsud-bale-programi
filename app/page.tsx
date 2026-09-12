@@ -1,80 +1,89 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Header } from '@/components/Header';
+import { useState } from 'react';
+import { useNow } from '@/hooks/useNow';
+import { getIstanbulDate } from '@/utils/time';
+import { calculateStatus } from '@/utils/status';
+import { getLessonsForDay } from '@/utils/schedule';
+import { Lesson } from '@/types/schedule';
+
 import { TodayPage } from '@/components/TodayPage';
 import { WeeklyPage } from '@/components/WeeklyPage';
-import { EventsPage } from '@/components/EventsPage';
+import { EventsPage } from '@/components/EventsPage'; // YENİ EKLENDİ
+import { LiveTimeline } from '@/components/LiveTimeline';
+import { LessonDetailSheet } from '@/components/LessonDetailSheet';
 import { BottomNavigation } from '@/components/BottomNavigation';
-import { scheduleData } from '@/data/scheduleData';
-
-// TS hatalarını ezip geçmek ve çalışma anı çökmelerini önlemek için güvenli kapsayıcı
-const SafeTodayPage = TodayPage as any;
 
 export default function Home() {
+  const now = useNow();
+
+  // YENİ EKLENDİ: 'events' sekmesi eklendi
   const [activeTab, setActiveTab] = useState<'today' | 'weekly' | 'events'>('today');
-  const [timeState, setTimeState] = useState({ date: '', time: '' });
+  const [showTimeline, setShowTimeline] = useState<boolean>(false);
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
 
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      const formattedDate = now.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' });
-      const formattedTime = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-      setTimeState({ date: formattedDate, time: formattedTime });
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const safeScheduleData: any = scheduleData;
-  const todayDayName = new Date().toLocaleDateString('tr-TR', { weekday: 'long' });
-
-  let todayLessons: any[] = [];
-  if (Array.isArray(safeScheduleData)) {
-    todayLessons = safeScheduleData.find((item: any) => item?.day?.toLowerCase() === todayDayName.toLowerCase())?.lessons || [];
-  } else {
-    todayLessons = safeScheduleData[todayDayName] || [];
+  if (!now) {
+    return (
+      <div className="w-full min-h-screen flex items-center justify-center text-sm font-semibold text-gray-400 animate-pulse">
+        Yükleniyor...
+      </div>
+    );
   }
 
-  const hasLesson = todayLessons.length > 0;
-  
-  const status: any = {
-    type: hasLesson ? 'has-lesson' : 'no-lesson',
-    title: hasLesson ? `${todayLessons.length} DERS VAR` : 'BUGÜN DERS YOK',
-    subtitle: hasLesson ? `Bugün ${todayLessons.length} dersiniz bulunmaktadır.` : 'Sıradaki ders: Türkçe (Pazartesi)',
-  };
+  const { dayKey, formattedDate, formattedTime, totalMinutes } = getIstanbulDate(now);
+  const status = calculateStatus(dayKey, totalMinutes);
+  const todayLessons = getLessonsForDay(dayKey);
 
   return (
-    <main className="flex-1 space-y-4 pb-4">
-      {/* 1. ÇÖZÜM: Çift başlığı engellemek için TodayPage dışındaki sekmelerde Header gösteriyoruz */}
-      {activeTab !== 'today' && (
-        <Header formattedDate={timeState.date} formattedTime={timeState.time} />
+    <main className="w-full flex-1 px-4 pt-6 pb-28">
+      {showTimeline ? (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex justify-between items-center">
+            <button 
+              onClick={() => setShowTimeline(false)} 
+              className="text-xs font-bold text-gray-500 hover:text-gray-900 flex items-center gap-1"
+            >
+              ← Geri
+            </button>
+            <h1 className="text-sm font-bold text-gray-900">Canlı Zaman Çizelgesi</h1>
+            <div className="w-8" />
+          </div>
+          <LiveTimeline lessons={todayLessons} currentMinutes={totalMinutes} onSelectLesson={setSelectedLesson} />
+        </div>
+      ) : (
+        <>
+          {activeTab === 'today' && (
+            <TodayPage 
+              formattedDate={formattedDate} 
+              formattedTime={formattedTime} 
+              status={status} 
+              todayLessons={todayLessons} 
+              currentMinutes={totalMinutes} 
+              onSelectLesson={setSelectedLesson} 
+              onOpenTimeline={() => setShowTimeline(true)} 
+            />
+          )}
+          {activeTab === 'weekly' && (
+            <WeeklyPage todayDayKey={dayKey} onSelectLesson={setSelectedLesson} />
+          )}
+          {/* YENİ EKLENDİ: Etkinlikler Sayfası */}
+          {activeTab === 'events' && (
+            <EventsPage />
+          )}
+        </>
       )}
 
-      {activeTab === 'today' && (
-        <SafeTodayPage
-          formattedDate={timeState.date}
-          formattedTime={timeState.time}
-          status={status}
-          todayLessons={todayLessons}
-          scheduleData={safeScheduleData}
-          onNavigateToWeekly={() => setActiveTab('weekly')}
-          // 2. ÇÖZÜM: Bileşen çökmesin diye eksik olabilecek proplara boş/güvenli değerler atıyoruz
-          currentLesson={null}
-          nextLesson={null}
+      <LessonDetailSheet lesson={selectedLesson} status={status} onClose={() => setSelectedLesson(null)} />
+
+      {!showTimeline && (
+        <BottomNavigation 
+          activeTab={activeTab} 
+          setActiveTab={(tab) => { 
+            setActiveTab(tab); 
+            setShowTimeline(false); 
+          }} 
         />
       )}
-
-      {activeTab === 'weekly' && <WeeklyPage />}
-      
-      {activeTab === 'events' && (
-        <div className="pt-2">
-          <EventsPage />
-        </div>
-      )}
-
-      <BottomNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
     </main>
   );
 }
