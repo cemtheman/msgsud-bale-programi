@@ -15,28 +15,5 @@ export const eventTypeLabels: Record<SpecialEvent['type'], { label: string; bg: 
   holiday: { label: 'TATİL', bg: 'bg-blue-500/10 dark:bg-blue-500/20', text: 'text-blue-600 dark:text-blue-400' },
 };
 
-export const specialEvents: SpecialEvent[] = [
-  {
-    id: '1',
-    title: 'Genel Prova - Fındıkkıran',
-    date: '2026-09-25',
-    time: '14:00',
-    type: 'rehearsal',
-    location: 'Ana Sahne',
-    description: 'Tüm kadro kostümlü katılım zorunludur.',
-  },
-  {
-    id: '2',
-    title: 'Yıl İçi Sahne Temsili',
-    date: '2026-10-12',
-    time: '19:00',
-    type: 'performance',
-    location: 'MSGSÜ Kültür Merkezi',
-  },
-  {
-    id: '3',
-    title: 'Cumhuriyet Bayramı Tatili',
-    date: '2026-10-29',
-    type: 'holiday',
-  },
-];
+// Gerçek duyurular geldikçe buraya eklenebilir
+export const specialEvents: SpecialEvent[] = [];
