@@ -202,30 +202,33 @@ export function EventsPage() {
     URL.revokeObjectURL(url);
   };
 
-  // --- WhatsApp / Metin Olarak Paylaş Fonksiyonu ---
+  // --- Yalnızca Özel Etkinlikleri WhatsApp / Metin Olarak Paylaş ---
   const handleShareText = () => {
-    let text = "🩰 *MSGSÜ 5. Sınıf Bale - Etkinlik & Takvim Özeti*\n\n";
+    const localData = localStorage.getItem('custom_events');
+    const customEvents: SpecialEvent[] = localData ? JSON.parse(localData) : [];
 
-    if (allEvents.length === 0) {
-      text += "Kayıtlı etkinlik bulunmuyor.";
+    let text = "🩰 *MSGSÜ 5. Sınıf Bale - Özel Etkinlikler*\n\n";
+
+    if (customEvents.length === 0) {
+      text += "Kayıtlı özel etkinlik bulunmuyor.";
     } else {
-      allEvents.slice(0, 5).forEach((ev) => {
+      customEvents.forEach((ev) => {
         text += `📅 *${ev.title}*\n`;
         text += `   • Tarih: ${ev.date} ${ev.time ? `· ${ev.time}` : ''}\n`;
         if (ev.location) text += `   • Konum: ${ev.location}\n`;
+        if (ev.description) text += `   • Not: ${ev.description}\n`;
         text += "\n";
       });
-      text += "_...ve diğer güncel etkinlikler._";
     }
 
     if (navigator.share) {
       navigator.share({
-        title: 'MSGSÜ Bale Etkinlikleri',
+        title: 'Özel Etkinlikler',
         text: text,
       }).catch(() => {});
     } else {
       navigator.clipboard.writeText(text);
-      alert('Etkinlik listesi panoya kopyalandı! İstediğiniz yere yapıştırabilirsiniz.');
+      alert('Özel etkinlikler listesi panoya kopyalandı!');
     }
   };
 
