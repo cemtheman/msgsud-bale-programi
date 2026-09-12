@@ -1,5 +1,5 @@
 import { ComputedStatus, Lesson } from '@/types/schedule';
-import { StatusCard } from './StatusCard';
+import { StatusBanner } from './StatusBanner';
 import { LessonCard } from './LessonCard';
 import { Header } from './Header';
 
@@ -28,7 +28,7 @@ export function TodayPage({
       <Header formattedDate={formattedDate} formattedTime={formattedTime} />
 
       {/* Durum Kartı */}
-      <StatusCard status={status} />
+      <StatusBanner status={status} />
 
       {/* Bugünün Programı Listesi */}
       <div className="space-y-3">
