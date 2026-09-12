@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    const calendarUrl = 'https://calendar.google.com/calendar/ical/en.turkish%23holiday%40group.v.calendar.google.com/public/basic.ics';
-    
+    const calendarUrl = 'https://calendar.google.com/calendar/ical/tr.turkish%23holiday%40group.v.calendar.google.com/public/basic.ics';
     const response = await fetch(calendarUrl, {
       next: { revalidate: 86400 } // 24 saat önbellek
     });
