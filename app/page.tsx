@@ -15,7 +15,6 @@ import { LessonDetailSheet } from '@/components/LessonDetailSheet';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { DailyReminderBanner } from '@/components/DailyReminderBanner';
 import { InstallPromptBanner } from '@/components/InstallPromptBanner';
-import { scheduleData } from '@/data/scheduleData';
 
 export default function Home() {
   const now = useNow();
@@ -35,6 +34,9 @@ export default function Home() {
   const { dayKey, formattedDate, formattedTime, totalMinutes } = getIstanbulDate(now);
   const status = calculateStatus(dayKey, totalMinutes);
   const todayLessons = getLessonsForDay(dayKey);
+
+  // Hafta sonu kontrolü (Cumartesi veya Pazar)
+  const isWeekend = dayKey === 'saturday' || dayKey === 'sunday';
 
   // Widget için anlık hesaplama
   const currentHours = now.getHours().toString().padStart(2, '0');
@@ -58,8 +60,8 @@ export default function Home() {
       {/* Günlük Hatırlatıcı Bant */}
       <DailyReminderBanner />
 
-      {/* Sıradaki Ders / Canlı Widget Kartı (Sadece Bugün sekmesinde ve zaman çizelgesi kapalıyken görünür) */}
-      {!showTimeline && activeTab === 'today' && (
+      {/* Sıradaki Ders / Canlı Widget Kartı (Sadece hafta içi günlerde görünür) */}
+      {!showTimeline && activeTab === 'today' && !isWeekend && (
         <div className="w-full bg-gradient-to-br from-[#D94B55]/15 via-rose-500/5 to-transparent dark:from-[#D94B55]/25 dark:via-rose-950/20 p-4 rounded-3xl border border-[#D94B55]/20 shadow-sm backdrop-blur-md mb-3.5">
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-1.5">
@@ -95,7 +97,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="py-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
-              Bugün için başka ders kalmadı veya tatil günündesiniz. 🎉
+              Bugün için başka ders kalmadı. 🎉
             </div>
           )}
         </div>
