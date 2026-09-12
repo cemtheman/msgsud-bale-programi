@@ -5,7 +5,7 @@ import { Header } from '@/components/Header';
 import { TodayPage } from '@/components/TodayPage';
 import { WeeklyPage } from '@/components/WeeklyPage';
 import { EventsPage } from '@/components/EventsPage';
-import { BottomNav } from '@/components/BottomNav';
+import { BottomNavigation } from '@/components/BottomNavigation';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'today' | 'weekly' | 'events'>('today');
@@ -42,7 +42,7 @@ export default function Home() {
       {activeTab === 'weekly' && <WeeklyPage />}
       {activeTab === 'events' && <EventsPage />}
 
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <BottomNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
     </main>
   );
 }

@@ -1,11 +1,11 @@
 'use client';
 
-interface BottomNavProps {
+interface BottomNavigationProps {
   activeTab: 'today' | 'weekly' | 'events';
   setActiveTab: (tab: 'today' | 'weekly' | 'events') => void;
 }
 
-export function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
+export function BottomNavigation({ activeTab, setActiveTab }: BottomNavigationProps) {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pb-safe bg-white/80 dark:bg-[#1C1C1E]/80 backdrop-blur-md border-t border-black/5 dark:border-white/10">
       <div className="w-full max-w-[480px] flex justify-around items-center h-16 px-4">
