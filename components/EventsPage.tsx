@@ -117,9 +117,6 @@ export function EventsPage() {
     loadAllEvents();
   };
 
-  // --- YEDEKLEME VE GERİ YÜKLEME FONKSİYONLARI ---
-
-  // 1. JSON Olarak Dışa Aktar (Yedek Al)
   const handleExportJson = () => {
     const localData = localStorage.getItem('custom_events');
     if (!localData || JSON.parse(localData).length === 0) {
@@ -136,7 +133,6 @@ export function EventsPage() {
     URL.revokeObjectURL(url);
   };
 
-  // 2. JSON Dosyasından Geri Yükle (İçe Aktar)
   const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -146,11 +142,9 @@ export function EventsPage() {
       try {
         const importedEvents = JSON.parse(event.target?.result as string);
         if (Array.isArray(importedEvents)) {
-          // Mevcutlarla birleştir veya üzerine yaz (Burada güvenli olması için birleştiriyoruz)
           const localData = localStorage.getItem('custom_events');
           const currentEvents: SpecialEvent[] = localData ? JSON.parse(localData) : [];
           
-          // ID çakışmalarını önleyerek birleştir
           const merged = [...currentEvents];
           importedEvents.forEach((imp: SpecialEvent) => {
             if (!merged.some((existing) => existing.id === imp.id || (existing.date === imp.date && existing.title === imp.title))) {
@@ -169,11 +163,9 @@ export function EventsPage() {
       }
     };
     reader.readAsText(file);
-    // Aynı dosyayı tekrar seçebilmek için input'u sıfırla
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // 3. iCal (.ics) Formatında Dışa Aktar (Telefon Takvimiyle Entegrasyon)
   const handleExportIcal = () => {
     const localData = localStorage.getItem('custom_events');
     const customEvents: SpecialEvent[] = localData ? JSON.parse(localData) : [];
@@ -211,11 +203,11 @@ export function EventsPage() {
   };
 
   return (
-    <div className="space-y-4 w-full">
+    <div className="space-y-3.5 w-full">
       {/* Başlık & Ana Butonlar */}
       <div className="flex justify-between items-center gap-2">
         <div className="flex items-center gap-2">
-          <h2 className="text-base font-bold text-gray-900 dark:text-white">
+          <h2 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
             Etkinlik Takvimi
           </h2>
           <button
@@ -229,30 +221,30 @@ export function EventsPage() {
 
         <button
           onClick={handleToggleNotification}
-          className={`text-xs font-bold px-3 py-1.5 rounded-full transition-all shrink-0 flex items-center gap-1 ${
+          className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-all shrink-0 flex items-center gap-1 ${
             isEnabled
               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
               : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 border border-black/5 dark:border-white/10'
           }`}
         >
-          {isEnabled ? '🔔 Bildirimler Açık' : '🔕 Bildirimleri Aç'}
+          {isEnabled ? '🔔 Bildirimler Açık' : '🔕 Bildirimi Aç'}
         </button>
       </div>
 
-      {/* Yedekleme ve Takvim Entegrasyon Araç Çubuğu */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 text-[11px] font-semibold">
+      {/* Taşmayı Önleyen Kompakt Yedekleme Çubuğu */}
+      <div className="grid grid-cols-3 gap-1.5 text-[11px] font-semibold w-full">
         <button
           onClick={handleExportJson}
-          className="px-3 py-1.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl border border-black/5 dark:border-white/10 shrink-0 transition-colors flex items-center gap-1"
+          className="py-2 px-1 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl border border-black/5 dark:border-white/10 text-center truncate transition-colors"
         >
-          💾 Yedek İndir (JSON)
+          💾 Yedek Al
         </button>
 
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="px-3 py-1.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl border border-black/5 dark:border-white/10 shrink-0 transition-colors flex items-center gap-1"
+          className="py-2 px-1 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl border border-black/5 dark:border-white/10 text-center truncate transition-colors"
         >
-          📂 Geri Yükle
+          📂 Yükle
         </button>
         <input 
           type="file" 
@@ -264,16 +256,16 @@ export function EventsPage() {
 
         <button
           onClick={handleExportIcal}
-          className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-500/20 shrink-0 transition-colors flex items-center gap-1"
+          className="py-2 px-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-500/20 text-center truncate transition-colors"
         >
-          📅 Takvime Aktar (.ics)
+          📅 Takvim
         </button>
       </div>
 
       {/* Kart Listesi */}
       <div className="space-y-2.5 w-full">
         {allEvents.length === 0 ? (
-          <div className="py-12 text-center text-xs font-medium text-gray-400 bg-white dark:bg-[#1C1C1E] rounded-2xl border border-black/5 dark:border-white/10">
+          <div className="py-10 text-center text-xs font-medium text-gray-400 bg-white dark:bg-[#1C1C1E] rounded-2xl border border-black/5 dark:border-white/10">
             Yaklaşan özel etkinlik veya tatil bulunmuyor.
           </div>
         ) : (
@@ -289,7 +281,7 @@ export function EventsPage() {
             return (
               <div
                 key={event.id}
-                className="p-4 bg-white dark:bg-[#1C1C1E] rounded-2xl border border-black/5 dark:border-white/10 shadow-sm transition-colors w-full"
+                className="p-3.5 bg-white dark:bg-[#1C1C1E] rounded-2xl border border-black/5 dark:border-white/10 shadow-sm transition-colors w-full"
               >
                 <div className="flex justify-between items-start gap-2">
                   <div className="space-y-1 w-full min-w-0">
@@ -301,11 +293,11 @@ export function EventsPage() {
                         {event.date} {event.time ? `· ${event.time}` : ''}
                       </span>
                     </div>
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
                       {event.title}
                     </h3>
                     {event.description && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
                         {event.description}
                       </p>
                     )}
@@ -335,11 +327,11 @@ export function EventsPage() {
         )}
       </div>
 
-      {/* Form Modalı */}
+      {/* Mobile Tam Oturan Kaydırılabilir Form Modalı */}
       {showAddEventModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-[320px] bg-white dark:bg-[#1C1C1E] rounded-3xl p-5 shadow-2xl border border-black/10 dark:border-white/10 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center pb-1 border-b border-black/5 dark:border-white/10">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-[320px] bg-white dark:bg-[#1C1C1E] rounded-3xl p-4 shadow-2xl border border-black/10 dark:border-white/10 space-y-2.5 max-h-[85vh] overflow-y-auto box-border">
+            <div className="flex justify-between items-center pb-2 border-b border-black/5 dark:border-white/10">
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                 Yeni Etkinlik Ekle
               </h3>
@@ -351,7 +343,7 @@ export function EventsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleAddEventSubmit} className="space-y-2.5 text-xs">
+            <form onSubmit={handleAddEventSubmit} className="space-y-2 text-xs">
               <div>
                 <label className="block text-gray-500 font-semibold mb-1">Başlık *</label>
                 <input
@@ -360,7 +352,7 @@ export function EventsPage() {
                   placeholder="örn: Fındıkkıran Genel Provası"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
+                  className="w-full box-border px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
                 />
               </div>
 
@@ -371,7 +363,7 @@ export function EventsPage() {
                   required
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
+                  className="w-full box-border px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55] appearance-none"
                 />
               </div>
 
@@ -381,7 +373,7 @@ export function EventsPage() {
                   type="time"
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
+                  className="w-full box-border px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55] appearance-none"
                 />
               </div>
 
@@ -390,7 +382,7 @@ export function EventsPage() {
                 <select
                   value={type}
                   onChange={(e) => setType(e.target.value as SpecialEvent['type'])}
-                  className="w-full p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
+                  className="w-full box-border px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
                 >
                   <option value="rehearsal">PROVA</option>
                   <option value="performance">TEMSİL</option>
@@ -406,7 +398,7 @@ export function EventsPage() {
                   placeholder="örn: Ana Sahne"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
+                  className="w-full box-border px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
                 />
               </div>
 
@@ -417,7 +409,7 @@ export function EventsPage() {
                   placeholder="örn: Kostümlü katılım zorunludur"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
+                  className="w-full box-border px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
                 />
               </div>
 
@@ -425,13 +417,13 @@ export function EventsPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddEventModal(false)}
-                  className="flex-1 py-2.5 rounded-xl font-bold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300"
+                  className="flex-1 py-2 rounded-xl font-bold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300"
                 >
                   İptal
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl font-bold bg-[#D94B55] text-white hover:bg-[#c03d47]"
+                  className="flex-1 py-2 rounded-xl font-bold bg-[#D94B55] text-white hover:bg-[#c03d47]"
                 >
                   Kaydet
                 </button>
@@ -443,7 +435,7 @@ export function EventsPage() {
 
       {/* Bildirim İzin Modalı */}
       {showNotificationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-[300px] bg-white dark:bg-[#1C1C1E] rounded-3xl p-5 shadow-2xl border border-black/10 dark:border-white/10 space-y-4 text-center">
             <div className="w-12 h-12 bg-[#D94B55]/10 text-[#D94B55] rounded-full flex items-center justify-center mx-auto text-2xl">
               🔔
