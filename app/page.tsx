@@ -81,18 +81,18 @@ export default function Home() {
           {activeOrNext ? (
             <div className="flex justify-between items-end">
               <div className="space-y-0.5">
-                <h3 className="text-base font-extrabold text-gray-900 dark:text-white">
-                  {activeOrNext.subject}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300">
+                    {activeOrNext.start} - {activeOrNext.end}
+                  </span>
+                  <h3 className="text-base font-extrabold text-gray-900 dark:text-white">
+                    {activeOrNext.subject}
+                  </h3>
+                </div>
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
                   {activeOrNext.teacher ? `👨‍🏫 ${activeOrNext.teacher} · ` : ''}
                   {activeOrNext.location ? `📍 ${activeOrNext.location}` : '📍 B1-105A'}
                 </p>
-              </div>
-              <div className="text-right">
-                <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-white/80 dark:bg-black/30 text-gray-700 dark:text-gray-300 border border-black/5 dark:border-white/10 shadow-xs">
-                  {activeOrNext.start} - {activeOrNext.end}
-                </span>
               </div>
             </div>
           ) : (
