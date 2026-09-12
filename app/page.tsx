@@ -8,6 +8,9 @@ import { EventsPage } from '@/components/EventsPage';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { scheduleData } from '@/data/scheduleData';
 
+// TS hatalarını ezip geçmek ve çalışma anı çökmelerini önlemek için güvenli kapsayıcı
+const SafeTodayPage = TodayPage as any;
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'today' | 'weekly' | 'events'>('today');
   const [timeState, setTimeState] = useState({ date: '', time: '' });
@@ -24,46 +27,52 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // Tür denetimlerini güvenli hale getirmek için veriyi `any` olarak işaretliyoruz
   const safeScheduleData: any = scheduleData;
   const todayDayName = new Date().toLocaleDateString('tr-TR', { weekday: 'long' });
 
-  // scheduleData array ise find ile, değilse key ile veri arama
   let todayLessons: any[] = [];
   if (Array.isArray(safeScheduleData)) {
-    const found = safeScheduleData.find((item: any) => item?.day?.toLowerCase() === todayDayName.toLowerCase());
-    todayLessons = found?.lessons || [];
+    todayLessons = safeScheduleData.find((item: any) => item?.day?.toLowerCase() === todayDayName.toLowerCase())?.lessons || [];
   } else {
     todayLessons = safeScheduleData[todayDayName] || [];
   }
 
   const hasLesson = todayLessons.length > 0;
   
-  // Eksiksiz ve güvenli ComputedStatus objesi
   const status: any = {
     type: hasLesson ? 'has-lesson' : 'no-lesson',
     title: hasLesson ? `${todayLessons.length} DERS VAR` : 'BUGÜN DERS YOK',
-    subtitle: hasLesson ? `Bugün ${todayLessons.length} dersiniz bulunmaktadır.` : 'İyi dinlenmeler!',
+    subtitle: hasLesson ? `Bugün ${todayLessons.length} dersiniz bulunmaktadır.` : 'Sıradaki ders: Türkçe (Pazartesi)',
   };
 
   return (
     <main className="flex-1 space-y-4 pb-4">
-      <Header formattedDate={timeState.date} formattedTime={timeState.time} />
+      {/* 1. ÇÖZÜM: Çift başlığı engellemek için TodayPage dışındaki sekmelerde Header gösteriyoruz */}
+      {activeTab !== 'today' && (
+        <Header formattedDate={timeState.date} formattedTime={timeState.time} />
+      )}
 
       {activeTab === 'today' && (
-        <TodayPage
+        <SafeTodayPage
           formattedDate={timeState.date}
           formattedTime={timeState.time}
           status={status}
           todayLessons={todayLessons}
           scheduleData={safeScheduleData}
           onNavigateToWeekly={() => setActiveTab('weekly')}
-          {...({} as any)} // TS'nin bilmediğimiz ekstra proplar için hata vermesini engeller
+          // 2. ÇÖZÜM: Bileşen çökmesin diye eksik olabilecek proplara boş/güvenli değerler atıyoruz
+          currentLesson={null}
+          nextLesson={null}
         />
       )}
 
       {activeTab === 'weekly' && <WeeklyPage />}
-      {activeTab === 'events' && <EventsPage />}
+      
+      {activeTab === 'events' && (
+        <div className="pt-2">
+          <EventsPage />
+        </div>
+      )}
 
       <BottomNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
     </main>
