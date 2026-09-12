@@ -6,6 +6,7 @@ import { getIstanbulDate } from '@/utils/time';
 import { calculateStatus } from '@/utils/status';
 import { getLessonsForDay } from '@/utils/schedule';
 import { Lesson } from '@/types/schedule';
+import { scheduleData } from '@/data/scheduleData';
 
 import { TodayPage } from '@/components/TodayPage';
 import { WeeklyPage } from '@/components/WeeklyPage';
@@ -46,10 +47,34 @@ export default function Home() {
   const currentLesson = todayLessons.find(
     (lesson) => nowStr >= lesson.start && nowStr <= lesson.end
   );
-  const nextLesson = todayLessons.find(
+  const nextLessonToday = todayLessons.find(
     (lesson) => lesson.start > nowStr
   );
-  const activeOrNext = currentLesson || nextLesson;
+
+  let activeOrNext: Lesson | undefined = currentLesson || nextLessonToday;
+  let labelPrefix = currentLesson ? 'Şu An Devam Ediyor' : 'Sıradaki Ders';
+  let isTomorrow = false;
+
+  // Eğer bugün için başka ders kalmadıysa yarının ilk dersini bul
+  if (!activeOrNext && !isWeekend) {
+    const daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
+    const currentDayIndex = daysOrder.indexOf(dayKey as any);
+    if (currentDayIndex !== -1 && currentDayIndex < daysOrder.length - 1) {
+      const tomorrowKey = daysOrder[currentDayIndex + 1];
+      const rawTomorrowLessons = scheduleData.schedule[tomorrowKey] || [];
+      if (rawTomorrowLessons.length > 0) {
+        const firstRaw = rawTomorrowLessons[0];
+        // Ham veriye güvenli bir şekilde id ekleyerek Lesson tipine dönüştürüyoruz
+        activeOrNext = {
+          ...firstRaw,
+          id: `tomorrow-${tomorrowKey}-0`,
+        };
+        labelPrefix = 'Sıradaki Ders';
+        isTomorrow = true;
+      }
+    }
+  }
+
   const isOngoing = Boolean(currentLesson);
 
   return (
@@ -70,7 +95,7 @@ export default function Home() {
                 <span className={`relative inline-flex rounded-full h-2 w-2 ${isOngoing ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
               </span>
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#D94B55] dark:text-rose-400">
-                {isOngoing ? 'Şu An Devam Ediyor' : 'Sıradaki Ders'}
+                {labelPrefix}
               </span>
             </div>
             <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
@@ -83,7 +108,7 @@ export default function Home() {
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300">
-                    {activeOrNext.start} - {activeOrNext.end}
+                    {activeOrNext.start} - {activeOrNext.end} {isTomorrow ? '(Yarın)' : ''}
                   </span>
                   <h3 className="text-base font-extrabold text-gray-900 dark:text-white">
                     {activeOrNext.subject}
