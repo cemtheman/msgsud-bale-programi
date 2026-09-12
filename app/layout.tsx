@@ -11,10 +11,7 @@ export const metadata: Metadata = {
   },
   icons: { 
     icon: '/icon.svg', 
-    shortcut: '/icon.svg',
-    apple: [
-      { url: '/apple-touch-icon.png?v=2', sizes: '180x180', type: 'image/png' },
-    ],
+    apple: '/apple-touch-icon.png',
   }
 };
 
@@ -29,9 +26,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="tr" className="bg-[#FAFAF8] text-gray-900 antialiased h-full">
-      <body className="min-h-full flex justify-center bg-[#FAFAF8]">
-        <div className="w-full max-w-[480px] min-h-screen bg-[#FAFAF8] flex flex-col shadow-sm border-x border-black/5">
+    <html lang="tr" className="bg-[#FAFAF8] dark:bg-[#121212] text-gray-900 dark:text-gray-100 antialiased h-full">
+      <body className="min-h-full flex justify-center bg-[#FAFAF8] dark:bg-[#121212] transition-colors duration-200">
+        <div className="w-full max-w-[480px] min-h-screen bg-[#FAFAF8] dark:bg-[#121212] flex flex-col shadow-sm border-x border-black/5 dark:border-white/5">
           {children}
         </div>
       </body>
