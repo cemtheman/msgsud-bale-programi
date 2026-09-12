@@ -9,15 +9,15 @@ import { Lesson } from '@/types/schedule';
 
 import { TodayPage } from '@/components/TodayPage';
 import { WeeklyPage } from '@/components/WeeklyPage';
-import { EventsPage } from '@/components/EventsPage'; // YENİ EKLENDİ
+import { EventsPage } from '@/components/EventsPage';
 import { LiveTimeline } from '@/components/LiveTimeline';
 import { LessonDetailSheet } from '@/components/LessonDetailSheet';
 import { BottomNavigation } from '@/components/BottomNavigation';
+import { NotificationManager } from '@/components/NotificationManager';
 
 export default function Home() {
   const now = useNow();
 
-  // YENİ EKLENDİ: 'events' sekmesi eklendi
   const [activeTab, setActiveTab] = useState<'today' | 'weekly' | 'events'>('today');
   const [showTimeline, setShowTimeline] = useState<boolean>(false);
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
@@ -36,6 +36,9 @@ export default function Home() {
 
   return (
     <main className="w-full flex-1 px-4 pt-6 pb-28">
+      {/* Arka plan bildirim yöneticisi (Görünmez) */}
+      <NotificationManager />
+
       {showTimeline ? (
         <div className="space-y-4 animate-fade-in">
           <div className="flex justify-between items-center">
@@ -66,7 +69,6 @@ export default function Home() {
           {activeTab === 'weekly' && (
             <WeeklyPage todayDayKey={dayKey} onSelectLesson={setSelectedLesson} />
           )}
-          {/* YENİ EKLENDİ: Etkinlikler Sayfası */}
           {activeTab === 'events' && (
             <EventsPage />
           )}
