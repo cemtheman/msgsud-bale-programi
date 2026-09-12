@@ -21,23 +21,35 @@ export function TodayPage({
   onSelectLesson,
   onOpenTimeline,
 }: TodayPageProps) {
-  // Bugün ders yoksa veya gün bittiyse yarının ilk dersini bul
-  let nextDayFirstLesson: { subject: string; start: string } | null = null;
+  
+  let nextDayFirstLesson: { subject: string; start: string; dayLabel: string } | null = null;
 
+  // Dinamik sonraki gün hesaplama
   if (status.type === 'no_school' || status.type === 'finished') {
-    const tomorrowKey = 'monday';
+    const todayIndex = new Date().getDay(); // 0: Pazar, 1: Pzt, ..., 6: Cmt
+    let tomorrowKey: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' = 'monday';
+    let dayLabel = 'Yarın';
+
+    if (todayIndex === 1) tomorrowKey = 'tuesday';
+    else if (todayIndex === 2) tomorrowKey = 'wednesday';
+    else if (todayIndex === 3) tomorrowKey = 'thursday';
+    else if (todayIndex === 4) tomorrowKey = 'friday';
+    else if (todayIndex === 5) { tomorrowKey = 'monday'; dayLabel = 'Pazartesi'; }
+    else if (todayIndex === 6) { tomorrowKey = 'monday'; dayLabel = 'Pazartesi'; }
+    else if (todayIndex === 0) { tomorrowKey = 'monday'; dayLabel = 'Yarın'; }
+
     const rawLessons = scheduleData.schedule[tomorrowKey] || [];
     if (rawLessons.length > 0) {
       nextDayFirstLesson = {
         subject: rawLessons[0].subject,
         start: rawLessons[0].start,
+        dayLabel,
       };
     }
   }
 
   return (
     <div className="space-y-4">
-      {/* Üst Bilgi Kartı */}
       <div className="flex justify-between items-center px-1">
         <div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -55,7 +67,6 @@ export function TodayPage({
         </div>
       </div>
 
-      {/* Durum Kartı */}
       <div className="bg-white dark:bg-[#1C1C1E] p-4 rounded-3xl border border-black/5 dark:border-white/10 shadow-sm space-y-1">
         <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">
           PROGRAMA GÖRE
@@ -70,10 +81,9 @@ export function TodayPage({
           {status.type === 'finished' && 'BUGÜNKÜ DERSLER BİTTİ'}
         </h2>
 
-        {/* Yarınki veya Sıradaki Ders Bilgisi + Başlangıç Saati */}
         {nextDayFirstLesson && (
           <p className="text-xs text-gray-500 dark:text-gray-400 pt-0.5">
-            Sıradaki ders: <span className="font-bold text-gray-800 dark:text-gray-200">{nextDayFirstLesson.subject}</span> (Yarın {nextDayFirstLesson.start})
+            Sıradaki ders: <span className="font-bold text-gray-800 dark:text-gray-200">{nextDayFirstLesson.subject}</span> ({nextDayFirstLesson.dayLabel} {nextDayFirstLesson.start})
           </p>
         )}
 
@@ -84,7 +94,6 @@ export function TodayPage({
         )}
       </div>
 
-      {/* Bugünün Ders Listesi veya Boş Durum */}
       <div className="space-y-2">
         <div className="flex justify-between items-center px-1">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
