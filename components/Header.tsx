@@ -13,10 +13,10 @@ export function Header({ formattedDate, formattedTime }: HeaderProps) {
   return (
     <div className="flex justify-between items-start">
       <div>
-        <h1 className="text-xl font-black tracking-tight text-gray-900 dark:text-white">
+        <h1 className="text-xl font-black tracking-tight text-gray-900 dark:!text-white">
           {formattedDate}
         </h1>
-        <p className="text-xs font-semibold text-gray-400 dark:text-gray-400">
+        <p className="text-xs font-semibold text-gray-400 dark:!text-gray-400">
           MSGSÜ Bale Programı
         </p>
       </div>
@@ -30,7 +30,7 @@ export function Header({ formattedDate, formattedTime }: HeaderProps) {
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
 
-        <span className="text-xl font-black tracking-tight text-gray-900 dark:text-white">
+        <span className="text-xl font-black tracking-tight text-gray-900 dark:!text-white">
           {formattedTime}
         </span>
       </div>
