@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { specialEvents, eventTypeLabels, SpecialEvent } from '@/data/eventsData';
 
 export function EventsPage() {
@@ -8,6 +8,7 @@ export function EventsPage() {
   const [showNotificationModal, setShowNotificationModal] = useState<boolean>(false);
   const [showAddEventModal, setShowAddEventModal] = useState<boolean>(false);
   const [allEvents, setAllEvents] = useState<SpecialEvent[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -116,9 +117,102 @@ export function EventsPage() {
     loadAllEvents();
   };
 
+  // --- YEDEKLEME VE GERİ YÜKLEME FONKSİYONLARI ---
+
+  // 1. JSON Olarak Dışa Aktar (Yedek Al)
+  const handleExportJson = () => {
+    const localData = localStorage.getItem('custom_events');
+    if (!localData || JSON.parse(localData).length === 0) {
+      alert('Dışa aktarılacak özel etkinlik bulunmuyor.');
+      return;
+    }
+
+    const blob = new Blob([localData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `msgsud-bale-etkinlikler-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // 2. JSON Dosyasından Geri Yükle (İçe Aktar)
+  const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const importedEvents = JSON.parse(event.target?.result as string);
+        if (Array.isArray(importedEvents)) {
+          // Mevcutlarla birleştir veya üzerine yaz (Burada güvenli olması için birleştiriyoruz)
+          const localData = localStorage.getItem('custom_events');
+          const currentEvents: SpecialEvent[] = localData ? JSON.parse(localData) : [];
+          
+          // ID çakışmalarını önleyerek birleştir
+          const merged = [...currentEvents];
+          importedEvents.forEach((imp: SpecialEvent) => {
+            if (!merged.some((existing) => existing.id === imp.id || (existing.date === imp.date && existing.title === imp.title))) {
+              merged.push(imp);
+            }
+          });
+
+          localStorage.setItem('custom_events', JSON.stringify(merged));
+          loadAllEvents();
+          alert('Etkinlikler başarıyla geri yüklendi!');
+        } else {
+          alert('Geçersiz yedek dosyası formatı.');
+        }
+      } catch (err) {
+        alert('Dosya okunurken bir hata oluştu.');
+      }
+    };
+    reader.readAsText(file);
+    // Aynı dosyayı tekrar seçebilmek için input'u sıfırla
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // 3. iCal (.ics) Formatında Dışa Aktar (Telefon Takvimiyle Entegrasyon)
+  const handleExportIcal = () => {
+    const localData = localStorage.getItem('custom_events');
+    const customEvents: SpecialEvent[] = localData ? JSON.parse(localData) : [];
+
+    if (customEvents.length === 0) {
+      alert('Takvime aktarılacak özel etkinlik bulunmuyor.');
+      return;
+    }
+
+    let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//MSGSÜ Bale Programı//TR\n";
+
+    customEvents.forEach((ev) => {
+      const cleanDate = ev.date.replace(/-/g, '');
+      const timeStr = ev.time ? ev.time.replace(':', '') + '00' : '090000';
+      
+      icsContent += "BEGIN:VEVENT\n";
+      icsContent += `UID:msgsud-${ev.id}@bale.app\n`;
+      icsContent += `DTSTAMP:${cleanDate}T${timeStr}\n`;
+      icsContent += `DTSTART:${cleanDate}T${timeStr}\n`;
+      icsContent += `SUMMARY:${ev.title}\n`;
+      if (ev.description) icsContent += `DESCRIPTION:${ev.description}\n`;
+      if (ev.location) icsContent += `LOCATION:${ev.location}\n`;
+      icsContent += "END:VEVENT\n";
+    });
+
+    icsContent += "END:VCALENDAR";
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `msgsud-bale-takvim.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-4 w-full">
-      {/* Başlık & Butonlar */}
+      {/* Başlık & Ana Butonlar */}
       <div className="flex justify-between items-center gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-base font-bold text-gray-900 dark:text-white">
@@ -142,6 +236,37 @@ export function EventsPage() {
           }`}
         >
           {isEnabled ? '🔔 Bildirimler Açık' : '🔕 Bildirimleri Aç'}
+        </button>
+      </div>
+
+      {/* Yedekleme ve Takvim Entegrasyon Araç Çubuğu */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 text-[11px] font-semibold">
+        <button
+          onClick={handleExportJson}
+          className="px-3 py-1.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl border border-black/5 dark:border-white/10 shrink-0 transition-colors flex items-center gap-1"
+        >
+          💾 Yedek İndir (JSON)
+        </button>
+
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="px-3 py-1.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl border border-black/5 dark:border-white/10 shrink-0 transition-colors flex items-center gap-1"
+        >
+          📂 Geri Yükle
+        </button>
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          onChange={handleImportJson} 
+          accept=".json" 
+          className="hidden" 
+        />
+
+        <button
+          onClick={handleExportIcal}
+          className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-500/20 shrink-0 transition-colors flex items-center gap-1"
+        >
+          📅 Takvime Aktar (.ics)
         </button>
       </div>
 
