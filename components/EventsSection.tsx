@@ -33,7 +33,7 @@ export function EventsSection() {
 
     const combined = [...specialEvents, ...customEvents, ...fetchedHolidays]
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(0, 4);
+      .slice(0, 5);
 
     setAllEvents(combined);
   };
@@ -104,6 +104,20 @@ export function EventsSection() {
     loadAllEvents();
   };
 
+  // Özel Etkinlik Silme Fonksiyonu
+  const handleDeleteEvent = (id: string) => {
+    if (!confirm('Bu etkinliği silmek istediğinize emin misiniz?')) return;
+
+    const localData = localStorage.getItem('custom_events');
+    if (!localData) return;
+
+    const customEvents: SpecialEvent[] = JSON.parse(localData);
+    const updatedCustomEvents = customEvents.filter((event) => event.id !== id);
+
+    localStorage.setItem('custom_events', JSON.stringify(updatedCustomEvents));
+    loadAllEvents();
+  };
+
   return (
     <div className="space-y-3 relative w-full">
       {/* Esnek Başlık Satırı */}
@@ -147,12 +161,14 @@ export function EventsSection() {
               text: 'text-blue-600 dark:text-blue-400',
             };
 
+            const isCustom = event.id.startsWith('custom-');
+
             return (
               <div
                 key={event.id}
                 className="p-3.5 bg-white dark:bg-[#1C1C1E] rounded-2xl border border-black/5 dark:border-white/10 shadow-sm transition-colors w-full"
               >
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-1.5">
+                <div className="flex justify-between items-start gap-1.5">
                   <div className="space-y-1 w-full min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
@@ -171,11 +187,25 @@ export function EventsSection() {
                       </p>
                     )}
                   </div>
-                  {event.location && (
-                    <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-lg shrink-0 self-start">
-                      📍 {event.location}
-                    </span>
-                  )}
+
+                  <div className="flex items-center gap-1 shrink-0 self-start">
+                    {event.location && (
+                      <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                        📍 {event.location}
+                      </span>
+                    )}
+
+                    {/* Manuel Eklenen Etkinlikler İçin Sil Butonu */}
+                    {isCustom && (
+                      <button
+                        onClick={() => handleDeleteEvent(event.id)}
+                        className="p-1 text-gray-400 hover:text-rose-500 transition-colors text-xs ml-1"
+                        title="Etkinliği Sil"
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -183,7 +213,7 @@ export function EventsSection() {
         )}
       </div>
 
-      {/* Yenilenmiş Mobil Uyumlu Form Modalı */}
+      {/* Form Modalı */}
       {showAddEventModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-[320px] bg-white dark:bg-[#1C1C1E] rounded-3xl p-5 shadow-2xl border border-black/10 dark:border-white/10 space-y-3 max-h-[90vh] overflow-y-auto">
