@@ -202,7 +202,33 @@ export function EventsPage() {
     URL.revokeObjectURL(url);
   };
 
-  // --- Geri Sayım Hesaplama Fonksiyonu ---
+  // --- WhatsApp / Metin Olarak Paylaş Fonksiyonu ---
+  const handleShareText = () => {
+    let text = "🩰 *MSGSÜ 5. Sınıf Bale - Etkinlik & Takvim Özeti*\n\n";
+
+    if (allEvents.length === 0) {
+      text += "Kayıtlı etkinlik bulunmuyor.";
+    } else {
+      allEvents.slice(0, 5).forEach((ev) => {
+        text += `📅 *${ev.title}*\n`;
+        text += `   • Tarih: ${ev.date} ${ev.time ? `· ${ev.time}` : ''}\n`;
+        if (ev.location) text += `   • Konum: ${ev.location}\n`;
+        text += "\n";
+      });
+      text += "_...ve diğer güncel etkinlikler._";
+    }
+
+    if (navigator.share) {
+      navigator.share({
+        title: 'MSGSÜ Bale Etkinlikleri',
+        text: text,
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(text);
+      alert('Etkinlik listesi panoya kopyalandı! İstediğiniz yere yapıştırabilirsiniz.');
+    }
+  };
+
   const getCountdownLabel = (dateStr: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -248,18 +274,20 @@ export function EventsPage() {
         </button>
       </div>
 
-      {/* Taşmayı Önleyen Kompakt Yedekleme Çubuğu */}
-      <div className="grid grid-cols-3 gap-1.5 text-[11px] font-semibold w-full">
+      {/* Taşmayı Önleyen Kompakt Araç Çubuğu (4 Buton) */}
+      <div className="grid grid-cols-4 gap-1 text-[10px] font-semibold w-full">
         <button
           onClick={handleExportJson}
-          className="py-2 px-1 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl border border-black/5 dark:border-white/10 text-center truncate transition-colors"
+          className="py-2 px-0.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl border border-black/5 dark:border-white/10 text-center truncate transition-colors"
+          title="Yedek Al (JSON)"
         >
-          💾 Yedek Al
+          💾 Yedek
         </button>
 
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="py-2 px-1 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl border border-black/5 dark:border-white/10 text-center truncate transition-colors"
+          className="py-2 px-0.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl border border-black/5 dark:border-white/10 text-center truncate transition-colors"
+          title="Geri Yükle"
         >
           📂 Yükle
         </button>
@@ -273,9 +301,18 @@ export function EventsPage() {
 
         <button
           onClick={handleExportIcal}
-          className="py-2 px-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-500/20 text-center truncate transition-colors"
+          className="py-2 px-0.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-500/20 text-center truncate transition-colors"
+          title="Takvime Aktar (.ics)"
         >
           📅 Takvim
+        </button>
+
+        <button
+          onClick={handleShareText}
+          className="py-2 px-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl border border-emerald-500/20 text-center truncate transition-colors"
+          title="WhatsApp / Metin Olarak Paylaş"
+        >
+          📤 Paylaş
         </button>
       </div>
 
@@ -310,7 +347,6 @@ export function EventsPage() {
                       <span className="text-xs font-semibold text-gray-400">
                         {event.date} {event.time ? `· ${event.time}` : ''}
                       </span>
-                      {/* Geri Sayım Rozeti */}
                       <span className={`text-[10px] px-2 py-0.5 rounded-full border ${countdown.color}`}>
                         ⏳ {countdown.text}
                       </span>
