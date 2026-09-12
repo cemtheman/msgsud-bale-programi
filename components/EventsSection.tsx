@@ -4,30 +4,49 @@ import { useState, useEffect } from 'react';
 import { specialEvents, eventTypeLabels } from '@/data/eventsData';
 
 export function EventsSection() {
-  const [notificationStatus, setNotificationStatus] = useState<'default' | 'granted' | 'denied'>('default');
-  const [showModal, setShowModal] = useState(false);
+  const [isEnabled, setIsEnabled] = useState<boolean>(false);
+  const [showModal, setShowModal] = useState<boolean>(false);
 
   useEffect(() => {
-    if ('Notification' in window) {
-      setNotificationStatus(Notification.permission);
-    }
+    // 1. LocalStorage tercihini ve tarayıcı iznini kontrol et
+    const savedPref = localStorage.getItem('notifications_enabled') === 'true';
+    const hasPermission = 'Notification' in window && Notification.permission === 'granted';
+    
+    setIsEnabled(savedPref && hasPermission);
   }, []);
+
+  const handleToggleClick = () => {
+    if (isEnabled) {
+      // Açık durumdaysa kapat
+      setIsEnabled(false);
+      localStorage.setItem('notifications_enabled', 'false');
+    } else {
+      // Kapalıysa izin isteme modalını aç
+      setShowModal(true);
+    }
+  };
 
   const handleConfirmNotification = async () => {
     setShowModal(false);
+    
     if (!('Notification' in window)) {
       alert('Bu tarayıcı web bildirimlerini desteklemiyor.');
       return;
     }
 
     const permission = await Notification.requestPermission();
-    setNotificationStatus(permission);
 
     if (permission === 'granted') {
+      setIsEnabled(true);
+      localStorage.setItem('notifications_enabled', 'true');
       new Notification('MSGSÜ Bale Programı', {
-        body: 'Etkinlik ve ders bildirimleri başarıyla aktifleştirildi!',
+        body: 'Etkinlik ve ders bildirimleri aktifleştirildi!',
         icon: '/icon-512.png',
       });
+    } else {
+      setIsEnabled(false);
+      localStorage.setItem('notifications_enabled', 'false');
+      alert('Bildirim izni engellendi. Tarayıcı ayarlarından izin vermeniz gerekebilir.');
     }
   };
 
@@ -37,14 +56,18 @@ export function EventsSection() {
         <h2 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
           Yaklaşan Etkinlikler & Duyurular
         </h2>
-        {notificationStatus !== 'granted' && (
-          <button
-            onClick={() => setShowModal(true)}
-            className="text-[11px] font-bold text-[#D94B55] hover:underline flex items-center gap-1"
-          >
-            🔔 Bildirimleri Aç
-          </button>
-        )}
+        
+        {/* Sabit Bildirim Aç/Kapa Butonu */}
+        <button
+          onClick={handleToggleClick}
+          className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-all flex items-center gap-1 ${
+            isEnabled
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+              : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 border border-black/5 dark:border-white/10 hover:text-gray-700'
+          }`}
+        >
+          {isEnabled ? '🔔 Bildirimler Açık' : '🔕 Bildirimleri Aç'}
+        </button>
       </div>
 
       {/* Kart Listesi */}
@@ -92,11 +115,11 @@ export function EventsSection() {
         )}
       </div>
 
-      {/* Bildirim Onay Kutucuğu (Modal) */}
+      {/* Onay Modalı */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
           <div className="w-full max-w-xs bg-white dark:bg-[#1C1C1E] rounded-3xl p-6 shadow-2xl border border-black/10 dark:border-white/10 space-y-4 text-center">
-            <div className="w-12 h-12 bg-rose-500/10 text-[#D94B55] rounded-full flex items-center justify-center mx-auto text-2xl">
+            <div className="w-12 h-12 bg-[#D94B55]/10 text-[#D94B55] rounded-full flex items-center justify-center mx-auto text-2xl">
               🔔
             </div>
             
