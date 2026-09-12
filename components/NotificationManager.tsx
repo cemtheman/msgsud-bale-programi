@@ -5,8 +5,8 @@ import { SpecialEvent } from '@/data/eventsData';
 
 export function NotificationManager() {
   useEffect(() => {
-    const checkEvents = () => {
-      // Bildirim izni yoksa hiç çalışma
+    const checkDailyEvents = async () => {
+      // 1. Bildirim izni kontrolü
       const notificationsEnabled = localStorage.getItem('notifications_enabled') === 'true';
       if (!notificationsEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
 
@@ -15,44 +15,37 @@ export function NotificationManager() {
 
       const customEvents: SpecialEvent[] = JSON.parse(localData);
       
+      // 2. Bugünün tarihini YYYY-MM-DD olarak al
       const now = new Date();
-      // Tarihi YYYY-MM-DD formatında al
-      const todayDate = now.toLocaleDateString('tr-TR').split('.').reverse().join('-');
-      // Saati HH:MM formatında al
-      const currentTime = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const todayDate = `${year}-${month}-${day}`;
 
-      // Aynı bildirimi saniyede bir tekrar tekrar atmamak için "bildirilenler" listesini tutuyoruz
-      const notifiedEvents: string[] = JSON.parse(localStorage.getItem('notified_events') || '[]');
-      let updated = false;
+      // 3. Bugün için bu bildirim daha önce gösterildi mi? (Günde sadece 1 kez göstermek için)
+      const lastNotifiedDate = localStorage.getItem('last_notified_date');
+      if (lastNotifiedDate === todayDate) return;
 
-      customEvents.forEach((event) => {
-        // Etkinliğin tarihi bugünse, saati şu anki saate eşitse ve daha önce bildirim atılmadıysa
-        if (event.date === todayDate && event.time === currentTime && !notifiedEvents.includes(event.id)) {
-          
-          new Notification(`🎭 Etkinlik Vakti: ${event.title}`, {
-            body: event.description || `Saat: ${event.time} ${event.location ? `- Konum: ${event.location}` : ''}`,
-            icon: '/icon-512.png',
-          });
+      // 4. Bugünün tarihine ait özel etkinlikleri bul
+      const todaysEvents = customEvents.filter((event) => event.date === todayDate);
 
-          notifiedEvents.push(event.id);
-          updated = true;
-        }
-      });
+      if (todaysEvents.length > 0) {
+        // İlk etkinliği veya özet bilgiyi göster
+        const event = todaysEvents[0];
+        
+        new Notification(`🎭 Bugün Özel Etkinliğiniz Var: ${event.title}`, {
+          body: `${event.time ? `Saat: ${event.time} ` : ''}${event.location ? `- Konum: ${event.location}` : ''}\n${event.description || ''}`,
+          icon: '/icon-512.png',
+        });
 
-      // Yeni atılan bildirimleri kaydet
-      if (updated) {
-        localStorage.setItem('notified_events', JSON.stringify(notifiedEvents));
+        // Bugün için bildirimin gönderildiğini kaydet ki uygulama her sekme değiştirdiğinde tekrar spam atmasın
+        localStorage.setItem('last_notified_date', todayDate);
       }
     };
 
-    // Her 1 dakikada bir (60000ms) saat kontrolü yap
-    const interval = setInterval(checkEvents, 60000);
-    
-    // Uygulama ilk açıldığında da bir kez kontrol et
-    checkEvents();
-
-    return () => clearInterval(interval);
+    // Uygulama açıldığında (veya herhangi bir sekmeden ana sayfaya dönüldüğünde) kontrol et
+    checkDailyEvents();
   }, []);
 
-  return null; // Ekranda hiçbir şey render etmez
+  return null;
 }
