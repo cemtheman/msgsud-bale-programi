@@ -5,56 +5,63 @@ import { specialEvents, eventTypeLabels, SpecialEvent } from '@/data/eventsData'
 
 export function EventsSection() {
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
-  const [showModal, setShowModal] = useState<boolean>(false);
-  const [allEvents, setAllEvents] = useState<SpecialEvent[]>(specialEvents);
+  const [showNotificationModal, setShowNotificationModal] = useState<boolean>(false);
+  const [showAddEventModal, setShowAddEventModal] = useState<boolean>(false);
+  const [allEvents, setAllEvents] = useState<SpecialEvent[]>([]);
+
+  // Form State
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [type, setType] = useState<SpecialEvent['type']>('rehearsal');
+  const [location, setLocation] = useState('');
+  const [description, setDescription] = useState('');
+
+  const loadAllEvents = async () => {
+    // LocalStorage'daki özel etkinlikleri al
+    const localData = localStorage.getItem('custom_events');
+    const customEvents: SpecialEvent[] = localData ? JSON.parse(localData) : [];
+
+    let fetchedHolidays: SpecialEvent[] = [];
+    try {
+      const res = await fetch('/api/holidays');
+      if (res.ok) {
+        fetchedHolidays = await res.json();
+      }
+    } catch (err) {
+      console.error('Tatiller yüklenirken hata oluştu:', err);
+    }
+
+    // Statik + Yerel Eklenenler + Google Tatilleri Birleştir
+    const combined = [...specialEvents, ...customEvents, ...fetchedHolidays]
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 5); // En yakın 5 etkinlik
+
+    setAllEvents(combined);
+  };
 
   useEffect(() => {
-    // 1. LocalStorage ve Notification Kontrolü
     const savedPref = localStorage.getItem('notifications_enabled') === 'true';
     const hasPermission = 'Notification' in window && Notification.permission === 'granted';
     setIsEnabled(savedPref && hasPermission);
 
-    // 2. Google Tatil Takvimini API'den Çekme (Yakın Tarihli Maks 4 Etkinlik)
-    async function fetchHolidays() {
-      try {
-        const res = await fetch('/api/holidays');
-        if (res.ok) {
-          const fetchedHolidays: SpecialEvent[] = await res.json();
-          
-          // Bugünden itibaren tarihe göre sırala ve en yakın ilk 4 kaydı al
-          const combined = [...specialEvents, ...fetchedHolidays]
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-            .slice(0, 4);
-            
-          setAllEvents(combined);
-        }
-      } catch (err) {
-        console.error('Tatiller yüklenirken hata oluştu:', err);
-      }
-    }
-
-    fetchHolidays();
+    loadAllEvents();
   }, []);
 
-  const handleToggleClick = () => {
+  const handleToggleNotification = () => {
     if (isEnabled) {
       setIsEnabled(false);
       localStorage.setItem('notifications_enabled', 'false');
     } else {
-      setShowModal(true);
+      setShowNotificationModal(true);
     }
   };
 
   const handleConfirmNotification = async () => {
-    setShowModal(false);
-    
-    if (!('Notification' in window)) {
-      alert('Bu tarayıcı web bildirimlerini desteklemiyor.');
-      return;
-    }
+    setShowNotificationModal(false);
+    if (!('Notification' in window)) return;
 
     const permission = await Notification.requestPermission();
-
     if (permission === 'granted') {
       setIsEnabled(true);
       localStorage.setItem('notifications_enabled', 'true');
@@ -68,15 +75,58 @@ export function EventsSection() {
     }
   };
 
+  const handleAddEventSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title || !date) return;
+
+    const newEvent: SpecialEvent = {
+      id: `custom-${Date.now()}`,
+      title,
+      date,
+      time: time || undefined,
+      type,
+      location: location || undefined,
+      description: description || undefined,
+    };
+
+    const localData = localStorage.getItem('custom_events');
+    const customEvents: SpecialEvent[] = localData ? JSON.parse(localData) : [];
+    const updatedCustomEvents = [...customEvents, newEvent];
+
+    localStorage.setItem('custom_events', JSON.stringify(updatedCustomEvents));
+
+    // Formu sıfırla & Modalı kapat
+    setTitle('');
+    setDate('');
+    setTime('');
+    setType('rehearsal');
+    setLocation('');
+    setDescription('');
+    setShowAddEventModal(false);
+
+    // Etkinlik listesini yenile
+    loadAllEvents();
+  };
+
   return (
     <div className="space-y-3 relative w-full overflow-hidden">
       <div className="flex justify-between items-center gap-2">
-        <h2 className="text-[11px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate">
-        Yaklaşan Etkinlikler & Özel Günler
-        </h2>
-        
+        <div className="flex items-center gap-2">
+          <h2 className="text-[11px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate">
+            Yaklaşan Etkinlikler & Özel Günler
+          </h2>
+          {/* Yeni Etkinlik Ekle Butonu */}
+          <button
+            onClick={() => setShowAddEventModal(true)}
+            className="w-5 h-5 rounded-full bg-[#D94B55] text-white flex items-center justify-center text-xs font-bold hover:bg-[#c03d47] transition-colors"
+            title="Yeni Etkinlik Ekle"
+          >
+            +
+          </button>
+        </div>
+
         <button
-          onClick={handleToggleClick}
+          onClick={handleToggleNotification}
           className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-all shrink-0 flex items-center gap-1 ${
             isEnabled
               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
@@ -91,12 +141,12 @@ export function EventsSection() {
       <div className="space-y-2 w-full">
         {allEvents.length === 0 ? (
           <div className="py-6 text-center text-xs font-medium text-gray-400">
-            Yaklaşan etkinlik veya tatil bulunmuyor.
+            Yaklaşan etkinlik veya özel gün bulunmuyor.
           </div>
         ) : (
           allEvents.map((event) => {
             const badge = eventTypeLabels[event.type] || {
-              label: 'TATİL',
+              label: 'ÖZEL',
               bg: 'bg-blue-500/10 dark:bg-blue-500/20',
               text: 'text-blue-600 dark:text-blue-400',
             };
@@ -137,14 +187,121 @@ export function EventsSection() {
         )}
       </div>
 
-      {/* Onay Modalı */}
-      {showModal && (
+      {/* Yeni Etkinlik Ekle Modalı */}
+      {showAddEventModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-[340px] bg-white dark:bg-[#1C1C1E] rounded-3xl p-5 shadow-2xl border border-black/10 dark:border-white/10 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                Yeni Etkinlik Ekle
+              </h3>
+              <button
+                onClick={() => setShowAddEventModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddEventSubmit} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-500 font-semibold mb-1">Başlık *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="örn: Fındıkkıran Genel Provası"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-gray-500 font-semibold mb-1">Tarih *</label>
+                  <input
+                    type="date"
+                    required
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-500 font-semibold mb-1">Saat</label>
+                  <input
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-gray-500 font-semibold mb-1">Tür</label>
+                  <select
+                    value={type}
+                    onChange={(e) => setType(e.target.value as SpecialEvent['type'])}
+                    className="w-full p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
+                  >
+                    <option value="rehearsal">PROVA</option>
+                    <option value="performance">TEMSİL</option>
+                    <option value="exam">SINAV</option>
+                    <option value="special">ÖZEL GÜN</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-500 font-semibold mb-1">Konum</label>
+                  <input
+                    type="text"
+                    placeholder="örn: Ana Sahne"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="w-full p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-500 font-semibold mb-1">Açıklama</label>
+                <input
+                  type="text"
+                  placeholder="örn: Kostümlü katılım zorunludur"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-black/5 dark:border-white/10 text-gray-900 dark:text-white outline-none focus:border-[#D94B55]"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddEventModal(false)}
+                  className="flex-1 py-2.5 rounded-xl font-bold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300"
+                >
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 rounded-xl font-bold bg-[#D94B55] text-white hover:bg-[#c03d47]"
+                >
+                  Kaydet
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bildirim İzin Modalı */}
+      {showNotificationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-[300px] bg-white dark:bg-[#1C1C1E] rounded-3xl p-5 shadow-2xl border border-black/10 dark:border-white/10 space-y-4 text-center">
             <div className="w-12 h-12 bg-[#D94B55]/10 text-[#D94B55] rounded-full flex items-center justify-center mx-auto text-2xl">
               🔔
             </div>
-            
             <div className="space-y-1">
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                 Bildirimlere İzin Verilsin mi?
@@ -153,17 +310,16 @@ export function EventsSection() {
                 Yaklaşan temsil, sınav ve provalar için anlık hatırlatmalar almak ister misiniz?
               </p>
             </div>
-
             <div className="flex gap-2 pt-1">
               <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                onClick={() => setShowNotificationModal(false)}
+                className="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300"
               >
                 Vazgeç
               </button>
               <button
                 onClick={handleConfirmNotification}
-                className="flex-1 py-2 rounded-xl text-xs font-bold bg-[#D94B55] text-white hover:bg-[#c03d47] transition-colors"
+                className="flex-1 py-2 rounded-xl text-xs font-bold bg-[#D94B55] text-white hover:bg-[#c03d47]"
               >
                 İzin Ver
               </button>
