@@ -8,20 +8,16 @@ export function EventsSection() {
   const [showModal, setShowModal] = useState<boolean>(false);
 
   useEffect(() => {
-    // 1. LocalStorage tercihini ve tarayıcı iznini kontrol et
     const savedPref = localStorage.getItem('notifications_enabled') === 'true';
     const hasPermission = 'Notification' in window && Notification.permission === 'granted';
-    
     setIsEnabled(savedPref && hasPermission);
   }, []);
 
   const handleToggleClick = () => {
     if (isEnabled) {
-      // Açık durumdaysa kapat
       setIsEnabled(false);
       localStorage.setItem('notifications_enabled', 'false');
     } else {
-      // Kapalıysa izin isteme modalını aç
       setShowModal(true);
     }
   };
@@ -46,32 +42,30 @@ export function EventsSection() {
     } else {
       setIsEnabled(false);
       localStorage.setItem('notifications_enabled', 'false');
-      alert('Bildirim izni engellendi. Tarayıcı ayarlarından izin vermeniz gerekebilir.');
     }
   };
 
   return (
-    <div className="space-y-3 relative">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-          Yaklaşan Etkinlikler & Duyurular
+    <div className="space-y-3 relative w-full overflow-hidden">
+      <div className="flex justify-between items-center gap-2">
+        <h2 className="text-[11px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate">
+          Yaklaşan Etkinlikler
         </h2>
         
-        {/* Sabit Bildirim Aç/Kapa Butonu */}
         <button
           onClick={handleToggleClick}
-          className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-all flex items-center gap-1 ${
+          className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-all shrink-0 flex items-center gap-1 ${
             isEnabled
               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
               : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 border border-black/5 dark:border-white/10 hover:text-gray-700'
           }`}
         >
-          {isEnabled ? '🔔 Bildirimler Açık' : '🔕 Bildirimleri Aç'}
+          {isEnabled ? '🔔 Açık' : '🔕 Bildirimler'}
         </button>
       </div>
 
       {/* Kart Listesi */}
-      <div className="space-y-2">
+      <div className="space-y-2 w-full">
         {specialEvents.length === 0 ? (
           <div className="py-6 text-center text-xs font-medium text-gray-400">
             Yaklaşan özel etkinlik bulunmuyor.
@@ -82,29 +76,29 @@ export function EventsSection() {
             return (
               <div
                 key={event.id}
-                className="p-4 bg-white dark:bg-[#1C1C1E] rounded-2xl border border-black/5 dark:border-white/10 shadow-sm transition-colors"
+                className="p-3.5 bg-white dark:bg-[#1C1C1E] rounded-2xl border border-black/5 dark:border-white/10 shadow-sm transition-colors w-full"
               >
-                <div className="flex justify-between items-start gap-2">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-1.5">
+                  <div className="space-y-1 w-full min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>
                         {badge.label}
                       </span>
-                      <span className="text-xs font-semibold text-gray-400">
+                      <span className="text-[11px] font-semibold text-gray-400">
                         {event.date} {event.time ? `· ${event.time}` : ''}
                       </span>
                     </div>
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
                       {event.title}
                     </h3>
                     {event.description && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
                         {event.description}
                       </p>
                     )}
                   </div>
                   {event.location && (
-                    <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-white/5 px-2 py-1 rounded-lg whitespace-nowrap">
+                    <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-lg shrink-0 self-start">
                       📍 {event.location}
                     </span>
                   )}
@@ -117,31 +111,31 @@ export function EventsSection() {
 
       {/* Onay Modalı */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-xs bg-white dark:bg-[#1C1C1E] rounded-3xl p-6 shadow-2xl border border-black/10 dark:border-white/10 space-y-4 text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-[300px] bg-white dark:bg-[#1C1C1E] rounded-3xl p-5 shadow-2xl border border-black/10 dark:border-white/10 space-y-4 text-center">
             <div className="w-12 h-12 bg-[#D94B55]/10 text-[#D94B55] rounded-full flex items-center justify-center mx-auto text-2xl">
               🔔
             </div>
             
             <div className="space-y-1">
-              <h3 className="text-base font-bold text-gray-900 dark:text-white">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">
                 Bildirimlere İzin Verilsin mi?
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                Yaklaşan bale temsilleri, sınav haftaları ve genel provalar için anlık hatırlatmalar almak ister misiniz?
+                Yaklaşan temsil, sınav ve provalar için anlık hatırlatmalar almak ister misiniz?
               </p>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-1">
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                className="flex-1 py-2 rounded-xl text-xs font-bold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
               >
                 Vazgeç
               </button>
               <button
                 onClick={handleConfirmNotification}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-[#D94B55] text-white hover:bg-[#c03d47] shadow-sm transition-colors"
+                className="flex-1 py-2 rounded-xl text-xs font-bold bg-[#D94B55] text-white hover:bg-[#c03d47] transition-colors"
               >
                 İzin Ver
               </button>
