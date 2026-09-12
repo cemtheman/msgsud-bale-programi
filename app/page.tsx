@@ -64,7 +64,6 @@ export default function Home() {
       const rawTomorrowLessons = scheduleData.schedule[tomorrowKey] || [];
       if (rawTomorrowLessons.length > 0) {
         const firstRaw = rawTomorrowLessons[0];
-        // Ham veriye güvenli bir şekilde id ekleyerek Lesson tipine dönüştürüyoruz
         activeOrNext = {
           ...firstRaw,
           id: `tomorrow-${tomorrowKey}-0`,
