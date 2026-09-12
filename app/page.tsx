@@ -15,6 +15,7 @@ import { LessonDetailSheet } from '@/components/LessonDetailSheet';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { DailyReminderBanner } from '@/components/DailyReminderBanner';
 import { InstallPromptBanner } from '@/components/InstallPromptBanner';
+import { scheduleData } from '@/data/scheduleData';
 
 export default function Home() {
   const now = useNow();
@@ -35,6 +36,20 @@ export default function Home() {
   const status = calculateStatus(dayKey, totalMinutes);
   const todayLessons = getLessonsForDay(dayKey);
 
+  // Widget için anlık hesaplama
+  const currentHours = now.getHours().toString().padStart(2, '0');
+  const currentMinutes = now.getMinutes().toString().padStart(2, '0');
+  const nowStr = `${currentHours}:${currentMinutes}`;
+
+  const currentLesson = todayLessons.find(
+    (lesson) => nowStr >= lesson.start && nowStr <= lesson.end
+  );
+  const nextLesson = todayLessons.find(
+    (lesson) => lesson.start > nowStr
+  );
+  const activeOrNext = currentLesson || nextLesson;
+  const isOngoing = Boolean(currentLesson);
+
   return (
     <main className="w-full flex-1 px-4 pt-6 pb-28">
       {/* PWA Yükleme Yönlendiricisi */}
@@ -42,6 +57,49 @@ export default function Home() {
 
       {/* Günlük Hatırlatıcı Bant */}
       <DailyReminderBanner />
+
+      {/* Sıradaki Ders / Canlı Widget Kartı (Sadece Bugün sekmesinde ve zaman çizelgesi kapalıyken görünür) */}
+      {!showTimeline && activeTab === 'today' && (
+        <div className="w-full bg-gradient-to-br from-[#D94B55]/15 via-rose-500/5 to-transparent dark:from-[#D94B55]/25 dark:via-rose-950/20 p-4 rounded-3xl border border-[#D94B55]/20 shadow-sm backdrop-blur-md mb-3.5">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOngoing ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${isOngoing ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+              </span>
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#D94B55] dark:text-rose-400">
+                {isOngoing ? 'Şu An Devam Ediyor' : 'Sıradaki Ders'}
+              </span>
+            </div>
+            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
+              {nowStr}
+            </span>
+          </div>
+
+          {activeOrNext ? (
+            <div className="flex justify-between items-end">
+              <div className="space-y-0.5">
+                <h3 className="text-base font-extrabold text-gray-900 dark:text-white">
+                  {activeOrNext.subject}
+                </h3>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {activeOrNext.teacher ? `👨‍🏫 ${activeOrNext.teacher} · ` : ''}
+                  {activeOrNext.location ? `📍 ${activeOrNext.location}` : '📍 B1-105A'}
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-white/80 dark:bg-black/30 text-gray-700 dark:text-gray-300 border border-black/5 dark:border-white/10 shadow-xs">
+                  {activeOrNext.start} - {activeOrNext.end}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="py-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              Bugün için başka ders kalmadı veya tatil günündesiniz. 🎉
+            </div>
+          )}
+        </div>
+      )}
 
       {showTimeline ? (
         <div className="space-y-4 animate-fade-in">
