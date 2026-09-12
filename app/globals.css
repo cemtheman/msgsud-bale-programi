@@ -6,6 +6,12 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body {
+  /* PWA ve mobil cihazlarda aşağı çekerek yenileme (pull-to-refresh) hareketini destekler */
+  overscroll-behavior-y: contain;
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
