@@ -15,15 +15,21 @@ const DAYS: { key: DayKey; label: string }[] = [
 ];
 
 interface WeeklyPageProps {
+  todayDayKey?: DayKey;
   onSelectLesson?: (lesson: Lesson) => void;
 }
 
-export function WeeklyPage({ onSelectLesson }: WeeklyPageProps) {
-  const [selectedDay, setSelectedDay] = useState<DayKey>('monday');
+export function WeeklyPage({ todayDayKey, onSelectLesson }: WeeklyPageProps) {
+  const [selectedDay, setSelectedDay] = useState<DayKey>(
+    todayDayKey && ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].includes(todayDayKey)
+      ? todayDayKey
+      : 'monday'
+  );
+  
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
 
-  const lessons = scheduleData.schedule[selectedDay] || [];
+  const rawLessons = scheduleData.schedule[selectedDay] || [];
 
   return (
     <div className="space-y-6">
@@ -73,19 +79,24 @@ export function WeeklyPage({ onSelectLesson }: WeeklyPageProps) {
 
       {/* Seçilen Günün Ders Listesi */}
       <div className="space-y-2">
-        {lessons.length === 0 ? (
+        {rawLessons.length === 0 ? (
           <div className="py-12 text-center text-sm font-medium text-gray-400 dark:text-gray-500">
             Bu gün için tanımlı ders bulunmuyor.
           </div>
         ) : (
-          lessons.map((lesson) => {
-            const category = subjectCategories[lesson.subject] || 'other';
+          rawLessons.map((item, index) => {
+            const lessonItem: Lesson = {
+              id: (item as Lesson).id || `${selectedDay}-${index}-${item.subject}`,
+              ...item,
+            };
+
+            const category = subjectCategories[lessonItem.subject] || 'other';
             const isDance = category === 'dance';
 
             return (
               <div
-                key={lesson.id}
-                onClick={() => onSelectLesson?.(lesson)}
+                key={lessonItem.id}
+                onClick={() => onSelectLesson?.(lessonItem)}
                 className={`p-4 rounded-2xl border transition-all cursor-pointer ${
                   isDance
                     ? 'bg-rose-50/40 dark:bg-[#2A181A] border-rose-100 dark:border-rose-900/30'
@@ -99,7 +110,7 @@ export function WeeklyPage({ onSelectLesson }: WeeklyPageProps) {
                         className="text-sm font-bold"
                         style={{ color: isDark ? '#FFFFFF' : '#111827' }}
                       >
-                        {lesson.subject}
+                        {lessonItem.subject}
                       </h3>
                       {isDance && (
                         <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-[#D94B55]/10 text-[#D94B55]">
@@ -108,12 +119,12 @@ export function WeeklyPage({ onSelectLesson }: WeeklyPageProps) {
                       )}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {lesson.teacher ? `${lesson.teacher} · ` : ''}
-                      {lesson.location || 'Derslik Belirtilmedi'}
+                      {lessonItem.teacher ? `${lessonItem.teacher} · ` : ''}
+                      {lessonItem.location || 'Derslik Belirtilmedi'}
                     </p>
                   </div>
                   <span className="text-xs font-semibold text-gray-400 dark:text-gray-400 bg-gray-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
-                    {lesson.start} - {lesson.end}
+                    {lessonItem.start} - {lessonItem.end}
                   </span>
                 </div>
               </div>
