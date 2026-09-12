@@ -1,47 +1,35 @@
-import { Lesson, Category } from '@/types/schedule';
-import { getSubjectCategory } from '@/utils/schedule';
+import { Lesson } from '@/types/schedule';
 
 interface LessonCardProps {
   lesson: Lesson;
   status?: 'completed' | 'active' | 'upcoming';
+  currentMinutes?: number;
   onClick?: () => void;
 }
 
-const CATEGORY_STYLES: Record<Category, { bg: string; border: string; text: string }> = {
-  academic: { bg: 'bg-[#F4E8B8]', border: 'border-[#D6BC63]', text: 'text-[#50451F]' },
-  dance: { bg: 'bg-[#CFE8E5]', border: 'border-[#76AAA5]', text: 'text-[#244A47]' },
-  other: { bg: 'bg-[#DDE3EC]', border: 'border-[#9AAABD]', text: 'text-[#364454]' },
-};
-
-export function LessonCard({ lesson, status = 'upcoming', onClick }: LessonCardProps) {
-  const category = getSubjectCategory(lesson.subject);
-  const style = CATEGORY_STYLES[category];
-
+export function LessonCard({ lesson, status, currentMinutes, onClick }: LessonCardProps) {
   return (
-    <button
+    <div 
       onClick={onClick}
-      className={`w-full text-left rounded-2xl p-4 border transition-all active:scale-[0.98] ${style.bg} ${style.border} ${style.text} ${
-        status === 'completed' ? 'opacity-50' : 'opacity-100'
-      } ${status === 'active' ? 'ring-2 ring-[#D94B55] ring-offset-2' : ''}`}
+      className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-colors ${
+        status === 'active'
+          ? 'bg-[#D94B55]/5 border-[#D94B55]/30 dark:bg-[#D94B55]/10 dark:border-[#D94B55]/40'
+          : status === 'completed'
+          ? 'bg-gray-50/50 dark:bg-[#161618] border-black/5 dark:border-white/5 opacity-60'
+          : 'bg-white dark:bg-[#1C1C1E] border-black/5 dark:border-white/10 hover:border-black/10'
+      }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm font-semibold tracking-tight">
-          <span>{lesson.start} — {lesson.end}</span>
-          {status === 'completed' && <span className="text-xs">✓</span>}
-          {status === 'active' && <span className="text-xs text-[#D94B55]">●</span>}
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white">{lesson.subject}</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            {lesson.teacher ? `${lesson.teacher} · ` : ''}{lesson.location || 'Derslik Belirtilmedi'}
+          </p>
         </div>
-        {lesson.location && (
-          <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-white/50 border border-black/5">
-            {lesson.location}
-          </span>
-        )}
+        <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-white/5 px-2.5 py-1 rounded-lg">
+          {lesson.start} - {lesson.end}
+        </span>
       </div>
-
-      <div className="mt-1 text-base font-bold leading-tight">{lesson.subject}</div>
-
-      {lesson.teacher && (
-        <div className="mt-1 text-xs opacity-80">{lesson.teacher}</div>
-      )}
-    </button>
+    </div>
   );
 }
