@@ -167,7 +167,6 @@ export function TodayPage({
           </button>
         )}
       </div>
-    <EventsSection />
     </div>
   );
 }

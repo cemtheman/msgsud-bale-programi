@@ -1,77 +1,48 @@
 'use client';
 
-import { useState } from 'react';
-import { useNow } from '@/hooks/useNow';
-import { getIstanbulDate } from '@/utils/time';
-import { calculateStatus } from '@/utils/status';
-import { getLessonsForDay } from '@/utils/schedule';
-import { Lesson } from '@/types/schedule';
-
+import { useState, useEffect } from 'react';
+import { Header } from '@/components/Header';
 import { TodayPage } from '@/components/TodayPage';
 import { WeeklyPage } from '@/components/WeeklyPage';
-import { LiveTimeline } from '@/components/LiveTimeline';
-import { LessonDetailSheet } from '@/components/LessonDetailSheet';
-import { BottomNavigation } from '@/components/BottomNavigation';
+import { EventsPage } from '@/components/EventsPage';
+import { BottomNav } from '@/components/BottomNav';
 
 export default function Home() {
-  const now = useNow();
+  const [activeTab, setActiveTab] = useState<'today' | 'weekly' | 'events'>('today');
+  const [timeState, setTimeState] = useState({ date: '', time: '' });
 
-  const [activeTab, setActiveTab] = useState<'today' | 'weekly'>('today');
-  const [showTimeline, setShowTimeline] = useState<boolean>(false);
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      
+      const formattedDate = now.toLocaleDateString('tr-TR', {
+        day: 'numeric',
+        month: 'long',
+        weekday: 'long',
+      });
 
-  if (!now) {
-    return (
-      <div className="w-full min-h-screen flex items-center justify-center text-sm font-semibold text-gray-400 animate-pulse">
-        Yükleniyor...
-      </div>
-    );
-  }
+      const formattedTime = now.toLocaleTimeString('tr-TR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
 
-  const { dayKey, formattedDate, formattedTime, totalMinutes } = getIstanbulDate(now);
-  const status = calculateStatus(dayKey, totalMinutes);
-  const todayLessons = getLessonsForDay(dayKey);
+      setTimeState({ date: formattedDate, time: formattedTime });
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <main className="w-full flex-1 px-4 pt-6 pb-28">
-      {showTimeline ? (
-        <div className="space-y-4 animate-fade-in">
-          <div className="flex justify-between items-center">
-            <button 
-              onClick={() => setShowTimeline(false)} 
-              className="text-xs font-bold text-gray-500 hover:text-gray-900 flex items-center gap-1"
-            >
-              ← Geri
-            </button>
-            <h1 className="text-sm font-bold text-gray-900">Canlı Zaman Çizelgesi</h1>
-            <div className="w-8" />
-          </div>
-          <LiveTimeline lessons={todayLessons} currentMinutes={totalMinutes} onSelectLesson={setSelectedLesson} />
-        </div>
-      ) : (
-        <>
-          {activeTab === 'today' && (
-            <TodayPage 
-              formattedDate={formattedDate} 
-              formattedTime={formattedTime} 
-              status={status} 
-              todayLessons={todayLessons} 
-              currentMinutes={totalMinutes} 
-              onSelectLesson={setSelectedLesson} 
-              onOpenTimeline={() => setShowTimeline(true)} 
-            />
-          )}
-          {activeTab === 'weekly' && (
-            <WeeklyPage todayDayKey={dayKey} onSelectLesson={setSelectedLesson} />
-          )}
-        </>
-      )}
+    <main className="flex-1 space-y-4 pb-4">
+      <Header formattedDate={timeState.date} formattedTime={timeState.time} />
 
-      <LessonDetailSheet lesson={selectedLesson} status={status} onClose={() => setSelectedLesson(null)} />
+      {activeTab === 'today' && <TodayPage />}
+      {activeTab === 'weekly' && <WeeklyPage />}
+      {activeTab === 'events' && <EventsPage />}
 
-      {!showTimeline && (
-        <BottomNavigation activeTab={activeTab} onTabChange={(tab) => { setActiveTab(tab); setShowTimeline(false); }} />
-      )}
+      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
     </main>
   );
 }
