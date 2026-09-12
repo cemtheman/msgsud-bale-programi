@@ -13,7 +13,7 @@ import { EventsPage } from '@/components/EventsPage';
 import { LiveTimeline } from '@/components/LiveTimeline';
 import { LessonDetailSheet } from '@/components/LessonDetailSheet';
 import { BottomNavigation } from '@/components/BottomNavigation';
-import { NotificationManager } from '@/components/NotificationManager';
+import { DailyReminderBanner } from '@/components/DailyReminderBanner';
 
 export default function Home() {
   const now = useNow();
@@ -36,8 +36,8 @@ export default function Home() {
 
   return (
     <main className="w-full flex-1 px-4 pt-6 pb-28">
-      {/* Arka plan bildirim yöneticisi (Görünmez) */}
-      <NotificationManager />
+      {/* Günlük Hatırlatıcı Bant (Kapat / Ertele Özellikli) */}
+      <DailyReminderBanner />
 
       {showTimeline ? (
         <div className="space-y-4 animate-fade-in">
