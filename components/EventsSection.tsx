@@ -72,7 +72,7 @@ export function EventsSection() {
     <div className="space-y-3 relative w-full overflow-hidden">
       <div className="flex justify-between items-center gap-2">
         <h2 className="text-[11px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider truncate">
-          Yaklaşan Etkinlikler & Tatiller
+        Yaklaşan Etkinlikler & Özel Günler
         </h2>
         
         <button
