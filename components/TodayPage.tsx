@@ -3,6 +3,7 @@
 import { ComputedStatus, Lesson } from '@/types/schedule';
 import { LessonCard } from './LessonCard';
 import { Header } from './Header';
+import { EventsSection } from './EventsSection';
 
 interface TodayPageProps {
   formattedDate: string;
@@ -166,6 +167,7 @@ export function TodayPage({
           </button>
         )}
       </div>
+    <EventsSection />
     </div>
   );
 }
