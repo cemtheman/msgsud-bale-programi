@@ -202,6 +202,23 @@ export function EventsPage() {
     URL.revokeObjectURL(url);
   };
 
+  // --- Geri Sayım Hesaplama Fonksiyonu ---
+  const getCountdownLabel = (dateStr: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const targetDate = new Date(dateStr);
+    targetDate.setHours(0, 0, 0, 0);
+
+    const diffTime = targetDate.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return { text: 'Geçti', color: 'bg-gray-500/10 text-gray-400 border-gray-500/20' };
+    if (diffDays === 0) return { text: 'Bugün!', color: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 font-extrabold animate-pulse' };
+    if (diffDays === 1) return { text: 'Yarın', color: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 font-bold' };
+    return { text: `${diffDays} gün sonra`, color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' };
+  };
+
   return (
     <div className="space-y-3.5 w-full">
       {/* Başlık & Ana Butonlar */}
@@ -276,6 +293,7 @@ export function EventsPage() {
               text: 'text-blue-600 dark:text-blue-400',
             };
 
+            const countdown = getCountdownLabel(event.date);
             const isCustom = event.id.startsWith('custom-');
 
             return (
@@ -291,6 +309,10 @@ export function EventsPage() {
                       </span>
                       <span className="text-xs font-semibold text-gray-400">
                         {event.date} {event.time ? `· ${event.time}` : ''}
+                      </span>
+                      {/* Geri Sayım Rozeti */}
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${countdown.color}`}>
+                        ⏳ {countdown.text}
                       </span>
                     </div>
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
