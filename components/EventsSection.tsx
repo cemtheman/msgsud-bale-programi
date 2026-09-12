@@ -14,16 +14,17 @@ export function EventsSection() {
     const hasPermission = 'Notification' in window && Notification.permission === 'granted';
     setIsEnabled(savedPref && hasPermission);
 
-    // 2. Google Tatil Takvimini API'den Çekme
+    // 2. Google Tatil Takvimini API'den Çekme (Yakın Tarihli Maks 4 Etkinlik)
     async function fetchHolidays() {
       try {
         const res = await fetch('/api/holidays');
         if (res.ok) {
           const fetchedHolidays: SpecialEvent[] = await res.json();
           
-          // Bugünden sonraki ve yakın tarihli tatilleri alıp mevcut etkinliklerle birleştir
+          // Bugünden itibaren tarihe göre sırala ve en yakın ilk 4 kaydı al
           const combined = [...specialEvents, ...fetchedHolidays]
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .slice(0, 4);
             
           setAllEvents(combined);
         }

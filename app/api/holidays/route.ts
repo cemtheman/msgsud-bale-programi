@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    // Google Resmi Türkiye Tatilleri Public iCal URL'si
     const calendarUrl = 'https://calendar.google.com/calendar/ical/en.turkish%23holiday%40group.v.calendar.google.com/public/basic.ics';
     
     const response = await fetch(calendarUrl, {
-      next: { revalidate: 86400 } // Veriyi 24 saatte bir önbellekler (Cache)
+      next: { revalidate: 86400 } // 24 saat önbellek
     });
 
     if (!response.ok) {
@@ -23,11 +22,17 @@ export async function GET() {
   }
 }
 
-// Basit ICS Metin Ayıklayıcı (Parser)
 function parseICS(icsData: string) {
   const events = [];
   const eventRegex = /BEGIN:VEVENT([\s\S]*?)END:VEVENT/g;
   let match;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Sadece bugünden itibaren önümüzdeki 60 gün içerisindeki tatilleri al
+  const maxDate = new Date();
+  maxDate.setDate(today.getDate() + 60);
 
   while ((match = eventRegex.exec(icsData)) !== null) {
     const eventContent = match[1];
@@ -39,14 +44,23 @@ function parseICS(icsData: string) {
       const summary = summaryMatch[1].trim();
       const rawDate = dtstartMatch[1]; // YYYYMMDD
       
-      const formattedDate = `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`;
+      const year = parseInt(rawDate.slice(0, 4), 10);
+      const month = parseInt(rawDate.slice(4, 6), 10) - 1;
+      const day = parseInt(rawDate.slice(6, 8), 10);
 
-      events.push({
-        id: `google-hol-${rawDate}-${summary}`,
-        title: summary,
-        date: formattedDate,
-        type: 'holiday',
-      });
+      const eventDate = new Date(year, month, day);
+
+      // Sadece bugünden geleceğe doğru ve 60 gün içindekileri filtrele
+      if (eventDate >= today && eventDate <= maxDate) {
+        const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        events.push({
+          id: `google-hol-${rawDate}-${summary}`,
+          title: summary,
+          date: formattedDate,
+          type: 'holiday',
+        });
+      }
     }
   }
 
