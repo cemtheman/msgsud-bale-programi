@@ -14,6 +14,7 @@ import { LiveTimeline } from '@/components/LiveTimeline';
 import { LessonDetailSheet } from '@/components/LessonDetailSheet';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { DailyReminderBanner } from '@/components/DailyReminderBanner';
+import { InstallPromptBanner } from '@/components/InstallPromptBanner';
 
 export default function Home() {
   const now = useNow();
@@ -36,7 +37,10 @@ export default function Home() {
 
   return (
     <main className="w-full flex-1 px-4 pt-6 pb-28">
-      {/* Günlük Hatırlatıcı Bant (Kapat / Ertele Özellikli) */}
+      {/* PWA Yükleme Yönlendiricisi */}
+      <InstallPromptBanner />
+
+      {/* Günlük Hatırlatıcı Bant */}
       <DailyReminderBanner />
 
       {showTimeline ? (
