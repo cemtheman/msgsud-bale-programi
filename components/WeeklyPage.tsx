@@ -58,18 +58,22 @@ export function WeeklyPage({ todayDayKey, onSelectLesson }: WeeklyPageProps) {
       </div>
 
       {/* Gün Seçici Sekmeler (Day Tabs) */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+      <div
+        className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar"
+        aria-label="Haftanın günleri; diğer günler için yatay kaydırın"
+      >
         {DAYS.map((day) => {
           const isActive = selectedDay === day.key;
           return (
             <button
               key={day.key}
               onClick={() => setSelectedDay(day.key)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-colors whitespace-nowrap ${
                 isActive
                   ? 'bg-[#D94B55] text-white shadow-sm'
                   : 'bg-white dark:bg-[#1C1C1E] text-gray-600 dark:text-gray-400 border border-black/5 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-[#252525]'
               }`}
+              style={isActive ? { color: '#FFFFFF' } : undefined}
             >
               {day.label}
             </button>
