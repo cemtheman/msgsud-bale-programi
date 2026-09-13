@@ -13,6 +13,26 @@ body {
 }
 
 @layer utilities {
+  @keyframes ballerina-hop {
+    0%, 100% {
+      transform: translateY(0) rotate(-2deg);
+    }
+    50% {
+      transform: translateY(-3px) rotate(2deg);
+    }
+  }
+
+  .animate-ballerina-hop {
+    animation: ballerina-hop 1.4s ease-in-out infinite;
+    transform-origin: 50% 80%;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-ballerina-hop {
+      animation: none;
+    }
+  }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
