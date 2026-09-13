@@ -3,12 +3,13 @@ import { scheduleData } from '@/data/scheduleData';
 import { getLessonsForDay, getNextSchoolDayLesson } from './schedule';
 import { timeStringToMinutes } from './time';
 
-export function calculateStatus(dayKey: DayKey, currentMinutes: number): ComputedStatus {
+export function calculateStatus(dayKey: DayKey, currentMinutes: number, currentDateKey: string, holidayDates = new Set<string>()): ComputedStatus {
   const lessons = getLessonsForDay(dayKey);
+  const nextSchoolDay = () => getNextSchoolDayLesson(currentDateKey, holidayDates);
 
-  // 1. Ders olmayan gün (Hafta sonı vb.)
-  if (!lessons || lessons.length === 0) {
-    const nextInfo = getNextSchoolDayLesson(dayKey);
+  // 1. Resmî tatil veya ders olmayan gün
+  if (holidayDates.has(currentDateKey) || lessons.length === 0) {
+    const nextInfo = nextSchoolDay();
     return { 
       type: 'no_school', 
       nextLesson: nextInfo?.lesson, 
@@ -32,7 +33,7 @@ export function calculateStatus(dayKey: DayKey, currentMinutes: number): Compute
 
   // 3. Son dersten sonra mı?
   if (currentMinutes >= lastEndMins) {
-    const nextInfo = getNextSchoolDayLesson(dayKey);
+    const nextInfo = nextSchoolDay();
     return { 
       type: 'finished', 
       nextLesson: nextInfo?.lesson, 
@@ -52,7 +53,7 @@ export function calculateStatus(dayKey: DayKey, currentMinutes: number): Compute
       return {
         type: 'in_lesson',
         currentLesson: lesson,
-        nextLesson: lessons[i + 1] || getNextSchoolDayLesson(dayKey)?.lesson,
+        nextLesson: lessons[i + 1] || nextSchoolDay()?.lesson,
         progressPercent: Math.min(100, Math.max(0, Math.round((passed / duration) * 100))),
         minutesPassed: passed,
         minutesRemaining: endMins - currentMinutes,

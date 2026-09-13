@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { SpecialEvent } from '@/data/eventsData';
-import { getIstanbulDateKey, readCustomEvents } from '@/utils/events';
+import {
+  dismissEventForDay,
+  getIstanbulDateKey,
+  readCustomEvents,
+  readDismissedEventIds,
+  REMINDER_PREFERENCE_EVENT,
+} from '@/utils/events';
 
 export function DailyReminderBanner() {
   const [activeEvent, setActiveEvent] = useState<SpecialEvent | null>(null);
@@ -10,12 +16,16 @@ export function DailyReminderBanner() {
 
   useEffect(() => {
     const checkReminder = () => {
-      if (localStorage.getItem('reminders_enabled') !== 'true') return;
+      if (localStorage.getItem('reminders_enabled') !== 'true') {
+        setActiveEvent(null);
+        setShowBanner(false);
+        return;
+      }
       const customEvents = readCustomEvents();
       const todayDate = getIstanbulDateKey();
 
       // 1. Kullanıcı bu etkinlik için "Kapat" (dismiss) yapmış mı?
-      const dismissedEventId = localStorage.getItem(`dismissed_event_${todayDate}`);
+      const dismissedEventIds = readDismissedEventIds(todayDate);
 
       // 2. Erteleme süresi (Snooze) kontrolü
       const snoozeUntil = localStorage.getItem(`snooze_until_${todayDate}`);
@@ -24,7 +34,7 @@ export function DailyReminderBanner() {
       }
 
       // Bugünün tarihine ait ilk etkinliği bul
-      const todayEvent = customEvents.find((event) => event.date === todayDate && event.id !== dismissedEventId);
+      const todayEvent = customEvents.find((event) => event.date === todayDate && !dismissedEventIds.has(event.id));
 
       if (todayEvent) {
         setActiveEvent(todayEvent);
@@ -36,7 +46,11 @@ export function DailyReminderBanner() {
 
     queueMicrotask(checkReminder);
     const intervalId = window.setInterval(checkReminder, 60_000);
-    return () => window.clearInterval(intervalId);
+    window.addEventListener(REMINDER_PREFERENCE_EVENT, checkReminder);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener(REMINDER_PREFERENCE_EVENT, checkReminder);
+    };
   }, []);
 
   const handleDismiss = () => {
@@ -44,8 +58,9 @@ export function DailyReminderBanner() {
     const todayDate = getIstanbulDateKey();
 
     // Bugün için bu etkinliği tamamen kapat
-    localStorage.setItem(`dismissed_event_${todayDate}`, activeEvent.id);
+    dismissEventForDay(todayDate, activeEvent.id);
     setShowBanner(false);
+    window.setTimeout(() => window.dispatchEvent(new Event(REMINDER_PREFERENCE_EVENT)), 0);
   };
 
   const handleSnooze = () => {

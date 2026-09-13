@@ -7,6 +7,7 @@ import {
   getIstanbulDateKey,
   isSpecialEvent,
   readCustomEvents,
+  REMINDER_PREFERENCE_EVENT,
   toICalDateTime,
 } from '@/utils/events';
 
@@ -58,6 +59,7 @@ export function EventsPage() {
     if (isEnabled) {
       setIsEnabled(false);
       localStorage.setItem('reminders_enabled', 'false');
+      window.dispatchEvent(new Event(REMINDER_PREFERENCE_EVENT));
     } else {
       setShowNotificationModal(true);
     }
@@ -67,6 +69,7 @@ export function EventsPage() {
     setShowNotificationModal(false);
     setIsEnabled(true);
     localStorage.setItem('reminders_enabled', 'true');
+    window.dispatchEvent(new Event(REMINDER_PREFERENCE_EVENT));
   };
 
   const handleAddEventSubmit = (e: React.FormEvent) => {

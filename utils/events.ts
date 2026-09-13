@@ -1,4 +1,7 @@
 import { SpecialEvent } from '@/data/eventsData';
+import type { DayKey } from '@/types/schedule';
+
+export const REMINDER_PREFERENCE_EVENT = 'bale-reminder-preference-changed';
 
 const eventTypes = new Set<SpecialEvent['type']>([
   'exam', 'performance', 'rehearsal', 'holiday', 'commemoration', 'special',
@@ -36,6 +39,37 @@ export function getIstanbulDateKey(now = new Date()): string {
     month: '2-digit',
     day: '2-digit',
   }).format(now);
+}
+
+export function addDaysToDateKey(dateKey: string, days: number): string {
+  const date = new Date(`${dateKey}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+export function getDayKeyForDate(dateKey: string): DayKey {
+  const keys: DayKey[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  return keys[new Date(`${dateKey}T12:00:00Z`).getUTCDay()];
+}
+
+export function readDismissedEventIds(dateKey: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(`dismissed_events_${dateKey}`);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    const ids = Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : [];
+    const legacyId = localStorage.getItem(`dismissed_event_${dateKey}`);
+    if (legacyId) ids.push(legacyId);
+    return new Set(ids);
+  } catch {
+    return new Set();
+  }
+}
+
+export function dismissEventForDay(dateKey: string, eventId: string): void {
+  const ids = readDismissedEventIds(dateKey);
+  ids.add(eventId);
+  localStorage.setItem(`dismissed_events_${dateKey}`, JSON.stringify([...ids]));
+  localStorage.removeItem(`dismissed_event_${dateKey}`);
 }
 
 export function escapeICalText(value: string): string {
