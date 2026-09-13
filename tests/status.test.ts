@@ -15,6 +15,13 @@ describe('canlı ders durumu', () => {
       .toBe('finished');
   });
 
+  it('derse kalan ve ders içinde geçen süreleri üretir', () => {
+    expect(calculateStatus('monday', timeStringToMinutes('08:00'), '2026-09-14'))
+      .toMatchObject({ minutesUntilNext: 20 });
+    expect(calculateStatus('monday', timeStringToMinutes('08:51'), '2026-09-14'))
+      .toMatchObject({ minutesPassed: 31, minutesRemaining: 9 });
+  });
+
   it('cuma gününden sonra hafta sonunu atlayıp pazartesiyi bulur', () => {
     const next = getNextSchoolDayInfo('2026-09-18');
     expect(next).toMatchObject({ dateKey: '2026-09-21', dayKey: 'monday' });

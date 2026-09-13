@@ -32,6 +32,18 @@ export function readCustomEvents(): SpecialEvent[] {
   }
 }
 
+export function saveCustomEvent(event: SpecialEvent): SpecialEvent[] {
+  const events = readCustomEvents();
+  const existingIndex = events.findIndex((item) => item.id === event.id);
+  const updatedEvents = [...events];
+
+  if (existingIndex >= 0) updatedEvents[existingIndex] = event;
+  else updatedEvents.push(event);
+
+  localStorage.setItem('custom_events', JSON.stringify(updatedEvents));
+  return updatedEvents;
+}
+
 export function getIstanbulDateKey(now = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Istanbul',

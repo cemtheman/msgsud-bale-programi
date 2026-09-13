@@ -58,6 +58,11 @@ export default function Home() {
   const nextDayLabel = currentLesson ? undefined : status.nextLessonDayLabel;
 
   const isOngoing = Boolean(currentLesson);
+  const lessonTimeSummary = currentLesson
+    ? `${status.minutesPassed ?? 0} dakika geçti · ${status.minutesRemaining ?? 0} dakika kaldı`
+    : activeOrNext && status.minutesUntilNext !== undefined
+      ? `${activeOrNext.subject} dersine ${status.minutesUntilNext} dakika kaldı`
+      : undefined;
 
   return (
     <main className="w-full flex-1 px-4 pt-6 pb-28">
@@ -103,6 +108,11 @@ export default function Home() {
                   {activeOrNext.teacher ? `👨‍🏫 ${activeOrNext.teacher} · ` : ''}
                   {activeOrNext.location ? `📍 ${activeOrNext.location}` : '📍 Konum belirtilmedi'}
                 </p>
+                {lessonTimeSummary && (
+                  <p className="pt-1 text-xs font-extrabold text-[#D94B55] dark:text-rose-400">
+                    {lessonTimeSummary}
+                  </p>
+                )}
               </div>
             </div>
           ) : (
@@ -135,7 +145,7 @@ export default function Home() {
               formattedTime={formattedTime} 
               status={status} 
               todayLessons={todayLessons} 
-              currentMinutes={totalMinutes} 
+              currentMinutes={totalMinutes}
               onSelectLesson={setSelectedLesson} 
               onOpenTimeline={() => setShowTimeline(true)} 
               holidayTitle={todayHoliday?.title}
