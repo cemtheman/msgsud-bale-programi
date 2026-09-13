@@ -6,7 +6,6 @@ import { getIstanbulDate } from '@/utils/time';
 import { calculateStatus } from '@/utils/status';
 import { getLessonsForDay } from '@/utils/schedule';
 import { Lesson } from '@/types/schedule';
-import { scheduleData } from '@/data/scheduleData';
 
 import { TodayPage } from '@/components/TodayPage';
 import { WeeklyPage } from '@/components/WeeklyPage';
@@ -39,40 +38,12 @@ export default function Home() {
   // Hafta sonu kontrolü (Cumartesi veya Pazar)
   const isWeekend = dayKey === 'saturday' || dayKey === 'sunday';
 
-  // Widget için anlık hesaplama
-  const currentHours = now.getHours().toString().padStart(2, '0');
-  const currentMinutes = now.getMinutes().toString().padStart(2, '0');
-  const nowStr = `${currentHours}:${currentMinutes}`;
-
-  const currentLesson = todayLessons.find(
-    (lesson) => nowStr >= lesson.start && nowStr <= lesson.end
-  );
-  const nextLessonToday = todayLessons.find(
-    (lesson) => lesson.start > nowStr
-  );
-
-  let activeOrNext: Lesson | undefined = currentLesson || nextLessonToday;
-  let labelPrefix = currentLesson ? 'Şu An Devam Ediyor' : 'Sıradaki Ders';
-  let isTomorrow = false;
-
-  // Eğer bugün için başka ders kalmadıysa yarının ilk dersini bul
-  if (!activeOrNext && !isWeekend) {
-    const daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
-    const currentDayIndex = daysOrder.indexOf(dayKey as any);
-    if (currentDayIndex !== -1 && currentDayIndex < daysOrder.length - 1) {
-      const tomorrowKey = daysOrder[currentDayIndex + 1];
-      const rawTomorrowLessons = scheduleData.schedule[tomorrowKey] || [];
-      if (rawTomorrowLessons.length > 0) {
-        const firstRaw = rawTomorrowLessons[0];
-        activeOrNext = {
-          ...firstRaw,
-          id: `tomorrow-${tomorrowKey}-0`,
-        };
-        labelPrefix = 'Sıradaki Ders';
-        isTomorrow = true;
-      }
-    }
-  }
+  // Tüm canlı durumlar tek bir Europe/Istanbul zaman hesabını kullanır.
+  const nowStr = formattedTime;
+  const currentLesson = status.currentLesson;
+  const activeOrNext = currentLesson || status.nextLesson;
+  const labelPrefix = currentLesson ? 'Şu An Devam Ediyor' : 'Sıradaki Ders';
+  const nextDayLabel = currentLesson ? undefined : status.nextLessonDayLabel;
 
   const isOngoing = Boolean(currentLesson);
 
@@ -107,7 +78,7 @@ export default function Home() {
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300">
-                    {activeOrNext.start} - {activeOrNext.end} {isTomorrow ? '(Yarın)' : ''}
+                    {activeOrNext.start} - {activeOrNext.end} {nextDayLabel ? `(${nextDayLabel})` : ''}
                   </span>
                   <h3 className="text-base font-extrabold text-gray-900 dark:text-white">
                     {activeOrNext.subject}
@@ -115,7 +86,7 @@ export default function Home() {
                 </div>
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
                   {activeOrNext.teacher ? `👨‍🏫 ${activeOrNext.teacher} · ` : ''}
-                  {activeOrNext.location ? `📍 ${activeOrNext.location}` : '📍 B1-105A'}
+                  {activeOrNext.location ? `📍 ${activeOrNext.location}` : '📍 Konum belirtilmedi'}
                 </p>
               </div>
             </div>

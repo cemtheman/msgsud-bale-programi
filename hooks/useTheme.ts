@@ -8,7 +8,7 @@ export function useTheme() {
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     
     const initialTheme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
-    setTheme(initialTheme);
+    queueMicrotask(() => setTheme(initialTheme));
     
     if (initialTheme === 'dark') {
       document.documentElement.classList.add('dark');

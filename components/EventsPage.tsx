@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { specialEvents, eventTypeLabels, SpecialEvent } from '@/data/eventsData';
+import {
+  escapeICalText,
+  getIstanbulDateKey,
+  isSpecialEvent,
+  readCustomEvents,
+  toICalDateTime,
+} from '@/utils/events';
 
 export function EventsPage() {
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
@@ -19,8 +26,7 @@ export function EventsPage() {
   const [description, setDescription] = useState('');
 
   const loadAllEvents = async () => {
-    const localData = localStorage.getItem('custom_events');
-    const customEvents: SpecialEvent[] = localData ? JSON.parse(localData) : [];
+    const customEvents = readCustomEvents();
 
     let fetchedHolidays: SpecialEvent[] = [];
     try {
@@ -32,45 +38,35 @@ export function EventsPage() {
       console.error('Tatiller yüklenirken hata oluştu:', err);
     }
 
+    const today = getIstanbulDateKey();
     const combined = [...specialEvents, ...customEvents, ...fetchedHolidays]
+      .filter(isSpecialEvent)
+      .filter((event) => event.date >= today)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     setAllEvents(combined);
   };
 
   useEffect(() => {
-    const savedPref = localStorage.getItem('notifications_enabled') === 'true';
-    const hasPermission = 'Notification' in window && Notification.permission === 'granted';
-    setIsEnabled(savedPref && hasPermission);
-
-    loadAllEvents();
+    queueMicrotask(() => {
+      setIsEnabled(localStorage.getItem('reminders_enabled') === 'true');
+      void loadAllEvents();
+    });
   }, []);
 
   const handleToggleNotification = () => {
     if (isEnabled) {
       setIsEnabled(false);
-      localStorage.setItem('notifications_enabled', 'false');
+      localStorage.setItem('reminders_enabled', 'false');
     } else {
       setShowNotificationModal(true);
     }
   };
 
-  const handleConfirmNotification = async () => {
+  const handleConfirmNotification = () => {
     setShowNotificationModal(false);
-    if (!('Notification' in window)) return;
-
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      setIsEnabled(true);
-      localStorage.setItem('notifications_enabled', 'true');
-      new Notification('MSGSÜ Bale Programı', {
-        body: 'Etkinlik ve ders bildirimleri aktifleştirildi!',
-        icon: '/icon-512.png',
-      });
-    } else {
-      setIsEnabled(false);
-      localStorage.setItem('notifications_enabled', 'false');
-    }
+    setIsEnabled(true);
+    localStorage.setItem('reminders_enabled', 'true');
   };
 
   const handleAddEventSubmit = (e: React.FormEvent) => {
@@ -87,8 +83,7 @@ export function EventsPage() {
       description: description || undefined,
     };
 
-    const localData = localStorage.getItem('custom_events');
-    const customEvents: SpecialEvent[] = localData ? JSON.parse(localData) : [];
+    const customEvents = readCustomEvents();
     const updatedCustomEvents = [...customEvents, newEvent];
 
     localStorage.setItem('custom_events', JSON.stringify(updatedCustomEvents));
@@ -107,10 +102,7 @@ export function EventsPage() {
   const handleDeleteEvent = (id: string) => {
     if (!confirm('Bu etkinliği silmek istediğinize emin misiniz?')) return;
 
-    const localData = localStorage.getItem('custom_events');
-    if (!localData) return;
-
-    const customEvents: SpecialEvent[] = JSON.parse(localData);
+    const customEvents = readCustomEvents();
     const updatedCustomEvents = customEvents.filter((event) => event.id !== id);
 
     localStorage.setItem('custom_events', JSON.stringify(updatedCustomEvents));
@@ -118,13 +110,13 @@ export function EventsPage() {
   };
 
   const handleExportJson = () => {
-    const localData = localStorage.getItem('custom_events');
-    if (!localData || JSON.parse(localData).length === 0) {
+    const customEvents = readCustomEvents();
+    if (customEvents.length === 0) {
       alert('Dışa aktarılacak özel etkinlik bulunmuyor.');
       return;
     }
 
-    const blob = new Blob([localData], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(customEvents, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -140,13 +132,13 @@ export function EventsPage() {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const importedEvents = JSON.parse(event.target?.result as string);
-        if (Array.isArray(importedEvents)) {
-          const localData = localStorage.getItem('custom_events');
-          const currentEvents: SpecialEvent[] = localData ? JSON.parse(localData) : [];
+        const parsed: unknown = JSON.parse(String(event.target?.result));
+        if (Array.isArray(parsed) && parsed.every(isSpecialEvent)) {
+          const importedEvents = parsed;
+          const currentEvents = readCustomEvents();
           
           const merged = [...currentEvents];
-          importedEvents.forEach((imp: SpecialEvent) => {
+          importedEvents.forEach((imp) => {
             if (!merged.some((existing) => existing.id === imp.id || (existing.date === imp.date && existing.title === imp.title))) {
               merged.push(imp);
             }
@@ -158,7 +150,7 @@ export function EventsPage() {
         } else {
           alert('Geçersiz yedek dosyası formatı.');
         }
-      } catch (err) {
+      } catch {
         alert('Dosya okunurken bir hata oluştu.');
       }
     };
@@ -167,31 +159,31 @@ export function EventsPage() {
   };
 
   const handleExportIcal = () => {
-    const localData = localStorage.getItem('custom_events');
-    const customEvents: SpecialEvent[] = localData ? JSON.parse(localData) : [];
+    const customEvents = readCustomEvents();
 
     if (customEvents.length === 0) {
       alert('Takvime aktarılacak özel etkinlik bulunmuyor.');
       return;
     }
 
-    let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//MSGSÜ Bale Programı//TR\n";
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'CALSCALE:GREGORIAN', 'PRODID:-//MSGSÜ Bale Programı//TR'];
+    const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 
     customEvents.forEach((ev) => {
-      const cleanDate = ev.date.replace(/-/g, '');
-      const timeStr = ev.time ? ev.time.replace(':', '') + '00' : '090000';
-      
-      icsContent += "BEGIN:VEVENT\n";
-      icsContent += `UID:msgsud-${ev.id}@bale.app\n`;
-      icsContent += `DTSTAMP:${cleanDate}T${timeStr}\n`;
-      icsContent += `DTSTART:${cleanDate}T${timeStr}\n`;
-      icsContent += `SUMMARY:${ev.title}\n`;
-      if (ev.description) icsContent += `DESCRIPTION:${ev.description}\n`;
-      if (ev.location) icsContent += `LOCATION:${ev.location}\n`;
-      icsContent += "END:VEVENT\n";
+      lines.push('BEGIN:VEVENT', `UID:msgsud-${escapeICalText(ev.id)}@bale.app`, `DTSTAMP:${stamp}`);
+      if (ev.time) {
+        lines.push(`DTSTART;TZID=Europe/Istanbul:${toICalDateTime(ev.date, ev.time)}`);
+      } else {
+        lines.push(`DTSTART;VALUE=DATE:${ev.date.replace(/-/g, '')}`);
+      }
+      lines.push(`SUMMARY:${escapeICalText(ev.title)}`);
+      if (ev.description) lines.push(`DESCRIPTION:${escapeICalText(ev.description)}`);
+      if (ev.location) lines.push(`LOCATION:${escapeICalText(ev.location)}`);
+      lines.push('END:VEVENT');
     });
 
-    icsContent += "END:VCALENDAR";
+    lines.push('END:VCALENDAR');
+    const icsContent = `${lines.join('\r\n')}\r\n`;
 
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -204,8 +196,7 @@ export function EventsPage() {
 
   // --- Yalnızca Özel Etkinlikleri WhatsApp / Metin Olarak Paylaş ---
   const handleShareText = () => {
-    const localData = localStorage.getItem('custom_events');
-    const customEvents: SpecialEvent[] = localData ? JSON.parse(localData) : [];
+    const customEvents = readCustomEvents();
 
     let text = "🩰 *MSGSÜ 5. Sınıf Bale - Özel Etkinlikler*\n\n";
 
@@ -233,13 +224,7 @@ export function EventsPage() {
   };
 
   const getCountdownLabel = (dateStr: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const targetDate = new Date(dateStr);
-    targetDate.setHours(0, 0, 0, 0);
-
-    const diffTime = targetDate.getTime() - today.getTime();
+    const diffTime = Date.parse(`${dateStr}T00:00:00Z`) - Date.parse(`${getIstanbulDateKey()}T00:00:00Z`);
     const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) return { text: 'Geçti', color: 'bg-gray-500/10 text-gray-400 border-gray-500/20' };
@@ -273,7 +258,7 @@ export function EventsPage() {
               : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 border border-black/5 dark:border-white/10'
           }`}
         >
-          {isEnabled ? '🔔 Bildirimler Açık' : '🔕 Bildirimi Aç'}
+          {isEnabled ? '🔔 Hatırlatıcı Açık' : '🔕 Hatırlatıcıyı Aç'}
         </button>
       </div>
 
@@ -494,7 +479,7 @@ export function EventsPage() {
         </div>
       )}
 
-      {/* Bildirim İzin Modalı */}
+      {/* Uygulama içi hatırlatıcı açıklaması */}
       {showNotificationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-[300px] bg-white dark:bg-[#1C1C1E] rounded-3xl p-5 shadow-2xl border border-black/10 dark:border-white/10 space-y-4 text-center">
@@ -503,10 +488,10 @@ export function EventsPage() {
             </div>
             <div className="space-y-1">
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-                Bildirimlere İzin Verilsin mi?
+                Uygulama İçi Hatırlatıcı
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                Yaklaşan temsil, sınav ve provalar için anlık hatırlatmalar almak ister misiniz?
+                Uygulamayı açtığınızda o günkü temsil, sınav ve provaları hatırlatalım mı?
               </p>
             </div>
             <div className="flex gap-2 pt-1">
@@ -520,7 +505,7 @@ export function EventsPage() {
                 onClick={handleConfirmNotification}
                 className="flex-1 py-2 rounded-xl text-xs font-bold bg-[#D94B55] text-white hover:bg-[#c03d47]"
               >
-                İzin Ver
+                Etkinleştir
               </button>
             </div>
           </div>

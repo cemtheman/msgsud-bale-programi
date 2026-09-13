@@ -5,7 +5,7 @@ export function useNow() {
 
   useEffect(() => {
     // İlk mount anında istemci saatini al
-    setNow(new Date());
+    queueMicrotask(() => setNow(new Date()));
 
     const updateTime = () => setNow(new Date());
     const intervalId = setInterval(updateTime, 30000);

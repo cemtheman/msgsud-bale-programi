@@ -2,32 +2,38 @@
 
 import { useState, useEffect } from 'react';
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 export function InstallPromptBanner() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showIosModal, setShowIosModal] = useState<boolean>(false);
   const [isInstalled, setIsInstalled] = useState<boolean>(true); // Varsayılan olarak gizli başlat
 
   useEffect(() => {
     // 1. Zaten PWA olarak (standalone modda) çalışıp çalışmadığını kontrol et
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    const navigatorWithStandalone = window.navigator as Navigator & { standalone?: boolean };
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigatorWithStandalone.standalone === true;
     if (isStandalone) {
-      setIsInstalled(true);
+      queueMicrotask(() => setIsInstalled(true));
       return;
     }
 
     // 2. Kullanıcı daha önce "Kapat" dediyse tekrar gösterme
     const dismissed = localStorage.getItem('pwa_install_dismissed');
     if (dismissed === 'true') {
-      setIsInstalled(true);
+      queueMicrotask(() => setIsInstalled(true));
       return;
     }
 
-    setIsInstalled(false);
+    queueMicrotask(() => setIsInstalled(false));
 
     // 3. Android / Chrome için yükleme olayını yakala
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -110,7 +116,7 @@ export function InstallPromptBanner() {
             
             <div className="space-y-1.5">
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-                iPhone / iPad'e Yükleme
+                iPhone / iPad&apos;e Yükleme
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
                 Safari tarayıcısında uygulamayı ana ekranınıza eklemek için şu adımları izleyin:
@@ -124,7 +130,7 @@ export function InstallPromptBanner() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-[#D94B55]">2.</span>
-                <span>Listeden <b>"Ana Ekrana Ekle"</b> seçeneğini bulun ➕</span>
+                <span>Listeden <b>&quot;Ana Ekrana Ekle&quot;</b> seçeneğini bulun ➕</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-[#D94B55]">3.</span>

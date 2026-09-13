@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { SpecialEvent } from '@/data/eventsData';
+import { getIstanbulDateKey, readCustomEvents } from '@/utils/events';
 
 export function DailyReminderBanner() {
   const [activeEvent, setActiveEvent] = useState<SpecialEvent | null>(null);
@@ -9,16 +10,9 @@ export function DailyReminderBanner() {
 
   useEffect(() => {
     const checkReminder = () => {
-      const localData = localStorage.getItem('custom_events');
-      if (!localData) return;
-
-      const customEvents: SpecialEvent[] = JSON.parse(localData);
-      
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const todayDate = `${year}-${month}-${day}`;
+      if (localStorage.getItem('reminders_enabled') !== 'true') return;
+      const customEvents = readCustomEvents();
+      const todayDate = getIstanbulDateKey();
 
       // 1. Kullanıcı bu etkinlik için "Kapat" (dismiss) yapmış mı?
       const dismissedEventId = localStorage.getItem(`dismissed_event_${todayDate}`);
@@ -40,16 +34,14 @@ export function DailyReminderBanner() {
       }
     };
 
-    checkReminder();
+    queueMicrotask(checkReminder);
+    const intervalId = window.setInterval(checkReminder, 60_000);
+    return () => window.clearInterval(intervalId);
   }, []);
 
   const handleDismiss = () => {
     if (!activeEvent) return;
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const todayDate = `${year}-${month}-${day}`;
+    const todayDate = getIstanbulDateKey();
 
     // Bugün için bu etkinliği tamamen kapat
     localStorage.setItem(`dismissed_event_${todayDate}`, activeEvent.id);
@@ -57,11 +49,7 @@ export function DailyReminderBanner() {
   };
 
   const handleSnooze = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const todayDate = `${year}-${month}-${day}`;
+    const todayDate = getIstanbulDateKey();
 
     // 1 saat sonrasına ertele (1 * 60 * 60 * 1000 ms)
     const snoozeTime = Date.now() + 60 * 60 * 1000;

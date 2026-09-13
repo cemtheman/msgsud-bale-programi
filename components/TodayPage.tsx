@@ -1,7 +1,6 @@
 'use client';
 
 import { Lesson, ComputedStatus } from '@/types/schedule';
-import { scheduleData } from '@/data/scheduleData';
 
 interface TodayPageProps {
   formattedDate: string;
@@ -24,26 +23,13 @@ export function TodayPage({
   
   let nextDayFirstLesson: { subject: string; start: string; dayLabel: string } | null = null;
 
-  // Dinamik sonraki gün hesaplama
+  // Sonraki okul günü merkezi durum hesabından gelir.
   if (status.type === 'no_school' || status.type === 'finished') {
-    const todayIndex = new Date().getDay(); // 0: Pazar, 1: Pzt, ..., 6: Cmt
-    let tomorrowKey: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' = 'monday';
-    let dayLabel = 'Yarın';
-
-    if (todayIndex === 1) tomorrowKey = 'tuesday';
-    else if (todayIndex === 2) tomorrowKey = 'wednesday';
-    else if (todayIndex === 3) tomorrowKey = 'thursday';
-    else if (todayIndex === 4) tomorrowKey = 'friday';
-    else if (todayIndex === 5) { tomorrowKey = 'monday'; dayLabel = 'Pazartesi'; }
-    else if (todayIndex === 6) { tomorrowKey = 'monday'; dayLabel = 'Pazartesi'; }
-    else if (todayIndex === 0) { tomorrowKey = 'monday'; dayLabel = 'Yarın'; }
-
-    const rawLessons = scheduleData.schedule[tomorrowKey] || [];
-    if (rawLessons.length > 0) {
+    if (status.nextLesson) {
       nextDayFirstLesson = {
-        subject: rawLessons[0].subject,
-        start: rawLessons[0].start,
-        dayLabel,
+        subject: status.nextLesson.subject,
+        start: status.nextLesson.start,
+        dayLabel: status.nextLessonDayLabel || 'Sonraki okul günü',
       };
     }
   }
