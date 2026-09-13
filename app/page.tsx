@@ -9,6 +9,7 @@ import { calculateStatus } from '@/utils/status';
 import { getLessonsForDay, getNextSchoolDayInfo } from '@/utils/schedule';
 import { Lesson } from '@/types/schedule';
 import { getAcademicCalendarState, getAcademicClosureDates } from '@/data/academicCalendar';
+import { formatDuration } from '@/utils/dayProgress';
 
 import { TodayPage } from '@/components/TodayPage';
 import { WeeklyPage } from '@/components/WeeklyPage';
@@ -61,7 +62,7 @@ export default function Home() {
   const lessonTimeSummary = currentLesson
     ? `${status.minutesPassed ?? 0} dakika geçti · ${status.minutesRemaining ?? 0} dakika kaldı`
     : activeOrNext && status.minutesUntilNext !== undefined
-      ? `${activeOrNext.subject} dersine ${status.minutesUntilNext} dakika kaldı`
+      ? `${activeOrNext.subject} dersine ${formatDuration(status.minutesUntilNext)} kaldı`
       : undefined;
 
   return (
@@ -128,11 +129,11 @@ export default function Home() {
           <div className="flex justify-between items-center">
             <button 
               onClick={() => setShowTimeline(false)} 
-              className="text-xs font-bold text-gray-500 hover:text-gray-900 flex items-center gap-1"
+              className="text-xs font-bold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white flex items-center gap-1"
             >
               ← Geri
             </button>
-            <h1 className="text-sm font-bold text-gray-900">Canlı Zaman Çizelgesi</h1>
+            <h1 className="text-sm font-bold text-gray-900 dark:text-white">Canlı Zaman Çizelgesi</h1>
             <div className="w-8" />
           </div>
           <LiveTimeline lessons={todayLessons} currentMinutes={totalMinutes} onSelectLesson={setSelectedLesson} />

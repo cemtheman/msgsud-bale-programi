@@ -35,6 +35,8 @@ export function TodayPage({
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
   const dayProgress = calculateDayProgress(todayLessons, currentMinutes);
+  const firstLesson = todayLessons[0];
+  const lastLesson = todayLessons.at(-1);
   
   return (
     <div className="space-y-4">
@@ -102,7 +104,13 @@ export function TodayPage({
               </p>
             </div>
             <p className="text-right text-xs font-bold text-[#D94B55] dark:text-rose-400">
-              {dayProgress.minutesUntilEnd > 0
+              {status.type === 'before_school' && firstLesson && lastLesson ? (
+                <>
+                  Başlangıç {firstLesson.start}
+                  <br />
+                  Çıkış {lastLesson.end}
+                </>
+              ) : dayProgress.minutesUntilEnd > 0
                 ? `Çıkışa ${formatDuration(dayProgress.minutesUntilEnd)} kaldı`
                 : 'Ders günü tamamlandı'}
             </p>
@@ -180,7 +188,9 @@ export function TodayPage({
                       {lesson.subject}
                     </h4>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {lesson.teacher ? `👨‍🏫 ${lesson.teacher}` : ''} {lesson.location ? `· 📍 ${lesson.location}` : ''}
+                      {lesson.teacher && `👨‍🏫 ${lesson.teacher}`}
+                      {lesson.teacher && lesson.location && ' · '}
+                      {lesson.location && `📍 ${lesson.location}`}
                     </p>
                   </div>
 

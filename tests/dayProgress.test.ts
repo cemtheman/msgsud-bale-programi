@@ -27,6 +27,7 @@ describe('günlük ders ilerlemesi', () => {
 
   it('süreyi ebeveyn dostu biçimde gösterir', () => {
     expect(formatDuration(130)).toBe('2 saat 10 dakika');
+    expect(formatDuration(484)).toBe('8 saat 4 dakika');
     expect(formatDuration(60)).toBe('1 saat');
     expect(formatDuration(24)).toBe('24 dakika');
   });

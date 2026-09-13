@@ -17,9 +17,21 @@ const END_HOUR = 19;  // Timeline 19:00'da biter
 const TOTAL_MINUTES = (END_HOUR - START_HOUR) * 60;
 
 const CATEGORY_STYLES = {
-  academic: { bg: 'bg-[#F4E8B8]', border: 'border-[#D6BC63]', text: 'text-[#50451F]' },
-  dance: { bg: 'bg-[#CFE8E5]', border: 'border-[#76AAA5]', text: 'text-[#244A47]' },
-  other: { bg: 'bg-[#DDE3EC]', border: 'border-[#9AAABD]', text: 'text-[#364454]' },
+  academic: {
+    bg: 'bg-[#F4E8B8] dark:bg-amber-300/15',
+    border: 'border-[#D6BC63] dark:border-amber-200/35',
+    text: 'text-[#50451F] dark:text-amber-50',
+  },
+  dance: {
+    bg: 'bg-[#CFE8E5] dark:bg-teal-300/15',
+    border: 'border-[#76AAA5] dark:border-teal-200/35',
+    text: 'text-[#244A47] dark:text-teal-50',
+  },
+  other: {
+    bg: 'bg-[#DDE3EC] dark:bg-slate-300/15',
+    border: 'border-[#9AAABD] dark:border-slate-200/35',
+    text: 'text-[#364454] dark:text-slate-50',
+  },
 };
 
 export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTimelineProps) {
@@ -44,7 +56,7 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
   }, [currentMinutes]);
 
   return (
-    <div className="relative w-full bg-white rounded-2xl border border-black/10 p-4 overflow-x-hidden">
+    <div className="relative w-full bg-white dark:bg-[#1C1C1E] rounded-2xl border border-black/10 dark:border-white/10 p-4 overflow-x-hidden">
       <div ref={containerRef} className="relative w-full" style={{ height: `${containerHeight}px` }}>
         
         {/* Saat Izgarası (Grid Lines) */}
@@ -54,10 +66,10 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
           return (
             <div
               key={hour}
-              className="absolute left-0 right-0 border-b border-gray-100 flex items-center"
+              className="absolute left-0 right-0 border-b border-gray-100 dark:border-white/10 flex items-center"
               style={{ top: `${topPx}px` }}
             >
-              <span className="text-[10px] font-semibold text-gray-400 w-10">
+              <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 w-10">
                 {String(hour).padStart(2, '0')}:00
               </span>
             </div>
