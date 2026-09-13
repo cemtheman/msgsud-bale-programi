@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Lesson } from '@/types/schedule';
 import { timeStringToMinutes } from '@/utils/time';
 import { getSubjectCategory } from '@/utils/schedule';
+import { getTimelineEndHour } from '@/utils/timeline';
 
 interface LiveTimelineProps {
   lessons: Lesson[];
@@ -13,8 +14,6 @@ interface LiveTimelineProps {
 const PX_PER_MINUTE = 1.4;
 const START_HOUR = 8; // Timeline 08:00'de başlar
 const START_MINUTES = START_HOUR * 60;
-const END_HOUR = 19;  // Timeline 19:00'da biter
-const TOTAL_MINUTES = (END_HOUR - START_HOUR) * 60;
 
 const CATEGORY_STYLES = {
   academic: {
@@ -39,7 +38,9 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
   const nowMarkerRef = useRef<HTMLDivElement>(null);
   const hasAutoScrolledRef = useRef(false);
 
-  const containerHeight = TOTAL_MINUTES * PX_PER_MINUTE;
+  const endHour = getTimelineEndHour(lessons, START_HOUR);
+  const endMinutes = endHour * 60;
+  const containerHeight = (endMinutes - START_MINUTES) * PX_PER_MINUTE;
   const nowY = (currentMinutes - START_MINUTES) * PX_PER_MINUTE;
 
   // Otomatik scroll: Ekran açıldığında "Şimdi" çizgisine odaklan
@@ -48,19 +49,19 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
       !hasAutoScrolledRef.current &&
       nowMarkerRef.current &&
       currentMinutes >= START_MINUTES &&
-      currentMinutes <= END_HOUR * 60
+      currentMinutes <= endMinutes
     ) {
       hasAutoScrolledRef.current = true;
       nowMarkerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [currentMinutes]);
+  }, [currentMinutes, endMinutes]);
 
   return (
     <div className="relative w-full bg-white dark:bg-[#1C1C1E] rounded-2xl border border-black/10 dark:border-white/10 p-4 overflow-x-hidden">
       <div ref={containerRef} className="relative w-full" style={{ height: `${containerHeight}px` }}>
         
         {/* Saat Izgarası (Grid Lines) */}
-        {Array.from({ length: END_HOUR - START_HOUR + 1 }).map((_, idx) => {
+        {Array.from({ length: endHour - START_HOUR + 1 }).map((_, idx) => {
           const hour = START_HOUR + idx;
           const topPx = idx * 60 * PX_PER_MINUTE;
           return (
@@ -103,7 +104,7 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
         })}
 
         {/* CANLI ŞİMDİ ÇİZGİSİ */}
-        {currentMinutes >= START_MINUTES && currentMinutes <= END_HOUR * 60 && (
+        {currentMinutes >= START_MINUTES && currentMinutes <= endMinutes && (
           <div
             ref={nowMarkerRef}
             className="absolute left-11 right-0 z-20 flex items-center pointer-events-none"
