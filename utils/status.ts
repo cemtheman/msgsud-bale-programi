@@ -3,12 +3,12 @@ import { scheduleData } from '@/data/scheduleData';
 import { getLessonsForDay, getNextSchoolDayLesson } from './schedule';
 import { timeStringToMinutes } from './time';
 
-export function calculateStatus(dayKey: DayKey, currentMinutes: number, currentDateKey: string, holidayDates = new Set<string>()): ComputedStatus {
+export function calculateStatus(dayKey: DayKey, currentMinutes: number, currentDateKey: string, closedDates = new Set<string>()): ComputedStatus {
   const lessons = getLessonsForDay(dayKey);
-  const nextSchoolDay = () => getNextSchoolDayLesson(currentDateKey, holidayDates);
+  const nextSchoolDay = () => getNextSchoolDayLesson(currentDateKey, closedDates);
 
   // 1. Resmî tatil veya ders olmayan gün
-  if (holidayDates.has(currentDateKey) || lessons.length === 0) {
+  if (closedDates.has(currentDateKey) || lessons.length === 0) {
     const nextInfo = nextSchoolDay();
     return { 
       type: 'no_school', 
