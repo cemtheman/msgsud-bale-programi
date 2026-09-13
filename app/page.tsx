@@ -8,6 +8,7 @@ import { getIstanbulDateKey } from '@/utils/events';
 import { calculateStatus } from '@/utils/status';
 import { getLessonsForDay, getNextSchoolDayInfo } from '@/utils/schedule';
 import { Lesson } from '@/types/schedule';
+import { getAcademicCalendarState, getAcademicClosureDates } from '@/data/academicCalendar';
 
 import { TodayPage } from '@/components/TodayPage';
 import { WeeklyPage } from '@/components/WeeklyPage';
@@ -17,6 +18,7 @@ import { LessonDetailSheet } from '@/components/LessonDetailSheet';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { DailyReminderBanner } from '@/components/DailyReminderBanner';
 import { InstallPromptBanner } from '@/components/InstallPromptBanner';
+import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
 
 export default function Home() {
   const now = useNow();
@@ -37,14 +39,16 @@ export default function Home() {
   const { dayKey, formattedDate, formattedTime, totalMinutes } = getIstanbulDate(now);
   const todayDateKey = getIstanbulDateKey(now);
   const officialHolidays = holidays.filter((event) => event.type === 'holiday');
-  const holidayDates = new Set(officialHolidays.map((event) => event.date));
+  const closedDates = getAcademicClosureDates(todayDateKey);
+  officialHolidays.forEach((event) => closedDates.add(event.date));
   const todayHoliday = officialHolidays.find((event) => event.date === todayDateKey);
-  const status = calculateStatus(dayKey, totalMinutes, todayDateKey, holidayDates);
-  const todayLessons = todayHoliday ? [] : getLessonsForDay(dayKey);
-  const nextSchoolDay = getNextSchoolDayInfo(todayDateKey, holidayDates);
+  const academicState = getAcademicCalendarState(todayDateKey);
+  const status = calculateStatus(dayKey, totalMinutes, todayDateKey, closedDates);
+  const todayLessons = closedDates.has(todayDateKey) ? [] : getLessonsForDay(dayKey);
+  const nextSchoolDay = getNextSchoolDayInfo(todayDateKey, closedDates);
 
   // Hafta sonu kontrolü (Cumartesi veya Pazar)
-  const isNoSchoolDay = dayKey === 'saturday' || dayKey === 'sunday' || Boolean(todayHoliday);
+  const isNoSchoolDay = dayKey === 'saturday' || dayKey === 'sunday' || closedDates.has(todayDateKey);
 
   // Tüm canlı durumlar tek bir Europe/Istanbul zaman hesabını kullanır.
   const nowStr = formattedTime;
@@ -59,6 +63,9 @@ export default function Home() {
     <main className="w-full flex-1 px-4 pt-6 pb-28">
       {/* PWA Yükleme Yönlendiricisi */}
       <InstallPromptBanner />
+
+      {/* Yeni servis çalışanı hazır olduğunda kontrollü güncelleme */}
+      <PwaUpdateBanner />
 
       {/* Günlük Hatırlatıcı Bant */}
       <DailyReminderBanner />
@@ -132,6 +139,8 @@ export default function Home() {
               onSelectLesson={setSelectedLesson} 
               onOpenTimeline={() => setShowTimeline(true)} 
               holidayTitle={todayHoliday?.title}
+              academicYearLabel={academicState.label}
+              closureTitle={todayHoliday?.title ?? academicState.closureTitle}
               nextSchoolDay={nextSchoolDay}
             />
           )}

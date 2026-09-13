@@ -19,10 +19,10 @@ export interface NextSchoolDayInfo {
   lessons: Lesson[];
 }
 
-export function getNextSchoolDayInfo(currentDateKey: string, holidayDates = new Set<string>()): NextSchoolDayInfo | null {
-  for (let i = 1; i <= 14; i++) {
+export function getNextSchoolDayInfo(currentDateKey: string, closedDates = new Set<string>()): NextSchoolDayInfo | null {
+  for (let i = 1; i <= 60; i++) {
     const nextDateKey = addDaysToDateKey(currentDateKey, i);
-    if (holidayDates.has(nextDateKey)) continue;
+    if (closedDates.has(nextDateKey)) continue;
     const nextDayKey = getDayKeyForDate(nextDateKey);
     const lessons = getLessonsForDay(nextDayKey);
     
@@ -38,7 +38,7 @@ export function getNextSchoolDayInfo(currentDateKey: string, holidayDates = new 
   return null;
 }
 
-export function getNextSchoolDayLesson(currentDateKey: string, holidayDates = new Set<string>()): { lesson: Lesson; dayLabel: string } | null {
-  const info = getNextSchoolDayInfo(currentDateKey, holidayDates);
+export function getNextSchoolDayLesson(currentDateKey: string, closedDates = new Set<string>()): { lesson: Lesson; dayLabel: string } | null {
+  const info = getNextSchoolDayInfo(currentDateKey, closedDates);
   return info ? { lesson: info.lessons[0], dayLabel: info.dayLabel } : null;
 }

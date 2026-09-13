@@ -13,6 +13,8 @@ interface TodayPageProps {
   onSelectLesson: (lesson: Lesson) => void;
   onOpenTimeline: () => void;
   holidayTitle?: string;
+  academicYearLabel: string;
+  closureTitle?: string;
   nextSchoolDay: NextSchoolDayInfo | null;
 }
 
@@ -24,6 +26,8 @@ export function TodayPage({
   onSelectLesson,
   onOpenTimeline,
   holidayTitle,
+  academicYearLabel,
+  closureTitle,
   nextSchoolDay,
 }: TodayPageProps) {
   const { theme, toggleTheme } = useTheme();
@@ -38,7 +42,7 @@ export function TodayPage({
             {formattedDate}
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-            MSGSÜ Bale Programı
+            MSGSÜ Bale Programı · {academicYearLabel}
           </p>
         </div>
         <div className="flex items-center gap-2 bg-white dark:bg-[#1C1C1E] pl-1.5 pr-3 py-1.5 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
@@ -71,9 +75,9 @@ export function TodayPage({
           {status.type === 'finished' && 'BUGÜNKÜ DERSLER BİTTİ'}
         </h2>
 
-        {holidayTitle && (
+        {closureTitle && (
           <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 pt-0.5">
-            {holidayTitle}
+            {closureTitle}
           </p>
         )}
 
