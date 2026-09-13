@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { scheduleData } from '@/data/scheduleData';
 import { subjectCategories } from '@/data/scheduleData';
 import { DayKey, Lesson } from '@/types/schedule';
 import { useTheme } from '@/hooks/useTheme';
+import { getLessonsForDay } from '@/utils/schedule';
 
 const DAYS: { key: DayKey; label: string }[] = [
   { key: 'monday', label: 'Pazartesi' },
@@ -29,7 +29,7 @@ export function WeeklyPage({ todayDayKey, onSelectLesson }: WeeklyPageProps) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
 
-  const rawLessons = scheduleData.schedule[selectedDay] || [];
+  const rawLessons = getLessonsForDay(selectedDay);
 
   return (
     <div className="space-y-6">
@@ -84,11 +84,7 @@ export function WeeklyPage({ todayDayKey, onSelectLesson }: WeeklyPageProps) {
             Bu gün için tanımlı ders bulunmuyor.
           </div>
         ) : (
-          rawLessons.map((item, index) => {
-            const lessonItem: Lesson = {
-              id: (item as Lesson).id || `${selectedDay}-${index}-${item.subject}`,
-              ...item,
-            };
+          rawLessons.map((lessonItem: Lesson) => {
 
             const category = subjectCategories[lessonItem.subject] || 'other';
             const isDance = category === 'dance';

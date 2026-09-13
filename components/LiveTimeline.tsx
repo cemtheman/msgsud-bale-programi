@@ -34,7 +34,7 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
     if (nowMarkerRef.current && currentMinutes >= START_MINUTES && currentMinutes <= END_HOUR * 60) {
       nowMarkerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, []);
+  }, [currentMinutes]);
 
   return (
     <div className="relative w-full bg-white rounded-2xl border border-black/10 p-4 overflow-x-hidden">

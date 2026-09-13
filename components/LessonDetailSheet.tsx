@@ -26,6 +26,7 @@ export function LessonDetailSheet({ lesson, status, onClose }: LessonDetailSheet
   const duration = endMins - startMins;
 
   const isActive = status.type === 'in_lesson' && status.currentLesson?.id === lesson.id;
+  const categoryLabels = { academic: 'Akademik', dance: 'Dans', other: 'Diğer' } as const;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm animate-fade-in">
@@ -38,7 +39,7 @@ export function LessonDetailSheet({ lesson, status, onClose }: LessonDetailSheet
         <div className="flex justify-between items-start">
           <div>
             <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-gray-100 text-gray-600 uppercase">
-              {getSubjectCategory(lesson.subject)}
+              {categoryLabels[getSubjectCategory(lesson.subject)]}
             </span>
             <h3 className="text-2xl font-bold text-gray-900 mt-2">{lesson.subject}</h3>
           </div>
