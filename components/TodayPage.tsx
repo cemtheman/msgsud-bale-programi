@@ -1,6 +1,7 @@
 'use client';
 
 import { Lesson, ComputedStatus } from '@/types/schedule';
+import { useTheme } from '@/hooks/useTheme';
 
 interface TodayPageProps {
   formattedDate: string;
@@ -20,6 +21,8 @@ export function TodayPage({
   onSelectLesson,
   onOpenTimeline,
 }: TodayPageProps) {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
   
   let nextDayFirstLesson: { subject: string; start: string; dayLabel: string } | null = null;
 
@@ -45,8 +48,16 @@ export function TodayPage({
             MSGSÜ Bale Programı
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-white dark:bg-[#1C1C1E] px-3 py-1.5 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
-          <span className="text-xs">🌙</span>
+        <div className="flex items-center gap-2 bg-white dark:bg-[#1C1C1E] pl-1.5 pr-3 py-1.5 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex h-7 w-7 items-center justify-center rounded-xl bg-gray-100 dark:bg-white/10 text-xs transition-transform active:scale-95"
+            aria-label={isDark ? 'Gündüz temasına geç' : 'Gece temasına geç'}
+            title={isDark ? 'Gündüz temasına geç' : 'Gece temasına geç'}
+          >
+            {isDark ? '☀️' : '🌙'}
+          </button>
           <span className="text-sm font-extrabold text-gray-900 dark:text-white">
             {formattedTime}
           </span>
