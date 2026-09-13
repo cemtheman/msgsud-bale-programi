@@ -25,13 +25,20 @@ const CATEGORY_STYLES = {
 export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const nowMarkerRef = useRef<HTMLDivElement>(null);
+  const hasAutoScrolledRef = useRef(false);
 
   const containerHeight = TOTAL_MINUTES * PX_PER_MINUTE;
   const nowY = (currentMinutes - START_MINUTES) * PX_PER_MINUTE;
 
   // Otomatik scroll: Ekran açıldığında "Şimdi" çizgisine odaklan
   useEffect(() => {
-    if (nowMarkerRef.current && currentMinutes >= START_MINUTES && currentMinutes <= END_HOUR * 60) {
+    if (
+      !hasAutoScrolledRef.current &&
+      nowMarkerRef.current &&
+      currentMinutes >= START_MINUTES &&
+      currentMinutes <= END_HOUR * 60
+    ) {
+      hasAutoScrolledRef.current = true;
       nowMarkerRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [currentMinutes]);
@@ -87,10 +94,21 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
         {currentMinutes >= START_MINUTES && currentMinutes <= END_HOUR * 60 && (
           <div
             ref={nowMarkerRef}
-            className="absolute left-0 right-0 z-20 flex items-center pointer-events-none"
+            className="absolute left-11 right-0 z-20 flex items-center pointer-events-none"
             style={{ top: `${nowY}px` }}
           >
-            <div className="w-2.5 h-2.5 rounded-full bg-[#D94B55] -ml-1 border-2 border-white shadow-sm" />
+            <div className="animate-ballerina-hop -ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/95 dark:bg-[#1C1C1E]/95 shadow-sm ring-1 ring-[#D94B55]/25">
+              <svg
+                viewBox="0 0 32 32"
+                className="h-6 w-6 text-[#D94B55]"
+                aria-hidden="true"
+              >
+                <circle cx="16" cy="5.5" r="3" fill="currentColor" />
+                <path d="M14.4 9h3.2l1.1 7.2 4.6 3.1-1.5 2.1-5.8-3.2-5.8 3.2-1.5-2.1 4.6-3.1L14.4 9Z" fill="currentColor" />
+                <path d="M13.7 10.5 7.5 14M18.3 10.5l6.2-3.7M15 17.2l-2 9.3M17 17.2l5 8" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+                <path d="m10.8 27 2.4-.5M21.8 25.2l2 1.4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+            </div>
             <div className="h-[2px] w-full bg-[#D94B55]" />
           </div>
         )}
