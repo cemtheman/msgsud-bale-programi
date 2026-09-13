@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useNow } from '@/hooks/useNow';
+import { useHolidays } from '@/hooks/useHolidays';
 import { getIstanbulDate } from '@/utils/time';
+import { getIstanbulDateKey } from '@/utils/events';
 import { calculateStatus } from '@/utils/status';
-import { getLessonsForDay } from '@/utils/schedule';
+import { getLessonsForDay, getNextSchoolDayInfo } from '@/utils/schedule';
 import { Lesson } from '@/types/schedule';
 
 import { TodayPage } from '@/components/TodayPage';
@@ -18,6 +20,7 @@ import { InstallPromptBanner } from '@/components/InstallPromptBanner';
 
 export default function Home() {
   const now = useNow();
+  const holidays = useHolidays();
 
   const [activeTab, setActiveTab] = useState<'today' | 'weekly' | 'events'>('today');
   const [showTimeline, setShowTimeline] = useState<boolean>(false);
@@ -32,11 +35,16 @@ export default function Home() {
   }
 
   const { dayKey, formattedDate, formattedTime, totalMinutes } = getIstanbulDate(now);
-  const status = calculateStatus(dayKey, totalMinutes);
-  const todayLessons = getLessonsForDay(dayKey);
+  const todayDateKey = getIstanbulDateKey(now);
+  const officialHolidays = holidays.filter((event) => event.type === 'holiday');
+  const holidayDates = new Set(officialHolidays.map((event) => event.date));
+  const todayHoliday = officialHolidays.find((event) => event.date === todayDateKey);
+  const status = calculateStatus(dayKey, totalMinutes, todayDateKey, holidayDates);
+  const todayLessons = todayHoliday ? [] : getLessonsForDay(dayKey);
+  const nextSchoolDay = getNextSchoolDayInfo(todayDateKey, holidayDates);
 
   // Hafta sonu kontrolü (Cumartesi veya Pazar)
-  const isWeekend = dayKey === 'saturday' || dayKey === 'sunday';
+  const isNoSchoolDay = dayKey === 'saturday' || dayKey === 'sunday' || Boolean(todayHoliday);
 
   // Tüm canlı durumlar tek bir Europe/Istanbul zaman hesabını kullanır.
   const nowStr = formattedTime;
@@ -56,7 +64,7 @@ export default function Home() {
       <DailyReminderBanner />
 
       {/* Sıradaki Ders / Canlı Widget Kartı (Sadece hafta içi günlerde görünür) */}
-      {!showTimeline && activeTab === 'today' && !isWeekend && (
+      {!showTimeline && activeTab === 'today' && !isNoSchoolDay && (
         <div className="w-full bg-gradient-to-br from-[#D94B55]/15 via-rose-500/5 to-transparent dark:from-[#D94B55]/25 dark:via-rose-950/20 p-4 rounded-3xl border border-[#D94B55]/20 shadow-sm backdrop-blur-md mb-3.5">
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-1.5">
@@ -123,6 +131,8 @@ export default function Home() {
               currentMinutes={totalMinutes} 
               onSelectLesson={setSelectedLesson} 
               onOpenTimeline={() => setShowTimeline(true)} 
+              holidayTitle={todayHoliday?.title}
+              nextSchoolDay={nextSchoolDay}
             />
           )}
           {activeTab === 'weekly' && (

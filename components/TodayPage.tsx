@@ -2,6 +2,7 @@
 
 import { Lesson, ComputedStatus } from '@/types/schedule';
 import { useTheme } from '@/hooks/useTheme';
+import type { NextSchoolDayInfo } from '@/utils/schedule';
 
 interface TodayPageProps {
   formattedDate: string;
@@ -11,6 +12,8 @@ interface TodayPageProps {
   currentMinutes: number;
   onSelectLesson: (lesson: Lesson) => void;
   onOpenTimeline: () => void;
+  holidayTitle?: string;
+  nextSchoolDay: NextSchoolDayInfo | null;
 }
 
 export function TodayPage({
@@ -20,23 +23,13 @@ export function TodayPage({
   todayLessons,
   onSelectLesson,
   onOpenTimeline,
+  holidayTitle,
+  nextSchoolDay,
 }: TodayPageProps) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
+  const lastLesson = todayLessons.at(-1);
   
-  let nextDayFirstLesson: { subject: string; start: string; dayLabel: string } | null = null;
-
-  // Sonraki okul günü merkezi durum hesabından gelir.
-  if (status.type === 'no_school' || status.type === 'finished') {
-    if (status.nextLesson) {
-      nextDayFirstLesson = {
-        subject: status.nextLesson.subject,
-        start: status.nextLesson.start,
-        dayLabel: status.nextLessonDayLabel || 'Sonraki okul günü',
-      };
-    }
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center px-1">
@@ -69,7 +62,7 @@ export function TodayPage({
           PROGRAMA GÖRE
         </span>
         <h2 className="text-lg font-extrabold text-gray-900 dark:text-white">
-          {status.type === 'no_school' && 'BUGÜN DERS YOK'}
+          {status.type === 'no_school' && (holidayTitle ? 'BUGÜN RESMÎ TATİL' : 'BUGÜN DERS YOK')}
           {status.type === 'before_school' && 'DERSLER HENÜZ BAŞLAMADI'}
           {status.type === 'in_lesson' && status.currentLesson?.subject}
           {status.type === 'break' && 'TENEFFÜS'}
@@ -78,9 +71,15 @@ export function TodayPage({
           {status.type === 'finished' && 'BUGÜNKÜ DERSLER BİTTİ'}
         </h2>
 
-        {nextDayFirstLesson && (
+        {holidayTitle && (
+          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 pt-0.5">
+            {holidayTitle}
+          </p>
+        )}
+
+        {lastLesson && (
           <p className="text-xs text-gray-500 dark:text-gray-400 pt-0.5">
-            Sıradaki ders: <span className="font-bold text-gray-800 dark:text-gray-200">{nextDayFirstLesson.subject}</span> ({nextDayFirstLesson.dayLabel} {nextDayFirstLesson.start})
+            Bugün dersler <span className="font-bold text-gray-800 dark:text-gray-200">{lastLesson.end}</span>&apos;de bitiyor.
           </p>
         )}
 
@@ -90,6 +89,21 @@ export function TodayPage({
           </p>
         )}
       </div>
+
+      {(status.type === 'finished' || status.type === 'no_school') && nextSchoolDay && (
+        <div className="bg-indigo-500/10 dark:bg-indigo-400/10 p-4 rounded-3xl border border-indigo-500/20 space-y-1">
+          <span className="text-[10px] font-extrabold text-indigo-500 uppercase tracking-wider">
+            {nextSchoolDay.dayLabel} için hazırlık
+          </span>
+          <p className="text-sm font-bold text-gray-900 dark:text-white">
+            {nextSchoolDay.lessons.length} ders var · İlk ders {nextSchoolDay.lessons[0].start}
+          </p>
+          <p className="text-xs text-gray-600 dark:text-gray-300">
+            {nextSchoolDay.lessons[0].subject}
+            {' · '}Ders bitişi {nextSchoolDay.lessons.at(-1)?.end}
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <div className="flex justify-between items-center px-1">
