@@ -3,6 +3,7 @@
 import { Lesson, ComputedStatus } from '@/types/schedule';
 import { useTheme } from '@/hooks/useTheme';
 import type { NextSchoolDayInfo } from '@/utils/schedule';
+import { calculateDayProgress, formatDuration } from '@/utils/dayProgress';
 
 interface TodayPageProps {
   formattedDate: string;
@@ -23,6 +24,7 @@ export function TodayPage({
   formattedTime,
   status,
   todayLessons,
+  currentMinutes,
   onSelectLesson,
   onOpenTimeline,
   holidayTitle,
@@ -32,7 +34,7 @@ export function TodayPage({
 }: TodayPageProps) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
-  const lastLesson = todayLessons.at(-1);
+  const dayProgress = calculateDayProgress(todayLessons, currentMinutes);
   
   return (
     <div className="space-y-4">
@@ -81,18 +83,45 @@ export function TodayPage({
           </p>
         )}
 
-        {lastLesson && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 pt-0.5">
-            Bugün dersler <span className="font-bold text-gray-800 dark:text-gray-200">{lastLesson.end}</span>&apos;de bitiyor.
-          </p>
-        )}
-
         {status.type === 'before_school' && status.nextLesson && (
           <p className="text-xs text-gray-500 dark:text-gray-400 pt-0.5">
             İlk ders: <span className="font-bold text-gray-800 dark:text-gray-200">{status.nextLesson.subject}</span> ({status.nextLesson.start})
           </p>
         )}
       </div>
+
+      {dayProgress.totalLessons > 0 && (
+        <div className="rounded-3xl border border-black/5 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#1C1C1E]">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
+                Gün ilerlemesi
+              </span>
+              <p className="text-sm font-extrabold text-gray-900 dark:text-white">
+                {dayProgress.completedLessons}/{dayProgress.totalLessons} ders tamamlandı
+              </p>
+            </div>
+            <p className="text-right text-xs font-bold text-[#D94B55] dark:text-rose-400">
+              {dayProgress.minutesUntilEnd > 0
+                ? `Çıkışa ${formatDuration(dayProgress.minutesUntilEnd)} kaldı`
+                : 'Ders günü tamamlandı'}
+            </p>
+          </div>
+          <div
+            className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10"
+            role="progressbar"
+            aria-label="Günün zaman ilerlemesi"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={dayProgress.progressPercent}
+          >
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#D94B55] to-rose-400 transition-[width] duration-500"
+              style={{ width: `${dayProgress.progressPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {(status.type === 'finished' || status.type === 'no_school') && nextSchoolDay && (
         <div className="bg-indigo-500/10 dark:bg-indigo-400/10 p-4 rounded-3xl border border-indigo-500/20 space-y-1">

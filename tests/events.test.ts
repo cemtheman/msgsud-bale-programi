@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { dismissEventForDay, escapeICalText, readDismissedEventIds } from '@/utils/events';
+import {
+  dismissEventForDay,
+  escapeICalText,
+  readCustomEvents,
+  readDismissedEventIds,
+  saveCustomEvent,
+} from '@/utils/events';
 
 class MemoryStorage {
   private values = new Map<string, string>();
@@ -25,5 +31,22 @@ describe('etkinlik yardımcıları', () => {
 
   it('takvim metnindeki özel karakterleri kaçırır', () => {
     expect(escapeICalText('Bale, prova; salon\\A')).toBe('Bale\\, prova\\; salon\\\\A');
+  });
+
+  it('etkinliği aynı kimliği koruyarak düzenler', () => {
+    saveCustomEvent({ id: 'custom-one', title: 'Prova', date: '2026-10-01', type: 'rehearsal' });
+    saveCustomEvent({
+      id: 'custom-one',
+      title: 'Genel Prova',
+      date: '2026-10-01',
+      time: '18:00',
+      type: 'rehearsal',
+    });
+
+    expect(readCustomEvents()).toEqual([expect.objectContaining({
+      id: 'custom-one',
+      title: 'Genel Prova',
+      time: '18:00',
+    })]);
   });
 });

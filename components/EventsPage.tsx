@@ -8,6 +8,7 @@ import {
   isSpecialEvent,
   readCustomEvents,
   REMINDER_PREFERENCE_EVENT,
+  saveCustomEvent,
   toICalDateTime,
 } from '@/utils/events';
 
@@ -15,6 +16,7 @@ export function EventsPage() {
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
   const [showNotificationModal, setShowNotificationModal] = useState<boolean>(false);
   const [showAddEventModal, setShowAddEventModal] = useState<boolean>(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [allEvents, setAllEvents] = useState<SpecialEvent[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -72,12 +74,44 @@ export function EventsPage() {
     window.dispatchEvent(new Event(REMINDER_PREFERENCE_EVENT));
   };
 
+  const resetEventForm = () => {
+    setTitle('');
+    setDate('');
+    setTime('');
+    setType('rehearsal');
+    setLocation('');
+    setDescription('');
+    setEditingEventId(null);
+  };
+
+  const handleOpenAddEvent = () => {
+    resetEventForm();
+    setShowAddEventModal(true);
+  };
+
+  const handleOpenEditEvent = (event: SpecialEvent) => {
+    if (!event.id.startsWith('custom-')) return;
+    setEditingEventId(event.id);
+    setTitle(event.title);
+    setDate(event.date);
+    setTime(event.time ?? '');
+    setType(event.type);
+    setLocation(event.location ?? '');
+    setDescription(event.description ?? '');
+    setShowAddEventModal(true);
+  };
+
+  const handleCloseEventModal = () => {
+    setShowAddEventModal(false);
+    resetEventForm();
+  };
+
   const handleAddEventSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !date) return;
 
-    const newEvent: SpecialEvent = {
-      id: `custom-${Date.now()}`,
+    const eventToSave: SpecialEvent = {
+      id: editingEventId ?? `custom-${Date.now()}`,
       title,
       date,
       time: time || undefined,
@@ -86,20 +120,10 @@ export function EventsPage() {
       description: description || undefined,
     };
 
-    const customEvents = readCustomEvents();
-    const updatedCustomEvents = [...customEvents, newEvent];
-
-    localStorage.setItem('custom_events', JSON.stringify(updatedCustomEvents));
-
-    setTitle('');
-    setDate('');
-    setTime('');
-    setType('rehearsal');
-    setLocation('');
-    setDescription('');
-    setShowAddEventModal(false);
-
-    loadAllEvents();
+    saveCustomEvent(eventToSave);
+    handleCloseEventModal();
+    void loadAllEvents();
+    window.dispatchEvent(new Event(REMINDER_PREFERENCE_EVENT));
   };
 
   const handleDeleteEvent = (id: string) => {
@@ -109,7 +133,8 @@ export function EventsPage() {
     const updatedCustomEvents = customEvents.filter((event) => event.id !== id);
 
     localStorage.setItem('custom_events', JSON.stringify(updatedCustomEvents));
-    loadAllEvents();
+    void loadAllEvents();
+    window.dispatchEvent(new Event(REMINDER_PREFERENCE_EVENT));
   };
 
   const handleExportJson = () => {
@@ -245,7 +270,7 @@ export function EventsPage() {
             Etkinlik Takvimi
           </h2>
           <button
-            onClick={() => setShowAddEventModal(true)}
+            onClick={handleOpenAddEvent}
             className="w-6 h-6 rounded-full bg-[#D94B55] text-white flex items-center justify-center text-xs font-bold shrink-0 hover:bg-[#c03d47] active:scale-95 transition-all"
             title="Yeni Etkinlik Ekle"
           >
@@ -350,23 +375,35 @@ export function EventsPage() {
                         {event.description}
                       </p>
                     )}
+                    {event.location && (
+                      <p className="text-[11px] font-medium text-gray-400">
+                        📍 {event.location}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0 self-start">
-                    {event.location && (
-                      <span className="text-[10px] font-medium text-gray-400 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-lg whitespace-nowrap">
-                        📍 {event.location}
-                      </span>
-                    )}
-
                     {isCustom && (
-                      <button
-                        onClick={() => handleDeleteEvent(event.id)}
-                        className="p-1 text-gray-400 hover:text-rose-500 transition-colors text-xs ml-1"
-                        title="Etkinliği Sil"
-                      >
-                        🗑️
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditEvent(event)}
+                          className="p-1 text-gray-400 transition-colors hover:text-blue-500"
+                          title="Etkinliği Düzenle"
+                          aria-label={`${event.title} etkinliğini düzenle`}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEvent(event.id)}
+                          className="p-1 text-gray-400 hover:text-rose-500 transition-colors text-xs"
+                          title="Etkinliği Sil"
+                          aria-label={`${event.title} etkinliğini sil`}
+                        >
+                          🗑️
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -382,10 +419,10 @@ export function EventsPage() {
           <div className="w-full max-w-[320px] bg-white dark:bg-[#1C1C1E] rounded-3xl p-4 shadow-2xl border border-black/10 dark:border-white/10 space-y-2.5 max-h-[85vh] overflow-y-auto box-border">
             <div className="flex justify-between items-center pb-2 border-b border-black/5 dark:border-white/10">
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">
-                Yeni Etkinlik Ekle
+                {editingEventId ? 'Etkinliği Düzenle' : 'Yeni Etkinlik Ekle'}
               </h3>
               <button
-                onClick={() => setShowAddEventModal(false)}
+                onClick={handleCloseEventModal}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-sm font-bold p-1"
               >
                 ✕
@@ -437,6 +474,8 @@ export function EventsPage() {
                   <option value="performance">TEMSİL</option>
                   <option value="exam">SINAV</option>
                   <option value="special">ÖZEL GÜN</option>
+                  <option value="holiday">TATİL</option>
+                  <option value="commemoration">ANMA</option>
                 </select>
               </div>
 
@@ -465,7 +504,7 @@ export function EventsPage() {
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddEventModal(false)}
+                  onClick={handleCloseEventModal}
                   className="flex-1 py-2 rounded-xl font-bold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300"
                 >
                   İptal
@@ -474,7 +513,7 @@ export function EventsPage() {
                   type="submit"
                   className="flex-1 py-2 rounded-xl font-bold bg-[#D94B55] text-white hover:bg-[#c03d47]"
                 >
-                  Kaydet
+                  {editingEventId ? 'Değişiklikleri Kaydet' : 'Kaydet'}
                 </button>
               </div>
             </form>
