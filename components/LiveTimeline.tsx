@@ -18,17 +18,17 @@ const TOTAL_MINUTES = (END_HOUR - START_HOUR) * 60;
 
 const CATEGORY_STYLES = {
   academic: {
-    bg: 'bg-[#F4E8B8] dark:bg-amber-300/15',
+    bg: 'bg-[#F4E8B8] dark:bg-[#3A321A]',
     border: 'border-[#D6BC63] dark:border-amber-200/35',
     text: 'text-[#50451F] dark:text-amber-50',
   },
   dance: {
-    bg: 'bg-[#CFE8E5] dark:bg-teal-300/15',
+    bg: 'bg-[#CFE8E5] dark:bg-[#183A37]',
     border: 'border-[#76AAA5] dark:border-teal-200/35',
     text: 'text-[#244A47] dark:text-teal-50',
   },
   other: {
-    bg: 'bg-[#DDE3EC] dark:bg-slate-300/15',
+    bg: 'bg-[#DDE3EC] dark:bg-[#27303A]',
     border: 'border-[#9AAABD] dark:border-slate-200/35',
     text: 'text-[#364454] dark:text-slate-50',
   },
@@ -91,7 +91,7 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
             <div
               key={lesson.id}
               onClick={() => onSelectLesson(lesson)}
-              className={`absolute left-12 right-0 rounded-xl border p-2 text-xs cursor-pointer shadow-sm overflow-hidden ${style.bg} ${style.border} ${style.text}`}
+              className={`absolute left-12 right-0 z-10 rounded-xl border p-2 text-xs cursor-pointer shadow-sm overflow-hidden ${style.bg} ${style.border} ${style.text}`}
               style={{ top: `${top}px`, height: `${height}px` }}
             >
               <div className="font-bold truncate">{lesson.subject}</div>

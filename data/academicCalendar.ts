@@ -1,7 +1,7 @@
 import { addDaysToDateKey } from '@/utils/events';
 
 export const academicCalendar = {
-  label: '2026–27 Akademik Yılı',
+  label: '2026–27',
   firstTerm: { start: '2026-09-14', end: '2027-01-22' },
   secondTerm: { start: '2027-02-08', end: '2027-06-25' },
   breaks: [

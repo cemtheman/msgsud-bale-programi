@@ -52,7 +52,6 @@ export default function Home() {
   const isNoSchoolDay = dayKey === 'saturday' || dayKey === 'sunday' || closedDates.has(todayDateKey);
 
   // Tüm canlı durumlar tek bir Europe/Istanbul zaman hesabını kullanır.
-  const nowStr = formattedTime;
   const currentLesson = status.currentLesson;
   const activeOrNext = currentLesson || status.nextLesson;
   const labelPrefix = currentLesson ? 'Şu An Devam Ediyor' : 'Sıradaki Ders';
@@ -79,7 +78,7 @@ export default function Home() {
       {/* Sıradaki Ders / Canlı Widget Kartı (Sadece hafta içi günlerde görünür) */}
       {!showTimeline && activeTab === 'today' && !isNoSchoolDay && (
         <div className="w-full bg-gradient-to-br from-[#D94B55]/15 via-rose-500/5 to-transparent dark:from-[#D94B55]/25 dark:via-rose-950/20 p-4 rounded-3xl border border-[#D94B55]/20 shadow-sm backdrop-blur-md mb-3.5">
-          <div className="flex justify-between items-center mb-2">
+          <div className="flex items-center mb-2">
             <div className="flex items-center gap-1.5">
               <span className="relative flex h-2 w-2">
                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOngoing ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
@@ -89,9 +88,6 @@ export default function Home() {
                 {labelPrefix}
               </span>
             </div>
-            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
-              {nowStr}
-            </span>
           </div>
 
           {activeOrNext ? (
