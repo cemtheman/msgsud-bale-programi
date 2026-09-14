@@ -112,7 +112,7 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
             <div
               key={lesson.id}
               onClick={() => onSelectLesson(lesson)}
-              className={`absolute left-12 right-0 z-10 rounded-xl border p-2 text-xs cursor-pointer shadow-sm overflow-hidden ${style.bg} ${style.border} ${style.text}`}
+              className={`absolute left-12 right-0 z-10 rounded-xl border p-2 pr-10 text-xs cursor-pointer shadow-sm overflow-hidden ${style.bg} ${style.border} ${style.text}`}
               style={{ top: `${top}px`, height: `${height}px` }}
             >
               <div className="font-bold truncate">{lesson.subject}</div>
@@ -127,10 +127,11 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
         {currentMinutes >= START_MINUTES && currentMinutes <= endMinutes && (
           <div
             ref={nowMarkerRef}
-            className="pointer-events-none absolute left-11 right-0 z-20 flex -translate-y-1/2 items-center"
+            className="pointer-events-none absolute left-0 right-0 z-20 h-px -translate-y-1/2"
             style={{ top: `${nowY}px` }}
           >
-            <div className="animate-ballerina-hop -ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/95 dark:bg-[#1C1C1E]/95 shadow-sm ring-1 ring-[#D94B55]/25">
+            <div className="absolute left-8 top-1/2 h-[2px] w-5 -translate-y-1/2 bg-[#D94B55]" />
+            <div className="animate-ballerina-hop absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 dark:bg-[#1C1C1E]/95 shadow-sm ring-1 ring-[#D94B55]/25">
               <svg
                 viewBox="0 0 32 32"
                 className="h-6 w-6 text-[#D94B55]"
@@ -142,7 +143,6 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
                 <path d="m10.8 27 2.4-.5M21.8 25.2l2 1.4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
               </svg>
             </div>
-            <div className="h-[2px] w-full bg-[#D94B55]" />
           </div>
         )}
       </div>
