@@ -11,6 +11,10 @@ describe('canlı ders durumu', () => {
       .toBe('in_lesson');
     expect(calculateStatus('monday', timeStringToMinutes('09:00'), '2026-09-14').type)
       .toBe('break');
+    expect(calculateStatus('monday', timeStringToMinutes('09:49'), '2026-09-14').type)
+      .toBe('in_lesson');
+    expect(calculateStatus('monday', timeStringToMinutes('09:50'), '2026-09-14').type)
+      .toBe('break');
     expect(calculateStatus('monday', timeStringToMinutes('17:00'), '2026-09-14').type)
       .toBe('finished');
   });
