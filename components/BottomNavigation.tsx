@@ -34,7 +34,7 @@ function EventsIcon() {
 export function BottomNavigation({ activeTab, setActiveTab }: BottomNavigationProps) {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      <div className="pointer-events-auto flex h-[4.25rem] w-full max-w-[456px] items-center justify-around rounded-[1.75rem] border border-white/70 bg-white/72 px-2 shadow-[0_10px_35px_rgba(15,23,42,0.14)] backdrop-blur-2xl dark:border-white/12 dark:bg-[#242426]/72 dark:shadow-[0_10px_35px_rgba(0,0,0,0.35)]">
+      <div className="pointer-events-auto flex h-[4.25rem] w-full max-w-[456px] items-center justify-around rounded-[1.75rem] border border-white/70 bg-white/[0.72] px-2 shadow-[0_10px_35px_rgba(15,23,42,0.14)] backdrop-blur-2xl dark:border-white/[0.12] dark:bg-[#242426]/[0.72] dark:shadow-[0_10px_35px_rgba(0,0,0,0.35)]">
         {/* Bugün Sekmesi */}
         <button
           type="button"
