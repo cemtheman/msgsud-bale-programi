@@ -67,7 +67,7 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
           return (
             <div
               key={hour}
-              className="absolute left-0 right-0 border-b border-gray-100 dark:border-white/10 flex items-center"
+              className="absolute left-0 right-0 flex items-center border-t border-gray-100 dark:border-white/10"
               style={{ top: `${topPx}px` }}
             >
               <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 w-10">
@@ -107,7 +107,7 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
         {currentMinutes >= START_MINUTES && currentMinutes <= endMinutes && (
           <div
             ref={nowMarkerRef}
-            className="absolute left-11 right-0 z-20 flex items-center pointer-events-none"
+            className="pointer-events-none absolute left-11 right-0 z-20 flex -translate-y-1/2 items-center"
             style={{ top: `${nowY}px` }}
           >
             <div className="animate-ballerina-hop -ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/95 dark:bg-[#1C1C1E]/95 shadow-sm ring-1 ring-[#D94B55]/25">
