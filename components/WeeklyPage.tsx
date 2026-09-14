@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { subjectCategories } from '@/data/scheduleData';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { scheduleData, subjectCategories } from '@/data/scheduleData';
 import { DayKey, Lesson } from '@/types/schedule';
 import { useTheme } from '@/hooks/useTheme';
 import { getLessonsForDay } from '@/utils/schedule';
@@ -52,6 +52,8 @@ export function WeeklyPage({ todayDayKey, onSelectLesson }: WeeklyPageProps) {
   }, [updateScrollCue]);
 
   const rawLessons = getLessonsForDay(selectedDay);
+  const lunchBreak = scheduleData.school.lunchBreak;
+  const lunchInsertionIndex = rawLessons.findIndex((lesson) => lesson.start >= lunchBreak.end);
 
   return (
     <div className="space-y-4">
@@ -128,13 +130,26 @@ export function WeeklyPage({ todayDayKey, onSelectLesson }: WeeklyPageProps) {
             Bu gün için tanımlı ders bulunmuyor.
           </div>
         ) : (
-          rawLessons.map((lessonItem: Lesson) => {
+          rawLessons.map((lessonItem: Lesson, index) => {
 
             const category = subjectCategories[lessonItem.subject] || 'other';
             const isDance = category === 'dance';
 
             return (
-              <button
+              <Fragment key={lessonItem.id}>
+                {index === lunchInsertionIndex && (
+                  <div className="w-full rounded-2xl border border-dashed border-amber-300/70 bg-amber-50/60 p-3.5 text-left dark:border-amber-700/50 dark:bg-amber-950/15">
+                    <div className="flex flex-wrap items-start justify-between gap-2.5 sm:flex-nowrap">
+                      <h3 className="text-sm font-bold text-amber-900 dark:text-amber-100">
+                        🍽️ {lunchBreak.label}
+                      </h3>
+                      <span className="shrink-0 rounded-lg bg-amber-100/80 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                        {lunchBreak.start} - {lunchBreak.end}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <button
                 type="button"
                 key={lessonItem.id}
                 onClick={() => onSelectLesson?.(lessonItem)}
@@ -168,7 +183,8 @@ export function WeeklyPage({ todayDayKey, onSelectLesson }: WeeklyPageProps) {
                     {lessonItem.start} - {lessonItem.end}
                   </span>
                 </div>
-              </button>
+                </button>
+              </Fragment>
             );
           })
         )}

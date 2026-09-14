@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ComputedStatus } from '@/types/schedule';
-import { getLiveCardPresentation } from '@/utils/liveCard';
+import { getLiveCardPresentation, getLiveCardTimeSummary } from '@/utils/liveCard';
 
 describe('getLiveCardPresentation', () => {
   it('keeps a distant first lesson calm and compact', () => {
@@ -23,6 +23,16 @@ describe('getLiveCardPresentation', () => {
     const status: ComputedStatus = { type: 'in_lesson', minutesRemaining: 20 };
 
     expect(getLiveCardPresentation(status).mode).toBe('live');
+  });
+
+  it('yemek arasında bağlama özgü geri sayım gösterir', () => {
+    const status: ComputedStatus = {
+      type: 'lunch',
+      minutesUntilNext: 23,
+      nextLesson: { id: 'next', start: '13:00', end: '13:40', subject: 'Klasik Bale' },
+    };
+
+    expect(getLiveCardTimeSummary(status)).toBe('Yemek arasının bitmesine 23 dakika kaldı');
   });
 
   it('shows a compact completion state after the final lesson', () => {

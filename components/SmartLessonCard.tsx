@@ -1,6 +1,5 @@
 import type { ComputedStatus } from '@/types/schedule';
-import { formatDuration } from '@/utils/dayProgress';
-import { getLiveCardPresentation, type LiveCardMode } from '@/utils/liveCard';
+import { getLiveCardPresentation, getLiveCardTimeSummary, type LiveCardMode } from '@/utils/liveCard';
 
 interface SmartLessonCardProps {
   status: ComputedStatus;
@@ -32,11 +31,7 @@ export function SmartLessonCard({ status }: SmartLessonCardProps) {
   const activeLesson = status.currentLesson ?? status.nextLesson;
   const showPulse = presentation.mode === 'upcoming' || presentation.mode === 'live';
 
-  const timeSummary = status.currentLesson
-    ? `${status.minutesPassed ?? 0} dakika geçti · ${status.minutesRemaining ?? 0} dakika kaldı`
-    : activeLesson && status.minutesUntilNext !== undefined
-      ? `${formatDuration(status.minutesUntilNext)} kaldı`
-      : undefined;
+  const timeSummary = getLiveCardTimeSummary(status);
 
   return (
     <section
