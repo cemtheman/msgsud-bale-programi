@@ -38,6 +38,18 @@ export function getLiveCardTimeSummary(status: ComputedStatus): string | undefin
     return `Yemek arasının bitmesine ${formatDuration(status.minutesUntilNext)} kaldı`;
   }
 
+  if (status.type === 'break' && status.minutesUntilNext !== undefined) {
+    return `Teneffüsün bitmesine ${formatDuration(status.minutesUntilNext)} kaldı`;
+  }
+
+  if (status.type === 'free_time' && status.nextLesson && status.minutesUntilNext !== undefined) {
+    return `Sıradaki derse ${formatDuration(status.minutesUntilNext)} kaldı`;
+  }
+
+  if (status.type === 'before_school' && status.nextLesson && status.minutesUntilNext !== undefined) {
+    return `İlk derse ${formatDuration(status.minutesUntilNext)} kaldı`;
+  }
+
   if (status.nextLesson && status.minutesUntilNext !== undefined) {
     return `${formatDuration(status.minutesUntilNext)} kaldı`;
   }

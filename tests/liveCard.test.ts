@@ -35,6 +35,20 @@ describe('getLiveCardPresentation', () => {
     expect(getLiveCardTimeSummary(status)).toBe('Yemek arasının bitmesine 23 dakika kaldı');
   });
 
+  it.each([
+    ['break', 7, 'Teneffüsün bitmesine 7 dakika kaldı'],
+    ['free_time', 80, 'Sıradaki derse 1 saat 20 dakika kaldı'],
+    ['before_school', 35, 'İlk derse 35 dakika kaldı'],
+  ] as const)('%s durumunda geri sayımın bağlamını açıklar', (type, minutesUntilNext, expected) => {
+    const status: ComputedStatus = {
+      type,
+      minutesUntilNext,
+      nextLesson: { id: 'next', start: '13:00', end: '13:40', subject: 'Klasik Bale' },
+    };
+
+    expect(getLiveCardTimeSummary(status)).toBe(expected);
+  });
+
   it('shows a compact completion state after the final lesson', () => {
     const status: ComputedStatus = { type: 'finished' };
 

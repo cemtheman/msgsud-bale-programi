@@ -78,7 +78,7 @@ export default function Home() {
             >
               ← Geri
             </button>
-            <h1 className="text-sm font-bold text-gray-900 dark:text-white">Canlı Zaman Çizelgesi</h1>
+            <h1 className="text-sm font-bold text-gray-900 dark:text-white">Zaman Çizelgesi</h1>
             <div className="w-8" />
           </div>
           <LiveTimeline lessons={todayLessons} currentMinutes={totalMinutes} onSelectLesson={setSelectedLesson} />
