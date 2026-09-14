@@ -40,8 +40,8 @@ export function TodayPage({
   
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center px-1">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="min-w-0">
           <h1 className="text-lg font-bold text-gray-900 dark:text-white">
             {formattedDate}
           </h1>
@@ -171,16 +171,17 @@ export function TodayPage({
               const isCurrent = status.currentLesson?.id === lesson.id;
 
               return (
-                <div
+                <button
+                  type="button"
                   key={lesson.id}
                   onClick={() => onSelectLesson(lesson)}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex justify-between items-center ${
+                  className={`flex w-full items-center justify-between gap-3 rounded-2xl border p-3.5 text-left transition-all ${
                     isCurrent
                       ? 'bg-[#D94B55]/10 border-[#D94B55] shadow-xs'
                       : 'bg-white dark:bg-[#1C1C1E] border-black/5 dark:border-white/10 hover:border-gray-300'
                   }`}
                 >
-                  <div className="space-y-0.5">
+                  <div className="min-w-0 space-y-0.5">
                     <span className="text-[10px] font-extrabold text-gray-400">
                       {lesson.start} - {lesson.end}
                     </span>
@@ -199,7 +200,7 @@ export function TodayPage({
                       CANLI
                     </span>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>
