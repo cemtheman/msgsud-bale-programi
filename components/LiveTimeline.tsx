@@ -3,6 +3,7 @@ import { Lesson } from '@/types/schedule';
 import { timeStringToMinutes } from '@/utils/time';
 import { getSubjectCategory } from '@/utils/schedule';
 import { getTimelineEndHour } from '@/utils/timeline';
+import { scheduleData } from '@/data/scheduleData';
 
 interface LiveTimelineProps {
   lessons: Lesson[];
@@ -42,6 +43,9 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
   const endMinutes = endHour * 60;
   const containerHeight = (endMinutes - START_MINUTES) * PX_PER_MINUTE;
   const nowY = (currentMinutes - START_MINUTES) * PX_PER_MINUTE;
+  const lunchBreak = scheduleData.school.lunchBreak;
+  const lunchStart = timeStringToMinutes(lunchBreak.start);
+  const lunchEnd = timeStringToMinutes(lunchBreak.end);
 
   // Otomatik scroll: Ekran açıldığında "Şimdi" çizgisine odaklan
   useEffect(() => {
@@ -76,6 +80,22 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
             </div>
           );
         })}
+
+        {/* Yemek Arası */}
+        {lessons.length > 0 && (
+          <div
+            className="pointer-events-none absolute left-12 right-0 z-10 overflow-hidden rounded-xl border border-dashed border-amber-300/80 bg-amber-50/75 p-2 text-xs text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/25 dark:text-amber-100"
+            style={{
+              top: `${(lunchStart - START_MINUTES) * PX_PER_MINUTE}px`,
+              height: `${(lunchEnd - lunchStart) * PX_PER_MINUTE}px`,
+            }}
+          >
+            <div className="font-bold truncate">🍽️ {lunchBreak.label}</div>
+            <div className="text-[10px] opacity-80">
+              {lunchBreak.start} - {lunchBreak.end}
+            </div>
+          </div>
+        )}
 
         {/* Ders Blokları */}
         {lessons.map((lesson) => {

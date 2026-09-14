@@ -1,6 +1,8 @@
 'use client';
 
+import { Fragment } from 'react';
 import { Lesson, ComputedStatus } from '@/types/schedule';
+import { scheduleData } from '@/data/scheduleData';
 import { useTheme } from '@/hooks/useTheme';
 import type { NextSchoolDayInfo } from '@/utils/schedule';
 import { calculateDayProgress, formatDuration } from '@/utils/dayProgress';
@@ -37,6 +39,8 @@ export function TodayPage({
   const dayProgress = calculateDayProgress(todayLessons, currentMinutes);
   const firstLesson = todayLessons[0];
   const lastLesson = todayLessons.at(-1);
+  const lunchBreak = scheduleData.school.lunchBreak;
+  const lunchInsertionIndex = todayLessons.findIndex((lesson) => lesson.start >= lunchBreak.end);
   
   return (
     <div className="space-y-4">
@@ -74,7 +78,7 @@ export function TodayPage({
           {status.type === 'before_school' && 'DERSLER HENÜZ BAŞLAMADI'}
           {status.type === 'in_lesson' && status.currentLesson?.subject}
           {status.type === 'break' && 'TENEFFÜS'}
-          {status.type === 'lunch' && 'ÖĞLE ARASI'}
+          {status.type === 'lunch' && 'YEMEK ARASI'}
           {status.type === 'free_time' && 'BOŞ VAKİT'}
           {status.type === 'finished' && 'BUGÜNKÜ DERSLER BİTTİ'}
         </h2>
@@ -167,11 +171,31 @@ export function TodayPage({
           </div>
         ) : (
           <div className="space-y-2">
-            {todayLessons.map((lesson) => {
+            {todayLessons.map((lesson, index) => {
               const isCurrent = status.currentLesson?.id === lesson.id;
 
               return (
-                <button
+                <Fragment key={lesson.id}>
+                  {index === lunchInsertionIndex && (
+                    <div
+                      aria-current={status.type === 'lunch' ? 'true' : undefined}
+                      className={`flex w-full items-center rounded-2xl border border-dashed p-3.5 ${
+                        status.type === 'lunch'
+                          ? 'border-amber-500 bg-amber-100/70 dark:bg-amber-900/25'
+                          : 'border-amber-300/70 bg-amber-50/60 dark:border-amber-700/50 dark:bg-amber-950/15'
+                      }`}
+                    >
+                      <div className="min-w-0 space-y-0.5">
+                        <span className="text-[10px] font-extrabold text-amber-700/70 dark:text-amber-300/70">
+                          {lunchBreak.start} - {lunchBreak.end}
+                        </span>
+                        <h4 className="text-sm font-bold text-amber-900 dark:text-amber-100">
+                          🍽️ {lunchBreak.label}
+                        </h4>
+                      </div>
+                    </div>
+                  )}
+                  <button
                   type="button"
                   key={lesson.id}
                   onClick={() => onSelectLesson(lesson)}
@@ -196,7 +220,8 @@ export function TodayPage({
                     </p>
                   </div>
 
-                </button>
+                  </button>
+                </Fragment>
               );
             })}
           </div>

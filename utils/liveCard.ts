@@ -1,4 +1,5 @@
 import type { ComputedStatus } from '@/types/schedule';
+import { formatDuration } from './dayProgress';
 
 export type LiveCardMode = 'calm' | 'upcoming' | 'live' | 'complete';
 
@@ -26,4 +27,20 @@ export function getLiveCardPresentation(status: ComputedStatus): LiveCardPresent
     label: status.type === 'before_school' ? 'Bugünün İlk Dersi' : 'Sıradaki Ders',
     compact: true,
   };
+}
+
+export function getLiveCardTimeSummary(status: ComputedStatus): string | undefined {
+  if (status.currentLesson) {
+    return `${status.minutesPassed ?? 0} dakika geçti · ${status.minutesRemaining ?? 0} dakika kaldı`;
+  }
+
+  if (status.type === 'lunch' && status.minutesUntilNext !== undefined) {
+    return `Yemek arasının bitmesine ${formatDuration(status.minutesUntilNext)} kaldı`;
+  }
+
+  if (status.nextLesson && status.minutesUntilNext !== undefined) {
+    return `${formatDuration(status.minutesUntilNext)} kaldı`;
+  }
+
+  return undefined;
 }

@@ -19,6 +19,15 @@ describe('canlı ders durumu', () => {
       .toBe('finished');
   });
 
+  it('yemek arasını derslerden ayırır ve bitişine kalan süreyi üretir', () => {
+    expect(calculateStatus('monday', timeStringToMinutes('12:20'), '2026-09-14'))
+      .toMatchObject({ type: 'lunch', minutesUntilNext: 40 });
+    expect(calculateStatus('monday', timeStringToMinutes('12:59'), '2026-09-14'))
+      .toMatchObject({ type: 'lunch', minutesUntilNext: 1 });
+    expect(calculateStatus('monday', timeStringToMinutes('13:00'), '2026-09-14').type)
+      .toBe('in_lesson');
+  });
+
   it('derse kalan ve ders içinde geçen süreleri üretir', () => {
     expect(calculateStatus('monday', timeStringToMinutes('08:00'), '2026-09-14'))
       .toMatchObject({ minutesUntilNext: 20 });
