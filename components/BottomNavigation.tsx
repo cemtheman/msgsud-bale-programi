@@ -33,18 +33,18 @@ function EventsIcon() {
 
 export function BottomNavigation({ activeTab, setActiveTab }: BottomNavigationProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pb-safe bg-white/80 dark:bg-[#1C1C1E]/80 backdrop-blur-md border-t border-black/5 dark:border-white/10">
-      <div className="w-full max-w-[480px] flex justify-around items-center h-16 px-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div className="pointer-events-auto flex h-[4.25rem] w-full max-w-[456px] items-center justify-around rounded-[1.75rem] border border-white/70 bg-white/72 px-2 shadow-[0_10px_35px_rgba(15,23,42,0.14)] backdrop-blur-2xl dark:border-white/12 dark:bg-[#242426]/72 dark:shadow-[0_10px_35px_rgba(0,0,0,0.35)]">
         {/* Bugün Sekmesi */}
         <button
           type="button"
           onClick={() => setActiveTab('today')}
           aria-label="Bugün"
           aria-current={activeTab === 'today' ? 'page' : undefined}
-          className={`flex min-h-12 min-w-16 flex-col items-center justify-center gap-1 rounded-xl transition-colors ${
+          className={`flex min-h-12 min-w-20 flex-col items-center justify-center gap-1 rounded-2xl transition-[color,background-color,transform] duration-200 active:scale-[0.97] ${
             activeTab === 'today'
-              ? 'text-[#D94B55]'
-              : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+              ? 'bg-white/80 text-[#D94B55] shadow-sm dark:bg-white/10'
+              : 'text-gray-400 hover:bg-white/45 hover:text-gray-600 dark:hover:bg-white/5 dark:hover:text-gray-300'
           }`}
         >
           <TodayIcon />
@@ -57,10 +57,10 @@ export function BottomNavigation({ activeTab, setActiveTab }: BottomNavigationPr
           onClick={() => setActiveTab('weekly')}
           aria-label="Haftalık program"
           aria-current={activeTab === 'weekly' ? 'page' : undefined}
-          className={`flex min-h-12 min-w-16 flex-col items-center justify-center gap-1 rounded-xl transition-colors ${
+          className={`flex min-h-12 min-w-20 flex-col items-center justify-center gap-1 rounded-2xl transition-[color,background-color,transform] duration-200 active:scale-[0.97] ${
             activeTab === 'weekly'
-              ? 'text-[#D94B55]'
-              : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+              ? 'bg-white/80 text-[#D94B55] shadow-sm dark:bg-white/10'
+              : 'text-gray-400 hover:bg-white/45 hover:text-gray-600 dark:hover:bg-white/5 dark:hover:text-gray-300'
           }`}
         >
           <WeeklyIcon />
@@ -73,10 +73,10 @@ export function BottomNavigation({ activeTab, setActiveTab }: BottomNavigationPr
           onClick={() => setActiveTab('events')}
           aria-label="Etkinlikler"
           aria-current={activeTab === 'events' ? 'page' : undefined}
-          className={`flex min-h-12 min-w-16 flex-col items-center justify-center gap-1 rounded-xl transition-colors ${
+          className={`flex min-h-12 min-w-20 flex-col items-center justify-center gap-1 rounded-2xl transition-[color,background-color,transform] duration-200 active:scale-[0.97] ${
             activeTab === 'events'
-              ? 'text-[#D94B55]'
-              : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+              ? 'bg-white/80 text-[#D94B55] shadow-sm dark:bg-white/10'
+              : 'text-gray-400 hover:bg-white/45 hover:text-gray-600 dark:hover:bg-white/5 dark:hover:text-gray-300'
           }`}
         >
           <EventsIcon />
