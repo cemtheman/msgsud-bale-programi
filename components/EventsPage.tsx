@@ -12,6 +12,40 @@ import {
   toICalDateTime,
 } from '@/utils/events';
 
+type EventIconName = 'bell' | 'backup' | 'upload' | 'calendar' | 'share' | 'hourglass' | 'location' | 'edit' | 'trash';
+
+function EventIcon({ name, className = 'h-3.5 w-3.5' }: { name: EventIconName; className?: string }) {
+  const paths: Record<EventIconName, React.ReactNode> = {
+    bell: <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 9.5a5.5 5.5 0 0 1 11 0c0 6 2.5 6 2.5 7.5H4c0-1.5 2.5-1.5 2.5-7.5ZM9.5 20h5" />,
+    backup: <><path strokeLinecap="round" strokeLinejoin="round" d="M5 11h14v9H5zM7 4h10l2 4H5l2-4Z" /><path strokeLinecap="round" d="M12 7v7m-2.5-2.5L12 14l2.5-2.5" /></>,
+    upload: <><path strokeLinecap="round" strokeLinejoin="round" d="M5 14v6h14v-6M12 16V4m-4 4 4-4 4 4" /></>,
+    calendar: <><path strokeLinecap="round" strokeLinejoin="round" d="M6 4v3m12-3v3M4 9h16v11H4z" /><path strokeLinecap="round" d="M8 13h3m2 0h3m-8 3h3m2 0h3" /></>,
+    share: <><path strokeLinecap="round" strokeLinejoin="round" d="M5 12v8h14v-8M12 16V4m-4 4 4-4 4 4" /></>,
+    hourglass: <><path strokeLinecap="round" strokeLinejoin="round" d="M7 3h10M7 21h10M8 4c0 4 1.5 5.5 4 8-2.5 2.5-4 4-4 8m8-16c0 4-1.5 5.5-4 8 2.5 2.5 4 4 4 8" /></>,
+    location: <><path strokeLinecap="round" strokeLinejoin="round" d="M12 21s6-5.5 6-11a6 6 0 1 0-12 0c0 5.5 6 11 6 11Z" /><circle cx="12" cy="10" r="2" /></>,
+    edit: <><path strokeLinecap="round" strokeLinejoin="round" d="m14.5 5.5 4 4M4 20l4.5-1 10-10a2.8 2.8 0 0 0-4-4l-10 10L4 20Z" /></>,
+    trash: <><path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M9 3h6l1 4H8l1-4Zm-2 4 1 14h8l1-14M10 11v6m4-6v6" /></>,
+  };
+
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden="true">
+      {paths[name]}
+    </svg>
+  );
+}
+
+const eventDateFormatter = new Intl.DateTimeFormat('tr-TR', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'Europe/Istanbul',
+});
+
+function formatEventDate(date: string) {
+  const [year, month, day] = date.split('-').map(Number);
+  return eventDateFormatter.format(new Date(Date.UTC(year, month - 1, day, 12)));
+}
+
 export function EventsPage() {
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
   const [showNotificationModal, setShowNotificationModal] = useState<boolean>(false);
@@ -271,8 +305,9 @@ export function EventsPage() {
           </h2>
           <button
             onClick={handleOpenAddEvent}
-            className="w-6 h-6 rounded-full bg-[#D94B55] text-white flex items-center justify-center text-xs font-bold shrink-0 hover:bg-[#c03d47] active:scale-95 transition-all"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#D94B55] text-sm font-bold text-white shadow-sm transition-all hover:bg-[#c03d47] active:scale-95"
             title="Yeni Etkinlik Ekle"
+            aria-label="Yeni etkinlik ekle"
           >
             +
           </button>
@@ -280,55 +315,60 @@ export function EventsPage() {
 
         <button
           onClick={handleToggleNotification}
-          className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-all shrink-0 flex items-center gap-1 ${
+          className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition-[color,background-color,transform] active:scale-[0.97] ${
             isEnabled
-              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-              : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 border border-black/5 dark:border-white/10'
+              ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+              : 'border-black/5 bg-gray-100/80 text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400'
           }`}
         >
-          {isEnabled ? '🔔 Hatırlatıcı Açık' : '🔕 Hatırlatıcıyı Aç'}
+          <EventIcon name="bell" className="h-3 w-3" />
+          {isEnabled ? 'Hatırlatıcı Açık' : 'Hatırlatıcıyı Aç'}
         </button>
       </div>
 
-      {/* Taşmayı Önleyen Kompakt Araç Çubuğu (4 Buton) */}
-      <div className="grid grid-cols-4 gap-1 text-[10px] font-semibold w-full">
+      {/* İlişkili ikincil işlemler tek, sakin bir kontrol yüzeyinde gruplanır. */}
+      <div className="grid w-full grid-cols-4 gap-1 rounded-2xl border border-black/[0.04] bg-gray-100/75 p-1 text-[10px] font-semibold shadow-[0_1px_2px_rgba(15,23,42,0.03)] dark:border-white/10 dark:bg-white/[0.06]">
         <button
           onClick={handleExportJson}
-          className="py-2 px-0.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl border border-black/5 dark:border-white/10 text-center truncate transition-colors"
+          className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-1 py-2 text-gray-600 transition-[color,background-color,transform] hover:bg-white/80 hover:text-gray-900 active:scale-[0.97] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
           title="Yedek Al (JSON)"
         >
-          💾 Yedek
+          <EventIcon name="backup" />
+          <span className="truncate">Yedek</span>
         </button>
 
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="py-2 px-0.5 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl border border-black/5 dark:border-white/10 text-center truncate transition-colors"
+          className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-1 py-2 text-gray-600 transition-[color,background-color,transform] hover:bg-white/80 hover:text-gray-900 active:scale-[0.97] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
           title="Geri Yükle"
         >
-          📂 Yükle
+          <EventIcon name="upload" />
+          <span className="truncate">Yükle</span>
         </button>
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={handleImportJson} 
-          accept=".json" 
-          className="hidden" 
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleImportJson}
+          accept=".json"
+          className="hidden"
         />
 
         <button
           onClick={handleExportIcal}
-          className="py-2 px-0.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-500/20 text-center truncate transition-colors"
+          className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-1 py-2 text-gray-600 transition-[color,background-color,transform] hover:bg-white/80 hover:text-gray-900 active:scale-[0.97] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
           title="Takvime Aktar (.ics)"
         >
-          📅 Takvim
+          <EventIcon name="calendar" />
+          <span className="truncate">Takvim</span>
         </button>
 
         <button
           onClick={handleShareText}
-          className="py-2 px-0.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl border border-emerald-500/20 text-center truncate transition-colors"
+          className="flex min-w-0 items-center justify-center gap-1.5 rounded-xl px-1 py-2 text-gray-600 transition-[color,background-color,transform] hover:bg-white/80 hover:text-gray-900 active:scale-[0.97] dark:text-gray-300 dark:hover:bg-white/10 dark:hover:text-white"
           title="WhatsApp / Metin Olarak Paylaş"
         >
-          📤 Paylaş
+          <EventIcon name="share" />
+          <span className="truncate">Paylaş</span>
         </button>
       </div>
 
@@ -352,7 +392,7 @@ export function EventsPage() {
             return (
               <div
                 key={event.id}
-                className="p-3.5 bg-white dark:bg-[#1C1C1E] rounded-2xl border border-black/5 dark:border-white/10 shadow-sm transition-colors w-full"
+                className="w-full rounded-2xl border border-black/[0.04] bg-white p-3.5 shadow-[0_1px_3px_rgba(15,23,42,0.05)] transition-colors dark:border-white/10 dark:bg-[#1C1C1E]"
               >
                 <div className="flex justify-between items-start gap-2">
                   <div className="space-y-1 w-full min-w-0">
@@ -361,10 +401,11 @@ export function EventsPage() {
                         {badge.label}
                       </span>
                       <span className="text-xs font-semibold text-gray-400">
-                        {event.date} {event.time ? `· ${event.time}` : ''}
+                        {formatEventDate(event.date)} {event.time ? `· ${event.time}` : ''}
                       </span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${countdown.color}`}>
-                        ⏳ {countdown.text}
+                      <span className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] ${countdown.color}`}>
+                        <EventIcon name="hourglass" className="h-3 w-3" />
+                        {countdown.text}
                       </span>
                     </div>
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
@@ -376,8 +417,9 @@ export function EventsPage() {
                       </p>
                     )}
                     {event.location && (
-                      <p className="text-[11px] font-medium text-gray-400">
-                        📍 {event.location}
+                      <p className="flex items-center gap-1 text-[11px] font-medium text-gray-400">
+                        <EventIcon name="location" className="h-3 w-3" />
+                        {event.location}
                       </p>
                     )}
                   </div>
@@ -392,7 +434,7 @@ export function EventsPage() {
                           title="Etkinliği Düzenle"
                           aria-label={`${event.title} etkinliğini düzenle`}
                         >
-                          ✏️
+                          <EventIcon name="edit" className="h-4 w-4" />
                         </button>
                         <button
                           type="button"
@@ -401,7 +443,7 @@ export function EventsPage() {
                           title="Etkinliği Sil"
                           aria-label={`${event.title} etkinliğini sil`}
                         >
-                          🗑️
+                          <EventIcon name="trash" className="h-4 w-4" />
                         </button>
                       </>
                     )}
@@ -525,8 +567,8 @@ export function EventsPage() {
       {showNotificationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-[300px] bg-white dark:bg-[#1C1C1E] rounded-3xl p-5 shadow-2xl border border-black/10 dark:border-white/10 space-y-4 text-center">
-            <div className="w-12 h-12 bg-[#D94B55]/10 text-[#D94B55] rounded-full flex items-center justify-center mx-auto text-2xl">
-              🔔
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#D94B55]/10 text-[#D94B55]">
+              <EventIcon name="bell" className="h-6 w-6" />
             </div>
             <div className="space-y-1">
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">
