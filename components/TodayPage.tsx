@@ -175,6 +175,7 @@ export function TodayPage({
                   type="button"
                   key={lesson.id}
                   onClick={() => onSelectLesson(lesson)}
+                  aria-current={isCurrent ? 'true' : undefined}
                   className={`flex w-full items-center justify-between gap-3 rounded-2xl border p-3.5 text-left transition-all ${
                     isCurrent
                       ? 'bg-[#D94B55]/10 border-[#D94B55] shadow-xs'
@@ -195,11 +196,6 @@ export function TodayPage({
                     </p>
                   </div>
 
-                  {isCurrent && (
-                    <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-[#D94B55] text-white animate-pulse">
-                      CANLI
-                    </span>
-                  )}
                 </button>
               );
             })}
