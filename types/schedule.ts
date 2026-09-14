@@ -1,4 +1,6 @@
 export type Category = 'academic' | 'dance' | 'other';
+export type AudienceTarget = 'SECTION' | 'BALLET' | 'MUSIC';
+export type SessionType = 'STANDARD' | 'SHARED' | 'PARALLEL';
 
 export type DayKey =
   | 'monday'
@@ -16,6 +18,9 @@ export interface Lesson {
   subject: string;
   teacher?: string;
   location?: string;
+  target: AudienceTarget;
+  sessionType: SessionType;
+  subgroup?: string;
 }
 
 export interface TimeBlock {
@@ -35,8 +40,10 @@ export interface SchoolConfig {
 
 export interface ScheduleData {
   school: SchoolConfig;
-  schedule: Record<DayKey, Omit<Lesson, 'id'>[]>;
+  schedule: Record<DayKey, Lesson[]>;
 }
+
+export type ClassCode = `${5 | 6 | 7 | 8 | 9 | 10 | 11 | 12}${'A' | 'B'}`;
 
 export type DayStatusType =
   | 'before_school'

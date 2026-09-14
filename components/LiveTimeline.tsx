@@ -3,7 +3,8 @@ import { Lesson } from '@/types/schedule';
 import { timeStringToMinutes } from '@/utils/time';
 import { getSubjectCategory } from '@/utils/schedule';
 import { getTimelineEndHour } from '@/utils/timeline';
-import { scheduleData } from '@/data/scheduleData';
+import { schoolConfig } from '@/data/scheduleData';
+import { AudienceBadge } from './AudienceBadge';
 
 interface LiveTimelineProps {
   lessons: Lesson[];
@@ -43,7 +44,7 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
   const endMinutes = endHour * 60;
   const containerHeight = (endMinutes - START_MINUTES) * PX_PER_MINUTE;
   const nowY = (currentMinutes - START_MINUTES) * PX_PER_MINUTE;
-  const lunchBreak = scheduleData.school.lunchBreak;
+  const lunchBreak = schoolConfig.lunchBreak;
   const lunchStart = timeStringToMinutes(lunchBreak.start);
   const lunchEnd = timeStringToMinutes(lunchBreak.end);
 
@@ -105,17 +106,34 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
 
           const top = (startMins - START_MINUTES) * PX_PER_MINUTE;
           const height = duration * PX_PER_MINUTE;
-          const category = getSubjectCategory(lesson.subject);
+          const category = getSubjectCategory(lesson.subject, lesson.target);
           const style = CATEGORY_STYLES[category];
+          const concurrentLessons = lessons.filter(
+            (item) => item.start === lesson.start && item.end === lesson.end,
+          );
+          const concurrentIndex = concurrentLessons.findIndex((item) => item.id === lesson.id);
+          const hasConcurrentLesson = concurrentLessons.length > 1;
+          const availableWidth = 86;
+          const columnWidth = availableWidth / concurrentLessons.length;
 
           return (
             <div
               key={lesson.id}
               onClick={() => onSelectLesson(lesson)}
-              className={`absolute left-12 right-0 z-10 rounded-xl border p-2 pr-10 text-xs cursor-pointer shadow-sm overflow-hidden ${style.bg} ${style.border} ${style.text}`}
-              style={{ top: `${top}px`, height: `${height}px` }}
+              className={`absolute z-10 rounded-xl border p-2 text-xs cursor-pointer shadow-sm overflow-hidden ${hasConcurrentLesson ? '' : 'left-12 right-0 pr-10'} ${style.bg} ${style.border} ${style.text}`}
+              style={{
+                top: `${top}px`,
+                height: `${height}px`,
+                ...(hasConcurrentLesson ? {
+                  left: `${12 + (concurrentIndex * columnWidth)}%`,
+                  width: `calc(${columnWidth}% - 3px)`,
+                } : {}),
+              }}
             >
-              <div className="font-bold truncate">{lesson.subject}</div>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <div className="min-w-0 flex-1 truncate font-bold">{lesson.subject}</div>
+                <AudienceBadge lesson={lesson} />
+              </div>
               <div className="text-[10px] opacity-80">
                 {lesson.start} - {lesson.end} {lesson.location ? `· ${lesson.location}` : ''}
               </div>

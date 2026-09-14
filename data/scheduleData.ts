@@ -1,4 +1,4 @@
-import { ScheduleData, Category } from '@/types/schedule';
+import { SchoolConfig, Category, AudienceTarget } from '@/types/schedule';
 
 export const subjectCategories: Record<string, Category> = {
   'Türkçe': 'academic',
@@ -15,8 +15,7 @@ export const subjectCategories: Record<string, Category> = {
   'Kulüp Dersleri': 'other',
 };
 
-export const scheduleData: ScheduleData = {
-  school: {
+export const schoolConfig: SchoolConfig = {
     timezone: 'Europe/Istanbul',
     lunchBreak: {
       start: '12:20',
@@ -37,59 +36,10 @@ export const scheduleData: ScheduleData = {
       { start: '17:10', end: '17:50' },
       { start: '18:00', end: '18:40' },
     ],
-  },
-  schedule: {
-    monday: [
-      { start: '08:20', end: '09:00', subject: 'Türkçe', location: 'B1-105A' },
-      { start: '09:10', end: '09:50', subject: 'Türkçe', location: 'B1-105A' },
-      { start: '10:00', end: '10:40', subject: 'Matematik', location: 'B1-105A' },
-      { start: '10:50', end: '11:30', subject: 'Matematik', location: 'B1-105A' },
-      { start: '13:00', end: '13:40', subject: 'Klasik Bale', teacher: 'A. Küçüküçerler', location: 'B Salon' },
-      { start: '13:50', end: '14:30', subject: 'Klasik Bale', teacher: 'A. Küçüküçerler', location: 'B Salon' },
-      { start: '14:40', end: '15:20', subject: 'Point / Dans T.', teacher: 'A. Küçüküçerler', location: 'B Salon' },
-      { start: '16:20', end: '17:00', subject: 'Vücut Kondisyon', teacher: 'S. Kömürcü', location: 'B Salon' },
-    ],
-    tuesday: [
-      { start: '08:20', end: '09:00', subject: 'Fen Bilimleri', location: 'B1-105A' },
-      { start: '09:10', end: '09:50', subject: 'Fen Bilimleri', location: 'B1-105A' },
-      { start: '10:50', end: '11:30', subject: 'Türkçe', location: 'B1-105A' },
-      { start: '11:40', end: '12:20', subject: 'Türkçe', location: 'B1-105A' },
-      { start: '13:00', end: '13:40', subject: 'Klasik Bale', teacher: 'A. Küçüküçerler', location: 'B Salon' },
-      { start: '13:50', end: '14:30', subject: 'Klasik Bale', teacher: 'A. Küçüküçerler', location: 'B Salon' },
-      { start: '14:40', end: '15:20', subject: 'Point / Dans T.', teacher: 'A. Küçüküçerler', location: 'D Salon' },
-      { start: '15:30', end: '16:10', subject: 'Matematik', location: 'B1-105A' },
-      { start: '16:20', end: '17:00', subject: 'Matematik', location: 'B1-105A' },
-    ],
-    wednesday: [
-      { start: '08:20', end: '09:00', subject: 'Türkçe', location: 'B1-105A' },
-      { start: '09:10', end: '09:50', subject: 'Türkçe', location: 'B1-105A' },
-      { start: '10:00', end: '10:40', subject: 'Klasik Bale', teacher: 'A. Küçüküçerler', location: 'C Salon' },
-      { start: '10:50', end: '11:30', subject: 'Klasik Bale', teacher: 'A. Küçüküçerler', location: 'C Salon' },
-      { start: '11:40', end: '12:20', subject: 'Point / Dans T.', teacher: 'A. Küçüküçerler', location: 'C Salon' },
-      { start: '13:00', end: '13:40', subject: 'Kulüp Dersleri' },
-      { start: '14:40', end: '15:20', subject: 'Fen Bilimleri', location: 'B1-105A' },
-    ],
-    thursday: [
-      { start: '08:20', end: '09:00', subject: 'Sosyal Bilgiler', location: 'B1-105A' },
-      { start: '09:10', end: '09:50', subject: 'Sosyal Bilgiler', location: 'B1-105A' },
-      { start: '10:00', end: '10:40', subject: 'İngilizce', location: 'B1-105A' },
-      { start: '10:50', end: '11:30', subject: 'İngilizce', location: 'B1-105A' },
-      { start: '11:40', end: '12:20', subject: 'İngilizce', location: 'B1-105A' },
-      { start: '13:00', end: '13:40', subject: 'Klasik Bale', teacher: 'A. Küçüküçerler', location: 'D Salon' },
-      { start: '13:50', end: '14:30', subject: 'Klasik Bale', teacher: 'A. Küçüküçerler', location: 'D Salon' },
-      { start: '17:10', end: '17:50', subject: 'Birlikte Uygulama', location: 'B Salon' },
-      { start: '18:00', end: '18:40', subject: 'Birlikte Uygulama', location: 'B Salon' },
-    ],
-    friday: [
-      { start: '09:10', end: '09:50', subject: 'Din Kültürü ve Ahlak Bilgisi', location: 'B1-105A' },
-      { start: '10:00', end: '10:40', subject: 'Din Kültürü ve Ahlak Bilgisi', location: 'B1-105A' },
-      { start: '10:50', end: '11:30', subject: 'Ritmik', location: 'B1-102' },
-      { start: '11:40', end: '12:20', subject: 'Ritmik', location: 'B1-102' },
-      { start: '13:00', end: '13:40', subject: 'Point / Dans T.', teacher: 'E. Gemalmaz', location: 'B Salon' },
-      { start: '13:50', end: '14:30', subject: 'Birlikte Uygulama', teacher: 'E. Gemalmaz', location: 'B Salon' },
-      { start: '15:30', end: '16:10', subject: 'Sosyal Bilgiler', location: 'B1-105A' },
-    ],
-    saturday: [],
-    sunday: [],
-  },
 };
+
+export function getSubjectCategory(subject: string, target?: AudienceTarget): Category {
+  if (target === 'BALLET') return 'dance';
+  if (target === 'MUSIC') return 'other';
+  return subjectCategories[subject] || 'academic';
+}

@@ -1,10 +1,12 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import { scheduleData, subjectCategories } from '@/data/scheduleData';
-import { DayKey, Lesson } from '@/types/schedule';
+import { schoolConfig } from '@/data/scheduleData';
+import { DayKey, Lesson, ScheduleData } from '@/types/schedule';
 import { useTheme } from '@/hooks/useTheme';
 import { getLessonsForDay } from '@/utils/schedule';
+import { getSubjectCategory } from '@/utils/schedule';
+import { AudienceBadge } from './AudienceBadge';
 
 const DAYS: { key: DayKey; label: string }[] = [
   { key: 'monday', label: 'Pazartesi' },
@@ -15,11 +17,12 @@ const DAYS: { key: DayKey; label: string }[] = [
 ];
 
 interface WeeklyPageProps {
+  scheduleData: ScheduleData;
   todayDayKey?: DayKey;
   onSelectLesson?: (lesson: Lesson) => void;
 }
 
-export function WeeklyPage({ todayDayKey, onSelectLesson }: WeeklyPageProps) {
+export function WeeklyPage({ scheduleData, todayDayKey, onSelectLesson }: WeeklyPageProps) {
   const [selectedDay, setSelectedDay] = useState<DayKey>(
     todayDayKey && ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].includes(todayDayKey)
       ? todayDayKey
@@ -51,8 +54,8 @@ export function WeeklyPage({ todayDayKey, onSelectLesson }: WeeklyPageProps) {
     };
   }, [updateScrollCue]);
 
-  const rawLessons = getLessonsForDay(selectedDay);
-  const lunchBreak = scheduleData.school.lunchBreak;
+  const rawLessons = getLessonsForDay(scheduleData, selectedDay);
+  const lunchBreak = schoolConfig.lunchBreak;
   const lunchInsertionIndex = rawLessons.findIndex((lesson) => lesson.start >= lunchBreak.end);
 
   return (
@@ -67,7 +70,7 @@ export function WeeklyPage({ todayDayKey, onSelectLesson }: WeeklyPageProps) {
             Haftalık Program
           </h1>
           <p className="text-xs font-semibold text-gray-400">
-            MSGSÜ Bale Anasanat Dalı
+            MSGSÜ 2026–27 Ders Programı
           </p>
         </div>
 
@@ -132,7 +135,7 @@ export function WeeklyPage({ todayDayKey, onSelectLesson }: WeeklyPageProps) {
         ) : (
           rawLessons.map((lessonItem: Lesson, index) => {
 
-            const category = subjectCategories[lessonItem.subject] || 'other';
+            const category = getSubjectCategory(lessonItem.subject, lessonItem.target);
             const isDance = category === 'dance';
 
             return (
@@ -168,11 +171,7 @@ export function WeeklyPage({ todayDayKey, onSelectLesson }: WeeklyPageProps) {
                       >
                         {lessonItem.subject}
                       </h3>
-                      {isDance && (
-                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-[#D94B55]/10 text-[#D94B55]">
-                          Bale
-                        </span>
-                      )}
+                      <AudienceBadge lesson={lessonItem} />
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {lessonItem.teacher ? `${lessonItem.teacher} · ` : ''}

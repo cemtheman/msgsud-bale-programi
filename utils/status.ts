@@ -1,11 +1,10 @@
-import { ComputedStatus, DayKey } from '@/types/schedule';
-import { scheduleData } from '@/data/scheduleData';
+import { ComputedStatus, DayKey, ScheduleData } from '@/types/schedule';
 import { getLessonsForDay, getNextSchoolDayLesson } from './schedule';
 import { timeStringToMinutes } from './time';
 
-export function calculateStatus(dayKey: DayKey, currentMinutes: number, currentDateKey: string, closedDates = new Set<string>()): ComputedStatus {
-  const lessons = getLessonsForDay(dayKey);
-  const nextSchoolDay = () => getNextSchoolDayLesson(currentDateKey, closedDates);
+export function calculateStatus(scheduleData: ScheduleData, dayKey: DayKey, currentMinutes: number, currentDateKey: string, closedDates = new Set<string>()): ComputedStatus {
+  const lessons = getLessonsForDay(scheduleData, dayKey);
+  const nextSchoolDay = () => getNextSchoolDayLesson(scheduleData, currentDateKey, closedDates);
 
   // 1. Resmî tatil veya ders olmayan gün
   if (closedDates.has(currentDateKey) || lessons.length === 0) {

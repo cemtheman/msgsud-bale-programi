@@ -3,12 +3,12 @@ import './globals.css';
 import { PullToRefresh } from '@/components/PullToRefresh';
 
 export const metadata: Metadata = {
-  title: 'MSGSÜ Bale Programı',
-  description: 'MSGSÜ Bale Anasanat Dalı Ders Programı',
+  title: 'MSGSÜ Ders Programı',
+  description: 'MSGSÜ 2026–2027 çok sınıflı ders programı',
   appleWebApp: { 
     capable: true, 
     statusBarStyle: 'default', 
-    title: 'Bale Programı' 
+    title: 'Ders Programı'
   },
   icons: { 
     icon: '/icon.svg', 

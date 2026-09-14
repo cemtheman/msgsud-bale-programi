@@ -1,5 +1,6 @@
 import type { ComputedStatus } from '@/types/schedule';
 import { getLiveCardPresentation, getLiveCardTimeSummary, type LiveCardMode } from '@/utils/liveCard';
+import { AudienceBadge } from './AudienceBadge';
 
 interface SmartLessonCardProps {
   status: ComputedStatus;
@@ -64,6 +65,7 @@ export function SmartLessonCard({ status }: SmartLessonCardProps) {
             <h2 className="min-w-0 break-words text-base font-extrabold text-gray-900 dark:text-white">
               {activeLesson.subject}
             </h2>
+            <AudienceBadge lesson={activeLesson} />
           </div>
           {!presentation.compact && (
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400">

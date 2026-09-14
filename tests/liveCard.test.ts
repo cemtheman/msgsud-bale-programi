@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ComputedStatus } from '@/types/schedule';
 import { getLiveCardPresentation, getLiveCardTimeSummary } from '@/utils/liveCard';
+import { lesson } from './fixtures';
 
 describe('getLiveCardPresentation', () => {
   it('keeps a distant first lesson calm and compact', () => {
@@ -29,7 +30,7 @@ describe('getLiveCardPresentation', () => {
     const status: ComputedStatus = {
       type: 'lunch',
       minutesUntilNext: 23,
-      nextLesson: { id: 'next', start: '13:00', end: '13:40', subject: 'Klasik Bale' },
+      nextLesson: lesson('next', '13:00', '13:40', 'Klasik Bale'),
     };
 
     expect(getLiveCardTimeSummary(status)).toBe('Yemek arasının bitmesine 23 dakika kaldı');
@@ -43,7 +44,7 @@ describe('getLiveCardPresentation', () => {
     const status: ComputedStatus = {
       type,
       minutesUntilNext,
-      nextLesson: { id: 'next', start: '13:00', end: '13:40', subject: 'Klasik Bale' },
+      nextLesson: lesson('next', '13:00', '13:40', 'Klasik Bale'),
     };
 
     expect(getLiveCardTimeSummary(status)).toBe(expected);

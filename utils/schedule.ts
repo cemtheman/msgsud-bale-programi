@@ -1,15 +1,14 @@
-import { scheduleData, subjectCategories } from '@/data/scheduleData';
-import { Lesson, DayKey, Category } from '@/types/schedule';
+import { getSubjectCategory as resolveSubjectCategory } from '@/data/scheduleData';
+import { Lesson, DayKey, Category, ScheduleData, AudienceTarget } from '@/types/schedule';
 import { DAY_LABELS } from './time';
 import { addDaysToDateKey, getDayKeyForDate } from './events';
 
-export function getLessonsForDay(dayKey: DayKey): Lesson[] {
-  const rawList = scheduleData.schedule[dayKey] || [];
-  return rawList.map((lesson, idx) => ({ ...lesson, id: `${dayKey}-${idx}-${lesson.start}` }));
+export function getLessonsForDay(scheduleData: ScheduleData, dayKey: DayKey): Lesson[] {
+  return scheduleData.schedule[dayKey] || [];
 }
 
-export function getSubjectCategory(subject: string): Category {
-  return subjectCategories[subject] || 'other';
+export function getSubjectCategory(subject: string, target?: AudienceTarget): Category {
+  return resolveSubjectCategory(subject, target);
 }
 
 export interface NextSchoolDayInfo {
@@ -19,12 +18,12 @@ export interface NextSchoolDayInfo {
   lessons: Lesson[];
 }
 
-export function getNextSchoolDayInfo(currentDateKey: string, closedDates = new Set<string>()): NextSchoolDayInfo | null {
+export function getNextSchoolDayInfo(scheduleData: ScheduleData, currentDateKey: string, closedDates = new Set<string>()): NextSchoolDayInfo | null {
   for (let i = 1; i <= 60; i++) {
     const nextDateKey = addDaysToDateKey(currentDateKey, i);
     if (closedDates.has(nextDateKey)) continue;
     const nextDayKey = getDayKeyForDate(nextDateKey);
-    const lessons = getLessonsForDay(nextDayKey);
+    const lessons = getLessonsForDay(scheduleData, nextDayKey);
     
     if (lessons.length > 0) {
       return { 
@@ -38,7 +37,7 @@ export function getNextSchoolDayInfo(currentDateKey: string, closedDates = new S
   return null;
 }
 
-export function getNextSchoolDayLesson(currentDateKey: string, closedDates = new Set<string>()): { lesson: Lesson; dayLabel: string } | null {
-  const info = getNextSchoolDayInfo(currentDateKey, closedDates);
+export function getNextSchoolDayLesson(scheduleData: ScheduleData, currentDateKey: string, closedDates = new Set<string>()): { lesson: Lesson; dayLabel: string } | null {
+  const info = getNextSchoolDayInfo(scheduleData, currentDateKey, closedDates);
   return info ? { lesson: info.lessons[0], dayLabel: info.dayLabel } : null;
 }

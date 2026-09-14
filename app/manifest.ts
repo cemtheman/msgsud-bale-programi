@@ -2,9 +2,9 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'MSGSÜ Bale Programı',
-    short_name: 'Bale Programı',
-    description: 'MSGSÜ Bale Anasanat Dalı Haftalık Ders Programı',
+    name: 'MSGSÜ Ders Programı',
+    short_name: 'Ders Programı',
+    description: 'MSGSÜ 2026–2027 çok sınıflı ders programı',
     start_url: '/',
     display: 'standalone',
     orientation: 'portrait',

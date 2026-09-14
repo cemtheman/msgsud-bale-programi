@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Lesson } from '@/types/schedule';
+import { lesson } from './fixtures';
 import { calculateDayProgress, formatDuration } from '@/utils/dayProgress';
 
 const lessons: Lesson[] = [
-  { id: 'one', start: '08:20', end: '09:00', subject: 'Türkçe' },
-  { id: 'two', start: '09:10', end: '09:50', subject: 'Bale' },
-  { id: 'three', start: '10:00', end: '10:40', subject: 'Matematik' },
+  lesson('one', '08:20', '09:00', 'Türkçe'),
+  lesson('two', '09:10', '09:50', 'Bale'),
+  lesson('three', '10:00', '10:40', 'Matematik'),
 ];
 
 describe('günlük ders ilerlemesi', () => {

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Lesson } from '@/types/schedule';
+import { lesson as createLesson } from './fixtures';
 import { getTimelineEndHour } from '@/utils/timeline';
 
 function lesson(end: string): Lesson {
-  return { id: end, start: '08:20', end, subject: 'Test' };
+  return createLesson(end, '08:20', end);
 }
 
 describe('canlı zaman çizelgesi bitişi', () => {

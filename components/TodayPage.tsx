@@ -2,10 +2,11 @@
 
 import { Fragment } from 'react';
 import { Lesson, ComputedStatus } from '@/types/schedule';
-import { scheduleData } from '@/data/scheduleData';
+import { schoolConfig } from '@/data/scheduleData';
 import { useTheme } from '@/hooks/useTheme';
 import type { NextSchoolDayInfo } from '@/utils/schedule';
 import { calculateDayProgress, formatDuration } from '@/utils/dayProgress';
+import { AudienceBadge } from './AudienceBadge';
 
 interface TodayPageProps {
   formattedDate: string;
@@ -39,7 +40,7 @@ export function TodayPage({
   const dayProgress = calculateDayProgress(todayLessons, currentMinutes);
   const firstLesson = todayLessons[0];
   const lastLesson = todayLessons.at(-1);
-  const lunchBreak = scheduleData.school.lunchBreak;
+  const lunchBreak = schoolConfig.lunchBreak;
   const lunchInsertionIndex = todayLessons.findIndex((lesson) => lesson.start >= lunchBreak.end);
   
   return (
@@ -50,7 +51,7 @@ export function TodayPage({
             {formattedDate}
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-            MSGSÜ Bale Programı · {academicYearLabel}
+            MSGSÜ Ders Programı · {academicYearLabel}
           </p>
         </div>
         <div className="flex items-center gap-2 bg-white dark:bg-[#1C1C1E] pl-1.5 pr-3 py-1.5 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
@@ -210,9 +211,10 @@ export function TodayPage({
                     <span className="text-[10px] font-extrabold text-gray-400">
                       {lesson.start} - {lesson.end}
                     </span>
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">
-                      {lesson.subject}
-                    </h4>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">{lesson.subject}</h4>
+                      <AudienceBadge lesson={lesson} />
+                    </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {lesson.teacher && `👨‍🏫 ${lesson.teacher}`}
                       {lesson.teacher && lesson.location && ' · '}
