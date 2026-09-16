@@ -18,10 +18,16 @@ export function ClassSelector({ value, onChange }: ClassSelectorProps) {
         value={value}
         onChange={(event) => onChange(event.target.value as ClassCode)}
         aria-label="Sınıf seçimi"
-        className="min-h-8 rounded-xl bg-gray-100 px-2.5 text-sm font-extrabold text-gray-900 outline-none dark:bg-white/10 dark:text-white"
+        className="min-h-8 rounded-xl bg-gray-100 px-2.5 text-sm font-extrabold text-gray-900 outline-none dark:bg-[#2C2C2E] dark:text-white dark:[color-scheme:dark]"
       >
         {CLASS_CODES.map((classCode) => (
-          <option key={classCode} value={classCode}>{classCode}</option>
+          <option
+            key={classCode}
+            value={classCode}
+            className="bg-white text-gray-900 dark:bg-[#2C2C2E] dark:text-white"
+          >
+            {classCode}
+          </option>
         ))}
       </select>
     </label>
