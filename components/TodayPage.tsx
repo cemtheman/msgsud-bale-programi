@@ -133,6 +133,14 @@ export function TodayPage({
               style={{ width: `${dayProgress.progressPercent}%` }}
             />
           </div>
+          <button
+            type="button"
+            onClick={onOpenTimeline}
+            className="mt-3 flex w-full items-center justify-between border-t border-black/5 pt-3 text-left text-xs font-bold text-[#D94B55] transition-colors hover:text-[#bd3540] dark:border-white/10 dark:text-rose-400 dark:hover:text-rose-300"
+          >
+            <span>Canlı zaman çizelgesini görüntüle</span>
+            <span aria-hidden="true">→</span>
+          </button>
         </div>
       )}
 
@@ -152,18 +160,10 @@ export function TodayPage({
       )}
 
       <div className="space-y-2">
-        <div className="flex justify-between items-center px-1">
+        <div className="flex items-center px-1">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">
             BUGÜNÜN PROGRAMI
           </h3>
-          {todayLessons.length > 0 && (
-            <button
-              onClick={onOpenTimeline}
-              className="text-xs font-bold text-[#D94B55] hover:underline"
-            >
-              Zaman Çizelgesi →
-            </button>
-          )}
         </div>
 
         {todayLessons.length === 0 ? (
