@@ -2,7 +2,8 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { schoolConfig } from '@/data/scheduleData';
-import { DayKey, Lesson, ScheduleData } from '@/types/schedule';
+import { applyTemporaryLessonChanges } from '@/data/temporarySchedule';
+import { ClassCode, DayKey, Lesson, ScheduleData } from '@/types/schedule';
 import { useTheme } from '@/hooks/useTheme';
 import { getLessonsForDay } from '@/utils/schedule';
 import { getSubjectCategory } from '@/utils/schedule';
@@ -18,11 +19,13 @@ const DAYS: { key: DayKey; label: string }[] = [
 
 interface WeeklyPageProps {
   scheduleData: ScheduleData;
+  currentDateKey: string;
+  classCode: ClassCode;
   todayDayKey?: DayKey;
   onSelectLesson?: (lesson: Lesson) => void;
 }
 
-export function WeeklyPage({ scheduleData, todayDayKey, onSelectLesson }: WeeklyPageProps) {
+export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKey, onSelectLesson }: WeeklyPageProps) {
   const [selectedDay, setSelectedDay] = useState<DayKey>(
     todayDayKey && ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].includes(todayDayKey)
       ? todayDayKey
@@ -54,7 +57,11 @@ export function WeeklyPage({ scheduleData, todayDayKey, onSelectLesson }: Weekly
     };
   }, [updateScrollCue]);
 
-  const rawLessons = getLessonsForDay(scheduleData, selectedDay);
+  const rawLessons = applyTemporaryLessonChanges(
+    getLessonsForDay(scheduleData, selectedDay),
+    currentDateKey,
+    classCode,
+  );
   const lunchBreak = schoolConfig.lunchBreak;
   const lunchInsertionIndex = rawLessons.findIndex((lesson) => lesson.start >= lunchBreak.end);
 
