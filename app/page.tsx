@@ -7,7 +7,7 @@ import { useClassSchedule } from '@/hooks/useClassSchedule';
 import { getIstanbulDate } from '@/utils/time';
 import { getIstanbulDateKey } from '@/utils/events';
 import { calculateStatus } from '@/utils/status';
-import { getLessonsForDay, getNextSchoolDayInfo } from '@/utils/schedule';
+import { getLessonsForDate, getNextSchoolDayInfo } from '@/utils/schedule';
 import { Lesson } from '@/types/schedule';
 import { getAcademicCalendarState, getAcademicClosureDates } from '@/data/academicCalendar';
 
@@ -22,6 +22,7 @@ import { InstallPromptBanner } from '@/components/InstallPromptBanner';
 import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
 import { SmartLessonCard } from '@/components/SmartLessonCard';
 import { ClassSelector } from '@/components/ClassSelector';
+import { ENGLISH_SUSPENSION, isEnglishSuspensionActive } from '@/data/temporarySchedule';
 
 export default function Home() {
   const now = useNow();
@@ -63,9 +64,27 @@ export default function Home() {
       </main>
     );
   }
-  const status = calculateStatus(schedule, dayKey, totalMinutes, todayDateKey, closedDates);
-  const todayLessons = closedDates.has(todayDateKey) ? [] : getLessonsForDay(schedule, dayKey);
-  const nextSchoolDay = getNextSchoolDayInfo(schedule, todayDateKey, closedDates);
+  const status = calculateStatus(
+    schedule,
+    dayKey,
+    totalMinutes,
+    todayDateKey,
+    closedDates,
+    classSchedule.selectedClass,
+  );
+  const todayLessons = closedDates.has(todayDateKey)
+    ? []
+    : getLessonsForDate(schedule, dayKey, todayDateKey, classSchedule.selectedClass);
+  const nextSchoolDay = getNextSchoolDayInfo(
+    schedule,
+    todayDateKey,
+    closedDates,
+    classSchedule.selectedClass,
+  );
+  const showEnglishSuspension = isEnglishSuspensionActive(
+    todayDateKey,
+    classSchedule.selectedClass,
+  );
 
   // Hafta sonu kontrolü (Cumartesi veya Pazar)
   const isNoSchoolDay = dayKey === 'saturday' || dayKey === 'sunday' || closedDates.has(todayDateKey);
@@ -75,6 +94,15 @@ export default function Home() {
       <div className="mb-3 flex items-center justify-end">
         <ClassSelector value={classSchedule.selectedClass} onChange={classSchedule.setSelectedClass} />
       </div>
+
+      {showEnglishSuspension && (
+        <div className="mb-3 rounded-2xl border border-amber-300/60 bg-amber-50/80 px-3.5 py-3 text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/20 dark:text-amber-100">
+          <p className="text-xs font-extrabold">{ENGLISH_SUSPENSION.label}: İngilizce dersleri yapılmayacaktır.</p>
+          <p className="mt-0.5 text-[11px] font-medium opacity-80">
+            Program ve günün çıkış saati geçici değişikliğe göre güncellenmiştir.
+          </p>
+        </div>
+      )}
 
       {classSchedule.error && classSchedule.fromCache && (
         <div className="mb-3 rounded-2xl border border-amber-300/50 bg-amber-50/80 px-3 py-2 text-xs font-semibold text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/20 dark:text-amber-200">
@@ -129,7 +157,13 @@ export default function Home() {
             />
           )}
           {activeTab === 'weekly' && (
-            <WeeklyPage scheduleData={schedule} todayDayKey={dayKey} onSelectLesson={setSelectedLesson} />
+            <WeeklyPage
+              scheduleData={schedule}
+              currentDateKey={todayDateKey}
+              classCode={classSchedule.selectedClass}
+              todayDayKey={dayKey}
+              onSelectLesson={setSelectedLesson}
+            />
           )}
           {activeTab === 'events' && (
             <EventsPage />
