@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { fetchScheduleForClass, scheduleCache } from '@/lib/supabaseSchedule';
 import type { ClassCode, ScheduleData } from '@/types/schedule';
 
-const SELECTION_KEY = 'msgsu-selected-class:v1';
+// v2 resets previously stored selections once so the new default opens as 5A.
+// Choices made after this release continue to be remembered.
+const SELECTION_KEY = 'msgsu-selected-class:v2';
 const DEFAULT_CLASS: ClassCode = '5A';
 
 function isClassCode(value: string | null): value is ClassCode {
