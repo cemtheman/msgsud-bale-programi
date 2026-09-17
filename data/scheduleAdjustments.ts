@@ -1,4 +1,14 @@
-import type { ClassCode, Lesson, ScheduleData } from '@/types/schedule';
+import type { ClassCode, DayKey, Lesson, ScheduleData } from '@/types/schedule';
+
+const DAY_KEYS: DayKey[] = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+];
 
 const WEDNESDAY_5A_PIANO: Lesson[] = [
   {
@@ -29,22 +39,44 @@ function hasMatchingLesson(lessons: Lesson[], candidate: Lesson) {
   );
 }
 
+function isTogetherPractice(subject: string) {
+  const normalized = subject.trim().toLocaleLowerCase('tr-TR');
+  return normalized === 'b. uygulama' || normalized === 'birlikte uygulama';
+}
+
+function removeFifthGradeTogetherPractice(data: ScheduleData): ScheduleData {
+  return {
+    ...data,
+    schedule: {
+      ...data.schedule,
+      ...Object.fromEntries(DAY_KEYS.map((dayKey) => [
+        dayKey,
+        data.schedule[dayKey].filter((lesson) => !isTogetherPractice(lesson.subject)),
+      ])) as ScheduleData['schedule'],
+    },
+  };
+}
+
 export function applyScheduleAdjustments(
   data: ScheduleData,
   classCode: ClassCode,
 ): ScheduleData {
-  if (classCode !== '5A') return data;
+  if (classCode !== '5A' && classCode !== '5B') return data;
 
-  const wednesday = [...data.schedule.wednesday];
+  // 5. sınıflarda bu sömestr uygulanmıyor; yeniden planlanırsa bu filtre kaldırılacak.
+  const adjustedData = removeFifthGradeTogetherPractice(data);
+  if (classCode !== '5A') return adjustedData;
+
+  const wednesday = [...adjustedData.schedule.wednesday];
   WEDNESDAY_5A_PIANO.forEach((lesson) => {
     if (!hasMatchingLesson(wednesday, lesson)) wednesday.push(lesson);
   });
   wednesday.sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
 
   return {
-    ...data,
+    ...adjustedData,
     schedule: {
-      ...data.schedule,
+      ...adjustedData.schedule,
       wednesday,
     },
   };
