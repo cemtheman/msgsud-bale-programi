@@ -49,6 +49,54 @@ describe('5A program düzeltmeleri', () => {
   it('diğer sınıfların programını değiştirmez', () => {
     const original = emptySchedule();
 
-    expect(applyScheduleAdjustments(original, '5B')).toBe(original);
+    expect(applyScheduleAdjustments(original, '6A')).toBe(original);
+  });
+
+  it.each(['5A', '5B'] as const)('%s programından Birlikte Uygulama derslerini kaldırır', (classCode) => {
+    const original = emptySchedule();
+    original.schedule.thursday = [
+      {
+        id: 'together-practice-short',
+        start: '17:10',
+        end: '17:50',
+        subject: 'B. Uygulama',
+        target: 'BALLET',
+        sessionType: 'STANDARD',
+      },
+      {
+        id: 'together-practice-long',
+        start: '18:00',
+        end: '18:40',
+        subject: 'Birlikte Uygulama',
+        target: 'BALLET',
+        sessionType: 'STANDARD',
+      },
+      {
+        id: 'keep-ballet',
+        start: '16:20',
+        end: '17:00',
+        subject: 'K. Bale',
+        target: 'BALLET',
+        sessionType: 'STANDARD',
+      },
+    ];
+
+    const result = applyScheduleAdjustments(original, classCode);
+
+    expect(result.schedule.thursday.map((lesson) => lesson.subject)).toEqual(['K. Bale']);
+  });
+
+  it('6. sınıflardaki Birlikte Uygulama derslerine dokunmaz', () => {
+    const original = emptySchedule();
+    original.schedule.friday = [{
+      id: 'sixth-grade-together-practice',
+      start: '13:50',
+      end: '14:30',
+      subject: 'B. Uygulama',
+      target: 'BALLET',
+      sessionType: 'STANDARD',
+    }];
+
+    expect(applyScheduleAdjustments(original, '6A')).toBe(original);
   });
 });
