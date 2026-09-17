@@ -14,7 +14,7 @@ import { getAcademicCalendarState, getAcademicClosureDates } from '@/data/academ
 import { TodayPage } from '@/components/TodayPage';
 import { WeeklyPage } from '@/components/WeeklyPage';
 import { EventsPage } from '@/components/EventsPage';
-import { LiveTimeline } from '@/components/LiveTimeline';
+import { TimelineSheet } from '@/components/TimelineSheet';
 import { LessonDetailSheet } from '@/components/LessonDetailSheet';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { DailyReminderBanner } from '@/components/DailyReminderBanner';
@@ -119,56 +119,47 @@ export default function Home() {
       <DailyReminderBanner />
 
       {/* Sıradaki Ders / Canlı Widget Kartı (Sadece hafta içi günlerde görünür) */}
-      {!showTimeline && activeTab === 'today' && !isNoSchoolDay && (
+      {activeTab === 'today' && !isNoSchoolDay && (
         <div className="mb-3.5">
           <SmartLessonCard status={status} />
         </div>
       )}
 
-      {showTimeline ? (
-        <div className="space-y-4 animate-fade-in">
-          <div className="flex justify-between items-center">
-            <button 
-              onClick={() => setShowTimeline(false)} 
-              className="text-xs font-bold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white flex items-center gap-1"
-            >
-              ← Geri
-            </button>
-            <h1 className="text-sm font-bold text-gray-900 dark:text-white">Zaman Çizelgesi</h1>
-            <div className="w-8" />
-          </div>
-          <LiveTimeline lessons={todayLessons} currentMinutes={totalMinutes} onSelectLesson={setSelectedLesson} />
-        </div>
-      ) : (
-        <>
-          {activeTab === 'today' && (
-            <TodayPage 
-              formattedDate={formattedDate} 
-              formattedTime={formattedTime} 
-              status={status} 
-              todayLessons={todayLessons} 
-              currentMinutes={totalMinutes}
-              onSelectLesson={setSelectedLesson} 
-              onOpenTimeline={() => setShowTimeline(true)} 
-              holidayTitle={todayHoliday?.title}
-              academicYearLabel={academicState.label}
-              closureTitle={todayHoliday?.title ?? academicState.closureTitle}
-              nextSchoolDay={nextSchoolDay}
-            />
-          )}
-          {activeTab === 'weekly' && (
-            <WeeklyPage
-              scheduleData={schedule}
-              currentDateKey={todayDateKey}
-              classCode={classSchedule.selectedClass}
-              todayDayKey={dayKey}
-              onSelectLesson={setSelectedLesson}
-            />
-          )}
-          {activeTab === 'events' && (
-            <EventsPage />
-          )}
-        </>
+      {activeTab === 'today' && (
+        <TodayPage
+          formattedDate={formattedDate}
+          formattedTime={formattedTime}
+          status={status}
+          todayLessons={todayLessons}
+          currentMinutes={totalMinutes}
+          onSelectLesson={setSelectedLesson}
+          onOpenTimeline={() => setShowTimeline(true)}
+          holidayTitle={todayHoliday?.title}
+          academicYearLabel={academicState.label}
+          closureTitle={todayHoliday?.title ?? academicState.closureTitle}
+          nextSchoolDay={nextSchoolDay}
+        />
+      )}
+      {activeTab === 'weekly' && (
+        <WeeklyPage
+          scheduleData={schedule}
+          currentDateKey={todayDateKey}
+          classCode={classSchedule.selectedClass}
+          todayDayKey={dayKey}
+          onSelectLesson={setSelectedLesson}
+        />
+      )}
+      {activeTab === 'events' && (
+        <EventsPage />
+      )}
+
+      {showTimeline && (
+        <TimelineSheet
+          lessons={todayLessons}
+          currentMinutes={totalMinutes}
+          onClose={() => setShowTimeline(false)}
+          onSelectLesson={setSelectedLesson}
+        />
       )}
 
       <LessonDetailSheet lesson={selectedLesson} status={status} onClose={() => setSelectedLesson(null)} />

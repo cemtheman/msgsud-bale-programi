@@ -1,4 +1,5 @@
 import { schoolConfig } from '@/data/scheduleData';
+import { applyScheduleAdjustments } from '@/data/scheduleAdjustments';
 import type {
   AudienceTarget,
   ClassCode,
@@ -130,12 +131,12 @@ export async function fetchScheduleForClass(
     a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.target.localeCompare(b.target),
   ));
 
-  return { school: schoolConfig, schedule };
+  return applyScheduleAdjustments({ school: schoolConfig, schedule }, classCode);
 }
 
 export const scheduleCache = {
   key(classCode: ClassCode) {
-    return `msgsu-schedule:${ACADEMIC_YEAR}:${classCode}:v1`;
+    return `msgsu-schedule:${ACADEMIC_YEAR}:${classCode}:v3`;
   },
   read(classCode: ClassCode): ScheduleData | null {
     try {

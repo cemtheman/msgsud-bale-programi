@@ -13,6 +13,7 @@ export const subjectCategories: Record<string, Category> = {
   'Birlikte Uygulama': 'dance',
   'Vücut Kondisyon': 'dance',
   'Kulüp Dersleri': 'other',
+  'Piyano': 'other',
 };
 
 export const schoolConfig: SchoolConfig = {
