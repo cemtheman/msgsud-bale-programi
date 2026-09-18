@@ -136,7 +136,7 @@ export async function fetchScheduleForClass(
 
 export const scheduleCache = {
   key(classCode: ClassCode) {
-    return `msgsu-schedule:${ACADEMIC_YEAR}:${classCode}:v3`;
+    return `msgsu-schedule:${ACADEMIC_YEAR}:${classCode}:v4`;
   },
   read(classCode: ClassCode): ScheduleData | null {
     try {
