@@ -46,6 +46,53 @@ describe('5A program düzeltmeleri', () => {
     expect(twice.schedule.wednesday).toHaveLength(2);
   });
 
+  it('5A Vücut Kondisyon dersini Pazartesi 11:40–12:20 olarak tekilleştirir', () => {
+    const original = emptySchedule();
+    original.schedule.monday = [{
+      id: 'old-monday-conditioning',
+      start: '16:20',
+      end: '17:00',
+      subject: 'V. Kondisyon',
+      target: 'BALLET',
+      sessionType: 'STANDARD',
+    }];
+    original.schedule.tuesday = [{
+      id: 'old-tuesday-conditioning',
+      start: '15:30',
+      end: '16:10',
+      subject: 'Vücut Kondisyon',
+      target: 'BALLET',
+      sessionType: 'STANDARD',
+    }];
+
+    const result = applyScheduleAdjustments(original, '5A');
+
+    expect(result.schedule.monday.filter((lesson) => /kondisyon/i.test(lesson.subject))).toEqual([
+      expect.objectContaining({
+        subject: 'V. Kondisyon',
+        start: '11:40',
+        end: '12:20',
+      }),
+    ]);
+    expect(result.schedule.tuesday.some((lesson) => /kondisyon/i.test(lesson.subject))).toBe(false);
+  });
+
+  it('5B Vücut Kondisyon derslerine dokunmaz', () => {
+    const original = emptySchedule();
+    original.schedule.monday = [{
+      id: '5b-conditioning',
+      start: '15:30',
+      end: '16:10',
+      subject: 'V. Kondisyon',
+      target: 'BALLET',
+      sessionType: 'STANDARD',
+    }];
+
+    const result = applyScheduleAdjustments(original, '5B');
+
+    expect(result.schedule.monday).toEqual(original.schedule.monday);
+  });
+
   it('diğer sınıfların programını değiştirmez', () => {
     const original = emptySchedule();
 
