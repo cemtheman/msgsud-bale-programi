@@ -31,6 +31,15 @@ const WEDNESDAY_5A_PIANO: Lesson[] = [
   },
 ];
 
+const MONDAY_5A_CONDITIONING: Lesson = {
+  id: 'adjustment-5a-monday-conditioning',
+  start: '11:40',
+  end: '12:20',
+  subject: 'V. Kondisyon',
+  target: 'BALLET',
+  sessionType: 'STANDARD',
+};
+
 function hasMatchingLesson(lessons: Lesson[], candidate: Lesson) {
   return lessons.some((lesson) =>
     lesson.subject.toLocaleLowerCase('tr-TR') === candidate.subject.toLocaleLowerCase('tr-TR')
@@ -57,6 +66,23 @@ function removeFifthGradeTogetherPractice(data: ScheduleData): ScheduleData {
   };
 }
 
+function isConditioning(subject: string) {
+  const normalized = subject.trim().toLocaleLowerCase('tr-TR');
+  return normalized === 'v. kondisyon' || normalized === 'vücut kondisyon';
+}
+
+function replace5AConditioning(data: ScheduleData): ScheduleData {
+  const schedule = Object.fromEntries(DAY_KEYS.map((dayKey) => [
+    dayKey,
+    data.schedule[dayKey].filter((lesson) => !isConditioning(lesson.subject)),
+  ])) as ScheduleData['schedule'];
+
+  schedule.monday.push(MONDAY_5A_CONDITIONING);
+  schedule.monday.sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+
+  return { ...data, schedule };
+}
+
 export function applyScheduleAdjustments(
   data: ScheduleData,
   classCode: ClassCode,
@@ -67,16 +93,17 @@ export function applyScheduleAdjustments(
   const adjustedData = removeFifthGradeTogetherPractice(data);
   if (classCode !== '5A') return adjustedData;
 
-  const wednesday = [...adjustedData.schedule.wednesday];
+  const personalized5AData = replace5AConditioning(adjustedData);
+  const wednesday = [...personalized5AData.schedule.wednesday];
   WEDNESDAY_5A_PIANO.forEach((lesson) => {
     if (!hasMatchingLesson(wednesday, lesson)) wednesday.push(lesson);
   });
   wednesday.sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
 
   return {
-    ...adjustedData,
+    ...personalized5AData,
     schedule: {
-      ...adjustedData.schedule,
+      ...personalized5AData.schedule,
       wednesday,
     },
   };
