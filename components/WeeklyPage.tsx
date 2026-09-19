@@ -25,6 +25,43 @@ interface WeeklyPageProps {
   onSelectLesson?: (lesson: Lesson) => void;
 }
 
+type PrintCategory = 'academic' | 'dance' | 'other' | 'lunch';
+
+function PrintCategoryIcon({ kind }: { kind: PrintCategory }) {
+  if (kind === 'academic') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3.5 5.5c3.1-.8 5.9-.2 8.5 1.7v12c-2.6-1.9-5.4-2.5-8.5-1.7v-12Zm17 0c-3.1-.8-5.9-.2-8.5 1.7v12c2.6-1.9 5.4-2.5 8.5-1.7v-12Z" />
+      </svg>
+    );
+  }
+
+  if (kind === 'dance') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8 4c1.4 2.5 2.1 5.2 2 8.2-.1 2.7-1.3 5.2-3.7 7.4-1.3 1.2-3.2.5-3.5-1.2-.4-2.2.2-4.5 1.8-7C6 9.2 7.1 6.7 8 4Zm8 0c-1.4 2.5-2.1 5.2-2 8.2.1 2.7 1.3 5.2 3.7 7.4 1.3 1.2 3.2.5 3.5-1.2.4-2.2-.2-4.5-1.8-7C18 9.2 16.9 6.7 16 4ZM7.3 3 12 7m4.7-4L12 7" />
+      </svg>
+    );
+  }
+
+  if (kind === 'lunch') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 3v7m-2-7v5a2 2 0 0 0 4 0V3M6 10v11m10-18v18m0-18c3 2.4 4 5 3 8h-3" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="8" cy="8" r="3" />
+      <circle cx="16" cy="8" r="3" />
+      <circle cx="12" cy="6" r="3" />
+      <path d="M2.5 19c.5-4 2.4-6 5.5-6m13.5 6c-.5-4-2.4-6-5.5-6m-8 7c.4-5 1.8-7.5 4-7.5s3.6 2.5 4 7.5" />
+    </svg>
+  );
+}
+
 export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKey, onSelectLesson }: WeeklyPageProps) {
   const [selectedDay, setSelectedDay] = useState<DayKey>(
     todayDayKey && ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].includes(todayDayKey)
@@ -64,33 +101,47 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
   );
   const lunchBreak = schoolConfig.lunchBreak;
   const lunchInsertionIndex = rawLessons.findIndex((lesson) => lesson.start >= lunchBreak.end);
-  const printRows = DAYS.flatMap(({ key, label }) => {
-    const lessons = applyTemporaryLessonChanges(
+  const printDays = DAYS.map(({ key, label }) => ({
+    key,
+    label,
+    lessons: applyTemporaryLessonChanges(
       getLessonsForDay(scheduleData, key),
       currentDateKey,
       classCode,
-    );
-    const rows: Array<{
-      id: string;
-      dayLabel: string;
-      lesson?: Lesson;
-      kind: 'lesson' | 'lunch' | 'empty';
-    }> = [];
+    ),
+  }));
+  const printSlotMap = new Map<string, { start: string; end: string; kind: 'lesson' | 'lunch' }>();
 
-    if (lessons.length === 0) {
-      rows.push({ id: `${key}-empty`, dayLabel: label, kind: 'empty' });
-      return rows;
-    }
-
-    const lunchIndex = lessons.findIndex((lesson) => lesson.start >= lunchBreak.end);
-    lessons.forEach((lesson, index) => {
-      if (index === lunchIndex) {
-        rows.push({ id: `${key}-lunch`, dayLabel: label, kind: 'lunch' });
-      }
-      rows.push({ id: `${key}-${lesson.id}`, dayLabel: label, lesson, kind: 'lesson' });
-    });
-    return rows;
+  schoolConfig.periods.forEach((period) => {
+    printSlotMap.set(period.start, { ...period, kind: 'lesson' });
   });
+  printDays.forEach(({ lessons }) => {
+    lessons.forEach((lesson) => {
+      const existing = printSlotMap.get(lesson.start);
+      if (!existing || lesson.end > existing.end) {
+        printSlotMap.set(lesson.start, {
+          start: lesson.start,
+          end: lesson.end,
+          kind: 'lesson',
+        });
+      }
+    });
+  });
+  printSlotMap.set(lunchBreak.start, {
+    start: lunchBreak.start,
+    end: lunchBreak.end,
+    kind: 'lunch',
+  });
+
+  const printSlots = Array.from(printSlotMap.values())
+    .sort((a, b) => a.start.localeCompare(b.start));
+  const classParts = /^(\d{1,2})([AB])$/.exec(classCode);
+  const grade = classParts ? Number(classParts[1]) : 5;
+  const section = classParts?.[2] ?? '';
+  const schoolName = grade >= 9
+    ? 'MSGSÜ İstanbul Devlet Konservatuvarı Müzik ve Sahne Sanatları Lisesi'
+    : 'MSGSÜ İstanbul Devlet Konservatuvarı Müzik ve Bale Ortaokulu';
+  const printableClassName = section ? `${grade}-${section}` : classCode;
 
   const printWeeklySchedule = () => {
     const previousTitle = document.title;
@@ -257,47 +308,95 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
 
       <section className="weekly-print-sheet" aria-hidden="true">
         <header className="weekly-print-header">
-          <div>
-            <h1>MSGSÜ Haftalık Ders Programı</h1>
-            <p>2026-27 Akademik Yılı</p>
+          <div className="weekly-print-brandmark" aria-hidden="true">
+            <span />
           </div>
-          <strong>{classCode} Sınıfı</strong>
+          <div className="weekly-print-heading">
+            <h1>{schoolName}</h1>
+            <p>{printableClassName} Sınıfı Ders Programı</p>
+          </div>
+          <div className="weekly-print-wordmark">
+            <strong>MİMAR SİNAN</strong>
+            <span>GÜZEL SANATLAR ÜNİVERSİTESİ</span>
+            <small>İSTANBUL DEVLET KONSERVATUVARI</small>
+          </div>
         </header>
 
-        <table className="weekly-print-table">
+        <table className="weekly-print-grid">
           <thead>
             <tr>
-              <th>Gün</th>
-              <th>Saat</th>
-              <th>Ders</th>
-              <th>Grup</th>
-              <th>Öğretmen</th>
-              <th>Yer</th>
+              <th className="weekly-print-time-heading">
+                <span className="weekly-print-clock" aria-hidden="true" />
+                SAAT
+              </th>
+              {printDays.map((day) => (
+                <th key={day.key}>{day.label.toLocaleUpperCase('tr-TR')}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {printRows.map(({ id, dayLabel, lesson, kind }) => (
-              <tr key={id} className={kind === 'lunch' ? 'weekly-print-lunch' : undefined}>
-                <td>{dayLabel}</td>
-                <td>
-                  {kind === 'lunch'
-                    ? `${lunchBreak.start} - ${lunchBreak.end}`
-                    : lesson
-                      ? `${lesson.start} - ${lesson.end}`
-                      : '-'}
-                </td>
-                <td>
-                  {kind === 'lunch'
-                    ? lunchBreak.label
-                    : lesson?.subject ?? 'Ders yok'}
-                </td>
-                <td>{lesson?.subgroup ?? '-'}</td>
-                <td>{lesson?.teacher ?? '-'}</td>
-                <td>{lesson?.location ?? '-'}</td>
+            {printSlots.map((slot) => (
+              <tr key={slot.start} className={slot.kind === 'lunch' ? 'weekly-print-lunch-row' : undefined}>
+                <th scope="row">{slot.start} - {slot.end}</th>
+                {printDays.map((day) => {
+                  if (slot.kind === 'lunch') {
+                    return (
+                      <td key={day.key} className="weekly-print-lunch-cell">
+                        <div className="weekly-print-cell-content">
+                          <PrintCategoryIcon kind="lunch" />
+                          <strong>{lunchBreak.label.toLocaleUpperCase('tr-TR')}</strong>
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  const lessons = day.lessons.filter((lesson) => lesson.start === slot.start);
+                  if (lessons.length === 0) {
+                    return (
+                      <td key={day.key} className="weekly-print-empty-cell">
+                        <span className="weekly-print-empty-mark" aria-label="Boş saat" />
+                      </td>
+                    );
+                  }
+
+                  return (
+                    <td key={day.key}>
+                      <div className="weekly-print-lessons">
+                        {lessons.map((lesson) => {
+                          const category = getSubjectCategory(lesson.subject, lesson.target);
+                          const details = [
+                            lesson.subgroup,
+                            lesson.teacher,
+                            lesson.location,
+                            lesson.end !== slot.end ? `${lesson.start}-${lesson.end}` : undefined,
+                          ].filter(Boolean).join(' / ');
+
+                          return (
+                            <div key={lesson.id} className={`weekly-print-lesson weekly-print-${category}`}>
+                              <PrintCategoryIcon kind={category} />
+                              <div>
+                                <strong>{lesson.subject}</strong>
+                                {details && <span>{details}</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
         </table>
+
+        <footer className="weekly-print-legend">
+          <span className="weekly-print-academic"><PrintCategoryIcon kind="academic" /> Kültür Dersleri</span>
+          <span className="weekly-print-dance"><PrintCategoryIcon kind="dance" /> Sanat Dersleri</span>
+          <span className="weekly-print-other"><PrintCategoryIcon kind="other" /> Kulüp Dersleri</span>
+          <span className="weekly-print-lunch"><PrintCategoryIcon kind="lunch" /> Yemek Arası</span>
+          <span className="weekly-print-empty"><i /> Boş Saat</span>
+        </footer>
       </section>
     </div>
   );
