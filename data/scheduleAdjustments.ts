@@ -31,6 +31,27 @@ const WEDNESDAY_5A_PIANO: Lesson[] = [
   },
 ];
 
+const FRIDAY_5A_K_BALE: Lesson[] = [
+  {
+    id: 'adjustment-5a-friday-k-bale-1',
+    start: '13:50',
+    end: '14:30',
+    subject: 'K. Bale',
+    teacher: 'E. Gemalmaz',
+    target: 'BALLET',
+    sessionType: 'STANDARD',
+  },
+  {
+    id: 'adjustment-5a-friday-k-bale-2',
+    start: '14:40',
+    end: '15:20',
+    subject: 'K. Bale',
+    teacher: 'E. Gemalmaz',
+    target: 'BALLET',
+    sessionType: 'STANDARD',
+  },
+];
+
 const MONDAY_5A_CONDITIONING: Lesson = {
   id: 'adjustment-5a-monday-conditioning',
   start: '11:40',
@@ -83,6 +104,13 @@ function replace5AConditioning(data: ScheduleData): ScheduleData {
   return { ...data, schedule };
 }
 
+function addMissingLessons(lessons: Lesson[], additions: Lesson[]) {
+  additions.forEach((lesson) => {
+    if (!hasMatchingLesson(lessons, lesson)) lessons.push(lesson);
+  });
+  lessons.sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+}
+
 export function applyScheduleAdjustments(
   data: ScheduleData,
   classCode: ClassCode,
@@ -95,16 +123,16 @@ export function applyScheduleAdjustments(
 
   const personalized5AData = replace5AConditioning(adjustedData);
   const wednesday = [...personalized5AData.schedule.wednesday];
-  WEDNESDAY_5A_PIANO.forEach((lesson) => {
-    if (!hasMatchingLesson(wednesday, lesson)) wednesday.push(lesson);
-  });
-  wednesday.sort((a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end));
+  const friday = [...personalized5AData.schedule.friday];
+  addMissingLessons(wednesday, WEDNESDAY_5A_PIANO);
+  addMissingLessons(friday, FRIDAY_5A_K_BALE);
 
   return {
     ...personalized5AData,
     schedule: {
       ...personalized5AData.schedule,
       wednesday,
+      friday,
     },
   };
 }
