@@ -56,12 +56,16 @@ body {
   html,
   body {
     width: 100% !important;
-    height: auto !important;
+    height: 190mm !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
     background: #ffffff !important;
     color: #13213f !important;
+  }
+
+  html.weekly-printing body > *:not(.weekly-print-root) {
+    display: none !important;
   }
 
   body * {
@@ -79,9 +83,9 @@ body {
     top: 0;
     left: 0;
     width: 283mm;
-    height: 196mm;
+    height: 190mm;
     max-width: none;
-    max-height: 196mm;
+    max-height: 190mm;
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -100,9 +104,9 @@ body {
 
   .weekly-print-header {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 76mm;
+    grid-template-columns: 13mm minmax(0, 1fr);
     align-items: center;
-    gap: 5mm;
+    gap: 3mm;
     height: 17mm;
     margin: 0 1mm 1mm;
     overflow: hidden;
@@ -132,11 +136,10 @@ body {
 
   .weekly-print-logo {
     display: block !important;
-    width: 76mm;
-    height: auto;
-    max-height: 13mm;
+    width: 12mm;
+    height: 12mm;
     object-fit: contain;
-    object-position: right center;
+    object-position: center;
   }
 
   .weekly-print-grid {
