@@ -69,7 +69,11 @@ export function SmartLessonCard({ status }: SmartLessonCardProps) {
           </div>
           {!presentation.compact && (
             <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-              {activeLesson.teacher ? `Öğretmen: ${activeLesson.teacher} · ` : ''}
+              {activeLesson.classCode
+                ? `Sınıf: ${activeLesson.classCode} · `
+                : activeLesson.teacher
+                  ? `Öğretmen: ${activeLesson.teacher} · `
+                  : ''}
               {activeLesson.location ? `Konum: ${activeLesson.location}` : 'Konum belirtilmedi'}
             </p>
           )}
