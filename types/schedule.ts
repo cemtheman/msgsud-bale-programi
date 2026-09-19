@@ -22,6 +22,7 @@ export interface Lesson {
   sessionType: SessionType;
   subgroup?: string;
   classCode?: ClassCode;
+  classCodes?: ClassCode[];
 }
 
 export interface TimeBlock {
