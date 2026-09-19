@@ -7,6 +7,7 @@ import { ClassCode, DayKey, Lesson, ScheduleData } from '@/types/schedule';
 import { useTheme } from '@/hooks/useTheme';
 import { getLessonsForDay } from '@/utils/schedule';
 import { getSubjectCategory } from '@/utils/schedule';
+import { createWeeklySchedulePdf, shareOrDownloadWeeklySchedulePdf } from '@/utils/weeklySchedulePdf';
 import { AudienceBadge } from './AudienceBadge';
 
 const DAYS: { key: DayKey; label: string }[] = [
@@ -71,6 +72,7 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
   
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const dayTabsRef = useRef<HTMLDivElement>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
@@ -143,36 +145,30 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
     : 'MSGSÜ İstanbul Devlet Konservatuvarı Müzik ve Bale Ortaokulu';
   const printableClassName = section ? `${grade}-${section}` : classCode;
 
-  const printWeeklySchedule = () => {
-    const sourceSheet = document.querySelector<HTMLElement>('.weekly-print-sheet:not(.weekly-print-root)');
-    if (!sourceSheet) return;
+  const exportWeeklySchedulePdf = async () => {
+    if (isExportingPdf) return;
+    setIsExportingPdf(true);
 
-    const previousTitle = document.title;
-    const printSheet = sourceSheet.cloneNode(true) as HTMLElement;
-    let cleanedUp = false;
-
-    printSheet.classList.add('weekly-print-root');
-    printSheet.removeAttribute('aria-hidden');
-    document.body.appendChild(printSheet);
-    document.documentElement.classList.add('weekly-printing');
-    document.title = `MSGSÜ_${classCode}_Haftalik_Ders_Programi`;
-
-    const cleanupPrint = () => {
-      if (cleanedUp) return;
-      cleanedUp = true;
-      printSheet.remove();
-      document.documentElement.classList.remove('weekly-printing');
-      document.title = previousTitle;
-    };
-
-    window.addEventListener('afterprint', cleanupPrint, { once: true });
-    requestAnimationFrame(() => {
-      try {
-        window.print();
-      } finally {
-        window.setTimeout(cleanupPrint, 500);
-      }
-    });
+    try {
+      const logo = document.querySelector<HTMLImageElement>('.weekly-print-logo');
+      const blob = createWeeklySchedulePdf({
+        schoolName,
+        className: printableClassName,
+        days: printDays,
+        slots: printSlots,
+        lunchLabel: lunchBreak.label,
+        logo,
+      });
+      await shareOrDownloadWeeklySchedulePdf(
+        blob,
+        `MSGSÜ_${classCode}_Haftalik_Ders_Programi.pdf`,
+      );
+    } catch (error) {
+      console.error('Haftalık program PDF oluşturulamadı:', error);
+      window.alert('PDF oluşturulamadı. Lütfen tekrar deneyin.');
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   return (
@@ -195,10 +191,12 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
           {/* Haftalık programı PDF/yazdırma görünümüne aktar */}
           <button
             type="button"
-            onClick={printWeeklySchedule}
-            className="flex size-10 items-center justify-center rounded-2xl bg-gray-200/60 text-gray-700 shadow-sm transition-transform active:scale-95 dark:bg-white/10 dark:text-gray-200"
-            aria-label={`${classCode} haftalık ders programını PDF olarak yazdır`}
-            title="PDF / Yazdır"
+            onClick={exportWeeklySchedulePdf}
+            disabled={isExportingPdf}
+            className="flex size-10 items-center justify-center rounded-2xl bg-gray-200/60 text-gray-700 shadow-sm transition-transform active:scale-95 disabled:cursor-wait disabled:opacity-60 dark:bg-white/10 dark:text-gray-200"
+            aria-label={`${classCode} haftalık ders programını PDF olarak oluştur`}
+            aria-busy={isExportingPdf}
+            title="PDF oluştur ve paylaş"
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path strokeLinecap="round" strokeLinejoin="round" d="M7 8V4h10v4M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
