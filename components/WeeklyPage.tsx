@@ -308,18 +308,15 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
 
       <section className="weekly-print-sheet" aria-hidden="true">
         <header className="weekly-print-header">
-          <div className="weekly-print-brandmark" aria-hidden="true">
-            <span />
-          </div>
           <div className="weekly-print-heading">
             <h1>{schoolName}</h1>
             <p>{printableClassName} Sınıfı Ders Programı</p>
           </div>
-          <div className="weekly-print-wordmark">
-            <strong>MİMAR SİNAN</strong>
-            <span>GÜZEL SANATLAR ÜNİVERSİTESİ</span>
-            <small>İSTANBUL DEVLET KONSERVATUVARI</small>
-          </div>
+          <img
+            className="weekly-print-logo"
+            src="/msgsu-horizontal-logo.png"
+            alt="Mimar Sinan Güzel Sanatlar Üniversitesi"
+          />
         </header>
 
         <table className="weekly-print-grid">
