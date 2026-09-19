@@ -604,7 +604,7 @@ from public.course_requirements requirement
 join m2_effective_sessions es
   on es.effective_group_id = requirement.instructional_group_id
  and es.subject_id = requirement.subject_id
- and es.session_type = requirement.delivery_mode
+ and es.session_type::text = requirement.delivery_mode
 where requirement.teacher_mode <> 'UNKNOWN'
   and es.teacher_id is not null;
 
@@ -622,7 +622,7 @@ from public.course_requirements requirement
 join m2_effective_sessions es
   on es.effective_group_id = requirement.instructional_group_id
  and es.subject_id = requirement.subject_id
- and es.session_type = requirement.delivery_mode
+ and es.session_type::text = requirement.delivery_mode
 where requirement.resource_mode <> 'UNKNOWN'
   and es.effective_room_id is not null;
 
@@ -648,7 +648,7 @@ from public.course_requirements requirement
 join m2_effective_sessions es
   on es.effective_group_id = requirement.instructional_group_id
  and es.subject_id = requirement.subject_id
- and es.session_type = requirement.delivery_mode
+ and es.session_type::text = requirement.delivery_mode
 join public.schedule_sessions ss
   on ss.id = es.session_id;
 
