@@ -153,13 +153,16 @@ function buildSimultaneousTeachingGroups(records: UnnamedLessonRecord[]): Unname
 
   for (let i = 0; i < records.length; i += 1) {
     for (let j = i + 1; j < records.length; j += 1) {
+      const sameSubject = canonicalSubjectKey(records[i].lesson.subject)
+        === canonicalSubjectKey(records[j].lesson.subject);
       const sameGrade = getGrade(records[i].classCode) === getGrade(records[j].classCode);
       const sameKnownLocation = Boolean(records[i].locationKey)
         && records[i].locationKey === records[j].locationKey;
 
-      // Aynı sınıf seviyesinin A/B şubeleri ortak ders grubu sayılabilir.
-      // Aynı lokasyondaki farklı sınıflar da tek öğretmen tarafından birlikte işlenebilir.
-      if (sameGrade || sameKnownLocation) union(i, j);
+      // Aynı dersin A/B şubeleri ortak ders grubu sayılabilir.
+      // Aynı ders ve aynı lokasyondaki farklı sınıflar da tek öğretmen tarafından birlikte işlenebilir.
+      // Müzik dersleri tek öğretmen kimliğini paylaşsa da farklı dersler aynı anda ise çakışmadır.
+      if (sameSubject && (sameGrade || sameKnownLocation)) union(i, j);
     }
   }
 
@@ -211,7 +214,8 @@ function buildUnnamedTeacherAssignments(schedules: ClassSchedules): Map<string, 
 
     const slotGroups = Array.from(bySlot.values()).map(buildSimultaneousTeachingGroups);
     const maxConcurrentTeachers = Math.max(1, ...slotGroups.map((groups) => groups.length));
-    const needsSuffix = maxConcurrentTeachers > 1;
+    const forceSingleName = subjectRecords[0].subjectKey === 'din kültürü';
+    const needsSuffix = maxConcurrentTeachers > 1 && !forceSingleName;
 
     slotGroups.forEach((groups) => {
       groups.forEach((group, groupIndex) => {
