@@ -83,6 +83,38 @@ function toTurkishTitleCase(value: string): string {
 
 function canonicalSubjectKey(subject: string): string {
   const normalized = normalizeKey(subject);
+  const compact = normalized
+    .replace(/[.]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (
+    compact === 'türk d ve edb'
+    || compact.startsWith('türk d ve edb')
+    || compact === 'türk dili ve edebiyatı'
+  ) {
+    return 'türk dili ve edebiyatı';
+  }
+
+  if (compact.startsWith('din kült')) {
+    return 'din kültürü';
+  }
+
+  if (
+    compact === 'b uygulama'
+    || compact.startsWith('birlikte uygulama')
+  ) {
+    return 'birlikte uygulama';
+  }
+
+  if (compact.startsWith('kulüp')) {
+    return 'kulüp';
+  }
+
+  if (compact.startsWith('sahne')) {
+    return 'sahne';
+  }
+
   return SUBJECT_ALIASES[normalized] ?? normalized;
 }
 
