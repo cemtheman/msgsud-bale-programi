@@ -25,6 +25,43 @@ interface WeeklyPageProps {
   onSelectLesson?: (lesson: Lesson) => void;
 }
 
+type PrintCategory = 'academic' | 'dance' | 'other' | 'lunch';
+
+function PrintCategoryIcon({ kind }: { kind: PrintCategory }) {
+  if (kind === 'academic') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3.5 5.5c3.1-.8 5.9-.2 8.5 1.7v12c-2.6-1.9-5.4-2.5-8.5-1.7v-12Zm17 0c-3.1-.8-5.9-.2-8.5 1.7v12c2.6-1.9 5.4-2.5 8.5-1.7v-12Z" />
+      </svg>
+    );
+  }
+
+  if (kind === 'dance') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8 4c1.4 2.5 2.1 5.2 2 8.2-.1 2.7-1.3 5.2-3.7 7.4-1.3 1.2-3.2.5-3.5-1.2-.4-2.2.2-4.5 1.8-7C6 9.2 7.1 6.7 8 4Zm8 0c-1.4 2.5-2.1 5.2-2 8.2.1 2.7 1.3 5.2 3.7 7.4 1.3 1.2 3.2.5 3.5-1.2.4-2.2-.2-4.5-1.8-7C18 9.2 16.9 6.7 16 4ZM7.3 3 12 7m4.7-4L12 7" />
+      </svg>
+    );
+  }
+
+  if (kind === 'lunch') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 3v7m-2-7v5a2 2 0 0 0 4 0V3M6 10v11m10-18v18m0-18c3 2.4 4 5 3 8h-3" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="8" cy="8" r="3" />
+      <circle cx="16" cy="8" r="3" />
+      <circle cx="12" cy="6" r="3" />
+      <path d="M2.5 19c.5-4 2.4-6 5.5-6m13.5 6c-.5-4-2.4-6-5.5-6m-8 7c.4-5 1.8-7.5 4-7.5s3.6 2.5 4 7.5" />
+    </svg>
+  );
+}
+
 export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKey, onSelectLesson }: WeeklyPageProps) {
   const [selectedDay, setSelectedDay] = useState<DayKey>(
     todayDayKey && ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].includes(todayDayKey)
@@ -64,6 +101,79 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
   );
   const lunchBreak = schoolConfig.lunchBreak;
   const lunchInsertionIndex = rawLessons.findIndex((lesson) => lesson.start >= lunchBreak.end);
+  const printDays = DAYS.map(({ key, label }) => ({
+    key,
+    label,
+    lessons: applyTemporaryLessonChanges(
+      getLessonsForDay(scheduleData, key),
+      currentDateKey,
+      classCode,
+    ),
+  }));
+  const printSlotMap = new Map<string, { start: string; end: string; kind: 'lesson' | 'lunch' }>();
+
+  schoolConfig.periods.forEach((period) => {
+    printSlotMap.set(period.start, { ...period, kind: 'lesson' });
+  });
+  printDays.forEach(({ lessons }) => {
+    lessons.forEach((lesson) => {
+      const existing = printSlotMap.get(lesson.start);
+      if (!existing || lesson.end > existing.end) {
+        printSlotMap.set(lesson.start, {
+          start: lesson.start,
+          end: lesson.end,
+          kind: 'lesson',
+        });
+      }
+    });
+  });
+  printSlotMap.set(lunchBreak.start, {
+    start: lunchBreak.start,
+    end: lunchBreak.end,
+    kind: 'lunch',
+  });
+
+  const printSlots = Array.from(printSlotMap.values())
+    .sort((a, b) => a.start.localeCompare(b.start));
+  const classParts = /^(\d{1,2})([AB])$/.exec(classCode);
+  const grade = classParts ? Number(classParts[1]) : 5;
+  const section = classParts?.[2] ?? '';
+  const schoolName = grade >= 9
+    ? 'MSGSÜ İstanbul Devlet Konservatuvarı Müzik ve Sahne Sanatları Lisesi'
+    : 'MSGSÜ İstanbul Devlet Konservatuvarı Müzik ve Bale Ortaokulu';
+  const printableClassName = section ? `${grade}-${section}` : classCode;
+
+  const printWeeklySchedule = () => {
+    const sourceSheet = document.querySelector<HTMLElement>('.weekly-print-sheet:not(.weekly-print-root)');
+    if (!sourceSheet) return;
+
+    const previousTitle = document.title;
+    const printSheet = sourceSheet.cloneNode(true) as HTMLElement;
+    let cleanedUp = false;
+
+    printSheet.classList.add('weekly-print-root');
+    printSheet.removeAttribute('aria-hidden');
+    document.body.appendChild(printSheet);
+    document.documentElement.classList.add('weekly-printing');
+    document.title = `MSGSÜ_${classCode}_Haftalik_Ders_Programi`;
+
+    const cleanupPrint = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      printSheet.remove();
+      document.documentElement.classList.remove('weekly-printing');
+      document.title = previousTitle;
+    };
+
+    window.addEventListener('afterprint', cleanupPrint, { once: true });
+    requestAnimationFrame(() => {
+      try {
+        window.print();
+      } finally {
+        window.setTimeout(cleanupPrint, 500);
+      }
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -81,14 +191,32 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
           </p>
         </div>
 
-        {/* Tema Değiştirme Butonu */}
-        <button
-          onClick={toggleTheme}
-          className="p-2.5 rounded-2xl bg-gray-200/60 dark:bg-white/10 text-xs transition-transform active:scale-95 shadow-sm"
-          aria-label="Tema Değiştir"
-        >
-          {isDark ? '☀️' : '🌙'}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Haftalık programı PDF/yazdırma görünümüne aktar */}
+          <button
+            type="button"
+            onClick={printWeeklySchedule}
+            className="flex size-10 items-center justify-center rounded-2xl bg-gray-200/60 text-gray-700 shadow-sm transition-transform active:scale-95 dark:bg-white/10 dark:text-gray-200"
+            aria-label={`${classCode} haftalık ders programını PDF olarak yazdır`}
+            title="PDF / Yazdır"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 8V4h10v4M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 14h10v6H7z" />
+              <path strokeLinecap="round" d="M17.5 11.5h.01" />
+            </svg>
+          </button>
+
+          {/* Tema Değiştirme Butonu */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex size-10 items-center justify-center rounded-2xl bg-gray-200/60 text-xs shadow-sm transition-transform active:scale-95 dark:bg-white/10"
+            aria-label="Tema Değiştir"
+          >
+            {isDark ? '☀️' : '🌙'}
+          </button>
+        </div>
       </div>
 
       {/* Gün Seçici Sekmeler (Day Tabs) */}
@@ -195,6 +323,97 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
           })
         )}
       </div>
+
+      <section className="weekly-print-sheet" aria-hidden="true">
+        <header className="weekly-print-header">
+          <img
+            className="weekly-print-logo"
+            src="/msgsu-symbol-transparent.png"
+            alt=""
+            aria-hidden="true"
+          />
+          <div className="weekly-print-heading">
+            <h1>{schoolName}</h1>
+            <p>{printableClassName} Sınıfı Ders Programı</p>
+          </div>
+        </header>
+
+        <table className="weekly-print-grid">
+          <thead>
+            <tr>
+              <th className="weekly-print-time-heading">
+                <span className="weekly-print-clock" aria-hidden="true" />
+                SAAT
+              </th>
+              {printDays.map((day) => (
+                <th key={day.key}>{day.label.toLocaleUpperCase('tr-TR')}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {printSlots.map((slot) => (
+              <tr key={slot.start} className={slot.kind === 'lunch' ? 'weekly-print-lunch-row' : undefined}>
+                <th scope="row">{slot.start} - {slot.end}</th>
+                {printDays.map((day) => {
+                  if (slot.kind === 'lunch') {
+                    return (
+                      <td key={day.key} className="weekly-print-lunch-cell">
+                        <div className="weekly-print-cell-content">
+                          <PrintCategoryIcon kind="lunch" />
+                          <strong>{lunchBreak.label.toLocaleUpperCase('tr-TR')}</strong>
+                        </div>
+                      </td>
+                    );
+                  }
+
+                  const lessons = day.lessons.filter((lesson) => lesson.start === slot.start);
+                  if (lessons.length === 0) {
+                    return (
+                      <td key={day.key} className="weekly-print-empty-cell">
+                        <span className="weekly-print-empty-mark" aria-label="Boş saat" />
+                      </td>
+                    );
+                  }
+
+                  return (
+                    <td key={day.key}>
+                      <div className="weekly-print-lessons">
+                        {lessons.map((lesson) => {
+                          const category = getSubjectCategory(lesson.subject, lesson.target);
+                          const details = [
+                            lesson.subgroup,
+                            lesson.teacher,
+                            lesson.location,
+                            lesson.end !== slot.end ? `${lesson.start}-${lesson.end}` : undefined,
+                          ].filter(Boolean).join(' / ');
+
+                          return (
+                            <div key={lesson.id} className={`weekly-print-lesson weekly-print-${category}`}>
+                              <PrintCategoryIcon kind={category} />
+                              <div>
+                                <strong>{lesson.subject}</strong>
+                                {details && <span>{details}</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <footer className="weekly-print-legend">
+          <span className="weekly-print-academic"><PrintCategoryIcon kind="academic" /> Kültür Dersleri</span>
+          <span className="weekly-print-dance"><PrintCategoryIcon kind="dance" /> Sanat Dersleri</span>
+          <span className="weekly-print-other"><PrintCategoryIcon kind="other" /> Kulüp Dersleri</span>
+          <span className="weekly-print-lunch"><PrintCategoryIcon kind="lunch" /> Yemek Arası</span>
+          <span className="weekly-print-empty"><i /> Boş Saat</span>
+        </footer>
+      </section>
     </div>
   );
 }

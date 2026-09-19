@@ -41,3 +41,347 @@ body {
     scrollbar-width: none;
   }
 }
+
+
+.weekly-print-sheet {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 7mm;
+  }
+
+  html,
+  body {
+    width: 100% !important;
+    height: 190mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+    color: #13213f !important;
+  }
+
+  html.weekly-printing body > *:not(.weekly-print-root) {
+    display: none !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .weekly-print-sheet,
+  .weekly-print-sheet * {
+    visibility: visible !important;
+  }
+
+  .weekly-print-sheet {
+    display: block !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 283mm;
+    height: 190mm;
+    max-width: none;
+    max-height: 190mm;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    break-after: avoid;
+    page-break-after: avoid;
+    background:
+      radial-gradient(circle at 14% 8%, rgba(255, 226, 193, 0.48), transparent 25%),
+      radial-gradient(circle at 92% 10%, rgba(210, 231, 226, 0.48), transparent 24%),
+      linear-gradient(135deg, #fffaf5 0%, #ffffff 48%, #fbf7ef 100%) !important;
+    color: #13213f !important;
+    font-family: Arial, Helvetica, sans-serif;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .weekly-print-header {
+    display: grid;
+    grid-template-columns: 13mm minmax(0, 1fr);
+    align-items: center;
+    gap: 3mm;
+    height: 17mm;
+    margin: 0 1mm 1mm;
+    overflow: hidden;
+  }
+
+  .weekly-print-heading {
+    min-width: 0;
+  }
+
+  .weekly-print-heading h1 {
+    margin: 0;
+    max-width: 195mm;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 12.5pt;
+    line-height: 1.02;
+    letter-spacing: -0.15pt;
+    color: #111b43 !important;
+  }
+
+  .weekly-print-heading p {
+    margin: 1mm 0 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 10.5pt;
+    line-height: 1;
+    color: #111b43 !important;
+  }
+
+  .weekly-print-logo {
+    display: block !important;
+    width: 12mm;
+    height: 12mm;
+    object-fit: contain;
+    object-position: center;
+  }
+
+  .weekly-print-grid {
+    width: calc(100% + 1.2mm);
+    margin: 0 -0.6mm;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0.6mm 0.42mm;
+    font-size: 6.6pt;
+    line-height: 1.04;
+  }
+
+  .weekly-print-grid th,
+  .weekly-print-grid td {
+    height: 8.15mm;
+    box-sizing: border-box;
+    border: 0.22mm solid rgba(255, 255, 255, 0.92);
+    border-radius: 1.8mm;
+    vertical-align: middle;
+    overflow: hidden;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .weekly-print-grid thead th {
+    height: 8mm;
+    padding: 1mm 1.6mm;
+    text-align: center;
+    font-size: 7.6pt;
+    font-weight: 800;
+    color: #17213d !important;
+  }
+
+  .weekly-print-grid thead th:nth-child(1) {
+    width: 24mm;
+    background: #eef0f4 !important;
+  }
+
+  .weekly-print-grid thead th:nth-child(2) {
+    background: #f4cce8 !important;
+  }
+
+  .weekly-print-grid thead th:nth-child(3) {
+    background: #bdddf3 !important;
+  }
+
+  .weekly-print-grid thead th:nth-child(4) {
+    background: #c9eadf !important;
+  }
+
+  .weekly-print-grid thead th:nth-child(5) {
+    background: #d7c7f5 !important;
+  }
+
+  .weekly-print-grid thead th:nth-child(6) {
+    background: #f1d3aa !important;
+  }
+
+  .weekly-print-time-heading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5mm;
+  }
+
+  .weekly-print-clock {
+    position: relative;
+    width: 4.3mm;
+    height: 4.3mm;
+    border: 0.45mm solid #17213d;
+    border-radius: 50%;
+  }
+
+  .weekly-print-clock::before,
+  .weekly-print-clock::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0.4mm;
+    border-radius: 99px;
+    background: #17213d;
+    transform-origin: 50% 100%;
+  }
+
+  .weekly-print-clock::before {
+    height: 1.45mm;
+    transform: translate(-50%, -100%);
+  }
+
+  .weekly-print-clock::after {
+    height: 1.25mm;
+    transform: translate(-50%, -100%) rotate(120deg);
+  }
+
+  .weekly-print-grid tbody th {
+    width: 24mm;
+    padding: 0.8mm 1mm;
+    background: #f0f1f4 !important;
+    text-align: center;
+    white-space: nowrap;
+    font-size: 6.5pt;
+    font-weight: 700;
+    color: #1f2945 !important;
+  }
+
+  .weekly-print-grid tbody td {
+    padding: 0;
+    background: #e5e7eb !important;
+  }
+
+  .weekly-print-lessons {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .weekly-print-lesson {
+    display: grid;
+    grid-template-columns: 4.8mm minmax(0, 1fr);
+    align-items: center;
+    gap: 1mm;
+    flex: 1;
+    min-height: 0;
+    padding: 0.65mm 1.2mm;
+  }
+
+  .weekly-print-lesson + .weekly-print-lesson {
+    border-top: 0.25mm solid rgba(255, 255, 255, 0.92);
+  }
+
+  .weekly-print-lesson svg,
+  .weekly-print-cell-content svg,
+  .weekly-print-legend svg {
+    width: 4.6mm;
+    height: 4.6mm;
+    fill: none;
+    stroke: #101b3e;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .weekly-print-lesson strong {
+    display: block;
+    font-size: 6.5pt;
+    line-height: 1.02;
+    color: #16203f !important;
+  }
+
+  .weekly-print-lesson span {
+    display: block;
+    margin-top: 0.35mm;
+    font-size: 5.35pt;
+    line-height: 1.02;
+    color: #26314f !important;
+  }
+
+  .weekly-print-academic {
+    background: #ffe18a !important;
+  }
+
+  .weekly-print-dance {
+    background: #8ed3f5 !important;
+  }
+
+  .weekly-print-other {
+    background: #b9a5ef !important;
+  }
+
+  .weekly-print-lunch-row th,
+  .weekly-print-lunch-cell,
+  .weekly-print-lunch {
+    background: #f4a7cf !important;
+  }
+
+  .weekly-print-cell-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.4mm;
+    height: 100%;
+    padding: 0.7mm 1mm;
+  }
+
+  .weekly-print-cell-content strong {
+    font-size: 6.5pt;
+    color: #16203f !important;
+  }
+
+  .weekly-print-empty-cell {
+    background: #e5e7eb !important;
+  }
+
+  .weekly-print-empty-mark {
+    display: none;
+  }
+
+  .weekly-print-legend {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1.5mm;
+    width: 90%;
+    margin: 1.2mm auto 0;
+  }
+
+  .weekly-print-legend > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.3mm;
+    min-height: 6.5mm;
+    padding: 0.6mm 1.2mm;
+    border: 0.22mm solid rgba(255, 255, 255, 0.92);
+    border-radius: 3.5mm;
+    font-size: 6.1pt;
+    font-weight: 700;
+    color: #16203f !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .weekly-print-legend svg {
+    width: 4.2mm;
+    height: 4.2mm;
+  }
+
+  .weekly-print-legend .weekly-print-empty {
+    background: #e5e7eb !important;
+  }
+
+  .weekly-print-empty i {
+    width: 3.6mm;
+    height: 3.6mm;
+    border: 0.3mm dashed #17213d;
+    border-radius: 50%;
+  }
+
+  .weekly-print-grid tr,
+  .weekly-print-header,
+  .weekly-print-legend {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
