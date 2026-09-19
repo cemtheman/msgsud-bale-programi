@@ -511,8 +511,8 @@ declare
   card_load integer;
   active_load integer;
 begin
-  select count(*), min(id)
-  into revision_count, target_revision_id
+  select count(*)
+  into revision_count
   from public.schedule_revisions
   where status = 'DRAFT'
     and version_number = 1;
@@ -520,6 +520,12 @@ begin
   if revision_count <> 1 then
     raise exception 'M4 expected one v1 DRAFT schedule revision, found %', revision_count;
   end if;
+
+  select id
+  into target_revision_id
+  from public.schedule_revisions
+  where status = 'DRAFT'
+    and version_number = 1;
 
   select count(*), coalesce(sum(duration_periods), 0)
   into card_count, card_load
