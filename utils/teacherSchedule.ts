@@ -18,10 +18,33 @@ export const TEACHER_WEEKDAYS: Array<{ key: DayKey; label: string }> = [
   { key: 'friday', label: 'Cuma' },
 ];
 
+const SUBJECT_ALIASES: Record<string, string> = {
+  'türk d. ve edb.': 'türk dili ve edebiyatı',
+  'türk d ve edb': 'türk dili ve edebiyatı',
+  'türk dili ve edebiyatı': 'türk dili ve edebiyatı',
+  'din kültürü ve ahlak bilgisi': 'din kültürü',
+  'din kültürü ve ahlak bilg.': 'din kültürü',
+  'din kültürü': 'din kültürü',
+};
+
 const SUBJECT_TEACHER_LABELS: Record<string, string> = {
-  'din kültürü ve ahlak bilgisi': 'Din Kültürü',
+  'türk dili ve edebiyatı': 'Türk Dili ve Edebiyatı',
   'din kültürü': 'Din Kültürü',
 };
+
+const MUSIC_TEACHER_SUBJECTS = new Set([
+  'müzik tarihi',
+  'müzik teorisi',
+  'koro',
+]);
+
+const NO_INFERRED_TEACHER_SUBJECTS = new Set([
+  'kulüp dersleri',
+  'kulüp dersi',
+  'kulüp',
+  'sahne',
+  'birlikte uygulama',
+]);
 
 type ClassSchedules = Partial<Record<ClassCode, ScheduleData>>;
 
@@ -58,9 +81,24 @@ function toTurkishTitleCase(value: string): string {
     );
 }
 
-function fallbackTeacherBaseName(subject: string): string {
+function canonicalSubjectKey(subject: string): string {
   const normalized = normalizeKey(subject);
-  const label = SUBJECT_TEACHER_LABELS[normalized] ?? toTurkishTitleCase(subject);
+  return SUBJECT_ALIASES[normalized] ?? normalized;
+}
+
+function inferredTeacherIdentityKey(subject: string): string | null {
+  const subjectKey = canonicalSubjectKey(subject);
+  if (NO_INFERRED_TEACHER_SUBJECTS.has(subjectKey)) return null;
+  if (MUSIC_TEACHER_SUBJECTS.has(subjectKey)) return 'müzik öğretmeni';
+  return subjectKey;
+}
+
+function fallbackTeacherBaseName(subject: string): string | null {
+  const identityKey = inferredTeacherIdentityKey(subject);
+  if (!identityKey) return null;
+  if (identityKey === 'müzik öğretmeni') return 'Müzik Öğretmeni';
+
+  const label = SUBJECT_TEACHER_LABELS[identityKey] ?? toTurkishTitleCase(identityKey);
   return `${label} Ö.`;
 }
 
@@ -78,11 +116,14 @@ function collectUnnamedLessonRecords(schedules: ClassSchedules): UnnamedLessonRe
     TEACHER_WEEKDAYS.forEach(({ key: dayKey }) => {
       classSchedule.schedule[dayKey].forEach((lesson) => {
         if (lesson.teacher?.trim()) return;
+        const subjectKey = inferredTeacherIdentityKey(lesson.subject);
+        if (!subjectKey) return;
+
         records.push({
           classCode,
           dayKey,
           lesson,
-          subjectKey: normalizeKey(lesson.subject),
+          subjectKey,
           locationKey: normalizeKey(lesson.location),
         });
       });
@@ -154,6 +195,7 @@ function buildUnnamedTeacherAssignments(schedules: ClassSchedules): Map<string, 
 
   bySubject.forEach((subjectRecords) => {
     const baseName = fallbackTeacherBaseName(subjectRecords[0].lesson.subject);
+    if (!baseName) return;
     const bySlot = new Map<string, UnnamedLessonRecord[]>();
 
     subjectRecords.forEach((record) => {
@@ -193,7 +235,7 @@ function buildUnnamedTeacherAssignments(schedules: ClassSchedules): Map<string, 
 function createTeacherNameResolver(schedules: ClassSchedules) {
   const unnamedAssignments = buildUnnamedTeacherAssignments(schedules);
 
-  return (classCode: ClassCode, dayKey: DayKey, lesson: Lesson): string => {
+  return (classCode: ClassCode, dayKey: DayKey, lesson: Lesson): string | null => {
     const explicitTeacher = lesson.teacher?.trim();
     if (explicitTeacher) return explicitTeacher;
 
@@ -209,7 +251,7 @@ function groupTeacherLessons(lessons: Array<Lesson & { classCode: ClassCode }>):
     const key = [
       lesson.start,
       lesson.end,
-      normalizeKey(lesson.subject),
+      canonicalSubjectKey(lesson.subject),
     ].join('|');
     const group = groups.get(key) ?? [];
     group.push(lesson);
@@ -254,7 +296,8 @@ export function getTeacherNames(
 
     TEACHER_WEEKDAYS.forEach(({ key: dayKey }) => {
       classSchedule.schedule[dayKey].forEach((lesson) => {
-        names.add(resolveTeacherName(classCode, dayKey, lesson));
+        const teacherName = resolveTeacherName(classCode, dayKey, lesson);
+        if (teacherName) names.add(teacherName);
       });
     });
   });
@@ -278,7 +321,7 @@ export function buildTeacherSchedule(
 
       classSchedule.schedule[dayKey].forEach((lesson) => {
         const resolvedTeacherName = resolveTeacherName(classCode, dayKey, lesson);
-        if (resolvedTeacherName !== teacherName) return;
+        if (!resolvedTeacherName || resolvedTeacherName !== teacherName) return;
 
         teacherLessons.push({
           ...lesson,
