@@ -92,55 +92,52 @@ function collectUnnamedLessonRecords(schedules: ClassSchedules): UnnamedLessonRe
   return records;
 }
 
-function colorLocationConflictGraph(records: UnnamedLessonRecord[]): Map<string, number> {
-  const locations = Array.from(new Set(
-    records.map((record) => record.locationKey).filter(Boolean),
-  )).sort((a, b) => a.localeCompare(b, 'tr-TR'));
+function getGrade(classCode: ClassCode): number {
+  return Number.parseInt(classCode, 10);
+}
 
-  const edges = new Map<string, Set<string>>();
-  locations.forEach((location) => edges.set(location, new Set()));
+function buildSimultaneousTeachingGroups(records: UnnamedLessonRecord[]): UnnamedLessonRecord[][] {
+  const parents = records.map((_, index) => index);
 
-  const bySlot = new Map<string, Set<string>>();
-  records.forEach((record) => {
-    if (!record.locationKey) return;
-    const slotKey = [record.dayKey, record.lesson.start, record.lesson.end].join('|');
-    const slotLocations = bySlot.get(slotKey) ?? new Set<string>();
-    slotLocations.add(record.locationKey);
-    bySlot.set(slotKey, slotLocations);
-  });
+  const find = (index: number): number => {
+    if (parents[index] !== index) parents[index] = find(parents[index]);
+    return parents[index];
+  };
 
-  bySlot.forEach((slotLocations) => {
-    const items = Array.from(slotLocations);
-    for (let i = 0; i < items.length; i += 1) {
-      for (let j = i + 1; j < items.length; j += 1) {
-        edges.get(items[i])?.add(items[j]);
-        edges.get(items[j])?.add(items[i]);
-      }
+  const union = (left: number, right: number) => {
+    const leftRoot = find(left);
+    const rightRoot = find(right);
+    if (leftRoot !== rightRoot) parents[rightRoot] = leftRoot;
+  };
+
+  for (let i = 0; i < records.length; i += 1) {
+    for (let j = i + 1; j < records.length; j += 1) {
+      const sameGrade = getGrade(records[i].classCode) === getGrade(records[j].classCode);
+      const sameKnownLocation = Boolean(records[i].locationKey)
+        && records[i].locationKey === records[j].locationKey;
+
+      // Aynı sınıf seviyesinin A/B şubeleri ortak ders grubu sayılabilir.
+      // Aynı lokasyondaki farklı sınıflar da tek öğretmen tarafından birlikte işlenebilir.
+      if (sameGrade || sameKnownLocation) union(i, j);
     }
+  }
+
+  const groups = new Map<number, UnnamedLessonRecord[]>();
+  records.forEach((record, index) => {
+    const root = find(index);
+    const group = groups.get(root) ?? [];
+    group.push(record);
+    groups.set(root, group);
   });
 
-  const hasConflict = Array.from(edges.values()).some((neighbors) => neighbors.size > 0);
-  if (!hasConflict) return new Map();
+  return Array.from(groups.values()).sort((left, right) => {
+    const leftLocation = left.map((record) => record.locationKey).find(Boolean) ?? '';
+    const rightLocation = right.map((record) => record.locationKey).find(Boolean) ?? '';
+    const locationCompare = leftLocation.localeCompare(rightLocation, 'tr-TR');
+    if (locationCompare !== 0) return locationCompare;
 
-  const ordered = [...locations].sort((a, b) => {
-    const degreeDiff = (edges.get(b)?.size ?? 0) - (edges.get(a)?.size ?? 0);
-    return degreeDiff || a.localeCompare(b, 'tr-TR');
+    return left[0].classCode.localeCompare(right[0].classCode, 'tr-TR', { numeric: true });
   });
-
-  const colors = new Map<string, number>();
-  ordered.forEach((location) => {
-    const usedColors = new Set(
-      Array.from(edges.get(location) ?? [])
-        .map((neighbor) => colors.get(neighbor))
-        .filter((color): color is number => color !== undefined),
-    );
-
-    let color = 1;
-    while (usedColors.has(color)) color += 1;
-    colors.set(location, color);
-  });
-
-  return colors;
 }
 
 function buildUnnamedTeacherAssignments(schedules: ClassSchedules): Map<string, string> {
@@ -157,18 +154,36 @@ function buildUnnamedTeacherAssignments(schedules: ClassSchedules): Map<string, 
 
   bySubject.forEach((subjectRecords) => {
     const baseName = fallbackTeacherBaseName(subjectRecords[0].lesson.subject);
-    const locationColors = colorLocationConflictGraph(subjectRecords);
-    const needsSuffix = locationColors.size > 0;
+    const bySlot = new Map<string, UnnamedLessonRecord[]>();
 
     subjectRecords.forEach((record) => {
-      const teacherName = needsSuffix
-        ? `${baseName}-${record.locationKey ? locationColors.get(record.locationKey) ?? 1 : 1}`
-        : baseName;
+      const slotKey = [
+        record.dayKey,
+        record.lesson.start,
+        record.lesson.end,
+      ].join('|');
+      const slotRecords = bySlot.get(slotKey) ?? [];
+      slotRecords.push(record);
+      bySlot.set(slotKey, slotRecords);
+    });
 
-      assignments.set(
-        lessonRecordKey(record.classCode, record.dayKey, record.lesson),
-        teacherName,
-      );
+    const slotGroups = Array.from(bySlot.values()).map(buildSimultaneousTeachingGroups);
+    const maxConcurrentTeachers = Math.max(1, ...slotGroups.map((groups) => groups.length));
+    const needsSuffix = maxConcurrentTeachers > 1;
+
+    slotGroups.forEach((groups) => {
+      groups.forEach((group, groupIndex) => {
+        const teacherName = needsSuffix
+          ? `${baseName}-${groupIndex + 1}`
+          : baseName;
+
+        group.forEach((record) => {
+          assignments.set(
+            lessonRecordKey(record.classCode, record.dayKey, record.lesson),
+            teacherName,
+          );
+        });
+      });
     });
   });
 
