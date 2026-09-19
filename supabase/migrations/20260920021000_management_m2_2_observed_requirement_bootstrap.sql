@@ -425,7 +425,7 @@ insert into public.instructional_groups (
 )
 select distinct
   rs.id,
-  null,
+  null::uuid,
   shape.session_type || ' • ' || shape.member_names,
   'COMPOSITE',
   'ACTIVE',
@@ -538,9 +538,9 @@ select
   agg.weekly_load,
   '[]'::jsonb,
   '[]'::jsonb,
-  null,
-  null,
-  null,
+  null::smallint,
+  null::smallint,
+  null::smallint,
   case
     when subject.name in (
       'K. Bale',
@@ -576,7 +576,7 @@ select
     when agg.null_room_count = 0 and agg.room_count > 1 then 'ELIGIBLE_POOL'
     else 'UNKNOWN'
   end,
-  null,
+  null::text,
   agg.session_type
 from aggregated agg
 cross join public.requirement_sets rs
