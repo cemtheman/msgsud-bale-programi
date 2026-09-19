@@ -218,8 +218,14 @@ export function TodayPage({
                       <AudienceBadge lesson={lesson} />
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {lesson.classCode ? `🏫 ${lesson.classCode}` : lesson.teacher ? `👨‍🏫 ${lesson.teacher}` : ''}
-                      {(lesson.classCode || lesson.teacher) && lesson.location && ' · '}
+                      {lesson.classCodes?.length
+                        ? `🏫 ${lesson.classCodes.join(' - ')}`
+                        : lesson.classCode
+                          ? `🏫 ${lesson.classCode}`
+                          : lesson.teacher
+                            ? `👨‍🏫 ${lesson.teacher}`
+                            : ''}
+                      {(lesson.classCodes?.length || lesson.classCode || lesson.teacher) && lesson.location && ' · '}
                       {lesson.location && `📍 ${lesson.location}`}
                     </p>
                   </div>
