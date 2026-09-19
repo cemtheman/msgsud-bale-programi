@@ -156,6 +156,7 @@ function drawLesson(
 
   const textX = x + 73;
   const textWidth = width - 88;
+  context.textAlign = 'left';
   const details = [
     lesson.subgroup,
     lesson.teacher,
@@ -224,6 +225,7 @@ function drawScheduleCanvas(options: WeeklySchedulePdfOptions) {
   options.days.forEach((day, index) => {
     const x = columnX(index);
     roundedRect(context, x, tableTop, dayWidth, headerHeight, 18, COLORS.day[index] ?? COLORS.time);
+    context.fillStyle = COLORS.ink;
     context.font = '700 31px Arial, sans-serif';
     context.fillText(day.label.toLocaleUpperCase('tr-TR'), x + dayWidth / 2, tableTop + headerHeight / 2, dayWidth - 24);
   });
@@ -242,6 +244,8 @@ function drawScheduleCanvas(options: WeeklySchedulePdfOptions) {
       if (slot.kind === 'lunch') {
         roundedRect(context, x, y, dayWidth, rowHeight, 16, COLORS.lunch);
         drawIcon(context, 'lunch', x + dayWidth * 0.34, y + rowHeight / 2, 42);
+        context.fillStyle = COLORS.ink;
+        context.textAlign = 'center';
         context.font = '700 25px Arial, sans-serif';
         context.fillText(options.lunchLabel.toLocaleUpperCase('tr-TR'), x + dayWidth * 0.6, y + rowHeight / 2, dayWidth * 0.55);
         return;
