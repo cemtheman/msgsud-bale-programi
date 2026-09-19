@@ -134,7 +134,7 @@ begin
   from public.session_groups sg
   join public.schedule_sessions ss on ss.id = sg.session_id
   where ss.academic_year = '2026-2027'
-    and sg.target not in ('ŞUBE', 'BALE', 'MÜZİK');
+    and sg.target not in ('SECTION', 'BALLET', 'MUSIC');
 
   if unexpected_targets is not null then
     raise exception 'M2.2 unexpected audience targets: %', unexpected_targets;
@@ -212,18 +212,18 @@ select distinct
   cg.id,
   cg.grade::text || cg.section || ' ' ||
     case sg.target
-      when 'BALE' then 'BALLET'
-      when 'MÜZİK' then 'MUSIC'
+      when 'BALLET' then 'BALLET'
+      when 'MUSIC' then 'MUSIC'
     end,
   case sg.target
-    when 'BALE' then 'BALLET'
-    when 'MÜZİK' then 'MUSIC'
+    when 'BALLET' then 'BALLET'
+    when 'MUSIC' then 'MUSIC'
   end,
   'ACTIVE',
   'OBSERVED',
   case sg.target
-    when 'BALE' then 'BALLET'
-    when 'MÜZİK' then 'MUSIC'
+    when 'BALLET' then 'BALLET'
+    when 'MUSIC' then 'MUSIC'
   end,
   null
 from public.requirement_sets rs
@@ -236,7 +236,7 @@ join public.class_groups cg
 where rs.academic_year = '2026-2027'
   and rs.term = 1
   and rs.version_number = 1
-  and sg.target in ('BALE', 'MÜZİK');
+  and sg.target in ('BALLET', 'MUSIC');
 
 insert into public.instructional_groups (
   requirement_set_id,
@@ -253,18 +253,18 @@ select distinct
   cg.id,
   cg.grade::text || cg.section || ' ' ||
     case sg.target
-      when 'ŞUBE' then 'SECTION'
-      when 'BALE' then 'BALLET'
-      when 'MÜZİK' then 'MUSIC'
+      when 'SECTION' then 'SECTION'
+      when 'BALLET' then 'BALLET'
+      when 'MUSIC' then 'MUSIC'
     end ||
     ' / ' || btrim(sg.subgroup),
   'SUBGROUP',
   'ACTIVE',
   'OBSERVED',
   case sg.target
-    when 'ŞUBE' then 'SECTION'
-    when 'BALE' then 'BALLET'
-    when 'MÜZİK' then 'MUSIC'
+    when 'SECTION' then 'SECTION'
+    when 'BALLET' then 'BALLET'
+    when 'MUSIC' then 'MUSIC'
   end,
   btrim(sg.subgroup)
 from public.requirement_sets rs
@@ -350,18 +350,18 @@ join public.schedule_sessions ss
 join public.instructional_groups ig
   on ig.class_group_id = sg.class_group_id
  and ig.audience_target = case sg.target
-   when 'ŞUBE' then 'SECTION'
-   when 'BALE' then 'BALLET'
-   when 'MÜZİK' then 'MUSIC'
+   when 'SECTION' then 'SECTION'
+   when 'BALLET' then 'BALLET'
+   when 'MUSIC' then 'MUSIC'
  end
  and (
    (
      nullif(btrim(sg.subgroup), '') is null
      and ig.subgroup_label is null
      and ig.group_type = case sg.target
-       when 'ŞUBE' then 'SECTION'
-       when 'BALE' then 'BALLET'
-       when 'MÜZİK' then 'MUSIC'
+       when 'SECTION' then 'SECTION'
+       when 'BALLET' then 'BALLET'
+       when 'MUSIC' then 'MUSIC'
      end
    )
    or (
