@@ -60,6 +60,12 @@ export function LessonDetailSheet({ lesson, status, onClose }: LessonDetailSheet
             <div className="text-xs text-gray-400">Süre</div>
             <div className="font-bold text-gray-800">{duration} dakika</div>
           </div>
+          {lesson.classCode && (
+            <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+              <div className="text-xs text-gray-400">Sınıf</div>
+              <div className="font-bold text-gray-800">{lesson.classCode}</div>
+            </div>
+          )}
           {lesson.location && (
             <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
               <div className="text-xs text-gray-400">Salon / Sınıf</div>
