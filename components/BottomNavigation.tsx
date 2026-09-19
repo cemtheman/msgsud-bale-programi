@@ -108,7 +108,7 @@ export function BottomNavigation({
               {mode === 'student' ? 'Öğretmen' : 'Öğrenci'}
             </span>
           </button>
-        ))}
+        )}
       </div>
     </div>
   );
