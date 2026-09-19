@@ -268,8 +268,17 @@ export default function Home() {
         />
       )}
 
-      {activeTab === 'events' && (
+      {activeTab === 'events' && appMode === 'student' && (
         <EventsPage />
+      )}
+
+      {activeTab === 'events' && appMode === 'teacher' && (
+        <EventsPage
+          key={teacherSchedule.selectedTeacher}
+          storageKey={`teacher_events:${encodeURIComponent(teacherSchedule.selectedTeacher)}`}
+          title="Öğretmen Etkinlikleri"
+          contextLabel={teacherSchedule.selectedTeacher}
+        />
       )}
 
       {showTimeline && (
