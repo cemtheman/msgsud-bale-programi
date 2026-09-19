@@ -158,10 +158,17 @@ function drawLesson(
   const textX = x + 73;
   const textWidth = width - 88;
   context.textAlign = 'left';
+  const classLabel = lesson.classCodes?.length
+    ? lesson.classCodes.join(' - ')
+    : lesson.classCode;
+  const classAndLocation = classLabel
+    ? [classLabel, lesson.location].filter(Boolean).join(' ')
+    : undefined;
   const details = [
+    classAndLocation,
     lesson.subgroup,
-    lesson.teacher,
-    lesson.location,
+    classLabel ? undefined : lesson.teacher,
+    classLabel ? undefined : lesson.location,
     lesson.end !== slot.end ? `${lesson.start}-${lesson.end}` : undefined,
   ].filter(Boolean).join(' / ');
   const titleSize = fitText(context, lesson.subject, textWidth, 31, 700);
