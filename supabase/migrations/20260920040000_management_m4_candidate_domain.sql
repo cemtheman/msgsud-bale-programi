@@ -202,12 +202,20 @@ begin
       on requirement.id = card.requirement_id
     where card.schedule_revision_id = p_schedule_revision_id
   ),
+  target_requirements as (
+    select distinct
+      requirement_id,
+      teacher_mode,
+      resource_mode,
+      required_capability
+    from target_cards
+  ),
   teacher_choices as (
     select
       target.requirement_id,
       assignment.teacher_id,
       null::text as unresolved_code
-    from target_cards target
+    from target_requirements target
     join public.course_requirement_teachers assignment
       on assignment.requirement_id = target.requirement_id
     where target.teacher_mode in ('FIXED', 'ELIGIBLE_POOL')
@@ -222,7 +230,7 @@ begin
           then 'TEACHER_UNKNOWN'
         else 'TEACHER_ASSIGNMENT_MISSING'
       end
-    from target_cards target
+    from target_requirements target
     where target.teacher_mode = 'UNKNOWN'
        or (
          target.teacher_mode in ('FIXED', 'ELIGIBLE_POOL')
@@ -238,7 +246,7 @@ begin
       target.requirement_id,
       assignment.room_id,
       null::text as unresolved_code
-    from target_cards target
+    from target_requirements target
     join public.course_requirement_rooms assignment
       on assignment.requirement_id = target.requirement_id
     where target.resource_mode in ('FIXED', 'ELIGIBLE_POOL')
@@ -249,7 +257,7 @@ begin
       target.requirement_id,
       room.id,
       null::text
-    from target_cards target
+    from target_requirements target
     join public.rooms room
       on target.resource_mode = 'CAPABILITY'
      and target.required_capability = any(room.capabilities)
@@ -261,7 +269,7 @@ begin
       target.requirement_id,
       room.id,
       'CAPABILITY_UNCONFIRMED'
-    from target_cards target
+    from target_requirements target
     join public.rooms room
       on target.resource_mode = 'CAPABILITY'
      and target.required_capability = any(room.capabilities)
@@ -285,7 +293,7 @@ begin
           then 'CAPABILITY_UNRESOLVED'
         else 'ROOM_ASSIGNMENT_MISSING'
       end
-    from target_cards target
+    from target_requirements target
     where target.resource_mode = 'UNKNOWN'
        or (
          target.resource_mode in ('FIXED', 'ELIGIBLE_POOL')
