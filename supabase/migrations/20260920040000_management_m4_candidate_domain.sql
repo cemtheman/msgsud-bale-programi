@@ -644,9 +644,9 @@ begin
 
   if exists (
     select 1
-    from public.schedule_card_domain_summaries
-    where domain_status = 'UNRESOLVED'
-      and unresolved_count = 0
+    from public.schedule_card_domain_summaries summary
+    where summary.domain_status = 'UNRESOLVED'
+      and summary.unresolved_count = 0
   ) then
     raise exception 'M4 found inconsistent UNRESOLVED domain summary';
   end if;
