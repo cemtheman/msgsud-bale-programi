@@ -64,6 +64,47 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
   );
   const lunchBreak = schoolConfig.lunchBreak;
   const lunchInsertionIndex = rawLessons.findIndex((lesson) => lesson.start >= lunchBreak.end);
+  const printRows = DAYS.flatMap(({ key, label }) => {
+    const lessons = applyTemporaryLessonChanges(
+      getLessonsForDay(scheduleData, key),
+      currentDateKey,
+      classCode,
+    );
+    const rows: Array<{
+      id: string;
+      dayLabel: string;
+      lesson?: Lesson;
+      kind: 'lesson' | 'lunch' | 'empty';
+    }> = [];
+
+    if (lessons.length === 0) {
+      rows.push({ id: `${key}-empty`, dayLabel: label, kind: 'empty' });
+      return rows;
+    }
+
+    const lunchIndex = lessons.findIndex((lesson) => lesson.start >= lunchBreak.end);
+    lessons.forEach((lesson, index) => {
+      if (index === lunchIndex) {
+        rows.push({ id: `${key}-lunch`, dayLabel: label, kind: 'lunch' });
+      }
+      rows.push({ id: `${key}-${lesson.id}`, dayLabel: label, lesson, kind: 'lesson' });
+    });
+    return rows;
+  });
+
+  const printWeeklySchedule = () => {
+    const previousTitle = document.title;
+    const restoreTitle = () => {
+      document.title = previousTitle;
+    };
+
+    document.title = `MSGSÜ_${classCode}_Haftalik_Ders_Programi`;
+    window.addEventListener('afterprint', restoreTitle, { once: true });
+    requestAnimationFrame(() => {
+      window.print();
+      window.setTimeout(restoreTitle, 1000);
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -81,14 +122,32 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
           </p>
         </div>
 
-        {/* Tema Değiştirme Butonu */}
-        <button
-          onClick={toggleTheme}
-          className="p-2.5 rounded-2xl bg-gray-200/60 dark:bg-white/10 text-xs transition-transform active:scale-95 shadow-sm"
-          aria-label="Tema Değiştir"
-        >
-          {isDark ? '☀️' : '🌙'}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Haftalık programı PDF/yazdırma görünümüne aktar */}
+          <button
+            type="button"
+            onClick={printWeeklySchedule}
+            className="flex size-10 items-center justify-center rounded-2xl bg-gray-200/60 text-gray-700 shadow-sm transition-transform active:scale-95 dark:bg-white/10 dark:text-gray-200"
+            aria-label={`${classCode} haftalık ders programını PDF olarak yazdır`}
+            title="PDF / Yazdır"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 8V4h10v4M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 14h10v6H7z" />
+              <path strokeLinecap="round" d="M17.5 11.5h.01" />
+            </svg>
+          </button>
+
+          {/* Tema Değiştirme Butonu */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex size-10 items-center justify-center rounded-2xl bg-gray-200/60 text-xs shadow-sm transition-transform active:scale-95 dark:bg-white/10"
+            aria-label="Tema Değiştir"
+          >
+            {isDark ? '☀️' : '🌙'}
+          </button>
+        </div>
       </div>
 
       {/* Gün Seçici Sekmeler (Day Tabs) */}
@@ -195,6 +254,51 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
           })
         )}
       </div>
+
+      <section className="weekly-print-sheet" aria-hidden="true">
+        <header className="weekly-print-header">
+          <div>
+            <h1>MSGSÜ Haftalık Ders Programı</h1>
+            <p>2026-27 Akademik Yılı</p>
+          </div>
+          <strong>{classCode} Sınıfı</strong>
+        </header>
+
+        <table className="weekly-print-table">
+          <thead>
+            <tr>
+              <th>Gün</th>
+              <th>Saat</th>
+              <th>Ders</th>
+              <th>Grup</th>
+              <th>Öğretmen</th>
+              <th>Yer</th>
+            </tr>
+          </thead>
+          <tbody>
+            {printRows.map(({ id, dayLabel, lesson, kind }) => (
+              <tr key={id} className={kind === 'lunch' ? 'weekly-print-lunch' : undefined}>
+                <td>{dayLabel}</td>
+                <td>
+                  {kind === 'lunch'
+                    ? `${lunchBreak.start} - ${lunchBreak.end}`
+                    : lesson
+                      ? `${lesson.start} - ${lesson.end}`
+                      : '-'}
+                </td>
+                <td>
+                  {kind === 'lunch'
+                    ? lunchBreak.label
+                    : lesson?.subject ?? 'Ders yok'}
+                </td>
+                <td>{lesson?.subgroup ?? '-'}</td>
+                <td>{lesson?.teacher ?? '-'}</td>
+                <td>{lesson?.location ?? '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
     </div>
   );
 }
