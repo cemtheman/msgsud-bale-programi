@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import { schoolConfig } from '@/data/scheduleData';
 import type { Lesson, ScheduleData } from '@/types/schedule';
 import { useTheme } from '@/hooks/useTheme';
-import { addDaysToDateKey } from '@/utils/events';
 import {
   getTeacherWeek,
   getWeekStartDateKey,
@@ -33,8 +32,9 @@ function formatDateKey(dateKey: string) {
   return dateFormatter.format(new Date(Date.UTC(year, month - 1, day, 12)));
 }
 
-function weekLabel(startDateKey: string) {
-  return `${formatDateKey(startDateKey)} – ${formatDateKey(addDaysToDateKey(startDateKey, 4))}`;
+function classLabel(lesson: Lesson) {
+  if (lesson.classCodes?.length) return lesson.classCodes.join(' - ');
+  return lesson.classCode ?? '';
 }
 
 export function TeacherWeeklyPage({
@@ -44,8 +44,7 @@ export function TeacherWeeklyPage({
   closedDates,
   onSelectLesson,
 }: TeacherWeeklyPageProps) {
-  const currentWeekStart = getWeekStartDateKey(currentDateKey);
-  const [weekStart, setWeekStart] = useState(currentWeekStart);
+  const weekStart = getWeekStartDateKey(currentDateKey);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
@@ -76,7 +75,6 @@ export function TeacherWeeklyPage({
         label: day.label,
         lessons: day.lessons.map((lesson) => ({
           ...lesson,
-          subject: lesson.classCode ? `${lesson.classCode} · ${lesson.subject}` : lesson.subject,
           teacher: undefined,
         })),
       }));
@@ -104,40 +102,17 @@ export function TeacherWeeklyPage({
 
   return (
     <div className="space-y-3.5">
-      <div className="rounded-3xl border border-black/5 bg-white p-3.5 shadow-sm dark:border-white/10 dark:bg-[#1C1C1E]">
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => setWeekStart(addDaysToDateKey(weekStart, -7))}
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 font-bold text-gray-700 active:scale-95 dark:bg-white/10 dark:text-gray-200"
-            aria-label="Önceki hafta"
-          >
-            ‹
-          </button>
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="min-w-0">
+          <div className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
+            Haftalık öğretmen programı
+          </div>
+          <div className="truncate text-sm font-extrabold text-gray-900 dark:text-white">
+            {teacherName}
+          </div>
+        </div>
 
-          <button
-            type="button"
-            onClick={() => setWeekStart(currentWeekStart)}
-            className="min-w-0 flex-1 text-center"
-            title="Bu haftaya dön"
-          >
-            <div className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
-              Haftalık öğretmen programı
-            </div>
-            <div className="truncate text-sm font-extrabold text-gray-900 dark:text-white">
-              {weekLabel(weekStart)}
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setWeekStart(addDaysToDateKey(weekStart, 7))}
-            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 font-bold text-gray-700 active:scale-95 dark:bg-white/10 dark:text-gray-200"
-            aria-label="Sonraki hafta"
-          >
-            ›
-          </button>
-
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={toggleTheme}
@@ -189,31 +164,37 @@ export function TeacherWeeklyPage({
             </div>
           ) : (
             <div className="divide-y divide-black/5 dark:divide-white/10">
-              {day.lessons.map((lesson) => (
-                <button
-                  key={lesson.id}
-                  type="button"
-                  onClick={() => onSelectLesson(lesson)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
-                >
-                  <div className="w-[72px] shrink-0">
-                    <div className="text-xs font-extrabold text-gray-900 dark:text-white">{lesson.start}</div>
-                    <div className="text-[10px] font-semibold text-gray-400">{lesson.end}</div>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-lg bg-[#D94B55]/10 px-2 py-0.5 text-[11px] font-extrabold text-[#D94B55] dark:text-rose-400">
-                        {lesson.classCode}
-                      </span>
-                      <span className="min-w-0 font-bold text-gray-900 dark:text-white">{lesson.subject}</span>
+              {day.lessons.map((lesson) => {
+                const classes = classLabel(lesson);
+                return (
+                  <button
+                    key={lesson.id}
+                    type="button"
+                    onClick={() => onSelectLesson(lesson)}
+                    className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
+                  >
+                    <div className="w-[72px] shrink-0 pt-0.5">
+                      <div className="text-xs font-extrabold text-gray-900 dark:text-white">{lesson.start}</div>
+                      <div className="text-[10px] font-semibold text-gray-400">{lesson.end}</div>
                     </div>
-                    <p className="mt-0.5 text-[11px] font-medium text-gray-500 dark:text-gray-400">
-                      {lesson.location ? `📍 ${lesson.location}` : 'Konum belirtilmedi'}
-                      {lesson.subgroup ? ` · ${lesson.subgroup}` : ''}
-                    </p>
-                  </div>
-                </button>
-              ))}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-extrabold text-gray-900 dark:text-white">
+                        {lesson.subject}
+                      </div>
+                      <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        {classes}
+                        {classes && lesson.location ? ' · ' : ''}
+                        {lesson.location ?? ''}
+                      </p>
+                      {lesson.subgroup && (
+                        <p className="mt-0.5 text-[11px] font-medium text-gray-400">
+                          {lesson.subgroup}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </section>
