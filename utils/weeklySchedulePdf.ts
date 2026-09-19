@@ -15,6 +15,7 @@ export interface WeeklyPdfSlot {
 interface WeeklySchedulePdfOptions {
   schoolName: string;
   className: string;
+  scheduleTitle?: string;
   days: WeeklyPdfDay[];
   slots: WeeklyPdfSlot[];
   lunchLabel: string;
@@ -201,7 +202,7 @@ function drawScheduleCanvas(options: WeeklySchedulePdfOptions) {
   context.textBaseline = 'top';
   context.fillText(options.schoolName, headingX, 64, headingWidth);
   context.font = '400 40px Georgia, serif';
-  context.fillText(`${options.className} Sınıfı Ders Programı`, headingX, 120, headingWidth);
+  context.fillText(options.scheduleTitle ?? `${options.className} Sınıfı Ders Programı`, headingX, 120, headingWidth);
 
   const tableTop = 205;
   const headerHeight = 92;
