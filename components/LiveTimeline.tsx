@@ -131,11 +131,13 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
               }}
             >
               <div className="flex min-w-0 items-center gap-1.5">
-                <div className="min-w-0 flex-1 truncate font-bold">{lesson.classCode ? `${lesson.classCode} · ${lesson.subject}` : lesson.subject}</div>
+                <div className="min-w-0 flex-1 truncate font-bold">{lesson.subject}</div>
                 <AudienceBadge lesson={lesson} />
               </div>
               <div className="text-[10px] opacity-80">
-                {lesson.start} - {lesson.end} {lesson.location ? `· ${lesson.location}` : ''}
+                {lesson.start} - {lesson.end}
+                {lesson.classCodes?.length ? ` · ${lesson.classCodes.join(' - ')}` : lesson.classCode ? ` · ${lesson.classCode}` : ''}
+                {lesson.location ? ` · ${lesson.location}` : ''}
               </div>
             </div>
           );
