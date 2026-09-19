@@ -144,16 +144,34 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
   const printableClassName = section ? `${grade}-${section}` : classCode;
 
   const printWeeklySchedule = () => {
+    const sourceSheet = document.querySelector<HTMLElement>('.weekly-print-sheet:not(.weekly-print-root)');
+    if (!sourceSheet) return;
+
     const previousTitle = document.title;
-    const restoreTitle = () => {
+    const printSheet = sourceSheet.cloneNode(true) as HTMLElement;
+    let cleanedUp = false;
+
+    printSheet.classList.add('weekly-print-root');
+    printSheet.removeAttribute('aria-hidden');
+    document.body.appendChild(printSheet);
+    document.documentElement.classList.add('weekly-printing');
+    document.title = `MSGSÜ_${classCode}_Haftalik_Ders_Programi`;
+
+    const cleanupPrint = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      printSheet.remove();
+      document.documentElement.classList.remove('weekly-printing');
       document.title = previousTitle;
     };
 
-    document.title = `MSGSÜ_${classCode}_Haftalik_Ders_Programi`;
-    window.addEventListener('afterprint', restoreTitle, { once: true });
+    window.addEventListener('afterprint', cleanupPrint, { once: true });
     requestAnimationFrame(() => {
-      window.print();
-      window.setTimeout(restoreTitle, 1000);
+      try {
+        window.print();
+      } finally {
+        window.setTimeout(cleanupPrint, 500);
+      }
     });
   };
 
@@ -308,15 +326,16 @@ export function WeeklyPage({ scheduleData, currentDateKey, classCode, todayDayKe
 
       <section className="weekly-print-sheet" aria-hidden="true">
         <header className="weekly-print-header">
+          <img
+            className="weekly-print-logo"
+            src="/msgsu-symbol-transparent.png"
+            alt=""
+            aria-hidden="true"
+          />
           <div className="weekly-print-heading">
             <h1>{schoolName}</h1>
             <p>{printableClassName} Sınıfı Ders Programı</p>
           </div>
-          <img
-            className="weekly-print-logo"
-            src="/msgsu-horizontal-logo.png"
-            alt="Mimar Sinan Güzel Sanatlar Üniversitesi"
-          />
         </header>
 
         <table className="weekly-print-grid">
