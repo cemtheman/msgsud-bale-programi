@@ -20,6 +20,7 @@ interface TodayPageProps {
   academicYearLabel: string;
   closureTitle?: string;
   nextSchoolDay: NextSchoolDayInfo | null;
+  contextLabel?: string;
 }
 
 export function TodayPage({
@@ -34,6 +35,7 @@ export function TodayPage({
   academicYearLabel,
   closureTitle,
   nextSchoolDay,
+  contextLabel,
 }: TodayPageProps) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
@@ -51,7 +53,7 @@ export function TodayPage({
             {formattedDate}
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-            MSGSÜ Ders Programı · {academicYearLabel}
+            MSGSÜ Ders Programı · {academicYearLabel}{contextLabel ? ` · ${contextLabel}` : ''}
           </p>
         </div>
         <div className="flex items-center gap-2 bg-white dark:bg-[#1C1C1E] pl-1.5 pr-3 py-1.5 rounded-2xl border border-black/5 dark:border-white/10 shadow-sm">
@@ -216,8 +218,8 @@ export function TodayPage({
                       <AudienceBadge lesson={lesson} />
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {lesson.teacher && `👨‍🏫 ${lesson.teacher}`}
-                      {lesson.teacher && lesson.location && ' · '}
+                      {lesson.classCode ? `🏫 ${lesson.classCode}` : lesson.teacher ? `👨‍🏫 ${lesson.teacher}` : ''}
+                      {(lesson.classCode || lesson.teacher) && lesson.location && ' · '}
                       {lesson.location && `📍 ${lesson.location}`}
                     </p>
                   </div>
