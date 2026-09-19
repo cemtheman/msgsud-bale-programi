@@ -42,5 +42,10 @@ export const schoolConfig: SchoolConfig = {
 export function getSubjectCategory(subject: string, target?: AudienceTarget): Category {
   if (target === 'BALLET') return 'dance';
   if (target === 'MUSIC') return 'other';
-  return subjectCategories[subject] || 'academic';
+
+  const normalizedSubject = subject.trim().toLocaleLowerCase('tr-TR');
+  const matchingEntry = Object.entries(subjectCategories).find(
+    ([label]) => label.toLocaleLowerCase('tr-TR') === normalizedSubject,
+  );
+  return matchingEntry?.[1] || 'academic';
 }
