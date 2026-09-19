@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchScheduleForClass, scheduleCache } from '@/lib/supabaseSchedule';
 import type { ClassCode, ScheduleData } from '@/types/schedule';
 import {
@@ -25,9 +25,10 @@ export function useTeacherSchedule(enabled: boolean) {
   const [error, setError] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  const loadedTokenRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || loadedTokenRef.current === reloadToken) return;
 
     const controller = new AbortController();
     let active = true;
@@ -76,6 +77,7 @@ export function useTeacherSchedule(enabled: boolean) {
 
       setClassSchedules(merged);
       setFromCache(failures > 0);
+      loadedTokenRef.current = reloadToken;
       setLoading(false);
     });
 
