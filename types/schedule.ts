@@ -21,6 +21,7 @@ export interface Lesson {
   target: AudienceTarget;
   sessionType: SessionType;
   subgroup?: string;
+  classCode?: ClassCode;
 }
 
 export interface TimeBlock {
