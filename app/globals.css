@@ -41,3 +41,134 @@ body {
     scrollbar-width: none;
   }
 }
+
+
+.weekly-print-sheet {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .weekly-print-sheet,
+  .weekly-print-sheet * {
+    visibility: visible !important;
+  }
+
+  .weekly-print-sheet {
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    background: #ffffff;
+    color: #111827;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  .weekly-print-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #111827;
+  }
+
+  .weekly-print-header h1 {
+    margin: 0;
+    font-size: 18pt;
+    line-height: 1.15;
+  }
+
+  .weekly-print-header p {
+    margin: 3px 0 0;
+    font-size: 9pt;
+    color: #4b5563;
+  }
+
+  .weekly-print-header strong {
+    font-size: 13pt;
+  }
+
+  .weekly-print-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 8.5pt;
+  }
+
+  .weekly-print-table th,
+  .weekly-print-table td {
+    padding: 5px 6px;
+    border: 1px solid #9ca3af;
+    text-align: left;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  .weekly-print-table th {
+    background: #e5e7eb !important;
+    font-weight: 700;
+    color: #111827 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .weekly-print-table th:nth-child(1),
+  .weekly-print-table td:nth-child(1) {
+    width: 13%;
+    font-weight: 700;
+  }
+
+  .weekly-print-table th:nth-child(2),
+  .weekly-print-table td:nth-child(2) {
+    width: 13%;
+    white-space: nowrap;
+  }
+
+  .weekly-print-table th:nth-child(3),
+  .weekly-print-table td:nth-child(3) {
+    width: 24%;
+    font-weight: 600;
+  }
+
+  .weekly-print-table th:nth-child(4),
+  .weekly-print-table td:nth-child(4) {
+    width: 12%;
+  }
+
+  .weekly-print-table th:nth-child(5),
+  .weekly-print-table td:nth-child(5) {
+    width: 20%;
+  }
+
+  .weekly-print-table th:nth-child(6),
+  .weekly-print-table td:nth-child(6) {
+    width: 18%;
+  }
+
+  .weekly-print-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .weekly-print-lunch td {
+    background: #fef3c7 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
