@@ -21,9 +21,9 @@ export function isSpecialEvent(value: unknown): value is SpecialEvent {
   );
 }
 
-export function readCustomEvents(): SpecialEvent[] {
+export function readCustomEvents(storageKey = 'custom_events'): SpecialEvent[] {
   try {
-    const raw = localStorage.getItem('custom_events');
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter(isSpecialEvent) : [];
@@ -32,15 +32,15 @@ export function readCustomEvents(): SpecialEvent[] {
   }
 }
 
-export function saveCustomEvent(event: SpecialEvent): SpecialEvent[] {
-  const events = readCustomEvents();
+export function saveCustomEvent(event: SpecialEvent, storageKey = 'custom_events'): SpecialEvent[] {
+  const events = readCustomEvents(storageKey);
   const existingIndex = events.findIndex((item) => item.id === event.id);
   const updatedEvents = [...events];
 
   if (existingIndex >= 0) updatedEvents[existingIndex] = event;
   else updatedEvents.push(event);
 
-  localStorage.setItem('custom_events', JSON.stringify(updatedEvents));
+  localStorage.setItem(storageKey, JSON.stringify(updatedEvents));
   return updatedEvents;
 }
 

@@ -3,6 +3,8 @@
 interface BottomNavigationProps {
   activeTab: 'today' | 'weekly' | 'events';
   setActiveTab: (tab: 'today' | 'weekly' | 'events') => void;
+  mode?: 'student' | 'teacher';
+  onToggleMode?: () => void;
 }
 
 function TodayIcon() {
@@ -31,7 +33,12 @@ function EventsIcon() {
   );
 }
 
-export function BottomNavigation({ activeTab, setActiveTab }: BottomNavigationProps) {
+export function BottomNavigation({
+  activeTab,
+  setActiveTab,
+  mode = 'student',
+  onToggleMode,
+}: BottomNavigationProps) {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       <div className="pointer-events-auto flex h-[4.25rem] w-full max-w-[456px] items-center justify-around rounded-[1.75rem] border border-white/70 bg-white/[0.72] px-2 shadow-[0_10px_35px_rgba(15,23,42,0.14)] backdrop-blur-2xl dark:border-white/[0.12] dark:bg-[#242426]/[0.72] dark:shadow-[0_10px_35px_rgba(0,0,0,0.35)]">
@@ -82,6 +89,26 @@ export function BottomNavigation({ activeTab, setActiveTab }: BottomNavigationPr
           <EventsIcon />
           <span className="text-[10px] font-bold">Etkinlikler</span>
         </button>
+        {onToggleMode && (
+          <button
+            type="button"
+            onClick={onToggleMode}
+            aria-label={mode === 'student' ? 'Öğretmen moduna geç' : 'Öğrenci / veli moduna geç'}
+            aria-pressed={mode === 'teacher'}
+            className={`flex min-h-12 min-w-20 flex-col items-center justify-center gap-1 rounded-2xl transition-[color,background-color,transform] duration-200 active:scale-[0.97] ${
+              mode === 'teacher'
+                ? 'bg-white/80 text-[#D94B55] shadow-sm dark:bg-white/10'
+                : 'text-gray-400 hover:bg-white/45 hover:text-gray-600 dark:hover:bg-white/5 dark:hover:text-gray-300'
+            }`}
+          >
+            <span className="text-lg leading-none" aria-hidden="true">
+              {mode === 'student' ? '🧑‍🏫' : '🎒'}
+            </span>
+            <span className="text-[10px] font-bold">
+              {mode === 'student' ? 'Öğretmen' : 'Öğrenci'}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );

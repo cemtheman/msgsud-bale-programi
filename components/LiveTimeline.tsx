@@ -135,7 +135,9 @@ export function LiveTimeline({ lessons, currentMinutes, onSelectLesson }: LiveTi
                 <AudienceBadge lesson={lesson} />
               </div>
               <div className="text-[10px] opacity-80">
-                {lesson.start} - {lesson.end} {lesson.location ? `· ${lesson.location}` : ''}
+                {lesson.start} - {lesson.end}
+                {lesson.classCodes?.length ? ` · ${lesson.classCodes.join(' - ')}` : lesson.classCode ? ` · ${lesson.classCode}` : ''}
+                {lesson.location ? ` · ${lesson.location}` : ''}
               </div>
             </div>
           );

@@ -46,7 +46,17 @@ function formatEventDate(date: string) {
   return eventDateFormatter.format(new Date(Date.UTC(year, month - 1, day, 12)));
 }
 
-export function EventsPage() {
+interface EventsPageProps {
+  storageKey?: string;
+  title?: string;
+  contextLabel?: string;
+}
+
+export function EventsPage({
+  storageKey = 'custom_events',
+  title: pageTitle = 'Etkinlik Takvimi',
+  contextLabel,
+}: EventsPageProps) {
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
   const [showNotificationModal, setShowNotificationModal] = useState<boolean>(false);
   const [showAddEventModal, setShowAddEventModal] = useState<boolean>(false);
@@ -63,7 +73,7 @@ export function EventsPage() {
   const [description, setDescription] = useState('');
 
   const loadAllEvents = async () => {
-    const customEvents = readCustomEvents();
+    const customEvents = readCustomEvents(storageKey);
 
     let fetchedHolidays: SpecialEvent[] = [];
     try {
@@ -154,7 +164,7 @@ export function EventsPage() {
       description: description || undefined,
     };
 
-    saveCustomEvent(eventToSave);
+    saveCustomEvent(eventToSave, storageKey);
     handleCloseEventModal();
     void loadAllEvents();
     window.dispatchEvent(new Event(REMINDER_PREFERENCE_EVENT));
@@ -163,16 +173,16 @@ export function EventsPage() {
   const handleDeleteEvent = (id: string) => {
     if (!confirm('Bu etkinliği silmek istediğinize emin misiniz?')) return;
 
-    const customEvents = readCustomEvents();
+    const customEvents = readCustomEvents(storageKey);
     const updatedCustomEvents = customEvents.filter((event) => event.id !== id);
 
-    localStorage.setItem('custom_events', JSON.stringify(updatedCustomEvents));
+    localStorage.setItem(storageKey, JSON.stringify(updatedCustomEvents));
     void loadAllEvents();
     window.dispatchEvent(new Event(REMINDER_PREFERENCE_EVENT));
   };
 
   const handleExportJson = () => {
-    const customEvents = readCustomEvents();
+    const customEvents = readCustomEvents(storageKey);
     if (customEvents.length === 0) {
       alert('Dışa aktarılacak özel etkinlik bulunmuyor.');
       return;
@@ -197,7 +207,7 @@ export function EventsPage() {
         const parsed: unknown = JSON.parse(String(event.target?.result));
         if (Array.isArray(parsed) && parsed.every(isSpecialEvent)) {
           const importedEvents = parsed;
-          const currentEvents = readCustomEvents();
+          const currentEvents = readCustomEvents(storageKey);
           
           const merged = [...currentEvents];
           importedEvents.forEach((imp) => {
@@ -206,7 +216,7 @@ export function EventsPage() {
             }
           });
 
-          localStorage.setItem('custom_events', JSON.stringify(merged));
+          localStorage.setItem(storageKey, JSON.stringify(merged));
           loadAllEvents();
           alert('Etkinlikler başarıyla geri yüklendi!');
         } else {
@@ -221,7 +231,7 @@ export function EventsPage() {
   };
 
   const handleExportIcal = () => {
-    const customEvents = readCustomEvents();
+    const customEvents = readCustomEvents(storageKey);
 
     if (customEvents.length === 0) {
       alert('Takvime aktarılacak özel etkinlik bulunmuyor.');
@@ -258,9 +268,9 @@ export function EventsPage() {
 
   // --- Yalnızca Özel Etkinlikleri WhatsApp / Metin Olarak Paylaş ---
   const handleShareText = () => {
-    const customEvents = readCustomEvents();
+    const customEvents = readCustomEvents(storageKey);
 
-    let text = "🩰 *MSGSÜ 5. Sınıf Bale - Özel Etkinlikler*\n\n";
+    let text = `🩰 *${contextLabel ? `${contextLabel} - Özel Etkinlikler` : 'MSGSÜ 5. Sınıf Bale - Özel Etkinlikler'}*\n\n`;
 
     if (customEvents.length === 0) {
       text += "Kayıtlı özel etkinlik bulunmuyor.";
@@ -301,7 +311,7 @@ export function EventsPage() {
       <div className="flex justify-between items-center gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
-            Etkinlik Takvimi
+            {pageTitle}
           </h2>
           <button
             onClick={handleOpenAddEvent}
