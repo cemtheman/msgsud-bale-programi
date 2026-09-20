@@ -449,3 +449,147 @@ body {
     page-break-inside: avoid;
   }
 }
+
+
+/* Yönetim işlem göstergesi: 2D bir ikonun takla atması yerine,
+   müzik kutusundaki gibi dikey eksende dönen balerin illüzyonu. */
+.management-music-box {
+  position: relative;
+  display: flex;
+  width: 132px;
+  height: 150px;
+  align-items: flex-end;
+  justify-content: center;
+  perspective: 520px;
+}
+
+.management-music-box-glow {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  width: 104px;
+  height: 104px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(166, 61, 72, 0.12) 0%, rgba(166, 61, 72, 0) 70%);
+  animation: management-music-box-glow 2.2s ease-in-out infinite;
+}
+
+.management-music-box-ballerina {
+  position: absolute;
+  left: 50%;
+  bottom: 42px;
+  z-index: 3;
+  transform-origin: 50% 100%;
+  animation: management-ballerina-turn 3.2s linear infinite;
+  will-change: transform;
+}
+
+.management-music-box-stem {
+  position: absolute;
+  left: 50%;
+  bottom: 37px;
+  z-index: 2;
+  width: 3px;
+  height: 20px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: linear-gradient(to bottom, #c7a669, #8f713e);
+  box-shadow: 0 0 0 1px rgba(143, 113, 62, 0.12);
+}
+
+.management-music-box-base {
+  position: relative;
+  z-index: 4;
+  width: 116px;
+  height: 42px;
+  border: 1px solid rgba(143, 113, 62, 0.3);
+  border-radius: 50% 50% 15px 15px / 30% 30% 15px 15px;
+  background: linear-gradient(180deg, #f5ead4 0%, #dfc9a0 58%, #c6a56b 100%);
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.management-music-box-disc {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: -8px;
+  height: 20px;
+  border: 1px solid rgba(143, 113, 62, 0.32);
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from 0deg,
+      #f9f1e2 0deg,
+      #cfb27d 62deg,
+      #f9f1e2 126deg,
+      #b89659 188deg,
+      #f9f1e2 252deg,
+      #cfb27d 314deg,
+      #f9f1e2 360deg
+    );
+  animation: management-music-box-disc 3.2s linear infinite;
+  box-shadow: inset 0 2px 5px rgba(109, 82, 38, 0.12);
+}
+
+.management-music-box-base-front {
+  position: absolute;
+  inset: 13px 14px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+}
+
+.management-music-box-base-front span {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(143, 113, 62, 0.46);
+}
+
+@keyframes management-ballerina-turn {
+  0% {
+    transform: translateX(-50%) translateY(0) rotateY(0deg);
+  }
+  25% {
+    transform: translateX(-50%) translateY(-1px) rotateY(90deg);
+  }
+  50% {
+    transform: translateX(-50%) translateY(0) rotateY(180deg);
+  }
+  75% {
+    transform: translateX(-50%) translateY(-1px) rotateY(270deg);
+  }
+  100% {
+    transform: translateX(-50%) translateY(0) rotateY(360deg);
+  }
+}
+
+@keyframes management-music-box-disc {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes management-music-box-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translateX(-50%) scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .management-music-box-ballerina,
+  .management-music-box-disc,
+  .management-music-box-glow {
+    animation: none !important;
+  }
+}
