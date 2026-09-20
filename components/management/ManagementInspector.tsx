@@ -118,6 +118,8 @@ export function ManagementInspector({
   const [focusTeacherId, setFocusTeacherId] = useState<string | null>(null);
   const [focusRoomId, setFocusRoomId] = useState<string | null>(null);
   const [showGeneralCandidates, setShowGeneralCandidates] = useState(false);
+  const [placementEditMode, setPlacementEditMode] = useState<'TEACHER' | 'ROOM' | null>(null);
+  const [placementChoiceId, setPlacementChoiceId] = useState<string | null>(null);
 
   const focusCandidatesForTeacher = useMemo(
     () => (
@@ -150,6 +152,70 @@ export function ManagementInspector({
     [focusCandidatesForTeacher, focusRoomId, focusTeacherId],
   );
 
+
+  const placementTeacherCandidates = useMemo(() => {
+    const placement = card?.placement;
+    if (!placement || !candidateDetail) return [];
+
+    const byTeacher = new Map<string, ManagementCandidateAssessment>();
+
+    candidateDetail.validCandidates.forEach((candidate) => {
+      if (
+        candidate.isComplete
+        && candidate.dayOfWeek === placement.dayOfWeek
+        && candidate.startPeriod === placement.startPeriod
+        && candidate.roomId === placement.roomId
+        && candidate.teacherId
+        && candidate.teacherId !== placement.teacherId
+      ) {
+        byTeacher.set(candidate.teacherId, candidate);
+      }
+    });
+
+    return Array.from(byTeacher.values());
+  }, [candidateDetail, card?.placement]);
+
+  const placementRoomCandidates = useMemo(() => {
+    const placement = card?.placement;
+    if (!placement || !candidateDetail) return [];
+
+    const byRoom = new Map<string, ManagementCandidateAssessment>();
+
+    candidateDetail.validCandidates.forEach((candidate) => {
+      if (
+        candidate.isComplete
+        && candidate.dayOfWeek === placement.dayOfWeek
+        && candidate.startPeriod === placement.startPeriod
+        && candidate.teacherId === placement.teacherId
+        && candidate.roomId
+        && candidate.roomId !== placement.roomId
+      ) {
+        byRoom.set(candidate.roomId, candidate);
+      }
+    });
+
+    return Array.from(byRoom.values());
+  }, [candidateDetail, card?.placement]);
+
+  const placementSelectedCandidate = useMemo(() => {
+    if (!placementEditMode || !placementChoiceId) return null;
+
+    const candidates = placementEditMode === 'TEACHER'
+      ? placementTeacherCandidates
+      : placementRoomCandidates;
+
+    return candidates.find((candidate) => (
+      placementEditMode === 'TEACHER'
+        ? candidate.teacherId === placementChoiceId
+        : candidate.roomId === placementChoiceId
+    )) ?? null;
+  }, [
+    placementChoiceId,
+    placementEditMode,
+    placementRoomCandidates,
+    placementTeacherCandidates,
+  ]);
+
   useEffect(() => {
     if (!candidateFocus) {
       setFocusTeacherId(null);
@@ -177,6 +243,18 @@ export function ManagementInspector({
 
   useEffect(() => {
     setShowGeneralCandidates(false);
+  }, [
+    card?.id,
+    card?.placement?.dayOfWeek,
+    card?.placement?.startPeriod,
+    card?.placement?.teacherId,
+    card?.placement?.roomId,
+  ]);
+
+
+  useEffect(() => {
+    setPlacementEditMode(null);
+    setPlacementChoiceId(null);
   }, [
     card?.id,
     card?.placement?.dayOfWeek,
@@ -348,6 +426,172 @@ export function ManagementInspector({
               </button>
             )}
           </div>
+        </div>
+      )}
+
+
+      {placement && !candidateFocus && canEdit && (
+        <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+            Yerleşimi düzenle
+          </p>
+          <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">
+            Gün veya saati değiştirmek için kartı çizelgede sürükleyin. Aynı slotta yalnız öğretmen ya da salonu değiştirebilirsiniz.
+          </p>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setPlacementEditMode('TEACHER');
+                setPlacementChoiceId(null);
+              }}
+              disabled={placementTeacherCandidates.length === 0 || commandBusy || card.locked}
+              className={`rounded-xl border px-3 py-2.5 text-[10px] font-bold transition ${
+                placementEditMode === 'TEACHER'
+                  ? 'border-slate-950 bg-slate-950 text-white'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              } disabled:cursor-not-allowed disabled:opacity-35`}
+            >
+              Öğretmen değiştir
+              <span className="ml-1 text-[9px] opacity-65">
+                {placementTeacherCandidates.length > 0
+                  ? `· ${placementTeacherCandidates.length}`
+                  : '· yok'}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setPlacementEditMode('ROOM');
+                setPlacementChoiceId(null);
+              }}
+              disabled={placementRoomCandidates.length === 0 || commandBusy || card.locked}
+              className={`rounded-xl border px-3 py-2.5 text-[10px] font-bold transition ${
+                placementEditMode === 'ROOM'
+                  ? 'border-emerald-700 bg-emerald-700 text-white'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              } disabled:cursor-not-allowed disabled:opacity-35`}
+            >
+              Salon değiştir
+              <span className="ml-1 text-[9px] opacity-65">
+                {placementRoomCandidates.length > 0
+                  ? `· ${placementRoomCandidates.length}`
+                  : '· yok'}
+              </span>
+            </button>
+          </div>
+
+          {placementEditMode === 'TEACHER' && (
+            <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+                    Yeni öğretmen
+                  </p>
+                  <p className="mt-1 text-[10px] font-semibold text-slate-500">
+                    Salon sabit: {placement.roomName ?? 'Salon'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlacementEditMode(null);
+                    setPlacementChoiceId(null);
+                  }}
+                  className="text-[9px] font-bold text-slate-400 hover:text-slate-700"
+                >
+                  Vazgeç
+                </button>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {placementTeacherCandidates.map((candidate) => (
+                  <button
+                    key={candidate.teacherId}
+                    type="button"
+                    onClick={() => setPlacementChoiceId(candidate.teacherId)}
+                    className={`rounded-xl border px-3 py-2 text-[10px] font-bold transition ${
+                      placementChoiceId === candidate.teacherId
+                        ? 'border-slate-950 bg-slate-950 text-white'
+                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {candidate.teacherId
+                      ? teacherNamesById[candidate.teacherId] ?? 'Öğretmen'
+                      : 'Öğretmen'}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (placementSelectedCandidate) onCandidateAction(placementSelectedCandidate);
+                }}
+                disabled={!placementSelectedCandidate || commandBusy || card.locked}
+                className="mt-3 w-full rounded-xl bg-slate-950 px-3 py-2.5 text-[10px] font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                Öğretmeni değiştir
+              </button>
+            </div>
+          )}
+
+          {placementEditMode === 'ROOM' && (
+            <div className="mt-3 rounded-xl border border-emerald-100 bg-white p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.12em] text-emerald-700">
+                    Yeni salon
+                  </p>
+                  <p className="mt-1 text-[10px] font-semibold text-slate-500">
+                    Öğretmen sabit: {placement.teacherName ?? 'Öğretmen'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlacementEditMode(null);
+                    setPlacementChoiceId(null);
+                  }}
+                  className="text-[9px] font-bold text-slate-400 hover:text-slate-700"
+                >
+                  Vazgeç
+                </button>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {placementRoomCandidates.map((candidate) => (
+                  <button
+                    key={candidate.roomId}
+                    type="button"
+                    onClick={() => setPlacementChoiceId(candidate.roomId)}
+                    className={`rounded-xl border px-3 py-2 text-[10px] font-bold transition ${
+                      placementChoiceId === candidate.roomId
+                        ? 'border-emerald-700 bg-emerald-700 text-white'
+                        : 'border-emerald-200 bg-emerald-50/60 text-emerald-800 hover:bg-emerald-50'
+                    }`}
+                  >
+                    {candidate.roomId
+                      ? roomNamesById[candidate.roomId] ?? 'Salon'
+                      : 'Salon'}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (placementSelectedCandidate) onCandidateAction(placementSelectedCandidate);
+                }}
+                disabled={!placementSelectedCandidate || commandBusy || card.locked}
+                className="mt-3 w-full rounded-xl bg-emerald-800 px-3 py-2.5 text-[10px] font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                Salonu değiştir
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -539,7 +783,7 @@ export function ManagementInspector({
             )}
           </div>
 
-          {!candidateFocus && candidateDetail.validCandidates.length > 0 && (
+          {!placement && !candidateFocus && candidateDetail.validCandidates.length > 0 && (
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
