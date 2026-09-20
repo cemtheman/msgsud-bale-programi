@@ -12,6 +12,7 @@ import {
   fetchManagementCardCandidates,
   managementRowsForView,
   type ManagementBoardData,
+  type ManagementCandidateAssessment,
   type ManagementCandidateDetail,
   type ManagementResourceView,
   type ManagementStage,
@@ -20,6 +21,15 @@ import {
   fetchManagementOverview,
   type ManagementOverview,
 } from '@/lib/managementOverview';
+import {
+  fetchManagementCommandState,
+  moveManagementCard,
+  placeManagementCard,
+  redoManagement,
+  removeManagementCard,
+  undoManagement,
+  type ManagementCommandState,
+} from '@/lib/managementCommands';
 
 const DAYS = [
   { id: 1, label: 'Pazartesi' },
@@ -160,6 +170,17 @@ export default function ManagementPage() {
     useState<ManagementCandidateDetail | null>(null);
   const [candidateLoading, setCandidateLoading] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
+  const [commandState, setCommandState] = useState<ManagementCommandState>({
+    undoTransactionId: null,
+    undoLabel: null,
+    redoTransactionId: null,
+    redoLabel: null,
+  });
+  const [commandBusy, setCommandBusy] = useState(false);
+  const [commandNotice, setCommandNotice] = useState<{
+    kind: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     if (status !== 'ready' || !session) {
@@ -176,10 +197,25 @@ export default function ManagementPage() {
       fetchManagementOverview(session.accessToken),
       fetchManagementBoard(session.accessToken),
     ])
-      .then(([nextOverview, nextBoard]) => {
+      .then(async ([nextOverview, nextBoard]) => {
         if (!active) return;
         setOverview(nextOverview);
         setBoard(nextBoard);
+
+        if (nextBoard) {
+          const nextCommandState = await fetchManagementCommandState(
+            session.accessToken,
+            nextBoard.revisionId,
+          );
+          if (active) setCommandState(nextCommandState);
+        } else {
+          setCommandState({
+            undoTransactionId: null,
+            undoLabel: null,
+            redoTransactionId: null,
+            redoLabel: null,
+          });
+        }
       })
       .catch((reason: unknown) => {
         if (!active) return;
@@ -259,6 +295,166 @@ export default function ManagementPage() {
       active = false;
     };
   }, [refreshToken, selectedCardId, session, status]);
+
+  const runCandidateCommand = async (
+    candidate: ManagementCandidateAssessment,
+  ) => {
+    if (
+      !session
+      || !access?.canEdit
+      || !selectedCard
+      || !candidate.teacherId
+      || !candidate.roomId
+      || commandBusy
+    ) {
+      return;
+    }
+
+    setCommandBusy(true);
+    setCommandNotice(null);
+
+    try {
+      const input = {
+        cardId: selectedCard.id,
+        dayOfWeek: candidate.dayOfWeek,
+        startPeriod: candidate.startPeriod,
+        teacherId: candidate.teacherId,
+        roomId: candidate.roomId,
+      };
+
+      if (selectedCard.placement) {
+        await moveManagementCard(session.accessToken, input);
+        setCommandNotice({
+          kind: 'success',
+          text: 'Kart yeni yerine taşındı.',
+        });
+      } else {
+        await placeManagementCard(session.accessToken, input);
+        setCommandNotice({
+          kind: 'success',
+          text: 'Kart programa yerleştirildi.',
+        });
+      }
+
+      setActiveDay(candidate.dayOfWeek);
+      setRefreshToken((value) => value + 1);
+    } catch (reason: unknown) {
+      setCommandNotice({
+        kind: 'error',
+        text: reason instanceof Error
+          ? reason.message
+          : 'İşlem tamamlanamadı.',
+      });
+    } finally {
+      setCommandBusy(false);
+    }
+  };
+
+  const runRemove = async () => {
+    if (
+      !session
+      || !access?.canEdit
+      || !selectedCard?.placement
+      || commandBusy
+    ) {
+      return;
+    }
+
+    if (!window.confirm('Bu kartı programdan kaldırmak istiyor musunuz?')) {
+      return;
+    }
+
+    setCommandBusy(true);
+    setCommandNotice(null);
+
+    try {
+      await removeManagementCard(session.accessToken, selectedCard.id);
+      setCommandNotice({
+        kind: 'success',
+        text: 'Kart programdan kaldırıldı ve havuza geri döndü.',
+      });
+      setRefreshToken((value) => value + 1);
+    } catch (reason: unknown) {
+      setCommandNotice({
+        kind: 'error',
+        text: reason instanceof Error
+          ? reason.message
+          : 'Kart kaldırılamadı.',
+      });
+    } finally {
+      setCommandBusy(false);
+    }
+  };
+
+  const runUndo = async () => {
+    if (
+      !session
+      || !access?.canEdit
+      || !commandState.undoTransactionId
+      || commandBusy
+    ) {
+      return;
+    }
+
+    setCommandBusy(true);
+    setCommandNotice(null);
+
+    try {
+      await undoManagement(
+        session.accessToken,
+        commandState.undoTransactionId,
+      );
+      setCommandNotice({
+        kind: 'success',
+        text: 'Son program işlemi geri alındı.',
+      });
+      setRefreshToken((value) => value + 1);
+    } catch (reason: unknown) {
+      setCommandNotice({
+        kind: 'error',
+        text: reason instanceof Error
+          ? reason.message
+          : 'Geri alma işlemi tamamlanamadı.',
+      });
+    } finally {
+      setCommandBusy(false);
+    }
+  };
+
+  const runRedo = async () => {
+    if (
+      !session
+      || !access?.canEdit
+      || !commandState.redoTransactionId
+      || commandBusy
+    ) {
+      return;
+    }
+
+    setCommandBusy(true);
+    setCommandNotice(null);
+
+    try {
+      await redoManagement(
+        session.accessToken,
+        commandState.redoTransactionId,
+      );
+      setCommandNotice({
+        kind: 'success',
+        text: 'Geri alınan program işlemi yeniden uygulandı.',
+      });
+      setRefreshToken((value) => value + 1);
+    } catch (reason: unknown) {
+      setCommandNotice({
+        kind: 'error',
+        text: reason instanceof Error
+          ? reason.message
+          : 'Yineleme işlemi tamamlanamadı.',
+      });
+    } finally {
+      setCommandBusy(false);
+    }
+  };
 
   const activeDayLabel = useMemo(
     () => DAYS.find((day) => day.id === activeDay)?.label ?? '',
@@ -494,6 +690,15 @@ export default function ManagementPage() {
           candidateError={candidateError}
           teacherNamesById={board?.teacherNamesById ?? {}}
           roomNamesById={board?.roomNamesById ?? {}}
+          canEdit={access?.canEdit === true}
+          commandBusy={commandBusy}
+          commandNotice={commandNotice}
+          onCandidateAction={(candidate) => {
+            void runCandidateCommand(candidate);
+          }}
+          onRemove={() => {
+            void runRemove();
+          }}
         />
       </section>
 
@@ -504,8 +709,37 @@ export default function ManagementPage() {
             <span>Yerleşmiş: {overview?.placedCount ?? '—'}</span>
             <span>Yerleşmemiş: {overview?.unplacedCount ?? '—'}</span>
           </div>
-          <div className="text-[11px] font-bold text-slate-400">
-            Canlı kartlar ve aday alanı bağlı · Düzenleme komutları henüz kapalı
+          <div className="flex items-center gap-2">
+            {access?.canEdit ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void runUndo()}
+                  disabled={!commandState.undoTransactionId || commandBusy}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+                  title={commandState.undoLabel
+                    ? `Son işlemi geri al: ${commandState.undoLabel}`
+                    : 'Geri alınabilecek işlem yok'}
+                >
+                  Geri Al
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void runRedo()}
+                  disabled={!commandState.redoTransactionId || commandBusy}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+                  title={commandState.redoLabel
+                    ? `İşlemi yeniden uygula: ${commandState.redoLabel}`
+                    : 'Yinelenecek işlem yok'}
+                >
+                  Yinele
+                </button>
+              </>
+            ) : (
+              <span className="text-[11px] font-bold text-slate-400">
+                Salt okunur oturum
+              </span>
+            )}
           </div>
         </div>
       </footer>
