@@ -55,6 +55,15 @@ function translateCommandError(message: string, fallback: string) {
   }
 
   if (
+    normalized.includes('statement timeout')
+    || normalized.includes('canceling statement due to statement timeout')
+    || normalized.includes('query timeout')
+  ) {
+    return 'İşlem beklenenden uzun sürdü ve zaman aşımına uğradı. Programın güncel durumunu yenileyip yeniden deneyin.';
+  }
+
+
+  if (
     normalized.includes('candidate is invalid')
     || normalized.includes('target is invalid')
     || normalized.includes('candidate not found')
