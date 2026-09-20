@@ -255,12 +255,13 @@ export async function fetchManagementCommandState(
 
   const rowById = new Map(rows.map((row) => [row.id, row]));
 
+  const undoCardIdValue = undoRow?.payload?.card_id;
   const undo = undoRow
     ? {
       transactionId: undoRow.id,
       action: undoRow.action,
-      cardId: typeof undoRow.payload?.card_id === 'string'
-        ? undoRow.payload.card_id
+      cardId: typeof undoCardIdValue === 'string'
+        ? undoCardIdValue
         : null,
       autoCount: Number(undoRow.payload?.propagation_auto_count ?? 0) || 0,
     }
@@ -269,19 +270,22 @@ export async function fetchManagementCommandState(
   let redo: ManagementCommandDescriptor | null = null;
 
   if (redoRow) {
-    const originalRootId = typeof redoRow.payload?.reverts_root_transaction_id === 'string'
-      ? redoRow.payload.reverts_root_transaction_id
+    const originalRootIdValue = redoRow.payload?.reverts_root_transaction_id;
+    const originalRootId = typeof originalRootIdValue === 'string'
+      ? originalRootIdValue
       : null;
     const originalRoot = originalRootId
       ? rowById.get(originalRootId) ?? null
       : null;
+    const revertedActionValue = redoRow.payload?.reverted_root_action;
     const originalAction = (
-      typeof redoRow.payload?.reverted_root_action === 'string'
-        ? redoRow.payload.reverted_root_action
+      typeof revertedActionValue === 'string'
+        ? revertedActionValue
         : originalRoot?.action
     ) as ManagementRootAction | undefined;
-    const originalCardId = typeof originalRoot?.payload?.card_id === 'string'
-      ? originalRoot.payload.card_id
+    const originalCardIdValue = originalRoot?.payload?.card_id;
+    const originalCardId = typeof originalCardIdValue === 'string'
+      ? originalCardIdValue
       : null;
 
     if (originalAction && ['PLACE', 'MOVE', 'REMOVE'].includes(originalAction)) {
