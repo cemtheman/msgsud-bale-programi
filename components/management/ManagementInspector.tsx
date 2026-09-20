@@ -4,6 +4,7 @@ import {
   managementCardStatus,
   translateCandidateReason,
   type ManagementBoardCard,
+  type ManagementCandidateAssessment,
   type ManagementCandidateDetail,
 } from '@/lib/managementBoard';
 
@@ -78,6 +79,11 @@ export function ManagementInspector({
   candidateError,
   teacherNamesById,
   roomNamesById,
+  canEdit,
+  commandBusy,
+  commandNotice,
+  onCandidateAction,
+  onRemove,
 }: {
   card: ManagementBoardCard | null;
   candidateDetail: ManagementCandidateDetail | null;
@@ -85,6 +91,11 @@ export function ManagementInspector({
   candidateError: string | null;
   teacherNamesById: Record<string, string>;
   roomNamesById: Record<string, string>;
+  canEdit: boolean;
+  commandBusy: boolean;
+  commandNotice: { kind: 'success' | 'error'; text: string } | null;
+  onCandidateAction: (candidate: ManagementCandidateAssessment) => void;
+  onRemove: () => void;
 }) {
   if (!card) {
     return (
@@ -163,15 +174,42 @@ export function ManagementInspector({
 
       {placement && (
         <div className="mt-4 rounded-2xl bg-blue-50 p-3">
-          <p className="text-[10px] font-black uppercase tracking-wide text-blue-700">
-            Mevcut yerleşim
-          </p>
-          <p className="mt-1 text-xs font-black text-blue-950">
-            {DAY_LABELS[placement.dayOfWeek]} · {placement.startPeriod}. ders
-          </p>
-          <p className="mt-1 text-[10px] font-semibold text-blue-700">
-            {placement.teacherName ?? 'Öğretmen belirsiz'} · {placement.roomName ?? 'Salon belirsiz'}
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wide text-blue-700">
+                Mevcut yerleşim
+              </p>
+              <p className="mt-1 text-xs font-black text-blue-950">
+                {DAY_LABELS[placement.dayOfWeek]} · {placement.startPeriod}. ders
+              </p>
+              <p className="mt-1 text-[10px] font-semibold text-blue-700">
+                {placement.teacherName ?? 'Öğretmen belirsiz'} · {placement.roomName ?? 'Salon belirsiz'}
+              </p>
+            </div>
+
+            {canEdit && (
+              <button
+                type="button"
+                onClick={onRemove}
+                disabled={commandBusy || card.locked}
+                className="shrink-0 rounded-xl border border-rose-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Kaldır
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {commandNotice && (
+        <div
+          className={`mt-4 rounded-2xl border px-3 py-2.5 text-xs font-bold ${
+            commandNotice.kind === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border-rose-200 bg-rose-50 text-rose-700'
+          }`}
+        >
+          {commandNotice.text}
         </div>
       )}
 
@@ -243,28 +281,63 @@ export function ManagementInspector({
                 Uygun adaylar
               </p>
               <div className="mt-2 space-y-1.5">
-                {candidateDetail.validCandidates.slice(0, 8).map((candidate, index) => (
-                  <div
-                    key={`${candidate.dayOfWeek}-${candidate.startPeriod}-${candidate.teacherId ?? 'x'}-${candidate.roomId ?? 'x'}-${index}`}
-                    className="rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2"
-                  >
-                    <p className="text-[10px] font-black text-emerald-950">
-                      {DAY_LABELS[candidate.dayOfWeek]} · {candidate.startPeriod}. ders
-                    </p>
-                    <p className="mt-0.5 text-[9px] font-semibold text-emerald-700">
-                      {candidate.teacherId
-                        ? teacherNamesById[candidate.teacherId] ?? 'Öğretmen'
-                        : 'Öğretmen belirsiz'}
-                      {' · '}
-                      {candidate.roomId
-                        ? roomNamesById[candidate.roomId] ?? 'Salon'
-                        : 'Salon belirsiz'}
-                    </p>
-                  </div>
-                ))}
-                {candidateDetail.validCandidates.length > 8 && (
+                {candidateDetail.validCandidates.slice(0, 12).map((candidate, index) => {
+                  const isCurrent = Boolean(
+                    placement
+                    && candidate.dayOfWeek === placement.dayOfWeek
+                    && candidate.startPeriod === placement.startPeriod
+                    && candidate.teacherId === placement.teacherId
+                    && candidate.roomId === placement.roomId
+                  );
+                  const actionable = Boolean(
+                    canEdit
+                    && candidate.isComplete
+                    && candidate.teacherId
+                    && candidate.roomId
+                    && !card.locked
+                    && !isCurrent
+                  );
+
+                  return (
+                    <div
+                      key={`${candidate.dayOfWeek}-${candidate.startPeriod}-${candidate.teacherId ?? 'x'}-${candidate.roomId ?? 'x'}-${index}`}
+                      className="flex items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black text-emerald-950">
+                          {DAY_LABELS[candidate.dayOfWeek]} · {candidate.startPeriod}. ders
+                        </p>
+                        <p className="mt-0.5 truncate text-[9px] font-semibold text-emerald-700">
+                          {candidate.teacherId
+                            ? teacherNamesById[candidate.teacherId] ?? 'Öğretmen'
+                            : 'Öğretmen belirsiz'}
+                          {' · '}
+                          {candidate.roomId
+                            ? roomNamesById[candidate.roomId] ?? 'Salon'
+                            : 'Salon belirsiz'}
+                        </p>
+                      </div>
+
+                      {isCurrent ? (
+                        <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-[9px] font-black text-emerald-700">
+                          Mevcut
+                        </span>
+                      ) : canEdit ? (
+                        <button
+                          type="button"
+                          onClick={() => onCandidateAction(candidate)}
+                          disabled={!actionable || commandBusy}
+                          className="shrink-0 rounded-lg bg-emerald-800 px-2.5 py-1.5 text-[9px] font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-35"
+                        >
+                          {placement ? 'Taşı' : 'Yerleştir'}
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+                {candidateDetail.validCandidates.length > 12 && (
                   <p className="px-1 pt-1 text-[9px] font-bold text-slate-400">
-                    +{candidateDetail.validCandidates.length - 8} uygun aday daha
+                    +{candidateDetail.validCandidates.length - 12} uygun aday daha
                   </p>
                 )}
               </div>
