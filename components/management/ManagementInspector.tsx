@@ -77,6 +77,7 @@ export function ManagementInspector({
   candidateDetail,
   candidateLoading,
   candidateError,
+  candidateFocus,
   teacherNamesById,
   roomNamesById,
   canEdit,
@@ -90,6 +91,11 @@ export function ManagementInspector({
   candidateDetail: ManagementCandidateDetail | null;
   candidateLoading: boolean;
   candidateError: string | null;
+  candidateFocus: {
+    dayOfWeek: number;
+    startPeriod: number;
+    candidates: ManagementCandidateAssessment[];
+  } | null;
   teacherNamesById: Record<string, string>;
   roomNamesById: Record<string, string>;
   canEdit: boolean;
@@ -120,6 +126,64 @@ export function ManagementInspector({
   }
 
   const placement = card.placement;
+
+  const renderCandidate = (
+    candidate: ManagementCandidateAssessment,
+    index: number,
+  ) => {
+    const isCurrent = Boolean(
+      placement
+      && candidate.dayOfWeek === placement.dayOfWeek
+      && candidate.startPeriod === placement.startPeriod
+      && candidate.teacherId === placement.teacherId
+      && candidate.roomId === placement.roomId
+    );
+    const actionable = Boolean(
+      canEdit
+      && candidate.isComplete
+      && candidate.teacherId
+      && candidate.roomId
+      && !card.locked
+      && !isCurrent
+    );
+
+    return (
+      <div
+        key={`${candidate.dayOfWeek}-${candidate.startPeriod}-${candidate.teacherId ?? 'x'}-${candidate.roomId ?? 'x'}-${index}`}
+        className="flex items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2"
+      >
+        <div className="min-w-0">
+          <p className="text-[10px] font-black text-emerald-950">
+            {DAY_LABELS[candidate.dayOfWeek]} · {candidate.startPeriod}. ders
+          </p>
+          <p className="mt-0.5 truncate text-[9px] font-semibold text-emerald-700">
+            {candidate.teacherId
+              ? teacherNamesById[candidate.teacherId] ?? 'Öğretmen'
+              : 'Öğretmen belirsiz'}
+            {' · '}
+            {candidate.roomId
+              ? roomNamesById[candidate.roomId] ?? 'Salon'
+              : 'Salon belirsiz'}
+          </p>
+        </div>
+
+        {isCurrent ? (
+          <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-[9px] font-black text-emerald-700">
+            Mevcut
+          </span>
+        ) : canEdit ? (
+          <button
+            type="button"
+            onClick={() => onCandidateAction(candidate)}
+            disabled={!actionable || commandBusy}
+            className="shrink-0 rounded-lg bg-emerald-800 px-2.5 py-1.5 text-[9px] font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-35"
+          >
+            {placement ? 'Taşı' : 'Yerleştir'}
+          </button>
+        ) : null}
+      </div>
+    );
+  };
 
   return (
     <aside className="management-scrollbar h-full min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -221,6 +285,29 @@ export function ManagementInspector({
         </div>
       )}
 
+
+      {candidateFocus && (
+        <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/70 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-700">
+                Bu hücre için seçim
+              </p>
+              <p className="mt-1 text-xs font-black text-blue-950">
+                {DAY_LABELS[candidateFocus.dayOfWeek]} · {candidateFocus.startPeriod}. ders
+              </p>
+            </div>
+            <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black text-blue-700">
+              {candidateFocus.candidates.length} seçenek
+            </span>
+          </div>
+
+          <div className="mt-3 space-y-1.5">
+            {candidateFocus.candidates.map(renderCandidate)}
+          </div>
+        </div>
+      )}
+
       <div className="mt-4">
         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
           Aday alanı
@@ -283,66 +370,15 @@ export function ManagementInspector({
             )}
           </div>
 
-          {candidateDetail.validCandidates.length > 0 && (
+          {!candidateFocus && candidateDetail.validCandidates.length > 0 && (
             <div className="mt-4">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
                 Uygun adaylar
               </p>
               <div className="mt-2 space-y-1.5">
-                {candidateDetail.validCandidates.slice(0, 12).map((candidate, index) => {
-                  const isCurrent = Boolean(
-                    placement
-                    && candidate.dayOfWeek === placement.dayOfWeek
-                    && candidate.startPeriod === placement.startPeriod
-                    && candidate.teacherId === placement.teacherId
-                    && candidate.roomId === placement.roomId
-                  );
-                  const actionable = Boolean(
-                    canEdit
-                    && candidate.isComplete
-                    && candidate.teacherId
-                    && candidate.roomId
-                    && !card.locked
-                    && !isCurrent
-                  );
-
-                  return (
-                    <div
-                      key={`${candidate.dayOfWeek}-${candidate.startPeriod}-${candidate.teacherId ?? 'x'}-${candidate.roomId ?? 'x'}-${index}`}
-                      className="flex items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-black text-emerald-950">
-                          {DAY_LABELS[candidate.dayOfWeek]} · {candidate.startPeriod}. ders
-                        </p>
-                        <p className="mt-0.5 truncate text-[9px] font-semibold text-emerald-700">
-                          {candidate.teacherId
-                            ? teacherNamesById[candidate.teacherId] ?? 'Öğretmen'
-                            : 'Öğretmen belirsiz'}
-                          {' · '}
-                          {candidate.roomId
-                            ? roomNamesById[candidate.roomId] ?? 'Salon'
-                            : 'Salon belirsiz'}
-                        </p>
-                      </div>
-
-                      {isCurrent ? (
-                        <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-[9px] font-black text-emerald-700">
-                          Mevcut
-                        </span>
-                      ) : canEdit ? (
-                        <button
-                          type="button"
-                          onClick={() => onCandidateAction(candidate)}
-                          disabled={!actionable || commandBusy}
-                          className="shrink-0 rounded-lg bg-emerald-800 px-2.5 py-1.5 text-[9px] font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-35"
-                        >
-                          {placement ? 'Taşı' : 'Yerleştir'}
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                {candidateDetail.validCandidates
+                  .slice(0, 12)
+                  .map(renderCandidate)}
                 {candidateDetail.validCandidates.length > 12 && (
                   <p className="px-1 pt-1 text-[9px] font-bold text-slate-400">
                     +{candidateDetail.validCandidates.length - 12} uygun aday daha
