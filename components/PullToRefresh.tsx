@@ -12,6 +12,14 @@ export function PullToRefresh({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
+      // Yönetim çalışma alanı yatay sürükle-bırak için ayrılmıştır.
+      // Global pull-to-refresh burada gesture yakalamamalı.
+      if (window.location.pathname.startsWith('/yonetim')) {
+        setStartY(0);
+        setPullDistance(0);
+        return;
+      }
+
       // Sadece sayfa en tepedeyken çekme hareketini dinle
       if (window.scrollY === 0) {
         setStartY(e.touches[0].clientY);

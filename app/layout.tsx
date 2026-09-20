@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="tr" className="bg-[#FAFAF8] dark:bg-[#121212] text-gray-900 dark:text-gray-100 antialiased h-full">
       <body className="min-h-full flex justify-center bg-[#FAFAF8] dark:bg-[#121212] transition-colors duration-200 overflow-x-hidden">
-        <div className="w-full max-w-[480px] min-h-screen bg-[#FAFAF8] dark:bg-[#121212] flex flex-col shadow-sm border-x border-black/5 dark:border-white/10 px-4 pt-4 pb-24 overflow-x-hidden">
+        <div className="app-shell w-full max-w-[480px] min-h-screen bg-[#FAFAF8] dark:bg-[#121212] flex flex-col shadow-sm border-x border-black/5 dark:border-white/10 px-4 pt-4 pb-24 overflow-x-hidden">
           <PullToRefresh>
             {children}
           </PullToRefresh>
