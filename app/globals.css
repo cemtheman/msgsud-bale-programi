@@ -33,6 +33,33 @@ body {
   display: none;
 }
 
+.management-scrollbar {
+  scrollbar-width: auto;
+  scrollbar-color: #94a3b8 transparent;
+}
+
+.management-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.management-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.management-scrollbar::-webkit-scrollbar-thumb {
+  min-height: 42px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: #94a3b8;
+  background-clip: content-box;
+}
+
+.management-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+  background-clip: content-box;
+}
+
 @media (orientation: portrait) and (max-width: 1024px) {
   .management-portrait-note {
     position: sticky;
