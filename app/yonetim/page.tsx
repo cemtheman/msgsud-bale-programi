@@ -517,7 +517,7 @@ export default function ManagementPage() {
   const visibleUnplacedCount = visibleCards.length - visiblePlacedCount;
 
   return (
-    <main className="management-workbench-root min-h-screen min-w-[1180px] bg-[#F3F1EB] text-slate-900">
+    <main className="management-workbench-root h-[100dvh] min-w-[1180px] overflow-hidden bg-[#F3F1EB] text-slate-900">
       <div className="management-portrait-note">
         Yönetim çalışma alanı yatay ekran için tasarlandı.
       </div>
@@ -643,13 +643,60 @@ export default function ManagementPage() {
         </div>
       </section>
 
+      <section className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-2.5">
+        <div className="flex items-center gap-2 text-[11px] font-black text-slate-600">
+          <span className="rounded-full bg-slate-100 px-3 py-1.5">
+            Geçmiş: {overview?.activeMoveCount ?? '—'} aktif işlem
+          </span>
+          <span className="rounded-full bg-blue-50 px-3 py-1.5 text-blue-700">
+            Yerleşmiş: {overview?.placedCount ?? '—'}
+          </span>
+          <span className="rounded-full bg-slate-100 px-3 py-1.5">
+            Yerleşmemiş: {overview?.unplacedCount ?? '—'}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {access?.canEdit ? (
+            <>
+              <button
+                type="button"
+                onClick={() => void runUndo()}
+                disabled={!commandState.undoTransactionId || commandBusy}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+                title={commandState.undoLabel
+                  ? `Son işlemi geri al: ${commandState.undoLabel}`
+                  : 'Geri alınabilecek işlem yok'}
+              >
+                ↶ Geri Al
+              </button>
+              <button
+                type="button"
+                onClick={() => void runRedo()}
+                disabled={!commandState.redoTransactionId || commandBusy}
+                className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[11px] font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+                title={commandState.redoLabel
+                  ? `İşlemi yeniden uygula: ${commandState.redoLabel}`
+                  : 'Yinelenecek işlem yok'}
+              >
+                ↷ Yinele
+              </button>
+            </>
+          ) : (
+            <span className="text-[11px] font-bold text-slate-400">
+              Salt okunur oturum
+            </span>
+          )}
+        </div>
+      </section>
+
       {dataError && (
-        <div className="mx-6 mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">
+        <div className="mx-6 mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">
           {dataError}
         </div>
       )}
 
-      <section className="grid min-h-[680px] grid-cols-[310px_minmax(0,1fr)_320px] gap-4 p-4">
+      <section className="grid h-[calc(100dvh-272px)] min-h-[480px] grid-cols-[310px_minmax(0,1fr)_320px] gap-4 p-4">
         <ManagementCardPool
           cards={visibleCards}
           totalUnplaced={overview?.unplacedCount ?? visibleUnplacedCount}
@@ -657,7 +704,7 @@ export default function ManagementPage() {
           onSelect={setSelectedCardId}
         />
 
-        <div className="min-w-0">
+        <div className="flex min-h-0 min-w-0 flex-col">
           <div className="mb-3 flex items-center justify-between px-1">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
@@ -709,47 +756,7 @@ export default function ManagementPage() {
         />
       </section>
 
-      <footer className="sticky bottom-0 border-t border-slate-200 bg-white/95 px-6 py-3 backdrop-blur">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
-            <span>Geçmiş: {overview?.activeMoveCount ?? '—'} aktif işlem</span>
-            <span>Yerleşmiş: {overview?.placedCount ?? '—'}</span>
-            <span>Yerleşmemiş: {overview?.unplacedCount ?? '—'}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {access?.canEdit ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => void runUndo()}
-                  disabled={!commandState.undoTransactionId || commandBusy}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
-                  title={commandState.undoLabel
-                    ? `Son işlemi geri al: ${commandState.undoLabel}`
-                    : 'Geri alınabilecek işlem yok'}
-                >
-                  Geri Al
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void runRedo()}
-                  disabled={!commandState.redoTransactionId || commandBusy}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
-                  title={commandState.redoLabel
-                    ? `İşlemi yeniden uygula: ${commandState.redoLabel}`
-                    : 'Yinelenecek işlem yok'}
-                >
-                  Yinele
-                </button>
-              </>
-            ) : (
-              <span className="text-[11px] font-bold text-slate-400">
-                Salt okunur oturum
-              </span>
-            )}
-          </div>
-        </div>
-      </footer>
+
     </main>
   );
 }
