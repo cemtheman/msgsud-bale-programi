@@ -1,10 +1,17 @@
 'use client';
 
+export type ManagementRootAction = 'PLACE' | 'MOVE' | 'REMOVE';
+
+export interface ManagementCommandDescriptor {
+  transactionId: string;
+  action: ManagementRootAction;
+  cardId: string | null;
+  autoCount: number;
+}
+
 export interface ManagementCommandState {
-  undoTransactionId: string | null;
-  undoLabel: string | null;
-  redoTransactionId: string | null;
-  redoLabel: string | null;
+  undo: ManagementCommandDescriptor | null;
+  redo: ManagementCommandDescriptor | null;
 }
 
 interface RootTransactionRow {
@@ -38,13 +45,6 @@ function getSupabaseConfig() {
   }
 
   return { url, key };
-}
-
-function actionLabel(action: string | null | undefined) {
-  if (action === 'PLACE') return 'Yerleştir';
-  if (action === 'MOVE') return 'Taşı';
-  if (action === 'REMOVE') return 'Kaldır';
-  return 'İşlem';
 }
 
 function translateCommandError(message: string, fallback: string) {
@@ -253,12 +253,46 @@ export async function fetchManagementCommandState(
     );
   });
 
-  return {
-    undoTransactionId: undoRow?.id ?? null,
-    undoLabel: undoRow ? actionLabel(undoRow.action) : null,
-    redoTransactionId: redoRow?.id ?? null,
-    redoLabel: redoRow
-      ? actionLabel(redoRow.payload?.reverted_root_action)
-      : null,
-  };
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+
+  const undo = undoRow
+    ? {
+      transactionId: undoRow.id,
+      action: undoRow.action,
+      cardId: typeof undoRow.payload?.card_id === 'string'
+        ? undoRow.payload.card_id
+        : null,
+      autoCount: Number(undoRow.payload?.propagation_auto_count ?? 0) || 0,
+    }
+    : null;
+
+  let redo: ManagementCommandDescriptor | null = null;
+
+  if (redoRow) {
+    const originalRootId = typeof redoRow.payload?.reverts_root_transaction_id === 'string'
+      ? redoRow.payload.reverts_root_transaction_id
+      : null;
+    const originalRoot = originalRootId
+      ? rowById.get(originalRootId) ?? null
+      : null;
+    const originalAction = (
+      typeof redoRow.payload?.reverted_root_action === 'string'
+        ? redoRow.payload.reverted_root_action
+        : originalRoot?.action
+    ) as ManagementRootAction | undefined;
+    const originalCardId = typeof originalRoot?.payload?.card_id === 'string'
+      ? originalRoot.payload.card_id
+      : null;
+
+    if (originalAction && ['PLACE', 'MOVE', 'REMOVE'].includes(originalAction)) {
+      redo = {
+        transactionId: redoRow.id,
+        action: originalAction,
+        cardId: originalCardId,
+        autoCount: Number(originalRoot?.payload?.propagation_auto_count ?? 0) || 0,
+      };
+    }
+  }
+
+  return { undo, redo };
 }
