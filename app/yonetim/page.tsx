@@ -9,6 +9,7 @@ import {
 import { ManagementCardPool } from '@/components/management/ManagementCardPool';
 import { ManagementInspector } from '@/components/management/ManagementInspector';
 import { ManagementBusyOverlay } from '@/components/management/ManagementBusyOverlay';
+import { ManagementConfirmOverlay } from '@/components/management/ManagementConfirmOverlay';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   cardMatchesStage,
@@ -247,6 +248,7 @@ export default function ManagementPage() {
   });
   const [commandBusy, setCommandBusy] = useState(false);
   const [commandActivity, setCommandActivity] = useState<string | null>(null);
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [commandNotice, setCommandNotice] = useState<{
     kind: 'success' | 'error' | 'info';
     text: string;
@@ -513,6 +515,18 @@ export default function ManagementPage() {
     }
   };
 
+  const requestRemove = () => {
+    if (
+      !access?.canEdit
+      || !selectedCard?.placement
+      || commandBusy
+    ) {
+      return;
+    }
+
+    setRemoveConfirmOpen(true);
+  };
+
   const runRemove = async () => {
     if (
       !session
@@ -523,19 +537,18 @@ export default function ManagementPage() {
       return;
     }
 
-    if (!window.confirm('Bu kartı programdan kaldırmak istiyor musunuz?')) {
-      return;
-    }
+    const cardBeingRemoved = selectedCard;
 
+    setRemoveConfirmOpen(false);
     setCommandBusy(true);
-    setCommandActivity(`${selectedCard.subjectName} programdan kaldırılıyor.`);
+    setCommandActivity(`${cardBeingRemoved.subjectName} programdan kaldırılıyor.`);
     setCommandNotice(null);
 
     try {
-      await removeManagementCard(session.accessToken, selectedCard.id);
+      await removeManagementCard(session.accessToken, cardBeingRemoved.id);
       setCommandNotice({
         kind: 'success',
-        text: 'Kart programdan kaldırıldı ve havuza geri döndü.',
+        text: `${cardBeingRemoved.classCodes.join(', ') || cardBeingRemoved.groupName} ${cardBeingRemoved.subjectName} programdan kaldırıldı ve havuza geri döndü.`,
       });
       setRefreshToken((value) => value + 1);
     } catch (reason: unknown) {
@@ -934,13 +947,24 @@ export default function ManagementPage() {
             onCandidateAction={(candidate) => {
               void runCandidateCommand(candidate);
             }}
-            onRemove={() => {
-              void runRemove();
-            }}
+            onRemove={requestRemove}
             onClose={() => setInspectorOpen(false)}
           />
         )}
       </section>
+
+      {removeConfirmOpen && selectedCard?.placement && (
+        <ManagementConfirmOverlay
+          title="Programdan kaldırılsın mı?"
+          detail={`${selectedCard.classCodes.join(', ') || selectedCard.groupName} ${selectedCard.subjectName} mevcut yerleşiminden kaldırılacak ve ders havuzuna geri dönecek.`}
+          confirmLabel="Kaldır"
+          busy={commandBusy}
+          onConfirm={() => {
+            void runRemove();
+          }}
+          onCancel={() => setRemoveConfirmOpen(false)}
+        />
+      )}
 
       {commandBusy && (
         <ManagementBusyOverlay
