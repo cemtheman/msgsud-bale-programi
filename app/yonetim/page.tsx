@@ -235,6 +235,11 @@ export default function ManagementPage() {
     useState<ManagementCandidateDetail | null>(null);
   const [candidateLoading, setCandidateLoading] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
+  const [candidateFocus, setCandidateFocus] = useState<{
+    dayOfWeek: number;
+    startPeriod: number;
+    candidates: ManagementCandidateAssessment[];
+  } | null>(null);
 
   const [dragCardId, setDragCardId] = useState<string | null>(null);
   const [dragCandidateDetail, setDragCandidateDetail] =
@@ -330,6 +335,7 @@ export default function ManagementPage() {
   );
 
   const selectCard = (cardId: string) => {
+    setCandidateFocus(null);
     setSelectedCardId(cardId);
     setInspectorOpen(true);
   };
@@ -389,6 +395,7 @@ export default function ManagementPage() {
     setDragCardId(cardId);
     setDragCandidateDetail(null);
     setDragLoading(true);
+    setCandidateFocus(null);
     setSelectedCardId(cardId);
     setCommandNotice(null);
 
@@ -464,6 +471,7 @@ export default function ManagementPage() {
         setCommandNotice({ kind: 'success', text: 'Kart programa yerleştirildi.' });
       }
 
+      setCandidateFocus(null);
       setActiveDay(candidate.dayOfWeek);
       setRefreshToken((value) => value + 1);
     } catch (reason: unknown) {
@@ -484,12 +492,19 @@ export default function ManagementPage() {
     setInspectorOpen(true);
 
     if (target.state === 'AMBIGUOUS') {
+      setCandidateFocus({
+        dayOfWeek: target.dayOfWeek,
+        startPeriod: target.startPeriod,
+        candidates: target.validCandidates,
+      });
       setCommandNotice({
         kind: 'info',
-        text: `Bu başlangıç saati için ${target.validCandidates.length} farklı uygun öğretmen/salon seçeneği var. Sağdaki uygun adaylardan birini seçin.`,
+        text: `Bu başlangıç saati için ${target.validCandidates.length} farklı uygun öğretmen/salon seçeneği var. Sağdaki bu hücreye ait seçeneklerden birini seçin.`,
       });
       return;
     }
+
+    setCandidateFocus(null);
 
     const reason = target.reasonCodes[0]
       ? translateCandidateReason(target.reasonCodes[0])
@@ -939,6 +954,7 @@ export default function ManagementPage() {
             candidateDetail={candidateDetail}
             candidateLoading={candidateLoading}
             candidateError={candidateError}
+            candidateFocus={candidateFocus}
             teacherNamesById={board?.teacherNamesById ?? {}}
             roomNamesById={board?.roomNamesById ?? {}}
             canEdit={access?.canEdit === true}
