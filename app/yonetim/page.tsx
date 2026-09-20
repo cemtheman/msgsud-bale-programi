@@ -11,6 +11,7 @@ import { ManagementInspector } from '@/components/management/ManagementInspector
 import { ManagementBusyOverlay } from '@/components/management/ManagementBusyOverlay';
 import { ManagementConfirmOverlay } from '@/components/management/ManagementConfirmOverlay';
 import { ManagementProgramStatus } from '@/components/management/ManagementProgramStatus';
+import { ManagementCourseLoads } from '@/components/management/ManagementCourseLoads';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   cardMatchesStage,
@@ -224,7 +225,7 @@ export default function ManagementPage() {
   const [dataLoading, setDataLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
 
-  const [activeSection, setActiveSection] = useState<'PROGRAM' | 'STATUS'>('PROGRAM');
+  const [activeSection, setActiveSection] = useState<'PROGRAM' | 'LOADS' | 'STATUS'>('PROGRAM');
   const [activeDay, setActiveDay] = useState(1);
   const [stage, setStage] = useState<ManagementStage>('ORTAOKUL');
   const [resourceView, setResourceView] =
@@ -737,7 +738,15 @@ export default function ManagementPage() {
               >
                 Program
               </button>
-              <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
+              <button
+                type="button"
+                onClick={() => setActiveSection('LOADS')}
+                className={
+                  activeSection === 'LOADS'
+                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
+                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                }
+              >
                 Ders Yükleri
               </button>
               <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
@@ -993,6 +1002,8 @@ export default function ManagementPage() {
             />
           )}
         </section>
+      ) : activeSection === 'LOADS' ? (
+        <ManagementCourseLoads board={board} />
       ) : (
         <ManagementProgramStatus
           snapshot={healthSnapshot}
