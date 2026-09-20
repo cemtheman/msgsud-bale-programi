@@ -46,10 +46,43 @@ function getSupabaseConfig() {
   return { url, key };
 }
 
+function translateAuthMessage(message: string, fallback: string) {
+  const normalized = message.trim().toLowerCase();
+
+  if (
+    normalized.includes('invalid login credentials')
+    || normalized.includes('invalid credentials')
+  ) {
+    return 'E-posta veya parola hatalı.';
+  }
+
+  if (normalized.includes('email not confirmed')) {
+    return 'E-posta adresi henüz doğrulanmamış.';
+  }
+
+  if (normalized.includes('user not found')) {
+    return 'Bu e-posta adresiyle kayıtlı bir kullanıcı bulunamadı.';
+  }
+
+  if (normalized.includes('refresh token')) {
+    return 'Oturum süresi doldu. Lütfen yeniden giriş yapın.';
+  }
+
+  if (
+    normalized.includes('rate limit')
+    || normalized.includes('too many requests')
+  ) {
+    return 'Çok fazla deneme yapıldı. Lütfen kısa bir süre sonra yeniden deneyin.';
+  }
+
+  return message || fallback;
+}
+
 async function readError(response: Response, fallback: string) {
   try {
     const body = await response.json() as AuthResponse;
-    return body.error_description ?? body.message ?? body.msg ?? fallback;
+    const message = body.error_description ?? body.message ?? body.msg ?? fallback;
+    return translateAuthMessage(message, fallback);
   } catch {
     return fallback;
   }
