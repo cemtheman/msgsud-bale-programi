@@ -727,7 +727,7 @@ create or replace function public.move_management_card(
 )
 returns uuid
 language plpgsql
-as $
+as $$
 declare
   v_revision_id uuid;
   v_revision_status text;
@@ -969,7 +969,7 @@ begin
 
   return v_transaction_id;
 end
-$;
+$$;
 
 
 
