@@ -117,6 +117,7 @@ export function ManagementInspector({
 
   const [focusTeacherId, setFocusTeacherId] = useState<string | null>(null);
   const [focusRoomId, setFocusRoomId] = useState<string | null>(null);
+  const [showGeneralCandidates, setShowGeneralCandidates] = useState(false);
 
   const focusCandidatesForTeacher = useMemo(
     () => (
@@ -172,6 +173,17 @@ export function ManagementInspector({
       focusRoomIds.length === 1 ? focusRoomIds[0] : null,
     );
   }, [candidateFocus, focusRoomIds, focusTeacherId]);
+
+
+  useEffect(() => {
+    setShowGeneralCandidates(false);
+  }, [
+    card?.id,
+    card?.placement?.dayOfWeek,
+    card?.placement?.startPeriod,
+    card?.placement?.teacherId,
+    card?.placement?.roomId,
+  ]);
 
   if (!card) {
     return (
@@ -528,20 +540,44 @@ export function ManagementInspector({
           </div>
 
           {!candidateFocus && candidateDetail.validCandidates.length > 0 && (
-            <div className="mt-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                Uygun adaylar
-              </p>
-              <div className="mt-2 space-y-1.5">
-                {candidateDetail.validCandidates
-                  .slice(0, 12)
-                  .map(renderCandidate)}
-                {candidateDetail.validCandidates.length > 12 && (
-                  <p className="px-1 pt-1 text-[9px] font-bold text-slate-400">
-                    +{candidateDetail.validCandidates.length - 12} uygun aday daha
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                    Alternatif yerleşimler
                   </p>
-                )}
+                  <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">
+                    {placement
+                      ? 'Mevcut yerleşimi değiştirmek için kartı çizelgede sürükleyin. İsterseniz ayrıntılı aday listesini de açabilirsiniz.'
+                      : 'Kartı çizelgeye sürüklemek en hızlı yöntemdir. Ayrıntılı aday listesi isteğe bağlıdır.'}
+                  </p>
+                </div>
+
+                <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[9px] font-black text-slate-600">
+                  {candidateDetail.validCandidates.length}
+                </span>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setShowGeneralCandidates((value) => !value)}
+                className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50"
+              >
+                {showGeneralCandidates ? 'Aday listesini gizle' : 'Aday listesini göster'}
+              </button>
+
+              {showGeneralCandidates && (
+                <div className="mt-3 space-y-1.5">
+                  {candidateDetail.validCandidates
+                    .slice(0, 12)
+                    .map(renderCandidate)}
+                  {candidateDetail.validCandidates.length > 12 && (
+                    <p className="px-1 pt-1 text-[9px] font-bold text-slate-400">
+                      +{candidateDetail.validCandidates.length - 12} uygun aday daha
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </>
