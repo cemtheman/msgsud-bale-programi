@@ -1,12 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   managementCardStatus,
   type ManagementBoardCard,
 } from '@/lib/managementBoard';
 
 type StatusFilter = 'TÜMÜ' | 'ZORUNLU' | 'BELİRSİZ' | 'UYGUN' | 'ÇELİŞKİ';
+
+const PAGE_SIZE = 5;
 
 const STATUS_FILTERS: Array<{ id: StatusFilter; label: string }> = [
   { id: 'TÜMÜ', label: 'Tümü' },
@@ -47,15 +49,53 @@ export function ManagementCardPool({
 }) {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('TÜMÜ');
+  const [classFilter, setClassFilter] = useState('TÜMÜ');
+  const [page, setPage] = useState(0);
+
+  const unplacedCards = useMemo(
+    () => cards.filter((card) => !card.placement),
+    [cards],
+  );
+
+  const classOptions = useMemo(() => {
+    const values = new Set<string>();
+
+    unplacedCards.forEach((card) => {
+      card.classCodes.forEach((code) => values.add(code));
+    });
+
+    return Array.from(values).sort((a, b) =>
+      a.localeCompare(b, 'tr', { numeric: true }),
+    );
+  }, [unplacedCards]);
+
+  const statusCounts = useMemo(() => {
+    const result: Record<StatusFilter, number> = {
+      TÜMÜ: unplacedCards.length,
+      ZORUNLU: 0,
+      BELİRSİZ: 0,
+      UYGUN: 0,
+      ÇELİŞKİ: 0,
+    };
+
+    unplacedCards.forEach((card) => {
+      result[statusKey(card)] += 1;
+    });
+
+    return result;
+  }, [unplacedCards]);
 
   const filteredCards = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('tr-TR');
 
-    return cards
-      .filter((card) => !card.placement)
+    return unplacedCards
       .filter((card) => {
         if (statusFilter === 'TÜMÜ') return true;
         return statusKey(card) === statusFilter;
+      })
+      .filter((card) => {
+        if (classFilter === 'TÜMÜ') return true;
+        return card.classCodes.includes(classFilter);
       })
       .filter((card) => {
         if (!normalized) return true;
@@ -89,65 +129,57 @@ export function ManagementCardPool({
           || a.subjectName.localeCompare(b.subjectName, 'tr')
           || a.blockIndex - b.blockIndex;
       });
-  }, [cards, query, statusFilter]);
+  }, [classFilter, query, statusFilter, unplacedCards]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredCards.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageCards = filteredCards.slice(
+    safePage * PAGE_SIZE,
+    safePage * PAGE_SIZE + PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [query, statusFilter, classFilter]);
+
+  useEffect(() => {
+    if (page > pageCount - 1) {
+      setPage(Math.max(0, pageCount - 1));
+    }
+  }, [page, pageCount]);
+
+  useEffect(() => {
+    if (!selectedCardId) return;
+
+    const selectedIndex = filteredCards.findIndex(
+      (card) => card.id === selectedCardId,
+    );
+
+    if (selectedIndex >= 0) {
+      setPage(Math.floor(selectedIndex / PAGE_SIZE));
+    }
+  }, [filteredCards, selectedCardId]);
 
   return (
     <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-100 p-4">
+      <div className="border-b border-slate-100 p-3.5">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
               Kart Havuzu
             </p>
-            <h2 className="mt-1 text-lg font-black">Yerleşmemiş</h2>
+            <h2 className="mt-0.5 text-lg font-black">Yerleşmemiş</h2>
           </div>
+
           <div className="text-right">
             <span className="rounded-xl bg-slate-950 px-3 py-1.5 text-sm font-black text-white">
-              {cards.filter((card) => !card.placement).length}
+              {unplacedCards.length}
             </span>
-            <p className="mt-1 text-[10px] font-bold text-slate-400">
-              toplam {totalUnplaced}
+            <p className="mt-1 text-[9px] font-bold text-slate-400">
+              bu bölümde · toplam {totalUnplaced}
             </p>
           </div>
         </div>
-
-        <div className="mt-4 grid grid-cols-4 gap-1.5">
-          <div className="rounded-xl bg-emerald-50 px-2 py-2">
-            <p className="text-[8px] font-black uppercase text-emerald-700">Zorunlu</p>
-            <p className="mt-0.5 text-sm font-black text-emerald-950">
-              {cards.filter((card) => !card.placement && card.isForced).length}
-            </p>
-          </div>
-          <div className="rounded-xl bg-amber-50 px-2 py-2">
-            <p className="text-[8px] font-black uppercase text-amber-700">Belirsiz</p>
-            <p className="mt-0.5 text-sm font-black text-amber-950">
-              {cards.filter((card) => !card.placement && card.unresolvedCount > 0).length}
-            </p>
-          </div>
-          <div className="rounded-xl bg-rose-50 px-2 py-2">
-            <p className="text-[8px] font-black uppercase text-rose-700">Çelişki</p>
-            <p className="mt-0.5 text-sm font-black text-rose-950">
-              {cards.filter((card) => !card.placement && card.isContradiction).length}
-            </p>
-          </div>
-          <div className="rounded-xl bg-slate-100 px-2 py-2">
-            <p className="text-[8px] font-black uppercase text-slate-500">Kilitli</p>
-            <p className="mt-0.5 text-sm font-black text-slate-900">
-              {cards.filter((card) => card.locked).length}
-            </p>
-          </div>
-        </div>
-
-        <label className="mt-4 block">
-          <span className="sr-only">Kart ara</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Ders, sınıf, öğretmen veya salon ara"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
-          />
-        </label>
 
         <div className="mt-3 flex flex-wrap gap-1.5">
           {STATUS_FILTERS.map((filter) => (
@@ -155,26 +187,59 @@ export function ManagementCardPool({
               key={filter.id}
               type="button"
               onClick={() => setStatusFilter(filter.id)}
-              className={`rounded-full px-2.5 py-1.5 text-[10px] font-black transition ${
+              className={`rounded-full px-2.5 py-1.5 text-[9px] font-black transition ${
                 statusFilter === filter.id
                   ? 'bg-slate-950 text-white'
-                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {filter.label}
+              {filter.label} · {statusCounts[filter.id]}
             </button>
           ))}
+
+          <span className="rounded-full bg-slate-100 px-2.5 py-1.5 text-[9px] font-black text-slate-500">
+            Kilitli · {unplacedCards.filter((card) => card.locked).length}
+          </span>
+        </div>
+
+        <div className="mt-3 grid grid-cols-[1fr_104px] gap-2">
+          <label>
+            <span className="sr-only">Kart ara</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Ders, öğretmen veya salon ara"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-semibold outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+            />
+          </label>
+
+          <label>
+            <span className="sr-only">Sınıf seç</span>
+            <select
+              value={classFilter}
+              onChange={(event) => setClassFilter(event.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2.5 text-[11px] font-black text-slate-600 outline-none transition focus:border-slate-400 focus:bg-white"
+            >
+              <option value="TÜMÜ">Tüm sınıflar</option>
+              {classOptions.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 p-2">
         {filteredCards.length === 0 ? (
-          <div className="m-2 rounded-2xl border border-dashed border-slate-200 p-4 text-center text-xs font-bold text-slate-400">
-            Bu filtreye uyan kart yok.
+          <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 p-4 text-center text-xs font-bold text-slate-400">
+            Bu filtrelere uyan kart yok.
           </div>
         ) : (
-          <div className="space-y-1.5">
-            {filteredCards.map((card) => {
+          <div className="grid h-full min-h-0 grid-rows-5 gap-1.5">
+            {pageCards.map((card) => {
               const selected = card.id === selectedCardId;
 
               return (
@@ -182,29 +247,48 @@ export function ManagementCardPool({
                   key={card.id}
                   type="button"
                   onClick={() => onSelect(card.id)}
-                  className={`w-full rounded-2xl border p-3 text-left transition ${
+                  className={`min-h-0 w-full rounded-2xl border px-3 py-2 text-left transition ${
                     selected
                       ? 'border-slate-950 bg-slate-950 text-white shadow-sm'
                       : 'border-slate-100 bg-white hover:border-slate-300 hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex h-full min-h-0 items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-black">{card.subjectName}</p>
+                        <p className="truncate text-[13px] font-black">
+                          {card.subjectName}
+                        </p>
                         <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black ${
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-black ${
                             selected ? 'bg-white/15 text-white' : statusClass(card)
                           }`}
                         >
                           {managementCardStatus(card)}
                         </span>
                       </div>
-                      <p className={`mt-1 truncate text-[11px] font-bold ${
+
+                      <p className={`mt-0.5 truncate text-[10px] font-bold ${
                         selected ? 'text-slate-300' : 'text-slate-500'
                       }`}>
                         {card.groupName}
                       </p>
+
+                      <div className={`mt-1 flex items-center gap-1.5 truncate text-[9px] font-semibold ${
+                        selected ? 'text-slate-300' : 'text-slate-400'
+                      }`}>
+                        <span>
+                          {card.classCodes.length > 0
+                            ? card.classCodes.join(', ')
+                            : 'Ortak grup'}
+                        </span>
+                        <span>·</span>
+                        <span>{durationLabel(card.durationPeriods)}</span>
+                        <span>·</span>
+                        <span className="truncate">
+                          {card.teacherNames[0] ?? 'Öğretmen belirsiz'}
+                        </span>
+                      </div>
                     </div>
 
                     <span className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-black ${
@@ -215,21 +299,77 @@ export function ManagementCardPool({
                       ×{card.durationPeriods}
                     </span>
                   </div>
-
-                  <div className={`mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-semibold ${
-                    selected ? 'text-slate-300' : 'text-slate-400'
-                  }`}>
-                    <span>{card.classCodes.length > 0 ? card.classCodes.join(', ') : 'Ortak grup'}</span>
-                    <span>·</span>
-                    <span>{durationLabel(card.durationPeriods)}</span>
-                    <span>·</span>
-                    <span>{card.teacherNames[0] ?? 'Öğretmen belirsiz'}</span>
-                  </div>
                 </button>
               );
             })}
+
+            {Array.from({ length: PAGE_SIZE - pageCards.length }).map((_, index) => (
+              <div
+                key={`empty-${index}`}
+                className="min-h-0 rounded-2xl border border-dashed border-slate-100 bg-slate-50/40"
+                aria-hidden="true"
+              />
+            ))}
           </div>
         )}
+      </div>
+
+      <div className="flex items-center justify-between gap-2 border-t border-slate-100 bg-slate-50/80 px-3 py-2">
+        <button
+          type="button"
+          onClick={() => setPage(0)}
+          disabled={safePage === 0 || filteredCards.length === 0}
+          className="rounded-lg px-2 py-1.5 text-[10px] font-black text-slate-500 transition hover:bg-white disabled:opacity-25"
+          title="İlk sayfa"
+        >
+          «
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPage((value) => Math.max(0, value - 1))}
+          disabled={safePage === 0 || filteredCards.length === 0}
+          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-slate-700 transition hover:bg-slate-100 disabled:opacity-30"
+        >
+          Önceki
+        </button>
+
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+          <span className="text-[9px] font-bold text-slate-400">
+            {filteredCards.length} sonuç
+          </span>
+          <select
+            value={safePage}
+            onChange={(event) => setPage(Number(event.target.value))}
+            className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-black text-slate-700 outline-none"
+            aria-label="Kart havuzu sayfası"
+          >
+            {Array.from({ length: pageCount }, (_, index) => (
+              <option key={index} value={index}>
+                {index + 1} / {pageCount}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))}
+          disabled={safePage >= pageCount - 1 || filteredCards.length === 0}
+          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-slate-700 transition hover:bg-slate-100 disabled:opacity-30"
+        >
+          Sonraki
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPage(pageCount - 1)}
+          disabled={safePage >= pageCount - 1 || filteredCards.length === 0}
+          className="rounded-lg px-2 py-1.5 text-[10px] font-black text-slate-500 transition hover:bg-white disabled:opacity-25"
+          title="Son sayfa"
+        >
+          »
+        </button>
       </div>
     </aside>
   );
