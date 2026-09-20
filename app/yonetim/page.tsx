@@ -12,6 +12,7 @@ import {
   fetchManagementCardCandidates,
   managementRowsForView,
   type ManagementBoardData,
+  type ManagementCandidateAssessment,
   type ManagementCandidateDetail,
   type ManagementResourceView,
   type ManagementStage,
@@ -20,24 +21,44 @@ import {
   fetchManagementOverview,
   type ManagementOverview,
 } from '@/lib/managementOverview';
+import {
+  fetchManagementCommandState,
+  moveManagementCard,
+  placeManagementCard,
+  redoManagement,
+  removeManagementCard,
+  undoManagement,
+  type ManagementCommandState,
+} from '@/lib/managementCommands';
 
 const DAYS = [
-  { id: 1, label: 'Pazartesi' },
+  { id: 1, label: 'Pzt' },
   { id: 2, label: 'Salı' },
-  { id: 3, label: 'Çarşamba' },
-  { id: 4, label: 'Perşembe' },
+  { id: 3, label: 'Çar' },
+  { id: 4, label: 'Per' },
   { id: 5, label: 'Cuma' },
 ] as const;
+
+const DAY_LONG: Record<number, string> = {
+  1: 'Pazartesi',
+  2: 'Salı',
+  3: 'Çarşamba',
+  4: 'Perşembe',
+  5: 'Cuma',
+};
 
 const STAGES: Array<{ id: ManagementStage; label: string }> = [
   { id: 'ORTAOKUL', label: 'Ortaokul' },
   { id: 'LISE', label: 'Lise' },
 ];
 
-const RESOURCE_VIEWS: ManagementResourceView[] = [
-  'SINIFLAR',
-  'ÖĞRETMENLER',
-  'SALONLAR',
+const RESOURCE_VIEWS: Array<{
+  id: ManagementResourceView;
+  label: string;
+}> = [
+  { id: 'SINIFLAR', label: 'Sınıflar' },
+  { id: 'ÖĞRETMENLER', label: 'Öğretmenler' },
+  { id: 'SALONLAR', label: 'Salonlar' },
 ];
 
 function roleLabel(role: string | null | undefined) {
@@ -67,21 +88,19 @@ function LoginScreen({
   return (
     <main className="management-workbench-root flex min-h-screen items-center justify-center bg-[#F5F3EE] px-5 py-10 text-slate-900">
       <section className="w-full max-w-[430px] rounded-[28px] border border-slate-200 bg-white p-7 shadow-[0_24px_70px_rgba(15,23,42,0.10)]">
-        <div className="mb-7">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#A63D48]">
-            MSGSÜ Ders Programı
-          </p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-            Yönetim
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            Taslak program çalışma alanına erişmek için yönetim hesabınızla giriş yapın.
-          </p>
-        </div>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#A63D48]">
+          MSGSÜ Ders Programı
+        </p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
+          Yönetim
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Taslak program çalışma alanına erişmek için yönetim hesabınızla giriş yapın.
+        </p>
 
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="mt-7 space-y-4">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-extrabold text-slate-600">
+            <span className="mb-1.5 block text-xs font-semibold text-slate-600">
               E-posta
             </span>
             <input
@@ -90,12 +109,12 @@ function LoginScreen({
               autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-slate-400 focus:bg-white"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition focus:border-slate-400 focus:bg-white"
             />
           </label>
 
           <label className="block">
-            <span className="mb-1.5 block text-xs font-extrabold text-slate-600">
+            <span className="mb-1.5 block text-xs font-semibold text-slate-600">
               Parola
             </span>
             <input
@@ -104,12 +123,12 @@ function LoginScreen({
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-slate-400 focus:bg-white"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium outline-none transition focus:border-slate-400 focus:bg-white"
             />
           </label>
 
           {error && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">
               {error}
             </div>
           )}
@@ -117,7 +136,7 @@ function LoginScreen({
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
+            className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-60"
           >
             {loading ? 'Giriş yapılıyor…' : 'Yönetim alanını aç'}
           </button>
@@ -125,7 +144,7 @@ function LoginScreen({
 
         <Link
           href="/"
-          className="mt-6 block text-center text-xs font-bold text-slate-400 transition hover:text-slate-700"
+          className="mt-6 block text-center text-xs font-semibold text-slate-400 transition hover:text-slate-700"
         >
           Öğrenci / öğretmen programına dön
         </Link>
@@ -155,11 +174,26 @@ export default function ManagementPage() {
   const [resourceView, setResourceView] =
     useState<ManagementResourceView>('SINIFLAR');
 
+  const [poolOpen, setPoolOpen] = useState(true);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [candidateDetail, setCandidateDetail] =
     useState<ManagementCandidateDetail | null>(null);
   const [candidateLoading, setCandidateLoading] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
+
+  const [commandState, setCommandState] = useState<ManagementCommandState>({
+    undoTransactionId: null,
+    undoLabel: null,
+    redoTransactionId: null,
+    redoLabel: null,
+  });
+  const [commandBusy, setCommandBusy] = useState(false);
+  const [commandNotice, setCommandNotice] = useState<{
+    kind: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     if (status !== 'ready' || !session) {
@@ -176,10 +210,26 @@ export default function ManagementPage() {
       fetchManagementOverview(session.accessToken),
       fetchManagementBoard(session.accessToken),
     ])
-      .then(([nextOverview, nextBoard]) => {
+      .then(async ([nextOverview, nextBoard]) => {
         if (!active) return;
+
         setOverview(nextOverview);
         setBoard(nextBoard);
+
+        if (nextBoard) {
+          const nextCommandState = await fetchManagementCommandState(
+            session.accessToken,
+            nextBoard.revisionId,
+          );
+          if (active) setCommandState(nextCommandState);
+        } else {
+          setCommandState({
+            undoTransactionId: null,
+            undoLabel: null,
+            redoTransactionId: null,
+            redoLabel: null,
+          });
+        }
       })
       .catch((reason: unknown) => {
         if (!active) return;
@@ -217,14 +267,21 @@ export default function ManagementPage() {
     [board, selectedCardId],
   );
 
+  const selectCard = (cardId: string) => {
+    setSelectedCardId(cardId);
+    setInspectorOpen(true);
+  };
+
   useEffect(() => {
-    if (
-      selectedCard
-      && !cardMatchesStage(selectedCard, stage)
-    ) {
+    if (selectedCard && !cardMatchesStage(selectedCard, stage)) {
       setSelectedCardId(null);
+      setInspectorOpen(false);
     }
   }, [selectedCard, stage]);
+
+  useEffect(() => {
+    setCommandNotice(null);
+  }, [selectedCardId]);
 
   useEffect(() => {
     if (!session || !selectedCardId || status !== 'ready') {
@@ -260,14 +317,155 @@ export default function ManagementPage() {
     };
   }, [refreshToken, selectedCardId, session, status]);
 
-  const activeDayLabel = useMemo(
-    () => DAYS.find((day) => day.id === activeDay)?.label ?? '',
-    [activeDay],
-  );
+  const runCandidateCommand = async (
+    candidate: ManagementCandidateAssessment,
+  ) => {
+    if (
+      !session
+      || !access?.canEdit
+      || !selectedCard
+      || !candidate.teacherId
+      || !candidate.roomId
+      || commandBusy
+    ) {
+      return;
+    }
+
+    setCommandBusy(true);
+    setCommandNotice(null);
+
+    try {
+      const input = {
+        cardId: selectedCard.id,
+        dayOfWeek: candidate.dayOfWeek,
+        startPeriod: candidate.startPeriod,
+        teacherId: candidate.teacherId,
+        roomId: candidate.roomId,
+      };
+
+      if (selectedCard.placement) {
+        await moveManagementCard(session.accessToken, input);
+        setCommandNotice({ kind: 'success', text: 'Kart yeni yerine taşındı.' });
+      } else {
+        await placeManagementCard(session.accessToken, input);
+        setCommandNotice({ kind: 'success', text: 'Kart programa yerleştirildi.' });
+      }
+
+      setActiveDay(candidate.dayOfWeek);
+      setRefreshToken((value) => value + 1);
+    } catch (reason: unknown) {
+      setCommandNotice({
+        kind: 'error',
+        text: reason instanceof Error
+          ? reason.message
+          : 'İşlem tamamlanamadı.',
+      });
+    } finally {
+      setCommandBusy(false);
+    }
+  };
+
+  const runRemove = async () => {
+    if (
+      !session
+      || !access?.canEdit
+      || !selectedCard?.placement
+      || commandBusy
+    ) {
+      return;
+    }
+
+    if (!window.confirm('Bu kartı programdan kaldırmak istiyor musunuz?')) {
+      return;
+    }
+
+    setCommandBusy(true);
+    setCommandNotice(null);
+
+    try {
+      await removeManagementCard(session.accessToken, selectedCard.id);
+      setCommandNotice({
+        kind: 'success',
+        text: 'Kart programdan kaldırıldı ve havuza geri döndü.',
+      });
+      setRefreshToken((value) => value + 1);
+    } catch (reason: unknown) {
+      setCommandNotice({
+        kind: 'error',
+        text: reason instanceof Error ? reason.message : 'Kart kaldırılamadı.',
+      });
+    } finally {
+      setCommandBusy(false);
+    }
+  };
+
+  const runUndo = async () => {
+    if (
+      !session
+      || !access?.canEdit
+      || !commandState.undoTransactionId
+      || commandBusy
+    ) {
+      return;
+    }
+
+    setCommandBusy(true);
+    setCommandNotice(null);
+
+    try {
+      await undoManagement(session.accessToken, commandState.undoTransactionId);
+      setCommandNotice({
+        kind: 'success',
+        text: 'Son program işlemi geri alındı.',
+      });
+      setRefreshToken((value) => value + 1);
+    } catch (reason: unknown) {
+      setCommandNotice({
+        kind: 'error',
+        text: reason instanceof Error
+          ? reason.message
+          : 'Geri alma işlemi tamamlanamadı.',
+      });
+    } finally {
+      setCommandBusy(false);
+    }
+  };
+
+  const runRedo = async () => {
+    if (
+      !session
+      || !access?.canEdit
+      || !commandState.redoTransactionId
+      || commandBusy
+    ) {
+      return;
+    }
+
+    setCommandBusy(true);
+    setCommandNotice(null);
+
+    try {
+      await redoManagement(session.accessToken, commandState.redoTransactionId);
+      setCommandNotice({
+        kind: 'success',
+        text: 'Geri alınan program işlemi yeniden uygulandı.',
+      });
+      setRefreshToken((value) => value + 1);
+    } catch (reason: unknown) {
+      setCommandNotice({
+        kind: 'error',
+        text: reason instanceof Error
+          ? reason.message
+          : 'Yineleme işlemi tamamlanamadı.',
+      });
+    } finally {
+      setCommandBusy(false);
+    }
+  };
 
   if (status === 'loading') {
     return (
-      <main className="management-workbench-root flex min-h-screen items-center justify-center bg-[#F5F3EE] text-sm font-bold text-slate-400">
+      <main className="management-workbench-root flex min-h-screen items-center justify-center bg-[#F5F3EE] text-sm font-semibold text-slate-400">
         Yönetim alanı hazırlanıyor…
       </main>
     );
@@ -289,10 +487,10 @@ export default function ManagementPage() {
     return (
       <main className="management-workbench-root flex min-h-screen items-center justify-center bg-[#F5F3EE] px-5 py-10 text-slate-900">
         <section className="w-full max-w-[520px] rounded-[28px] border border-amber-200 bg-white p-7 text-center shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">
             Erişim sınırı
           </p>
-          <h1 className="mt-2 text-2xl font-black">
+          <h1 className="mt-2 text-2xl font-bold">
             Bu hesap Yönetim üyesi değil
           </h1>
           <p className="mt-3 text-sm leading-6 text-slate-500">
@@ -301,7 +499,7 @@ export default function ManagementPage() {
           <button
             type="button"
             onClick={() => void logout()}
-            className="mt-6 rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-black text-white"
+            className="mt-6 rounded-2xl bg-slate-950 px-5 py-2.5 text-sm font-bold text-white"
           >
             Oturumu kapat
           </button>
@@ -312,169 +510,226 @@ export default function ManagementPage() {
 
   const visiblePlacedCount = visibleCards.filter((card) => card.placement).length;
   const visibleUnplacedCount = visibleCards.length - visiblePlacedCount;
+  const showInspector = inspectorOpen && Boolean(selectedCard);
+
+  const workbenchColumns = [
+    poolOpen ? '292px' : null,
+    'minmax(0, 1fr)',
+    showInspector ? '316px' : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <main className="management-workbench-root min-h-screen min-w-[1180px] bg-[#F3F1EB] text-slate-900">
+    <main className="management-workbench-root flex h-[100dvh] min-w-[1180px] flex-col overflow-hidden bg-[#F4F2ED] text-slate-900">
       <div className="management-portrait-note">
         Yönetim çalışma alanı yatay ekran için tasarlandı.
       </div>
 
-      <header className="border-b border-slate-200 bg-white/95 px-6 pt-5 backdrop-blur">
-        <div className="flex items-start justify-between gap-8">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#A63D48]">
-              MSGSÜ Ders Programı
-            </p>
-            <div className="mt-1 flex items-center gap-3">
-              <h1 className="text-2xl font-black tracking-tight">
-                Yönetim Çalışma Alanı
-              </h1>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
-                {roleLabel(access?.role)}
-              </span>
-              {access?.canEdit ? (
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
-                  Düzenleme yetkisi
-                </span>
-              ) : (
-                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-black text-amber-700">
-                  Salt okunur
-                </span>
-              )}
-            </div>
-            <p className="mt-1 text-xs font-semibold text-slate-400">
-              {session?.email}
-              {overview ? ` · Taslak v${overview.versionNumber}` : ''}
-            </p>
+      <header className="shrink-0 border-b border-slate-200 bg-white">
+        <div className="flex h-[46px] items-center gap-5 px-5">
+          <div className="flex h-full items-center gap-4">
+            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A63D48]">
+              Yönetim
+            </span>
+
+            <nav className="flex h-full items-center gap-5">
+              <button className="h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950">
+                Program
+              </button>
+              <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
+                Ders Yükleri
+              </button>
+              <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
+                Kaynaklar
+              </button>
+              <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
+                Program Durumu
+              </button>
+            </nav>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
+            <span className="hidden max-w-[210px] truncate text-[10px] font-medium text-slate-400 xl:block">
+              {session?.email}
+              {overview ? ` · Taslak v${overview.versionNumber}` : ''}
+            </span>
+            <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-600">
+              {roleLabel(access?.role)}
+            </span>
+            {access?.canEdit && (
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700">
+                Düzenleme açık
+              </span>
+            )}
             <button
               type="button"
               onClick={() => setRefreshToken((value) => value + 1)}
               disabled={dataLoading}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
             >
-              {dataLoading ? 'Yenileniyor…' : 'Veriyi yenile'}
+              {dataLoading ? 'Yenileniyor…' : 'Yenile'}
             </button>
             <button
               type="button"
               onClick={() => void logout()}
-              className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-extrabold text-white hover:bg-slate-800"
+              className="rounded-lg bg-slate-950 px-2.5 py-1.5 text-[10px] font-semibold text-white transition hover:bg-slate-800"
             >
               Çıkış
             </button>
           </div>
         </div>
 
-        <nav className="mt-5 flex gap-7 text-sm font-black">
-          <button className="border-b-2 border-slate-950 pb-3 text-slate-950">
-            Program
+        <div className="flex h-[54px] items-center gap-3 border-t border-slate-100 px-5">
+          <button
+            type="button"
+            onClick={() => setPoolOpen((value) => !value)}
+            className={`rounded-xl border px-3 py-2 text-[10px] font-bold transition ${
+              poolOpen
+                ? 'border-slate-950 bg-slate-950 text-white'
+                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Ders Havuzu · {visibleUnplacedCount}
           </button>
-          <button disabled className="pb-3 text-slate-300">
-            Ders Yükleri
-          </button>
-          <button disabled className="pb-3 text-slate-300">
-            Kaynaklar
-          </button>
-          <button disabled className="pb-3 text-slate-300">
-            Program Durumu
-          </button>
-        </nav>
-      </header>
 
-      <section className="border-b border-slate-200 bg-[#FAF9F6] px-6 py-3">
-        <div className="flex items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1">
-              {STAGES.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setStage(item.id)}
-                  className={`rounded-xl px-3 py-2 text-[11px] font-black transition ${
-                    stage === item.id
-                      ? 'bg-[#A63D48] text-white'
-                      : 'text-slate-500 hover:bg-slate-50'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex gap-1 rounded-2xl bg-slate-200/70 p-1">
-              {DAYS.map((day) => (
-                <button
-                  key={day.id}
-                  type="button"
-                  onClick={() => setActiveDay(day.id)}
-                  className={`rounded-xl px-4 py-2 text-xs font-black transition ${
-                    activeDay === day.id
-                      ? 'bg-white text-slate-950 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  {day.label}
-                </button>
-              ))}
-            </div>
+          <div className="flex rounded-xl border border-slate-200 bg-white p-1">
+            {STAGES.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setStage(item.id)}
+                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                  stage === item.id
+                    ? 'bg-[#A63D48] text-white'
+                    : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
 
-          <div className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1">
+          <div className="flex rounded-xl bg-slate-100 p-1">
+            {DAYS.map((day) => (
+              <button
+                key={day.id}
+                type="button"
+                onClick={() => setActiveDay(day.id)}
+                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                  activeDay === day.id
+                    ? 'bg-white text-slate-950 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title={DAY_LONG[day.id]}
+              >
+                {day.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mx-auto flex rounded-xl border border-slate-200 bg-white p-1">
             {RESOURCE_VIEWS.map((view) => (
               <button
-                key={view}
+                key={view.id}
                 type="button"
-                onClick={() => setResourceView(view)}
-                className={`rounded-xl px-3 py-2 text-[11px] font-black tracking-wide transition ${
-                  resourceView === view
+                onClick={() => setResourceView(view.id)}
+                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                  resourceView === view.id
                     ? 'bg-slate-950 text-white'
                     : 'text-slate-500 hover:bg-slate-50'
                 }`}
               >
-                {view}
+                {view.label}
               </button>
             ))}
           </div>
+
+          <div className="flex items-center gap-2 text-[9px] font-semibold text-slate-500">
+            <span>{visiblePlacedCount} yerleşmiş</span>
+            <span className="text-slate-300">·</span>
+            <span>{visibleUnplacedCount} havuzda</span>
+            <span className="text-slate-300">·</span>
+            <span>{overview?.activeMoveCount ?? 0} işlem</span>
+          </div>
+
+          {selectedCard && !showInspector && (
+            <button
+              type="button"
+              onClick={() => setInspectorOpen(true)}
+              className="max-w-[150px] truncate rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Ayrıntılar · {selectedCard.subjectName}
+            </button>
+          )}
+
+          {access?.canEdit ? (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => void runUndo()}
+                disabled={!commandState.undoTransactionId || commandBusy}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+                title={commandState.undoLabel
+                  ? `Son işlemi geri al: ${commandState.undoLabel}`
+                  : 'Geri alınabilecek işlem yok'}
+              >
+                ↶ Geri Al
+              </button>
+              <button
+                type="button"
+                onClick={() => void runRedo()}
+                disabled={!commandState.redoTransactionId || commandBusy}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+                title={commandState.redoLabel
+                  ? `İşlemi yeniden uygula: ${commandState.redoLabel}`
+                  : 'Yinelenecek işlem yok'}
+              >
+                ↷ Yinele
+              </button>
+            </div>
+          ) : (
+            <span className="text-[10px] font-semibold text-slate-400">
+              Salt okunur
+            </span>
+          )}
         </div>
-      </section>
+      </header>
 
       {dataError && (
-        <div className="mx-6 mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">
+        <div className="mx-3 mt-3 shrink-0 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-700">
           {dataError}
         </div>
       )}
 
-      <section className="grid min-h-[680px] grid-cols-[310px_minmax(0,1fr)_320px] gap-4 p-4">
-        <ManagementCardPool
-          cards={visibleCards}
-          totalUnplaced={overview?.unplacedCount ?? visibleUnplacedCount}
-          selectedCardId={selectedCardId}
-          onSelect={setSelectedCardId}
-        />
+      <section
+        className="grid min-h-0 flex-1 gap-3 p-3"
+        style={{ gridTemplateColumns: workbenchColumns }}
+      >
+        {poolOpen && (
+          <ManagementCardPool
+            cards={visibleCards}
+            totalUnplaced={overview?.unplacedCount ?? visibleUnplacedCount}
+            selectedCardId={selectedCardId}
+            onSelect={selectCard}
+            onClose={() => setPoolOpen(false)}
+          />
+        )}
 
-        <div className="min-w-0">
-          <div className="mb-3 flex items-center justify-between px-1">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-                {resourceView}
-              </p>
-              <h2 className="mt-0.5 text-lg font-black">
-                {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} · {activeDayLabel}
-              </h2>
-            </div>
-            <div className="flex gap-2 text-[10px] font-black">
-              <span className="rounded-full bg-white px-3 py-1.5 text-slate-600 shadow-sm">
-                {visibleCards.length} kart
+        <div className="flex min-h-0 min-w-0 flex-col">
+          <div className="mb-2 flex h-8 shrink-0 items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                {RESOURCE_VIEWS.find((view) => view.id === resourceView)?.label}
               </span>
-              <span className="rounded-full bg-blue-50 px-3 py-1.5 text-blue-700">
-                {visiblePlacedCount} yerleşmiş
-              </span>
-              <span className="rounded-full bg-slate-200/70 px-3 py-1.5 text-slate-600">
-                {visibleUnplacedCount} yerleşmemiş
+              <span className="text-sm font-bold text-slate-800">
+                {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} · {DAY_LONG[activeDay]}
               </span>
             </div>
+
+            <span className="text-[9px] font-medium text-slate-400">
+              {visibleCards.length} kart · {rows.length} kaynak satırı
+            </span>
           </div>
 
           <ManagementBoardGrid
@@ -483,32 +738,31 @@ export default function ManagementPage() {
             view={resourceView}
             activeDay={activeDay}
             selectedCardId={selectedCardId}
-            onSelect={setSelectedCardId}
+            onSelect={selectCard}
           />
         </div>
 
-        <ManagementInspector
-          card={selectedCard}
-          candidateDetail={candidateDetail}
-          candidateLoading={candidateLoading}
-          candidateError={candidateError}
-          teacherNamesById={board?.teacherNamesById ?? {}}
-          roomNamesById={board?.roomNamesById ?? {}}
-        />
+        {showInspector && (
+          <ManagementInspector
+            card={selectedCard}
+            candidateDetail={candidateDetail}
+            candidateLoading={candidateLoading}
+            candidateError={candidateError}
+            teacherNamesById={board?.teacherNamesById ?? {}}
+            roomNamesById={board?.roomNamesById ?? {}}
+            canEdit={access?.canEdit === true}
+            commandBusy={commandBusy}
+            commandNotice={commandNotice}
+            onCandidateAction={(candidate) => {
+              void runCandidateCommand(candidate);
+            }}
+            onRemove={() => {
+              void runRemove();
+            }}
+            onClose={() => setInspectorOpen(false)}
+          />
+        )}
       </section>
-
-      <footer className="sticky bottom-0 border-t border-slate-200 bg-white/95 px-6 py-3 backdrop-blur">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-xs font-bold text-slate-500">
-            <span>Geçmiş: {overview?.activeMoveCount ?? '—'} aktif işlem</span>
-            <span>Yerleşmiş: {overview?.placedCount ?? '—'}</span>
-            <span>Yerleşmemiş: {overview?.unplacedCount ?? '—'}</span>
-          </div>
-          <div className="text-[11px] font-bold text-slate-400">
-            Canlı kartlar ve aday alanı bağlı · Düzenleme komutları henüz kapalı
-          </div>
-        </div>
-      </footer>
     </main>
   );
 }

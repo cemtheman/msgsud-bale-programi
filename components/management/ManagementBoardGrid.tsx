@@ -83,11 +83,11 @@ export function ManagementBoardGrid({
   );
 
   return (
-    <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-      <div className="overflow-auto">
-        <div className="min-w-[1040px]">
+    <section className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="management-scrollbar h-full overflow-auto">
+        <div className="min-w-[980px]">
           <div className="grid grid-cols-[160px_repeat(12,minmax(70px,1fr))] border-b border-slate-200 bg-slate-50">
-            <div className="sticky left-0 z-20 border-r border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+            <div className="sticky left-0 z-20 border-r border-slate-200 bg-slate-50 px-4 py-3 text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">
               Kaynak
             </div>
             {PERIODS.map((period) => (
@@ -95,10 +95,10 @@ export function ManagementBoardGrid({
                 key={period.number}
                 className="border-r border-slate-200 px-1 py-2 text-center last:border-r-0"
               >
-                <p className="text-[11px] font-black text-slate-600">
+                <p className="text-[10px] font-semibold text-slate-600">
                   {period.number}. ders
                 </p>
-                <p className="mt-0.5 text-[9px] font-bold text-slate-400">
+                <p className="mt-0.5 text-[9px] font-medium text-slate-400">
                   {period.time}
                 </p>
               </div>
@@ -126,7 +126,7 @@ export function ManagementBoardGrid({
                 const laneCount = packed.length === 0
                   ? 1
                   : Math.max(...packed.map((item) => item.lane)) + 1;
-                const rowHeight = Math.max(56, laneCount * 38 + 14);
+                const rowHeight = Math.max(54, laneCount * 42 + 12);
 
                 return (
                   <div
@@ -138,11 +138,11 @@ export function ManagementBoardGrid({
                       style={{ minHeight: rowHeight }}
                     >
                       <div className="min-w-0 self-center">
-                        <p className="truncate text-xs font-black text-slate-800">
+                        <p className="truncate text-[11px] font-semibold text-slate-800">
                           {row.label}
                         </p>
                         {row.secondary && (
-                          <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-400">
+                          <p className="mt-0.5 truncate text-[9px] font-medium text-slate-400">
                             {row.secondary}
                           </p>
                         )}
@@ -185,15 +185,15 @@ export function ManagementBoardGrid({
                             style={{
                               left: `calc(${left}% + 3px)`,
                               width: `calc(${width}% - 6px)`,
-                              top: 7 + lane * 38,
-                              height: 31,
+                              top: 6 + lane * 42,
+                              height: 36,
                             }}
                             title={`${card.subjectName} · ${card.groupName}`}
                           >
-                            <p className="truncate text-[10px] font-black">
+                            <p className="truncate text-[10px] font-semibold">
                               {card.subjectName}
                             </p>
-                            <p className="truncate text-[8px] font-bold opacity-65">
+                            <p className="truncate text-[8px] font-medium opacity-65">
                               {card.groupName}
                             </p>
                           </button>

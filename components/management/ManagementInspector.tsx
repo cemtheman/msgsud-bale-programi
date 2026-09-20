@@ -4,6 +4,7 @@ import {
   managementCardStatus,
   translateCandidateReason,
   type ManagementBoardCard,
+  type ManagementCandidateAssessment,
   type ManagementCandidateDetail,
 } from '@/lib/managementBoard';
 
@@ -64,9 +65,9 @@ function MetaRow({
   value: string;
 }) {
   return (
-    <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-3 py-1.5 text-[11px]">
-      <dt className="font-bold text-slate-400">{label}</dt>
-      <dd className="min-w-0 font-bold text-slate-700">{value}</dd>
+    <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-3 py-1.5 text-[11px]">
+      <dt className="font-medium text-slate-400">{label}</dt>
+      <dd className="min-w-0 font-semibold text-slate-700">{value}</dd>
     </div>
   );
 }
@@ -78,6 +79,12 @@ export function ManagementInspector({
   candidateError,
   teacherNamesById,
   roomNamesById,
+  canEdit,
+  commandBusy,
+  commandNotice,
+  onCandidateAction,
+  onRemove,
+  onClose,
 }: {
   card: ManagementBoardCard | null;
   candidateDetail: ManagementCandidateDetail | null;
@@ -85,14 +92,23 @@ export function ManagementInspector({
   candidateError: string | null;
   teacherNamesById: Record<string, string>;
   roomNamesById: Record<string, string>;
+  canEdit: boolean;
+  commandBusy: boolean;
+  commandNotice: { kind: 'success' | 'error'; text: string } | null;
+  onCandidateAction: (candidate: ManagementCandidateAssessment) => void;
+  onRemove: () => void;
+  onClose: () => void;
 }) {
   if (!card) {
     return (
-      <aside className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-          Ayrıntılar
-        </p>
-        <h2 className="mt-1 text-lg font-black">Kart seçimi</h2>
+      <aside className="h-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Ayrıntılar</p>
+            <h2 className="mt-0.5 text-base font-bold">Kart seçimi</h2>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-400 transition hover:bg-slate-50 hover:text-slate-700" title="Ayrıntıları kapat">×</button>
+        </div>
 
         <div className="mt-5 rounded-2xl border border-dashed border-slate-200 p-4">
           <p className="text-xs font-bold leading-5 text-slate-500">
@@ -106,20 +122,21 @@ export function ManagementInspector({
   const placement = card.placement;
 
   return (
-    <aside className="min-h-0 overflow-y-auto rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+    <aside className="management-scrollbar h-full min-h-0 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-            Ayrıntılar
-          </p>
-          <h2 className="mt-1 truncate text-lg font-black">{card.subjectName}</h2>
-          <p className="mt-1 text-[11px] font-bold text-slate-500">{card.groupName}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Ayrıntılar</p>
+          <h2 className="mt-0.5 truncate text-base font-bold">{card.subjectName}</h2>
+          <p className="mt-1 text-[10px] font-medium text-slate-500">{card.groupName}</p>
         </div>
-        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${
-          statusBadge(card)
-        }`}>
-          {managementCardStatus(card)}
-        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className={`rounded-full px-2.5 py-1 text-[9px] font-bold ${
+            statusBadge(card)
+          }`}>
+            {managementCardStatus(card)}
+          </span>
+          <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm font-semibold text-slate-400 transition hover:bg-slate-50 hover:text-slate-700" title="Ayrıntıları kapat">×</button>
+        </div>
       </div>
 
       <dl className="mt-4 border-t border-slate-100 pt-3">
@@ -163,15 +180,42 @@ export function ManagementInspector({
 
       {placement && (
         <div className="mt-4 rounded-2xl bg-blue-50 p-3">
-          <p className="text-[10px] font-black uppercase tracking-wide text-blue-700">
-            Mevcut yerleşim
-          </p>
-          <p className="mt-1 text-xs font-black text-blue-950">
-            {DAY_LABELS[placement.dayOfWeek]} · {placement.startPeriod}. ders
-          </p>
-          <p className="mt-1 text-[10px] font-semibold text-blue-700">
-            {placement.teacherName ?? 'Öğretmen belirsiz'} · {placement.roomName ?? 'Salon belirsiz'}
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-wide text-blue-700">
+                Mevcut yerleşim
+              </p>
+              <p className="mt-1 text-xs font-black text-blue-950">
+                {DAY_LABELS[placement.dayOfWeek]} · {placement.startPeriod}. ders
+              </p>
+              <p className="mt-1 text-[10px] font-semibold text-blue-700">
+                {placement.teacherName ?? 'Öğretmen belirsiz'} · {placement.roomName ?? 'Salon belirsiz'}
+              </p>
+            </div>
+
+            {canEdit && (
+              <button
+                type="button"
+                onClick={onRemove}
+                disabled={commandBusy || card.locked}
+                className="shrink-0 rounded-xl border border-rose-200 bg-white px-2.5 py-1.5 text-[10px] font-black text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Kaldır
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {commandNotice && (
+        <div
+          className={`mt-4 rounded-2xl border px-3 py-2.5 text-xs font-bold ${
+            commandNotice.kind === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border-rose-200 bg-rose-50 text-rose-700'
+          }`}
+        >
+          {commandNotice.text}
         </div>
       )}
 
@@ -243,28 +287,63 @@ export function ManagementInspector({
                 Uygun adaylar
               </p>
               <div className="mt-2 space-y-1.5">
-                {candidateDetail.validCandidates.slice(0, 8).map((candidate, index) => (
-                  <div
-                    key={`${candidate.dayOfWeek}-${candidate.startPeriod}-${candidate.teacherId ?? 'x'}-${candidate.roomId ?? 'x'}-${index}`}
-                    className="rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2"
-                  >
-                    <p className="text-[10px] font-black text-emerald-950">
-                      {DAY_LABELS[candidate.dayOfWeek]} · {candidate.startPeriod}. ders
-                    </p>
-                    <p className="mt-0.5 text-[9px] font-semibold text-emerald-700">
-                      {candidate.teacherId
-                        ? teacherNamesById[candidate.teacherId] ?? 'Öğretmen'
-                        : 'Öğretmen belirsiz'}
-                      {' · '}
-                      {candidate.roomId
-                        ? roomNamesById[candidate.roomId] ?? 'Salon'
-                        : 'Salon belirsiz'}
-                    </p>
-                  </div>
-                ))}
-                {candidateDetail.validCandidates.length > 8 && (
+                {candidateDetail.validCandidates.slice(0, 12).map((candidate, index) => {
+                  const isCurrent = Boolean(
+                    placement
+                    && candidate.dayOfWeek === placement.dayOfWeek
+                    && candidate.startPeriod === placement.startPeriod
+                    && candidate.teacherId === placement.teacherId
+                    && candidate.roomId === placement.roomId
+                  );
+                  const actionable = Boolean(
+                    canEdit
+                    && candidate.isComplete
+                    && candidate.teacherId
+                    && candidate.roomId
+                    && !card.locked
+                    && !isCurrent
+                  );
+
+                  return (
+                    <div
+                      key={`${candidate.dayOfWeek}-${candidate.startPeriod}-${candidate.teacherId ?? 'x'}-${candidate.roomId ?? 'x'}-${index}`}
+                      className="flex items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black text-emerald-950">
+                          {DAY_LABELS[candidate.dayOfWeek]} · {candidate.startPeriod}. ders
+                        </p>
+                        <p className="mt-0.5 truncate text-[9px] font-semibold text-emerald-700">
+                          {candidate.teacherId
+                            ? teacherNamesById[candidate.teacherId] ?? 'Öğretmen'
+                            : 'Öğretmen belirsiz'}
+                          {' · '}
+                          {candidate.roomId
+                            ? roomNamesById[candidate.roomId] ?? 'Salon'
+                            : 'Salon belirsiz'}
+                        </p>
+                      </div>
+
+                      {isCurrent ? (
+                        <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-[9px] font-black text-emerald-700">
+                          Mevcut
+                        </span>
+                      ) : canEdit ? (
+                        <button
+                          type="button"
+                          onClick={() => onCandidateAction(candidate)}
+                          disabled={!actionable || commandBusy}
+                          className="shrink-0 rounded-lg bg-emerald-800 px-2.5 py-1.5 text-[9px] font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-35"
+                        >
+                          {placement ? 'Taşı' : 'Yerleştir'}
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+                {candidateDetail.validCandidates.length > 12 && (
                   <p className="px-1 pt-1 text-[9px] font-bold text-slate-400">
-                    +{candidateDetail.validCandidates.length - 8} uygun aday daha
+                    +{candidateDetail.validCandidates.length - 12} uygun aday daha
                   </p>
                 )}
               </div>
