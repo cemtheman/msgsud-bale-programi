@@ -42,6 +42,8 @@ import {
   redoManagement,
   removeManagementCard,
   undoManagement,
+  updateManagementRequirementRooms,
+  updateManagementRequirementTeachers,
   type ManagementCommandDescriptor,
   type ManagementCommandState,
   type ManagementRootAction,
@@ -1014,6 +1016,7 @@ export default function ManagementPage() {
       ) : activeSection === 'PLAN' ? (
         <ManagementCoursePlan
           data={coursePlan}
+          canEdit={access?.canEdit === true}
           onOpenProgram={(requirementId, planStage: ManagementPlanStage) => {
             const card = board?.cards.find(
               (item) => item.requirementId === requirementId,
@@ -1029,6 +1032,46 @@ export default function ManagementPage() {
               if (card.placement) {
                 setActiveDay(card.placement.dayOfWeek);
               }
+            }
+          }}
+          onUpdateTeachers={async (requirementId, teacherIds) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Ders planındaki öğretmen tanımı güncelleniyor.');
+
+            try {
+              await updateManagementRequirementTeachers(
+                session.accessToken,
+                requirementId,
+                teacherIds,
+              );
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onUpdateRooms={async (requirementId, roomIds) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Ders planındaki salon tanımı güncelleniyor.');
+
+            try {
+              await updateManagementRequirementRooms(
+                session.accessToken,
+                requirementId,
+                roomIds,
+              );
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
             }
           }}
         />
