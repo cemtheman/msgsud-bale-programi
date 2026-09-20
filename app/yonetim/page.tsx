@@ -527,65 +527,60 @@ export default function ManagementPage() {
       </div>
 
       <header className="shrink-0 border-b border-slate-200 bg-white">
-        <div className="flex h-[62px] items-center gap-5 px-5">
-          <div className="flex shrink-0 items-center gap-3">
-            <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#A63D48]">
-                MSGSÜ Ders Programı
-              </p>
-              <div className="mt-0.5 flex items-center gap-2">
-                <h1 className="text-lg font-bold tracking-tight">Yönetim</h1>
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-600">
-                  {roleLabel(access?.role)}
-                </span>
-                {access?.canEdit && (
-                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700">
-                    Düzenleme açık
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
+        <div className="flex h-[46px] items-center gap-5 px-5">
+          <div className="flex h-full items-center gap-4">
+            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A63D48]">
+              Yönetim
+            </span>
 
-          <nav className="flex h-full items-end gap-5">
-            <button className="h-full border-b-2 border-slate-950 px-1 pt-1 text-[12px] font-bold text-slate-950">
-              Program
-            </button>
-            <button disabled className="h-full px-1 pt-1 text-[12px] font-semibold text-slate-300">
-              Ders Yükleri
-            </button>
-            <button disabled className="h-full px-1 pt-1 text-[12px] font-semibold text-slate-300">
-              Kaynaklar
-            </button>
-            <button disabled className="h-full px-1 pt-1 text-[12px] font-semibold text-slate-300">
-              Program Durumu
-            </button>
-          </nav>
+            <nav className="flex h-full items-center gap-5">
+              <button className="h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950">
+                Program
+              </button>
+              <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
+                Ders Yükleri
+              </button>
+              <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
+                Kaynaklar
+              </button>
+              <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
+                Program Durumu
+              </button>
+            </nav>
+          </div>
 
           <div className="ml-auto flex items-center gap-2">
             <span className="hidden max-w-[210px] truncate text-[10px] font-medium text-slate-400 xl:block">
               {session?.email}
               {overview ? ` · Taslak v${overview.versionNumber}` : ''}
             </span>
+            <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-semibold text-slate-600">
+              {roleLabel(access?.role)}
+            </span>
+            {access?.canEdit && (
+              <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-700">
+                Düzenleme açık
+              </span>
+            )}
             <button
               type="button"
               onClick={() => setRefreshToken((value) => value + 1)}
               disabled={dataLoading}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
             >
               {dataLoading ? 'Yenileniyor…' : 'Yenile'}
             </button>
             <button
               type="button"
               onClick={() => void logout()}
-              className="rounded-xl bg-slate-950 px-3 py-2 text-[10px] font-semibold text-white transition hover:bg-slate-800"
+              className="rounded-lg bg-slate-950 px-2.5 py-1.5 text-[10px] font-semibold text-white transition hover:bg-slate-800"
             >
               Çıkış
             </button>
           </div>
         </div>
 
-        <div className="flex h-[58px] items-center gap-3 border-t border-slate-100 px-5">
+        <div className="flex h-[54px] items-center gap-3 border-t border-slate-100 px-5">
           <button
             type="button"
             onClick={() => setPoolOpen((value) => !value)}
