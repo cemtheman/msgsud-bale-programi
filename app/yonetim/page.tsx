@@ -201,12 +201,6 @@ function LoginScreen({
           Öğrenci / öğretmen programına dön
         </Link>
       </section>
-
-      {commandBusy && (
-        <ManagementBusyOverlay
-          detail={commandActivity ?? 'Program güncelleniyor.'}
-        />
-      )}
     </main>
   );
 }
@@ -947,6 +941,12 @@ export default function ManagementPage() {
           />
         )}
       </section>
+
+      {commandBusy && (
+        <ManagementBusyOverlay
+          detail={commandActivity ?? 'Program güncelleniyor.'}
+        />
+      )}
     </main>
   );
 }
