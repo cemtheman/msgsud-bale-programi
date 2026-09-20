@@ -11,6 +11,7 @@ import {
 
 type PlanFilter = 'ACTIVE' | 'INACTIVE' | 'ALL';
 type PlanViewMode = 'SUBJECT' | 'CLASS';
+type EditKind = 'TEACHER' | 'ROOM';
 
 interface PlanGroup {
   key: string;
@@ -153,6 +154,9 @@ function requirementRow(
     requirementId: string,
     stage: ManagementPlanStage,
   ) => void,
+  canEdit: boolean,
+  onEditTeacher: (row: ManagementCoursePlanRow) => void,
+  onEditRoom: (row: ManagementCoursePlanRow) => void,
 ) {
   const term = termMeta(row.termStatus);
 
@@ -241,6 +245,25 @@ function requirementRow(
             Programda göster →
           </button>
         )}
+
+        {canEdit && row.termStatus === 'ACTIVE' && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => onEditTeacher(row)}
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50"
+            >
+              Öğretmen
+            </button>
+            <button
+              type="button"
+              onClick={() => onEditRoom(row)}
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50"
+            >
+              Salon
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -249,12 +272,24 @@ function requirementRow(
 export function ManagementCoursePlan({
   data,
   onOpenProgram,
+  canEdit,
+  onUpdateTeachers,
+  onUpdateRooms,
 }: {
   data: ManagementCoursePlanData | null;
   onOpenProgram: (
     requirementId: string,
     stage: ManagementPlanStage,
   ) => void;
+  canEdit: boolean;
+  onUpdateTeachers: (
+    requirementId: string,
+    teacherIds: string[],
+  ) => Promise<void>;
+  onUpdateRooms: (
+    requirementId: string,
+    roomIds: string[],
+  ) => Promise<void>;
 }) {
   const [stage, setStage] = useState<ManagementPlanStage>('ORTAOKUL');
   const [filter, setFilter] = useState<PlanFilter>('ACTIVE');
@@ -262,6 +297,11 @@ export function ManagementCoursePlan({
   const [query, setQuery] = useState('');
   const [classFilter, setClassFilter] = useState('TÜMÜ');
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  const [editRow, setEditRow] = useState<ManagementCoursePlanRow | null>(null);
+  const [editKind, setEditKind] = useState<EditKind | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const stageRows = useMemo(
     () => data?.rows.filter((row) => coursePlanMatchesStage(row, stage)) ?? [],
@@ -381,6 +421,54 @@ export function ManagementCoursePlan({
       }
       return next;
     });
+  };
+
+
+  const openEditor = (row: ManagementCoursePlanRow, kind: EditKind) => {
+    setEditRow(row);
+    setEditKind(kind);
+    setSelectedIds(kind === 'TEACHER' ? row.teacherIds : row.roomIds);
+    setSaveError(null);
+  };
+
+  const closeEditor = () => {
+    if (saving) return;
+    setEditRow(null);
+    setEditKind(null);
+    setSelectedIds([]);
+    setSaveError(null);
+  };
+
+  const toggleSelectedId = (id: string) => {
+    setSelectedIds((current) => (
+      current.includes(id)
+        ? current.filter((value) => value !== id)
+        : [...current, id]
+    ));
+  };
+
+  const saveAssignment = async () => {
+    if (!editRow || !editKind || saving) return;
+
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      if (editKind === 'TEACHER') {
+        await onUpdateTeachers(editRow.requirementId, selectedIds);
+      } else {
+        await onUpdateRooms(editRow.requirementId, selectedIds);
+      }
+      closeEditor();
+    } catch (reason: unknown) {
+      setSaveError(
+        reason instanceof Error
+          ? reason.message
+          : 'Değişiklik kaydedilemedi.',
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!data) {
@@ -647,6 +735,9 @@ export function ManagementCoursePlan({
                           viewMode === 'SUBJECT' ? 'GROUP' : 'SUBJECT',
                           stage,
                           onOpenProgram,
+                          canEdit,
+                          (row) => openEditor(row, 'TEACHER'),
+                          (row) => openEditor(row, 'ROOM'),
                         ))}
                       </div>
                     )}
@@ -658,9 +749,134 @@ export function ManagementCoursePlan({
         </div>
 
         <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-[10px] font-medium leading-5 text-blue-800">
-          Bu sürüm ders planını güvenli biçimde gösterir. Haftalık saat, blok yapısı, öğretmen veya salon tanımını değiştirmek kart yapısını ve aday alanlarını etkilediği için düzenleme işlemleri ayrı bir kontrollü adımda bağlanacak.
+          Öğretmen ve salon tanımları artık kontrollü biçimde düzenlenebilir. Haftalık saat, blok yapısı ve dönem durumu kart yapısını değiştirdiği için sonraki adımda etki önizlemesiyle bağlanacak.
         </div>
       </div>
+
+      {editRow && editKind && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-[1px]">
+          <div className="w-full max-w-[560px] rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_28px_90px_rgba(15,23,42,0.24)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">
+                  Ders Planını Düzenle
+                </p>
+                <h3 className="mt-1 text-lg font-black text-slate-950">
+                  {editRow.subjectName} · {audienceLabel(editRow)}
+                </h3>
+                <p className="mt-1 text-[11px] font-medium text-slate-500">
+                  {editKind === 'TEACHER' ? 'Öğretmen seçimi' : 'Salon seçimi'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeEditor}
+                disabled={saving}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+              >
+                Kapat
+              </button>
+            </div>
+
+            <div className={`mt-4 rounded-2xl border p-3 ${
+              editRow.placedBlockCount > 0
+                ? 'border-amber-200 bg-amber-50'
+                : 'border-emerald-200 bg-emerald-50'
+            }`}>
+              <p className={`text-[10px] font-black ${
+                editRow.placedBlockCount > 0
+                  ? 'text-amber-800'
+                  : 'text-emerald-800'
+              }`}>
+                {editRow.placedBlockCount > 0
+                  ? `${editRow.placedBlockCount} blok şu anda programda yerleşmiş.`
+                  : 'Programda yerleşmiş blok yok.'}
+              </p>
+              <p className="mt-1 text-[10px] font-medium leading-4 text-slate-600">
+                {editRow.placedBlockCount > 0
+                  ? 'Mevcut programı sessizce geçersiz kılmamak için önce bu dersin yerleşimlerini Program ekranından kaldırın.'
+                  : 'Değişiklik kaydedildiğinde yalnız bu dersin uygun yerleri yeniden hesaplanacak.'}
+              </p>
+
+              {editRow.placedBlockCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeEditor();
+                    onOpenProgram(editRow.requirementId, stage);
+                  }}
+                  className="mt-2 text-[10px] font-black text-blue-700 hover:text-blue-900"
+                >
+                  Programda göster →
+                </button>
+              )}
+            </div>
+
+            <div className="mt-4">
+              <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+                {editKind === 'TEACHER'
+                  ? 'Uygun öğretmenler'
+                  : 'Kullanılabilecek salonlar'}
+              </p>
+              <p className="mt-1 text-[10px] font-medium text-slate-500">
+                Bir seçim sabit atama, birden fazla seçim seçilebilir havuz oluşturur. Hiç seçim yapmazsanız bilgi belirsiz olarak işaretlenir.
+              </p>
+
+              <div className="mt-3 max-h-[280px] space-y-1.5 overflow-y-auto pr-1">
+                {(editKind === 'TEACHER'
+                  ? data.teacherOptions
+                  : data.roomOptions
+                ).map((option) => {
+                  const selected = selectedIds.includes(option.id);
+
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => toggleSelectedId(option.id)}
+                      disabled={saving || editRow.placedBlockCount > 0}
+                      className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-[10px] font-bold transition ${
+                        selected
+                          ? 'border-slate-950 bg-slate-950 text-white'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      } disabled:cursor-not-allowed disabled:opacity-45`}
+                    >
+                      <span>{option.name}</span>
+                      <span>{selected ? 'Seçildi' : 'Seç'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {saveError && (
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700">
+                {saveError}
+              </div>
+            )}
+
+            <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+              <div className="text-[10px] font-medium text-slate-500">
+                {selectedIds.length === 0
+                  ? 'Belirsiz bırakılacak'
+                  : selectedIds.length === 1
+                    ? 'Sabit atama'
+                    : `${selectedIds.length} seçenekli havuz`}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void saveAssignment()}
+                disabled={saving || editRow.placedBlockCount > 0}
+                className="rounded-xl bg-slate-950 px-4 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {saving ? 'Kaydediliyor…' : 'Değişikliği kaydet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
