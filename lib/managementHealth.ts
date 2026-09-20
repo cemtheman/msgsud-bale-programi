@@ -76,8 +76,8 @@ export function deriveManagementHealth(
     blockers.push({
       id: 'unplaced-inherited',
       severity: 'BLOCKER',
-      title: 'Yerleşmemiş ders kartları',
-      detail: 'Tüm zorunlu ders kartları yerleştirilmeden program yayına hazır sayılamaz.',
+      title: 'Programda henüz yeri olmayan dersler',
+      detail: 'Bu derslerin programda bir gün ve saat seçimi yapılmalı.',
       count: unplacedUntouched.length,
       origin: 'INHERITED',
     });
@@ -87,8 +87,8 @@ export function deriveManagementHealth(
     blockers.push({
       id: 'unplaced-touched',
       severity: 'BLOCKER',
-      title: 'Müdahale edilmiş ama yerleşmemiş kartlar',
-      detail: 'Üzerinde işlem yapılmış bu kartların programda geçerli bir yerleşimi bulunmuyor.',
+      title: 'Düzenlenmiş ama hâlâ yerleştirilmemiş dersler',
+      detail: 'Bu derslerde değişiklik yapılmış ancak son durumda programda geçerli bir yeri kalmamış.',
       count: unplacedTouched.length,
       origin: 'TOUCHED_INHERITED',
     });
@@ -98,8 +98,8 @@ export function deriveManagementHealth(
     blockers.push({
       id: 'contradiction-inherited',
       severity: 'BLOCKER',
-      title: 'Çelişkiye düşmüş kartlar',
-      detail: 'Bu kartların geçerli ve tamamlanabilir bir aday alanı kalmamış.',
+      title: 'Uygun yer bulunamayan dersler',
+      detail: 'Bu dersler için mevcut kurallara göre geçerli bir gün, saat, öğretmen ve salon birleşimi kalmamış.',
       count: contradictionUntouched.length,
       origin: 'INHERITED',
     });
@@ -109,8 +109,8 @@ export function deriveManagementHealth(
     blockers.push({
       id: 'contradiction-touched',
       severity: 'BLOCKER',
-      title: 'Müdahale sonrası çelişkiye düşmüş kartlar',
-      detail: 'İşlem görmüş bu kartların geçerli ve tamamlanabilir bir aday alanı kalmamış.',
+      title: 'Değişiklik sonrası uygun yeri kalmayan dersler',
+      detail: 'Bu derslerde yapılan değişiklikten sonra geçerli bir yerleşim seçeneği kalmamış.',
       count: contradictionTouched.length,
       origin: 'TOUCHED_INHERITED',
     });
@@ -120,8 +120,8 @@ export function deriveManagementHealth(
     blockers.push({
       id: 'unresolved-touched',
       severity: 'BLOCKER',
-      title: 'Müdahale edilmiş kartlarda belirsiz veri',
-      detail: 'Dokunulmuş kartlarda öğretmen, salon veya kaynak bilgisi belirsiz kaldığı için yayın engellenir.',
+      title: 'Düzenlenen derslerde eksik bilgi var',
+      detail: 'Bu derslerde öğretmen, salon veya kaynak bilgisi tamamlanmadan program yayımlanamaz.',
       count: unresolvedTouched.length,
       origin: 'TOUCHED_INHERITED',
     });
@@ -131,8 +131,8 @@ export function deriveManagementHealth(
     warnings.push({
       id: 'unresolved-inherited',
       severity: 'WARNING',
-      title: 'Devralınmış veri belirsizlikleri',
-      detail: 'Dokunulmamış eski veri belirsizlikleri veri borcu olarak izlenir; tek başına yayını engellemez.',
+      title: 'Tamamlanmamış öğretmen veya salon bilgileri',
+      detail: 'Mevcut veriden gelen bazı öğretmen veya salon bilgileri eksik. Bu kayıtlar henüz düzenlenmediği için ayrı bir dikkat notu olarak izleniyor.',
       count: unresolvedInherited.length,
       origin: 'INHERITED',
     });
