@@ -10,6 +10,7 @@ import { ManagementCardPool } from '@/components/management/ManagementCardPool';
 import { ManagementInspector } from '@/components/management/ManagementInspector';
 import { ManagementBusyOverlay } from '@/components/management/ManagementBusyOverlay';
 import { ManagementConfirmOverlay } from '@/components/management/ManagementConfirmOverlay';
+import { ManagementProgramStatus } from '@/components/management/ManagementProgramStatus';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   cardMatchesStage,
@@ -27,6 +28,7 @@ import {
   fetchManagementOverview,
   type ManagementOverview,
 } from '@/lib/managementOverview';
+import { deriveManagementHealth } from '@/lib/managementHealth';
 import {
   fetchManagementCommandState,
   moveManagementCard,
@@ -222,6 +224,7 @@ export default function ManagementPage() {
   const [dataLoading, setDataLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
 
+  const [activeSection, setActiveSection] = useState<'PROGRAM' | 'STATUS'>('PROGRAM');
   const [activeDay, setActiveDay] = useState(1);
   const [stage, setStage] = useState<ManagementStage>('ORTAOKUL');
   const [resourceView, setResourceView] =
@@ -332,6 +335,12 @@ export default function ManagementPage() {
   const dragCard = useMemo(
     () => board?.cards.find((card) => card.id === dragCardId) ?? null,
     [board, dragCardId],
+  );
+
+
+  const healthSnapshot = useMemo(
+    () => deriveManagementHealth(board, overview),
+    [board, overview],
   );
 
   const selectCard = (cardId: string) => {
@@ -717,7 +726,15 @@ export default function ManagementPage() {
             </span>
 
             <nav className="flex h-full items-center gap-5">
-              <button className="h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950">
+              <button
+                type="button"
+                onClick={() => setActiveSection('PROGRAM')}
+                className={
+                  activeSection === 'PROGRAM'
+                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
+                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                }
+              >
                 Program
               </button>
               <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
@@ -726,7 +743,15 @@ export default function ManagementPage() {
               <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
                 Kaynaklar
               </button>
-              <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
+              <button
+                type="button"
+                onClick={() => setActiveSection('STATUS')}
+                className={
+                  activeSection === 'STATUS'
+                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
+                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                }
+              >
                 Program Durumu
               </button>
             </nav>
@@ -763,120 +788,122 @@ export default function ManagementPage() {
           </div>
         </div>
 
-        <div className="flex h-[54px] items-center gap-3 border-t border-slate-100 px-5">
-          <button
-            type="button"
-            onClick={() => setPoolOpen((value) => !value)}
-            className={`rounded-xl border px-3 py-2 text-[10px] font-bold transition ${
-              poolOpen
-                ? 'border-slate-950 bg-slate-950 text-white'
-                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            Ders Havuzu · {visibleUnplacedCount}
-          </button>
-
-          <div className="flex rounded-xl border border-slate-200 bg-white p-1">
-            {STAGES.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setStage(item.id)}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
-                  stage === item.id
-                    ? 'bg-[#A63D48] text-white'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex rounded-xl bg-slate-100 p-1">
-            {DAYS.map((day) => (
-              <button
-                key={day.id}
-                type="button"
-                onClick={() => setActiveDay(day.id)}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
-                  activeDay === day.id
-                    ? 'bg-white text-slate-950 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-                title={DAY_LONG[day.id]}
-              >
-                {day.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="mx-auto flex rounded-xl border border-slate-200 bg-white p-1">
-            {RESOURCE_VIEWS.map((view) => (
-              <button
-                key={view.id}
-                type="button"
-                onClick={() => setResourceView(view.id)}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
-                  resourceView === view.id
-                    ? 'bg-slate-950 text-white'
-                    : 'text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                {view.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2 text-[9px] font-semibold text-slate-500">
-            <span>{visiblePlacedCount} yerleşmiş</span>
-            <span className="text-slate-300">·</span>
-            <span>{visibleUnplacedCount} havuzda</span>
-            <span className="text-slate-300">·</span>
-            <span>{overview?.activeMoveCount ?? 0} işlem</span>
-          </div>
-
-          {selectedCard && !showInspector && (
+        {activeSection === 'PROGRAM' && (
+          <div className="flex h-[54px] items-center gap-3 border-t border-slate-100 px-5">
             <button
               type="button"
-              onClick={() => setInspectorOpen(true)}
-              className="max-w-[150px] truncate rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"
+              onClick={() => setPoolOpen((value) => !value)}
+              className={`rounded-xl border px-3 py-2 text-[10px] font-bold transition ${
+                poolOpen
+                  ? 'border-slate-950 bg-slate-950 text-white'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
             >
-              Ayrıntılar · {selectedCard.subjectName}
+              Ders Havuzu · {visibleUnplacedCount}
             </button>
-          )}
-
-          {access?.canEdit ? (
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => void runUndo()}
-                disabled={!commandState.undo || commandBusy}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
-                title={commandState.undo
-                  ? `${commandContextLabel(commandState.undo, board)} geri al`
-                  : 'Geri alınabilecek işlem yok'}
-              >
-                ↶ Geri Al
-              </button>
-              <button
-                type="button"
-                onClick={() => void runRedo()}
-                disabled={!commandState.redo || commandBusy}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
-                title={commandState.redo
-                  ? `${commandContextLabel(commandState.redo, board)} yeniden uygula`
-                  : 'Yinelenecek işlem yok'}
-              >
-                ↷ Yinele
-              </button>
+  
+            <div className="flex rounded-xl border border-slate-200 bg-white p-1">
+              {STAGES.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setStage(item.id)}
+                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                    stage === item.id
+                      ? 'bg-[#A63D48] text-white'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
-          ) : (
-            <span className="text-[10px] font-semibold text-slate-400">
-              Salt okunur
-            </span>
-          )}
-        </div>
+  
+            <div className="flex rounded-xl bg-slate-100 p-1">
+              {DAYS.map((day) => (
+                <button
+                  key={day.id}
+                  type="button"
+                  onClick={() => setActiveDay(day.id)}
+                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                    activeDay === day.id
+                      ? 'bg-white text-slate-950 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  title={DAY_LONG[day.id]}
+                >
+                  {day.label}
+                </button>
+              ))}
+            </div>
+  
+            <div className="mx-auto flex rounded-xl border border-slate-200 bg-white p-1">
+              {RESOURCE_VIEWS.map((view) => (
+                <button
+                  key={view.id}
+                  type="button"
+                  onClick={() => setResourceView(view.id)}
+                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                    resourceView === view.id
+                      ? 'bg-slate-950 text-white'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {view.label}
+                </button>
+              ))}
+            </div>
+  
+            <div className="flex items-center gap-2 text-[9px] font-semibold text-slate-500">
+              <span>{visiblePlacedCount} yerleşmiş</span>
+              <span className="text-slate-300">·</span>
+              <span>{visibleUnplacedCount} havuzda</span>
+              <span className="text-slate-300">·</span>
+              <span>{overview?.activeMoveCount ?? 0} işlem</span>
+            </div>
+  
+            {selectedCard && !showInspector && (
+              <button
+                type="button"
+                onClick={() => setInspectorOpen(true)}
+                className="max-w-[150px] truncate rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Ayrıntılar · {selectedCard.subjectName}
+              </button>
+            )}
+  
+            {access?.canEdit ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => void runUndo()}
+                  disabled={!commandState.undo || commandBusy}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+                  title={commandState.undo
+                    ? `${commandContextLabel(commandState.undo, board)} geri al`
+                    : 'Geri alınabilecek işlem yok'}
+                >
+                  ↶ Geri Al
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void runRedo()}
+                  disabled={!commandState.redo || commandBusy}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+                  title={commandState.redo
+                    ? `${commandContextLabel(commandState.redo, board)} yeniden uygula`
+                    : 'Yinelenecek işlem yok'}
+                >
+                  ↷ Yinele
+                </button>
+              </div>
+            ) : (
+              <span className="text-[10px] font-semibold text-slate-400">
+                Salt okunur
+              </span>
+            )}
+          </div>
+        )}
       </header>
 
       {dataError && (
@@ -885,86 +912,93 @@ export default function ManagementPage() {
         </div>
       )}
 
-      <section
-        className="grid min-h-0 flex-1 gap-3 p-3"
-        style={{ gridTemplateColumns: workbenchColumns }}
-      >
-        {poolOpen && (
-          <ManagementCardPool
-            cards={visibleCards}
-            totalUnplaced={overview?.unplacedCount ?? visibleUnplacedCount}
-            selectedCardId={selectedCardId}
-            onSelect={selectCard}
-            onClose={() => setPoolOpen(false)}
-            canEdit={access?.canEdit === true}
-            onDragStart={beginDrag}
-            onDragEnd={endDrag}
-          />
-        )}
-
-        <div className="flex min-h-0 min-w-0 flex-col">
-          <div className="mb-2 flex h-8 shrink-0 items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                {RESOURCE_VIEWS.find((view) => view.id === resourceView)?.label}
-              </span>
-              <span className="text-sm font-bold text-slate-800">
-                {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} · {DAY_LONG[activeDay]}
+      {activeSection === 'PROGRAM' ? (
+        <section
+          className="grid min-h-0 flex-1 gap-3 p-3"
+          style={{ gridTemplateColumns: workbenchColumns }}
+        >
+          {poolOpen && (
+            <ManagementCardPool
+              cards={visibleCards}
+              totalUnplaced={overview?.unplacedCount ?? visibleUnplacedCount}
+              selectedCardId={selectedCardId}
+              onSelect={selectCard}
+              onClose={() => setPoolOpen(false)}
+              canEdit={access?.canEdit === true}
+              onDragStart={beginDrag}
+              onDragEnd={endDrag}
+            />
+          )}
+  
+          <div className="flex min-h-0 min-w-0 flex-col">
+            <div className="mb-2 flex h-8 shrink-0 items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  {RESOURCE_VIEWS.find((view) => view.id === resourceView)?.label}
+                </span>
+                <span className="text-sm font-bold text-slate-800">
+                  {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} · {DAY_LONG[activeDay]}
+                </span>
+              </div>
+  
+              <span className="text-[9px] font-medium text-slate-400">
+                {visibleCards.length} kart · {rows.length} kaynak satırı
               </span>
             </div>
-
-            <span className="text-[9px] font-medium text-slate-400">
-              {visibleCards.length} kart · {rows.length} kaynak satırı
-            </span>
+  
+            <ManagementBoardGrid
+              rows={rows}
+              cards={visibleCards}
+              view={resourceView}
+              activeDay={activeDay}
+              selectedCardId={selectedCardId}
+              onSelect={selectCard}
+              canEdit={access?.canEdit === true}
+              dragCard={dragCard}
+              dragCandidateDetail={dragCandidateDetail}
+              dragLoading={dragLoading}
+              onDragStart={beginDrag}
+              onDragEnd={endDrag}
+              onDropCandidate={(candidate) => {
+                const card = dragCard;
+                endDrag();
+                if (card) {
+                  void runCandidateCommand(candidate, card);
+                }
+              }}
+              onDropNeedsAttention={(target) => {
+                endDrag();
+                handleDropNeedsAttention(target);
+              }}
+            />
           </div>
-
-          <ManagementBoardGrid
-            rows={rows}
-            cards={visibleCards}
-            view={resourceView}
-            activeDay={activeDay}
-            selectedCardId={selectedCardId}
-            onSelect={selectCard}
-            canEdit={access?.canEdit === true}
-            dragCard={dragCard}
-            dragCandidateDetail={dragCandidateDetail}
-            dragLoading={dragLoading}
-            onDragStart={beginDrag}
-            onDragEnd={endDrag}
-            onDropCandidate={(candidate) => {
-              const card = dragCard;
-              endDrag();
-              if (card) {
-                void runCandidateCommand(candidate, card);
-              }
-            }}
-            onDropNeedsAttention={(target) => {
-              endDrag();
-              handleDropNeedsAttention(target);
-            }}
-          />
-        </div>
-
-        {showInspector && (
-          <ManagementInspector
-            card={selectedCard}
-            candidateDetail={candidateDetail}
-            candidateLoading={candidateLoading}
-            candidateError={candidateError}
-            candidateFocus={candidateFocus}
-            teacherNamesById={board?.teacherNamesById ?? {}}
-            roomNamesById={board?.roomNamesById ?? {}}
-            canEdit={access?.canEdit === true}
-            commandBusy={commandBusy}
-            commandNotice={commandNotice}
-            onCandidateAction={(candidate) => {
-              void runCandidateCommand(candidate);
-            }}
-            onRemove={requestRemove}
-            onClose={() => setInspectorOpen(false)}
-          />
-        )}
-      </section>
+  
+          {showInspector && (
+            <ManagementInspector
+              card={selectedCard}
+              candidateDetail={candidateDetail}
+              candidateLoading={candidateLoading}
+              candidateError={candidateError}
+              candidateFocus={candidateFocus}
+              teacherNamesById={board?.teacherNamesById ?? {}}
+              roomNamesById={board?.roomNamesById ?? {}}
+              canEdit={access?.canEdit === true}
+              commandBusy={commandBusy}
+              commandNotice={commandNotice}
+              onCandidateAction={(candidate) => {
+                void runCandidateCommand(candidate);
+              }}
+              onRemove={requestRemove}
+              onClose={() => setInspectorOpen(false)}
+            />
+          )}
+        </section>
+      ) : (
+        <ManagementProgramStatus
+          snapshot={healthSnapshot}
+          versionNumber={overview?.versionNumber ?? null}
+        />
+      )}
 
       {removeConfirmOpen && selectedCard?.placement && (
         <ManagementConfirmOverlay
