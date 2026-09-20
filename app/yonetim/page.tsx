@@ -185,7 +185,7 @@ export default function ManagementPage() {
           <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">Erişim sınırı</p>
           <h1 className="mt-2 text-2xl font-black">Bu hesap Yönetim üyesi değil</h1>
           <p className="mt-3 text-sm leading-6 text-slate-500">
-            Oturum açıldı ancak aktif VIEWER, EDITOR veya ADMIN üyeliği bulunamadı.
+            Oturum açıldı ancak aktif Görüntüleyici, Editör veya Yönetici yetkisi bulunamadı.
           </p>
           <button
             type="button"
@@ -319,11 +319,11 @@ export default function ManagementPage() {
 
           <div className="mt-5 grid grid-cols-2 gap-2">
             <div className="rounded-2xl bg-emerald-50 p-3">
-              <p className="text-[10px] font-black uppercase text-emerald-700">Forced</p>
+              <p className="text-[10px] font-black uppercase text-emerald-700">Zorunlu</p>
               <p className="mt-1 text-xl font-black text-emerald-950">{overview?.forcedCount ?? '—'}</p>
             </div>
             <div className="rounded-2xl bg-amber-50 p-3">
-              <p className="text-[10px] font-black uppercase text-amber-700">Unresolved</p>
+              <p className="text-[10px] font-black uppercase text-amber-700">Belirsiz</p>
               <p className="mt-1 text-xl font-black text-amber-950">{overview?.unresolvedCount ?? '—'}</p>
             </div>
             <div className="rounded-2xl bg-rose-50 p-3">
@@ -376,11 +376,11 @@ export default function ManagementPage() {
                 <div className="max-w-[470px] text-center">
                   <p className="text-sm font-black text-slate-800">
                     {dayPlacementCount === 0
-                      ? 'Bu gün için taslak placement yok.'
-                      : `Bu gün için ${dayPlacementCount} placement var.`}
+                      ? 'Bu gün için taslak yerleşim yok.'
+                      : `Bu gün için ${dayPlacementCount} yerleşim var.`}
                   </p>
                   <p className="mt-2 text-xs leading-5 text-slate-400">
-                    Yatay period ızgarası canlı draft verisine bağlı. Sınıf / öğretmen / salon satırları bir sonraki veri bağlama diliminde bu yüzeye eklenecek.
+                    Yatay ders saati ızgarası canlı taslak program verisine bağlı. Sınıf / öğretmen / salon satırları bir sonraki veri bağlama aşamasında bu yüzeye eklenecek.
                   </p>
                 </div>
               </div>
@@ -389,7 +389,7 @@ export default function ManagementPage() {
         </section>
 
         <aside className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Inspector</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Ayrıntılar</p>
           <h2 className="mt-1 text-lg font-black">Kart seçimi</h2>
 
           <div className="mt-5 space-y-3">
@@ -398,8 +398,8 @@ export default function ManagementPage() {
               <p className="mt-1 text-sm font-black">{roleLabel(access?.role)}</p>
               <p className="mt-1 text-xs leading-5 text-slate-500">
                 {access?.canEdit
-                  ? 'PLACE / MOVE / REMOVE / UNDO / REDO kontrollü RPC sınırından çalışabilir.'
-                  : 'Bu oturum yalnız yönetim draft verisini okuyabilir.'}
+                  ? 'Yerleştir / Taşı / Kaldır / Geri Al / Yinele işlemleri kontrollü yönetim komutlarıyla çalışır.'
+                  : 'Bu oturum yalnız yönetim taslak verisini okuyabilir.'}
               </p>
             </div>
 
@@ -420,7 +420,7 @@ export default function ManagementPage() {
             <span>Yerleşmemiş: {overview?.unplacedCount ?? '—'}</span>
           </div>
           <div className="text-[11px] font-bold text-slate-400">
-            Undo / Redo motoru hazır · UI komutları henüz bağlanmadı
+            Geri Al / Yinele hazır · Arayüz komutları henüz bağlanmadı
           </div>
         </div>
       </footer>
