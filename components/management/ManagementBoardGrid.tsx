@@ -83,8 +83,8 @@ export function ManagementBoardGrid({
   );
 
   return (
-    <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-      <div className="overflow-auto">
+    <section className="min-h-0 flex-1 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
+      <div className="h-full overflow-auto">
         <div className="min-w-[1040px]">
           <div className="grid grid-cols-[160px_repeat(12,minmax(70px,1fr))] border-b border-slate-200 bg-slate-50">
             <div className="sticky left-0 z-20 border-r border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
