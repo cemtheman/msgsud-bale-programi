@@ -109,6 +109,18 @@ function translateCommandError(message: string, fallback: string) {
     return 'Program işlem zinciri güncelliğini kaybetti. Veriyi yenileyip işlemi yeniden deneyin.';
   }
 
+  if (
+    normalized.includes('assignment change requires all requirement cards to be unplaced first')
+  ) {
+    return 'Bu dersin programda yerleşmiş blokları var. Öğretmen veya salonu değiştirmeden önce bu dersin yerleşimlerini programdan kaldırın.';
+  }
+
+  if (
+    normalized.includes('teacher selection contains an unknown teacher')
+    || normalized.includes('room selection contains an unknown room')
+  ) {
+    return 'Seçilen öğretmen veya salon artık kullanılamıyor. Veriyi yenileyip tekrar deneyin.';
+  }
 
   if (normalized.includes('draft')) {
     return 'Bu işlem yalnız taslak program üzerinde yapılabilir.';
@@ -196,6 +208,29 @@ export function removeManagementCard(
 ) {
   return callRpc('management_remove_card', accessToken, {
     p_card_id: cardId,
+  });
+}
+
+
+export function updateManagementRequirementTeachers(
+  accessToken: string,
+  requirementId: string,
+  teacherIds: string[],
+) {
+  return callRpc('management_update_requirement_teachers', accessToken, {
+    p_requirement_id: requirementId,
+    p_teacher_ids: teacherIds,
+  });
+}
+
+export function updateManagementRequirementRooms(
+  accessToken: string,
+  requirementId: string,
+  roomIds: string[],
+) {
+  return callRpc('management_update_requirement_rooms', accessToken, {
+    p_requirement_id: requirementId,
+    p_room_ids: roomIds,
   });
 }
 
