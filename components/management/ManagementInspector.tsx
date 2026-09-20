@@ -94,7 +94,7 @@ export function ManagementInspector({
   roomNamesById: Record<string, string>;
   canEdit: boolean;
   commandBusy: boolean;
-  commandNotice: { kind: 'success' | 'error'; text: string } | null;
+  commandNotice: { kind: 'success' | 'error' | 'info'; text: string } | null;
   onCandidateAction: (candidate: ManagementCandidateAssessment) => void;
   onRemove: () => void;
   onClose: () => void;
@@ -212,7 +212,9 @@ export function ManagementInspector({
           className={`mt-4 rounded-2xl border px-3 py-2.5 text-xs font-bold ${
             commandNotice.kind === 'success'
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border-rose-200 bg-rose-50 text-rose-700'
+              : commandNotice.kind === 'info'
+                ? 'border-blue-200 bg-blue-50 text-blue-800'
+                : 'border-rose-200 bg-rose-50 text-rose-700'
           }`}
         >
           {commandNotice.text}
