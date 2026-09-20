@@ -459,7 +459,10 @@ export function ManagementCoursePlan({
       } else {
         await onUpdateRooms(editRow.requirementId, selectedIds);
       }
-      closeEditor();
+      setEditRow(null);
+      setEditKind(null);
+      setSelectedIds([]);
+      setSaveError(null);
     } catch (reason: unknown) {
       setSaveError(
         reason instanceof Error
