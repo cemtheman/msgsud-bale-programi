@@ -451,64 +451,76 @@ body {
 }
 
 
-/* Yönetim işlem göstergesi: 2D bir ikonun takla atması yerine,
-   müzik kutusundaki gibi dikey eksende dönen balerin illüzyonu. */
+/* Yönetim işlem göstergesi.
+   Düz bir SVG'yi 3D eksende çevirmiyoruz; bu, balerini ezip ters yüz ediyordu.
+   Balerin dik ve dengede kalır. Hareket hissini kaidenin dönen mekanizması,
+   hafif poise/salınım ve ışık halkası verir. */
 .management-music-box {
   position: relative;
   display: flex;
-  width: 132px;
-  height: 150px;
+  width: 136px;
+  height: 154px;
   align-items: flex-end;
   justify-content: center;
-  perspective: 520px;
 }
 
 .management-music-box-glow {
   position: absolute;
   left: 50%;
   top: 18px;
-  width: 104px;
-  height: 104px;
+  width: 106px;
+  height: 106px;
   transform: translateX(-50%);
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(166, 61, 72, 0.12) 0%, rgba(166, 61, 72, 0) 70%);
-  animation: management-music-box-glow 2.2s ease-in-out infinite;
+  background: radial-gradient(
+    circle,
+    rgba(166, 61, 72, 0.11) 0%,
+    rgba(166, 61, 72, 0.045) 44%,
+    rgba(166, 61, 72, 0) 72%
+  );
+  animation: management-music-box-glow 2.4s ease-in-out infinite;
 }
 
 .management-music-box-ballerina {
   position: absolute;
   left: 50%;
-  bottom: 42px;
-  z-index: 3;
-  transform-origin: 50% 100%;
-  animation: management-ballerina-turn 3.2s linear infinite;
+  bottom: 43px;
+  z-index: 4;
+  transform: translateX(-50%);
+  transform-origin: 50% 94%;
+  animation: management-ballerina-poise 2.6s ease-in-out infinite;
   will-change: transform;
 }
 
 .management-music-box-stem {
   position: absolute;
   left: 50%;
-  bottom: 37px;
+  bottom: 35px;
   z-index: 2;
   width: 3px;
-  height: 20px;
+  height: 22px;
   transform: translateX(-50%);
   border-radius: 999px;
-  background: linear-gradient(to bottom, #c7a669, #8f713e);
-  box-shadow: 0 0 0 1px rgba(143, 113, 62, 0.12);
+  background: linear-gradient(to bottom, #d6bd86, #9f7f49);
+  box-shadow: 0 0 0 1px rgba(143, 113, 62, 0.1);
 }
 
 .management-music-box-base {
   position: relative;
-  z-index: 4;
-  width: 116px;
-  height: 42px;
-  border: 1px solid rgba(143, 113, 62, 0.3);
-  border-radius: 50% 50% 15px 15px / 30% 30% 15px 15px;
-  background: linear-gradient(180deg, #f5ead4 0%, #dfc9a0 58%, #c6a56b 100%);
+  z-index: 3;
+  width: 118px;
+  height: 40px;
+  border: 1px solid rgba(143, 113, 62, 0.28);
+  border-radius: 50% 50% 13px 13px / 28% 28% 13px 13px;
+  background: linear-gradient(
+    180deg,
+    #f7eedf 0%,
+    #e7d4b1 50%,
+    #cbaa70 100%
+  );
   box-shadow:
-    0 10px 24px rgba(15, 23, 42, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    0 11px 24px rgba(15, 23, 42, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
 .management-music-box-disc {
@@ -516,55 +528,88 @@ body {
   left: 8px;
   right: 8px;
   top: -8px;
-  height: 20px;
-  border: 1px solid rgba(143, 113, 62, 0.32);
+  height: 19px;
+  border: 1px solid rgba(143, 113, 62, 0.3);
   border-radius: 50%;
   background:
+    radial-gradient(circle at center, #ead8b9 0 12%, transparent 13%),
     conic-gradient(
       from 0deg,
-      #f9f1e2 0deg,
-      #cfb27d 62deg,
-      #f9f1e2 126deg,
-      #b89659 188deg,
-      #f9f1e2 252deg,
-      #cfb27d 314deg,
-      #f9f1e2 360deg
+      #fbf5e9 0deg 42deg,
+      #c9a96e 42deg 48deg,
+      #fbf5e9 48deg 132deg,
+      #b99354 132deg 138deg,
+      #fbf5e9 138deg 222deg,
+      #c9a96e 222deg 228deg,
+      #fbf5e9 228deg 312deg,
+      #b99354 312deg 318deg,
+      #fbf5e9 318deg 360deg
     );
-  animation: management-music-box-disc 3.2s linear infinite;
-  box-shadow: inset 0 2px 5px rgba(109, 82, 38, 0.12);
+  animation: management-music-box-disc 4.2s linear infinite;
+  box-shadow: inset 0 2px 5px rgba(109, 82, 38, 0.11);
+}
+
+.management-music-box-disc span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px;
+  border-radius: 999px;
+  background: rgba(166, 61, 72, 0.34);
+}
+
+.management-music-box-disc span:nth-child(1) {
+  transform: translate(34px, 0);
+}
+
+.management-music-box-disc span:nth-child(2) {
+  transform: translate(-34px, 0);
+}
+
+.management-music-box-disc span:nth-child(3) {
+  transform: translate(0, 5px);
+}
+
+.management-music-box-disc span:nth-child(4) {
+  transform: translate(0, -5px);
 }
 
 .management-music-box-base-front {
   position: absolute;
-  inset: 13px 14px 8px;
+  inset: 14px 13px 7px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
 }
 
+.management-music-box-base-front i,
 .management-music-box-base-front span {
-  width: 5px;
-  height: 5px;
+  display: block;
   border-radius: 999px;
-  background: rgba(143, 113, 62, 0.46);
 }
 
-@keyframes management-ballerina-turn {
-  0% {
-    transform: translateX(-50%) translateY(0) rotateY(0deg);
-  }
-  25% {
-    transform: translateX(-50%) translateY(-1px) rotateY(90deg);
+.management-music-box-base-front i {
+  width: 4px;
+  height: 4px;
+  background: rgba(143, 113, 62, 0.42);
+}
+
+.management-music-box-base-front span {
+  width: 26px;
+  height: 3px;
+  background: rgba(143, 113, 62, 0.24);
+}
+
+@keyframes management-ballerina-poise {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0) rotate(-0.8deg);
   }
   50% {
-    transform: translateX(-50%) translateY(0) rotateY(180deg);
-  }
-  75% {
-    transform: translateX(-50%) translateY(-1px) rotateY(270deg);
-  }
-  100% {
-    transform: translateX(-50%) translateY(0) rotateY(360deg);
+    transform: translateX(-50%) translateY(-2px) rotate(0.8deg);
   }
 }
 
@@ -577,12 +622,12 @@ body {
 @keyframes management-music-box-glow {
   0%,
   100% {
-    opacity: 0.55;
-    transform: translateX(-50%) scale(0.94);
+    opacity: 0.48;
+    transform: translateX(-50%) scale(0.96);
   }
   50% {
-    opacity: 1;
-    transform: translateX(-50%) scale(1.04);
+    opacity: 0.92;
+    transform: translateX(-50%) scale(1.035);
   }
 }
 
