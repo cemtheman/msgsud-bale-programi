@@ -970,6 +970,7 @@ declare
   v_summary_count integer;
   v_placement_count integer;
   v_transaction_count integer;
+  v_published_session_count integer;
 begin
   select count(*)
   into v_revision_count
@@ -1014,6 +1015,16 @@ begin
       'M8 installation requires clean scheduling state: placements %, transactions %',
       v_placement_count,
       v_transaction_count;
+  end if;
+
+  select count(*)
+  into v_published_session_count
+  from public.schedule_sessions
+  where academic_year = '2026-2027';
+
+  if v_published_session_count <> 517 then
+    raise exception 'M8 changed published schedule projection unexpectedly: %',
+      v_published_session_count;
   end if;
 
   update public.schedule_revisions revision
