@@ -1,16 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { ManagementBoardGrid } from '@/components/management/ManagementBoardGrid';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ManagementBoardGrid,
+  type ManagementDropTarget,
+} from '@/components/management/ManagementBoardGrid';
 import { ManagementCardPool } from '@/components/management/ManagementCardPool';
 import { ManagementInspector } from '@/components/management/ManagementInspector';
+import { ManagementBusyOverlay } from '@/components/management/ManagementBusyOverlay';
+import { ManagementConfirmOverlay } from '@/components/management/ManagementConfirmOverlay';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   cardMatchesStage,
   fetchManagementBoard,
   fetchManagementCardCandidates,
   managementRowsForView,
+  translateCandidateReason,
   type ManagementBoardData,
   type ManagementCandidateAssessment,
   type ManagementCandidateDetail,
@@ -28,7 +34,9 @@ import {
   redoManagement,
   removeManagementCard,
   undoManagement,
+  type ManagementCommandDescriptor,
   type ManagementCommandState,
+  type ManagementRootAction,
 } from '@/lib/managementCommands';
 
 const DAYS = [
@@ -66,6 +74,51 @@ function roleLabel(role: string | null | undefined) {
   if (role === 'EDITOR') return 'Editör';
   if (role === 'VIEWER') return 'Görüntüleyici';
   return 'Yetkisiz';
+}
+
+
+function actionNoun(action: ManagementRootAction) {
+  if (action === 'PLACE') return 'yerleştirmesi';
+  if (action === 'MOVE') return 'taşıması';
+  return 'kaldırma işlemi';
+}
+
+function commandContextLabel(
+  descriptor: ManagementCommandDescriptor | null,
+  board: ManagementBoardData | null,
+) {
+  if (!descriptor) return 'Program işlemi';
+
+  const card = descriptor.cardId
+    ? board?.cards.find((item) => item.id === descriptor.cardId) ?? null
+    : null;
+
+  if (!card) {
+    return `Program ${actionNoun(descriptor.action)}`;
+  }
+
+  const audience = card.classCodes.length > 0
+    ? card.classCodes.join(', ')
+    : card.groupName;
+
+  return `${audience} ${card.subjectName} ${actionNoun(descriptor.action)}`;
+}
+
+function completedCommandMessage(
+  descriptor: ManagementCommandDescriptor | null,
+  board: ManagementBoardData | null,
+  mode: 'undo' | 'redo',
+) {
+  const base = commandContextLabel(descriptor, board);
+  const autoText = descriptor && descriptor.autoCount > 0
+    ? ` ve buna bağlı ${descriptor.autoCount} otomatik yerleşim`
+    : '';
+
+  if (mode === 'undo') {
+    return `${base}${autoText} geri alındı.`;
+  }
+
+  return `${base}${autoText} yeniden uygulandı.`;
 }
 
 function LoginScreen({
@@ -182,16 +235,27 @@ export default function ManagementPage() {
     useState<ManagementCandidateDetail | null>(null);
   const [candidateLoading, setCandidateLoading] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
+  const [candidateFocus, setCandidateFocus] = useState<{
+    dayOfWeek: number;
+    startPeriod: number;
+    candidates: ManagementCandidateAssessment[];
+  } | null>(null);
+
+  const [dragCardId, setDragCardId] = useState<string | null>(null);
+  const [dragCandidateDetail, setDragCandidateDetail] =
+    useState<ManagementCandidateDetail | null>(null);
+  const [dragLoading, setDragLoading] = useState(false);
+  const dragSequenceRef = useRef(0);
 
   const [commandState, setCommandState] = useState<ManagementCommandState>({
-    undoTransactionId: null,
-    undoLabel: null,
-    redoTransactionId: null,
-    redoLabel: null,
+    undo: null,
+    redo: null,
   });
   const [commandBusy, setCommandBusy] = useState(false);
+  const [commandActivity, setCommandActivity] = useState<string | null>(null);
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [commandNotice, setCommandNotice] = useState<{
-    kind: 'success' | 'error';
+    kind: 'success' | 'error' | 'info';
     text: string;
   } | null>(null);
 
@@ -224,10 +288,8 @@ export default function ManagementPage() {
           if (active) setCommandState(nextCommandState);
         } else {
           setCommandState({
-            undoTransactionId: null,
-            undoLabel: null,
-            redoTransactionId: null,
-            redoLabel: null,
+            undo: null,
+            redo: null,
           });
         }
       })
@@ -267,7 +329,13 @@ export default function ManagementPage() {
     [board, selectedCardId],
   );
 
+  const dragCard = useMemo(
+    () => board?.cards.find((card) => card.id === dragCardId) ?? null,
+    [board, dragCardId],
+  );
+
   const selectCard = (cardId: string) => {
+    setCandidateFocus(null);
     setSelectedCardId(cardId);
     setInspectorOpen(true);
   };
@@ -317,13 +385,60 @@ export default function ManagementPage() {
     };
   }, [refreshToken, selectedCardId, session, status]);
 
+
+  const beginDrag = (cardId: string) => {
+    if (!session || !access?.canEdit || status !== 'ready') return;
+
+    const sequence = dragSequenceRef.current + 1;
+    dragSequenceRef.current = sequence;
+
+    setDragCardId(cardId);
+    setDragCandidateDetail(null);
+    setDragLoading(true);
+    setCandidateFocus(null);
+    setSelectedCardId(cardId);
+    setCommandNotice(null);
+
+    void fetchManagementCardCandidates(session.accessToken, cardId)
+      .then((detail) => {
+        if (dragSequenceRef.current !== sequence) return;
+        setDragCandidateDetail(detail);
+      })
+      .catch((reason: unknown) => {
+        if (dragSequenceRef.current !== sequence) return;
+        setDragCandidateDetail(null);
+        setCommandNotice({
+          kind: 'error',
+          text: reason instanceof Error
+            ? reason.message
+            : 'Sürükleme için aday alanı hazırlanamadı.',
+        });
+        setInspectorOpen(true);
+      })
+      .finally(() => {
+        if (dragSequenceRef.current === sequence) {
+          setDragLoading(false);
+        }
+      });
+  };
+
+  const endDrag = () => {
+    dragSequenceRef.current += 1;
+    setDragCardId(null);
+    setDragCandidateDetail(null);
+    setDragLoading(false);
+  };
+
   const runCandidateCommand = async (
     candidate: ManagementCandidateAssessment,
+    cardOverride?: ManagementBoardData['cards'][number] | null,
   ) => {
+    const commandCard = cardOverride ?? selectedCard;
+
     if (
       !session
       || !access?.canEdit
-      || !selectedCard
+      || !commandCard
       || !candidate.teacherId
       || !candidate.roomId
       || commandBusy
@@ -332,18 +447,23 @@ export default function ManagementPage() {
     }
 
     setCommandBusy(true);
+    setCommandActivity(
+      commandCard.placement
+        ? `${commandCard.subjectName} yeni yerine taşınıyor.`
+        : `${commandCard.subjectName} programa yerleştiriliyor.`,
+    );
     setCommandNotice(null);
 
     try {
       const input = {
-        cardId: selectedCard.id,
+        cardId: commandCard.id,
         dayOfWeek: candidate.dayOfWeek,
         startPeriod: candidate.startPeriod,
         teacherId: candidate.teacherId,
         roomId: candidate.roomId,
       };
 
-      if (selectedCard.placement) {
+      if (commandCard.placement) {
         await moveManagementCard(session.accessToken, input);
         setCommandNotice({ kind: 'success', text: 'Kart yeni yerine taşındı.' });
       } else {
@@ -351,6 +471,7 @@ export default function ManagementPage() {
         setCommandNotice({ kind: 'success', text: 'Kart programa yerleştirildi.' });
       }
 
+      setCandidateFocus(null);
       setActiveDay(candidate.dayOfWeek);
       setRefreshToken((value) => value + 1);
     } catch (reason: unknown) {
@@ -362,7 +483,60 @@ export default function ManagementPage() {
       });
     } finally {
       setCommandBusy(false);
+      setCommandActivity(null);
     }
+  };
+
+  const handleDropNeedsAttention = (target: ManagementDropTarget) => {
+    setSelectedCardId(target.cardId);
+    setInspectorOpen(true);
+
+    if (target.state === 'AMBIGUOUS') {
+      setCandidateFocus({
+        dayOfWeek: target.dayOfWeek,
+        startPeriod: target.startPeriod,
+        candidates: target.validCandidates,
+      });
+      setCommandNotice(null);
+      return;
+    }
+
+    setCandidateFocus(null);
+
+    const reason = target.reasonCodes[0]
+      ? translateCandidateReason(target.reasonCodes[0])
+      : null;
+
+    if (target.state === 'UNRESOLVED') {
+      setCommandNotice({
+        kind: 'info',
+        text: reason
+          ? `Bu konum henüz belirsiz: ${reason}.`
+          : 'Bu konum henüz belirsiz olduğu için doğrudan bırakılamıyor.',
+      });
+      return;
+    }
+
+    if (target.state === 'INVALID') {
+      setCommandNotice({
+        kind: 'error',
+        text: reason
+          ? `Bu konum uygun değil: ${reason}.`
+          : 'Bu konum kart için uygun değil.',
+      });
+    }
+  };
+
+  const requestRemove = () => {
+    if (
+      !access?.canEdit
+      || !selectedCard?.placement
+      || commandBusy
+    ) {
+      return;
+    }
+
+    setRemoveConfirmOpen(true);
   };
 
   const runRemove = async () => {
@@ -375,18 +549,18 @@ export default function ManagementPage() {
       return;
     }
 
-    if (!window.confirm('Bu kartı programdan kaldırmak istiyor musunuz?')) {
-      return;
-    }
+    const cardBeingRemoved = selectedCard;
 
+    setRemoveConfirmOpen(false);
     setCommandBusy(true);
+    setCommandActivity(`${cardBeingRemoved.subjectName} programdan kaldırılıyor.`);
     setCommandNotice(null);
 
     try {
-      await removeManagementCard(session.accessToken, selectedCard.id);
+      await removeManagementCard(session.accessToken, cardBeingRemoved.id);
       setCommandNotice({
         kind: 'success',
-        text: 'Kart programdan kaldırıldı ve havuza geri döndü.',
+        text: `${cardBeingRemoved.classCodes.join(', ') || cardBeingRemoved.groupName} ${cardBeingRemoved.subjectName} programdan kaldırıldı ve havuza geri döndü.`,
       });
       setRefreshToken((value) => value + 1);
     } catch (reason: unknown) {
@@ -396,27 +570,31 @@ export default function ManagementPage() {
       });
     } finally {
       setCommandBusy(false);
+      setCommandActivity(null);
     }
   };
 
   const runUndo = async () => {
+    const descriptor = commandState.undo;
+
     if (
       !session
       || !access?.canEdit
-      || !commandState.undoTransactionId
+      || !descriptor
       || commandBusy
     ) {
       return;
     }
 
     setCommandBusy(true);
+    setCommandActivity(`${commandContextLabel(descriptor, board)} geri alınıyor.`);
     setCommandNotice(null);
 
     try {
-      await undoManagement(session.accessToken, commandState.undoTransactionId);
+      await undoManagement(session.accessToken, descriptor.transactionId);
       setCommandNotice({
         kind: 'success',
-        text: 'Son program işlemi geri alındı.',
+        text: completedCommandMessage(descriptor, board, 'undo'),
       });
       setRefreshToken((value) => value + 1);
     } catch (reason: unknown) {
@@ -428,27 +606,31 @@ export default function ManagementPage() {
       });
     } finally {
       setCommandBusy(false);
+      setCommandActivity(null);
     }
   };
 
   const runRedo = async () => {
+    const descriptor = commandState.redo;
+
     if (
       !session
       || !access?.canEdit
-      || !commandState.redoTransactionId
+      || !descriptor
       || commandBusy
     ) {
       return;
     }
 
     setCommandBusy(true);
+    setCommandActivity(`${commandContextLabel(descriptor, board)} yeniden uygulanıyor.`);
     setCommandNotice(null);
 
     try {
-      await redoManagement(session.accessToken, commandState.redoTransactionId);
+      await redoManagement(session.accessToken, descriptor.transactionId);
       setCommandNotice({
         kind: 'success',
-        text: 'Geri alınan program işlemi yeniden uygulandı.',
+        text: completedCommandMessage(descriptor, board, 'redo'),
       });
       setRefreshToken((value) => value + 1);
     } catch (reason: unknown) {
@@ -460,6 +642,7 @@ export default function ManagementPage() {
       });
     } finally {
       setCommandBusy(false);
+      setCommandActivity(null);
     }
   };
 
@@ -668,10 +851,10 @@ export default function ManagementPage() {
               <button
                 type="button"
                 onClick={() => void runUndo()}
-                disabled={!commandState.undoTransactionId || commandBusy}
+                disabled={!commandState.undo || commandBusy}
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
-                title={commandState.undoLabel
-                  ? `Son işlemi geri al: ${commandState.undoLabel}`
+                title={commandState.undo
+                  ? `${commandContextLabel(commandState.undo, board)} geri al`
                   : 'Geri alınabilecek işlem yok'}
               >
                 ↶ Geri Al
@@ -679,10 +862,10 @@ export default function ManagementPage() {
               <button
                 type="button"
                 onClick={() => void runRedo()}
-                disabled={!commandState.redoTransactionId || commandBusy}
+                disabled={!commandState.redo || commandBusy}
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
-                title={commandState.redoLabel
-                  ? `İşlemi yeniden uygula: ${commandState.redoLabel}`
+                title={commandState.redo
+                  ? `${commandContextLabel(commandState.redo, board)} yeniden uygula`
                   : 'Yinelenecek işlem yok'}
               >
                 ↷ Yinele
@@ -713,6 +896,9 @@ export default function ManagementPage() {
             selectedCardId={selectedCardId}
             onSelect={selectCard}
             onClose={() => setPoolOpen(false)}
+            canEdit={access?.canEdit === true}
+            onDragStart={beginDrag}
+            onDragEnd={endDrag}
           />
         )}
 
@@ -739,6 +925,23 @@ export default function ManagementPage() {
             activeDay={activeDay}
             selectedCardId={selectedCardId}
             onSelect={selectCard}
+            canEdit={access?.canEdit === true}
+            dragCard={dragCard}
+            dragCandidateDetail={dragCandidateDetail}
+            dragLoading={dragLoading}
+            onDragStart={beginDrag}
+            onDragEnd={endDrag}
+            onDropCandidate={(candidate) => {
+              const card = dragCard;
+              endDrag();
+              if (card) {
+                void runCandidateCommand(candidate, card);
+              }
+            }}
+            onDropNeedsAttention={(target) => {
+              endDrag();
+              handleDropNeedsAttention(target);
+            }}
           />
         </div>
 
@@ -748,6 +951,7 @@ export default function ManagementPage() {
             candidateDetail={candidateDetail}
             candidateLoading={candidateLoading}
             candidateError={candidateError}
+            candidateFocus={candidateFocus}
             teacherNamesById={board?.teacherNamesById ?? {}}
             roomNamesById={board?.roomNamesById ?? {}}
             canEdit={access?.canEdit === true}
@@ -756,13 +960,30 @@ export default function ManagementPage() {
             onCandidateAction={(candidate) => {
               void runCandidateCommand(candidate);
             }}
-            onRemove={() => {
-              void runRemove();
-            }}
+            onRemove={requestRemove}
             onClose={() => setInspectorOpen(false)}
           />
         )}
       </section>
+
+      {removeConfirmOpen && selectedCard?.placement && (
+        <ManagementConfirmOverlay
+          title="Programdan kaldırılsın mı?"
+          detail={`${selectedCard.classCodes.join(', ') || selectedCard.groupName} ${selectedCard.subjectName} mevcut yerleşiminden kaldırılacak ve ders havuzuna geri dönecek.`}
+          confirmLabel="Kaldır"
+          busy={commandBusy}
+          onConfirm={() => {
+            void runRemove();
+          }}
+          onCancel={() => setRemoveConfirmOpen(false)}
+        />
+      )}
+
+      {commandBusy && (
+        <ManagementBusyOverlay
+          detail={commandActivity ?? 'Program güncelleniyor.'}
+        />
+      )}
     </main>
   );
 }

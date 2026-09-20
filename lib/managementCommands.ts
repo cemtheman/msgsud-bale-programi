@@ -1,10 +1,17 @@
 'use client';
 
+export type ManagementRootAction = 'PLACE' | 'MOVE' | 'REMOVE';
+
+export interface ManagementCommandDescriptor {
+  transactionId: string;
+  action: ManagementRootAction;
+  cardId: string | null;
+  autoCount: number;
+}
+
 export interface ManagementCommandState {
-  undoTransactionId: string | null;
-  undoLabel: string | null;
-  redoTransactionId: string | null;
-  redoLabel: string | null;
+  undo: ManagementCommandDescriptor | null;
+  redo: ManagementCommandDescriptor | null;
 }
 
 interface RootTransactionRow {
@@ -40,19 +47,21 @@ function getSupabaseConfig() {
   return { url, key };
 }
 
-function actionLabel(action: string | null | undefined) {
-  if (action === 'PLACE') return 'Yerleştir';
-  if (action === 'MOVE') return 'Taşı';
-  if (action === 'REMOVE') return 'Kaldır';
-  return 'İşlem';
-}
-
 function translateCommandError(message: string, fallback: string) {
   const normalized = message.toLowerCase();
 
   if (normalized.includes('editor role required')) {
     return 'Bu işlem için düzenleme yetkisi gerekiyor.';
   }
+
+  if (
+    normalized.includes('statement timeout')
+    || normalized.includes('canceling statement due to statement timeout')
+    || normalized.includes('query timeout')
+  ) {
+    return 'İşlem beklenenden uzun sürdü ve zaman aşımına uğradı. Programın güncel durumunu yenileyip yeniden deneyin.';
+  }
+
 
   if (
     normalized.includes('candidate is invalid')
@@ -92,6 +101,14 @@ function translateCommandError(message: string, fallback: string) {
   ) {
     return 'Bu yineleme artık geçerli değil; arada yeni bir program kararı verilmiş.';
   }
+
+  if (
+    normalized.includes('propagation root must be one active')
+    || normalized.includes('propagation parent is outside active root chain')
+  ) {
+    return 'Program işlem zinciri güncelliğini kaybetti. Veriyi yenileyip işlemi yeniden deneyin.';
+  }
+
 
   if (normalized.includes('draft')) {
     return 'Bu işlem yalnız taslak program üzerinde yapılabilir.';
@@ -253,12 +270,50 @@ export async function fetchManagementCommandState(
     );
   });
 
-  return {
-    undoTransactionId: undoRow?.id ?? null,
-    undoLabel: undoRow ? actionLabel(undoRow.action) : null,
-    redoTransactionId: redoRow?.id ?? null,
-    redoLabel: redoRow
-      ? actionLabel(redoRow.payload?.reverted_root_action)
-      : null,
-  };
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+
+  const undoCardIdValue = undoRow?.payload?.card_id;
+  const undo = undoRow
+    ? {
+      transactionId: undoRow.id,
+      action: undoRow.action,
+      cardId: typeof undoCardIdValue === 'string'
+        ? undoCardIdValue
+        : null,
+      autoCount: Number(undoRow.payload?.propagation_auto_count ?? 0) || 0,
+    }
+    : null;
+
+  let redo: ManagementCommandDescriptor | null = null;
+
+  if (redoRow) {
+    const originalRootIdValue = redoRow.payload?.reverts_root_transaction_id;
+    const originalRootId = typeof originalRootIdValue === 'string'
+      ? originalRootIdValue
+      : null;
+    const originalRoot = originalRootId
+      ? rowById.get(originalRootId) ?? null
+      : null;
+    const revertedActionValue = redoRow.payload?.reverted_root_action;
+    const originalAction = (
+      typeof revertedActionValue === 'string'
+        ? revertedActionValue
+        : originalRoot?.action
+    ) as ManagementRootAction | undefined;
+    const originalCardIdValue = originalRoot?.payload?.card_id;
+    const originalCardId = typeof originalCardIdValue === 'string'
+      ? originalCardIdValue
+      : null;
+
+    if (originalAction && ['PLACE', 'MOVE', 'REMOVE'].includes(originalAction)) {
+      redo = {
+        transactionId: redoRow.id,
+        action: originalAction,
+        cardId: originalCardId,
+        autoCount: Number(originalRoot?.payload?.propagation_auto_count ?? 0) || 0,
+      };
+    }
+  }
+
+  return { undo, redo };
 }

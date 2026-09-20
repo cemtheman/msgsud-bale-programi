@@ -177,6 +177,24 @@ function getSupabaseConfig() {
   return { url, key };
 }
 
+function translateManagementReadError(message: string, fallback: string) {
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes('statement timeout')
+    || normalized.includes('canceling statement due to statement timeout')
+    || normalized.includes('query timeout')
+  ) {
+    return 'Yönetim verisi hazırlanırken işlem beklenenden uzun sürdü ve zaman aşımına uğradı. Lütfen yeniden deneyin.';
+  }
+
+  if (normalized.includes('permission denied')) {
+    return 'Bu yönetim verisini görüntüleme yetkiniz yok.';
+  }
+
+  return fallback;
+}
+
 async function authedGet<T>(path: string, accessToken: string): Promise<T> {
   const { url, key } = getSupabaseConfig();
 
@@ -189,7 +207,25 @@ async function authedGet<T>(path: string, accessToken: string): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Yönetim çalışma verisi alınamadı (${response.status}).`);
+    let message = '';
+
+    try {
+      const body = await response.json() as {
+        message?: string;
+        details?: string;
+        hint?: string;
+      };
+      message = body.message ?? body.details ?? body.hint ?? '';
+    } catch {
+      message = '';
+    }
+
+    throw new Error(
+      translateManagementReadError(
+        message,
+        `Yönetim çalışma verisi alınamadı (${response.status}).`,
+      ),
+    );
   }
 
   return response.json() as Promise<T>;

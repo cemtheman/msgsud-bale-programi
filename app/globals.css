@@ -449,3 +449,76 @@ body {
     page-break-inside: avoid;
   }
 }
+
+
+/* Yönetim işlem göstergesi: sade, okunaklı ve teknik durum hissi veren
+   bale temalı loader. Balerin sabit kalır; yalnız çevresindeki halka döner. */
+.management-busy-mark {
+  position: relative;
+  display: flex;
+  width: 112px;
+  height: 112px;
+  align-items: center;
+  justify-content: center;
+}
+
+.management-busy-ring {
+  position: absolute;
+  inset: 2px;
+  border-radius: 999px;
+  border: 3px solid rgba(166, 61, 72, 0.12);
+  border-top-color: rgba(166, 61, 72, 0.92);
+  border-right-color: rgba(166, 61, 72, 0.42);
+  animation: management-busy-ring 1.15s linear infinite;
+}
+
+.management-busy-dot {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #a63d48;
+  box-shadow: 0 0 0 5px rgba(166, 61, 72, 0.08);
+  animation: management-busy-dot 1.15s linear infinite;
+  transform-origin: 0 53px;
+}
+
+.management-busy-ballerina {
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 5px 10px rgba(166, 61, 72, 0.12));
+  animation: management-busy-ballerina 1.8s ease-in-out infinite;
+}
+
+@keyframes management-busy-ring {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes management-busy-dot {
+  to {
+    transform: translateX(-50%) rotate(360deg);
+  }
+}
+
+@keyframes management-busy-ballerina {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .management-busy-ring,
+  .management-busy-dot,
+  .management-busy-ballerina {
+    animation: none !important;
+  }
+}

@@ -4,6 +4,8 @@ import {
   placementBelongsToRow,
   type ManagementBoardCard,
   type ManagementBoardRow,
+  type ManagementCandidateAssessment,
+  type ManagementCandidateDetail,
   type ManagementResourceView,
 } from '@/lib/managementBoard';
 
@@ -21,6 +23,24 @@ const PERIODS = [
   { number: 11, time: '17:10' },
   { number: 12, time: '18:00' },
 ] as const;
+
+export type ManagementDropState =
+  | 'VALID'
+  | 'AMBIGUOUS'
+  | 'UNRESOLVED'
+  | 'INVALID'
+  | 'CURRENT'
+  | 'LOADING'
+  | 'NONE';
+
+export interface ManagementDropTarget {
+  cardId: string;
+  dayOfWeek: number;
+  startPeriod: number;
+  state: ManagementDropState;
+  validCandidates: ManagementCandidateAssessment[];
+  reasonCodes: string[];
+}
 
 function cardClass(card: ManagementBoardCard) {
   if (card.courseCharacter === 'TECHNIQUE') {
@@ -63,6 +83,214 @@ function packCards(cards: ManagementBoardCard[]) {
     });
 }
 
+function assessmentMatchesRow(
+  card: ManagementBoardCard,
+  assessment: ManagementCandidateAssessment,
+  row: ManagementBoardRow,
+  view: ManagementResourceView,
+) {
+  if (view === 'SINIFLAR') {
+    return card.classCodes.includes(row.id);
+  }
+
+  if (view === 'ÖĞRETMENLER') {
+    return assessment.teacherId === row.id;
+  }
+
+  return assessment.roomId === row.id;
+}
+
+function dropTargetForCell({
+  card,
+  detail,
+  row,
+  view,
+  activeDay,
+  startPeriod,
+  loading,
+}: {
+  card: ManagementBoardCard;
+  detail: ManagementCandidateDetail | null;
+  row: ManagementBoardRow;
+  view: ManagementResourceView;
+  activeDay: number;
+  startPeriod: number;
+  loading: boolean;
+}): ManagementDropTarget {
+  if (
+    view === 'SINIFLAR'
+    && !card.classCodes.includes(row.id)
+  ) {
+    return {
+      cardId: card.id,
+      dayOfWeek: activeDay,
+      startPeriod,
+      state: 'NONE',
+      validCandidates: [],
+      reasonCodes: [],
+    };
+  }
+
+  if (loading || !detail) {
+    return {
+      cardId: card.id,
+      dayOfWeek: activeDay,
+      startPeriod,
+      state: 'LOADING',
+      validCandidates: [],
+      reasonCodes: [],
+    };
+  }
+
+  const assessments = detail.assessments.filter(
+    (assessment) => (
+      assessment.dayOfWeek === activeDay
+      && assessment.startPeriod === startPeriod
+      && assessmentMatchesRow(card, assessment, row, view)
+    ),
+  );
+
+  const validCandidates = assessments.filter(
+    (assessment) => (
+      assessment.status === 'VALID'
+      && assessment.isComplete
+      && Boolean(assessment.teacherId)
+      && Boolean(assessment.roomId)
+    ),
+  );
+
+  const isCurrent = Boolean(
+    card.placement
+    && card.placement.dayOfWeek === activeDay
+    && card.placement.startPeriod === startPeriod
+    && (
+      view === 'SINIFLAR'
+      || (
+        view === 'ÖĞRETMENLER'
+        && card.placement.teacherId === row.id
+      )
+      || (
+        view === 'SALONLAR'
+        && card.placement.roomId === row.id
+      )
+    )
+  );
+
+  if (isCurrent) {
+    return {
+      cardId: card.id,
+      dayOfWeek: activeDay,
+      startPeriod,
+      state: 'CURRENT',
+      validCandidates,
+      reasonCodes: [],
+    };
+  }
+
+  if (validCandidates.length === 1) {
+    return {
+      cardId: card.id,
+      dayOfWeek: activeDay,
+      startPeriod,
+      state: 'VALID',
+      validCandidates,
+      reasonCodes: [],
+    };
+  }
+
+  if (validCandidates.length > 1) {
+    return {
+      cardId: card.id,
+      dayOfWeek: activeDay,
+      startPeriod,
+      state: 'AMBIGUOUS',
+      validCandidates,
+      reasonCodes: [],
+    };
+  }
+
+  const unresolved = assessments.filter(
+    (assessment) => assessment.status === 'UNRESOLVED',
+  );
+
+  if (unresolved.length > 0) {
+    return {
+      cardId: card.id,
+      dayOfWeek: activeDay,
+      startPeriod,
+      state: 'UNRESOLVED',
+      validCandidates: [],
+      reasonCodes: Array.from(
+        new Set(unresolved.flatMap((assessment) => assessment.reasonCodes)),
+      ),
+    };
+  }
+
+  const invalid = assessments.filter(
+    (assessment) => assessment.status === 'INVALID',
+  );
+
+  if (invalid.length > 0) {
+    return {
+      cardId: card.id,
+      dayOfWeek: activeDay,
+      startPeriod,
+      state: 'INVALID',
+      validCandidates: [],
+      reasonCodes: Array.from(
+        new Set(invalid.flatMap((assessment) => assessment.reasonCodes)),
+      ),
+    };
+  }
+
+  return {
+    cardId: card.id,
+    dayOfWeek: activeDay,
+    startPeriod,
+    state: 'NONE',
+    validCandidates: [],
+    reasonCodes: [],
+  };
+}
+
+function targetClass(state: ManagementDropState) {
+  if (state === 'VALID') {
+    return 'border-emerald-400 bg-emerald-100/85 text-emerald-800';
+  }
+
+  if (state === 'AMBIGUOUS') {
+    return 'border-blue-400 bg-blue-100/85 text-blue-800';
+  }
+
+  if (state === 'UNRESOLVED') {
+    return 'border-amber-400 bg-amber-100/85 text-amber-800';
+  }
+
+  if (state === 'INVALID') {
+    return 'border-rose-300 bg-rose-50/80 text-rose-600';
+  }
+
+  if (state === 'CURRENT') {
+    return 'border-slate-300 bg-slate-100/80 text-slate-500';
+  }
+
+  if (state === 'LOADING') {
+    return 'border-slate-200 bg-slate-50/80 text-slate-400';
+  }
+
+  return 'border-transparent bg-transparent text-transparent';
+}
+
+function targetLabel(state: ManagementDropState) {
+  if (state === 'VALID') return 'Bırak';
+  if (state === 'AMBIGUOUS') return 'Seçim';
+  if (state === 'UNRESOLVED') return 'Belirsiz';
+  if (state === 'INVALID') return 'Uygun değil';
+  if (state === 'CURRENT') return 'Mevcut';
+  if (state === 'LOADING') return '…';
+  return '';
+}
+
 export function ManagementBoardGrid({
   rows,
   cards,
@@ -70,6 +298,14 @@ export function ManagementBoardGrid({
   activeDay,
   selectedCardId,
   onSelect,
+  canEdit,
+  dragCard,
+  dragCandidateDetail,
+  dragLoading,
+  onDragStart,
+  onDragEnd,
+  onDropCandidate,
+  onDropNeedsAttention,
 }: {
   rows: ManagementBoardRow[];
   cards: ManagementBoardCard[];
@@ -77,13 +313,29 @@ export function ManagementBoardGrid({
   activeDay: number;
   selectedCardId: string | null;
   onSelect: (cardId: string) => void;
+  canEdit: boolean;
+  dragCard: ManagementBoardCard | null;
+  dragCandidateDetail: ManagementCandidateDetail | null;
+  dragLoading: boolean;
+  onDragStart: (cardId: string) => void;
+  onDragEnd: () => void;
+  onDropCandidate: (candidate: ManagementCandidateAssessment) => void;
+  onDropNeedsAttention: (target: ManagementDropTarget) => void;
 }) {
   const dayCards = cards.filter(
     (card) => card.placement?.dayOfWeek === activeDay,
   );
 
   return (
-    <section className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {dragCard && (
+        <div className="pointer-events-none absolute left-3 top-3 z-40 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-slate-600 shadow-sm backdrop-blur">
+          {dragLoading
+            ? `${dragCard.subjectName} için uygun yerler hazırlanıyor…`
+            : `${dragCard.subjectName} · başlangıç saatleri işaretlendi`}
+        </div>
+      )}
+
       <div className="management-scrollbar h-full overflow-auto">
         <div className="min-w-[980px]">
           <div className="grid grid-cols-[160px_repeat(12,minmax(70px,1fr))] border-b border-slate-200 bg-slate-50">
@@ -108,7 +360,7 @@ export function ManagementBoardGrid({
           {rows.length === 0 ? (
             <div className="flex min-h-[420px] items-center justify-center p-8 text-center">
               <div>
-                <p className="text-sm font-black text-slate-700">
+                <p className="text-sm font-semibold text-slate-700">
                   Bu görünümde listelenecek kaynak yok.
                 </p>
                 <p className="mt-2 text-xs text-slate-400">
@@ -174,10 +426,24 @@ export function ManagementBoardGrid({
                           <button
                             key={card.id}
                             type="button"
+                            draggable={canEdit && !card.locked}
+                            onDragStart={(event) => {
+                              if (!canEdit || card.locked) {
+                                event.preventDefault();
+                                return;
+                              }
+
+                              event.dataTransfer.effectAllowed = 'move';
+                              event.dataTransfer.setData('text/plain', card.id);
+                              onDragStart(card.id);
+                            }}
+                            onDragEnd={onDragEnd}
                             onClick={() => onSelect(card.id)}
                             className={`absolute overflow-hidden rounded-lg border px-2 py-1.5 text-left shadow-sm transition ${
-                              cardClass(card)
-                            } ${
+                              canEdit && !card.locked
+                                ? 'cursor-grab active:cursor-grabbing'
+                                : ''
+                            } ${cardClass(card)} ${
                               selected
                                 ? 'ring-2 ring-slate-950 ring-offset-1'
                                 : 'hover:brightness-[0.98]'
@@ -199,6 +465,58 @@ export function ManagementBoardGrid({
                           </button>
                         );
                       })}
+
+                      {dragCard && (
+                        <div className="absolute inset-0 z-30 grid grid-cols-12">
+                          {PERIODS.map((period) => {
+                            const target = dropTargetForCell({
+                              card: dragCard,
+                              detail: dragCandidateDetail,
+                              row,
+                              view,
+                              activeDay,
+                              startPeriod: period.number,
+                              loading: dragLoading,
+                            });
+                            const droppable = target.state !== 'NONE'
+                              && target.state !== 'LOADING'
+                              && target.state !== 'CURRENT';
+
+                            return (
+                              <div
+                                key={period.number}
+                                onDragOver={(event) => {
+                                  if (!droppable) return;
+                                  event.preventDefault();
+                                  event.dataTransfer.dropEffect = 'move';
+                                }}
+                                onDrop={(event) => {
+                                  if (!droppable) return;
+                                  event.preventDefault();
+
+                                  if (
+                                    target.state === 'VALID'
+                                    && target.validCandidates.length === 1
+                                  ) {
+                                    onDropCandidate(target.validCandidates[0]);
+                                    return;
+                                  }
+
+                                  onDropNeedsAttention(target);
+                                }}
+                                className={`m-1 flex min-w-0 items-center justify-center rounded-lg border border-dashed text-center text-[8px] font-bold transition ${
+                                  targetClass(target.state)
+                                }`}
+                                title={targetLabel(target.state)}
+                              >
+                                <span className="truncate px-1">
+                                  {targetLabel(target.state)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

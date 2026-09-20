@@ -44,12 +44,18 @@ export function ManagementCardPool({
   selectedCardId,
   onSelect,
   onClose,
+  canEdit,
+  onDragStart,
+  onDragEnd,
 }: {
   cards: ManagementBoardCard[];
   totalUnplaced: number;
   selectedCardId: string | null;
   onSelect: (cardId: string) => void;
   onClose: () => void;
+  canEdit: boolean;
+  onDragStart: (cardId: string) => void;
+  onDragEnd: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [queueFilter, setQueueFilter] =
@@ -202,7 +208,7 @@ export function ManagementCardPool({
             {filteredCards.length} kart gösteriliyor
           </span>
           {queueFilter === 'ÇALIŞILABİLİR' && (
-            <span>En az seçeneği olan önce</span>
+            <span>{canEdit ? 'Sürükleyip programa bırakabilirsiniz' : 'En az seçeneği olan önce'}</span>
           )}
         </div>
       </div>
@@ -224,8 +230,22 @@ export function ManagementCardPool({
                 <button
                   key={card.id}
                   type="button"
+                  draggable={canEdit && !card.locked}
+                  onDragStart={(event) => {
+                    if (!canEdit || card.locked) {
+                      event.preventDefault();
+                      return;
+                    }
+
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', card.id);
+                    onDragStart(card.id);
+                  }}
+                  onDragEnd={onDragEnd}
                   onClick={() => onSelect(card.id)}
                   className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${
+                    canEdit && !card.locked ? 'cursor-grab active:cursor-grabbing' : ''
+                  } ${
                     selected
                       ? 'border-slate-950 bg-slate-950 text-white shadow-sm'
                       : 'border-slate-100 bg-white hover:border-slate-300 hover:bg-slate-50'
