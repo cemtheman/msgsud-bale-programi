@@ -20,18 +20,29 @@ export interface ManagementCoursePlanRow {
   termStatus: ManagementPlanTermStatus;
   knowledgeStatus: string;
   teacherMode: string;
+  teacherIds: string[];
   teacherNames: string[];
   resourceMode: string;
+  roomIds: string[];
   roomNames: string[];
+  placedBlockCount: number;
   requiredCapability: string | null;
+}
+
+export interface ManagementCoursePlanOption {
+  id: string;
+  name: string;
 }
 
 export interface ManagementCoursePlanData {
   requirementSetId: string;
   rows: ManagementCoursePlanRow[];
+  teacherOptions: ManagementCoursePlanOption[];
+  roomOptions: ManagementCoursePlanOption[];
 }
 
 interface RevisionRow {
+  id: string;
   requirement_set_id: string;
 }
 
@@ -86,6 +97,15 @@ interface RequirementTeacherRow {
 interface RequirementRoomRow {
   requirement_id: string;
   room_id: string;
+}
+
+interface CardRow {
+  id: string;
+  requirement_id: string;
+}
+
+interface PlacementRow {
+  card_id: string;
 }
 
 function getSupabaseConfig() {
@@ -169,7 +189,7 @@ export async function fetchManagementCoursePlan(
   accessToken: string,
 ): Promise<ManagementCoursePlanData | null> {
   const revisions = await authedGet<RevisionRow[]>(
-    'schedule_revisions?select=requirement_set_id&status=eq.DRAFT&order=version_number.desc&limit=1',
+    'schedule_revisions?select=id,requirement_set_id&status=eq.DRAFT&order=version_number.desc&limit=1',
     accessToken,
   );
 
@@ -186,6 +206,8 @@ export async function fetchManagementCoursePlan(
     teachers,
     requirementRooms,
     rooms,
+    cards,
+    placements,
   ] = await Promise.all([
     authedGet<RequirementRow[]>(
       `course_requirements?select=id,subject_id,instructional_group_id,weekly_load,preferred_partition,allowed_partitions,min_distinct_days,max_blocks_per_day,max_consecutive_periods,course_character,delivery_mode,term_status,knowledge_status,teacher_mode,resource_mode,required_capability&requirement_set_id=eq.${revision.requirement_set_id}`,
@@ -214,6 +236,14 @@ export async function fetchManagementCoursePlan(
       accessToken,
     ),
     authedGet<NamedRow[]>('rooms?select=id,name', accessToken),
+    authedGet<CardRow[]>(
+      `schedule_cards?select=id,requirement_id&schedule_revision_id=eq.${revision.id}`,
+      accessToken,
+    ),
+    authedGet<PlacementRow[]>(
+      'placements?select=card_id',
+      accessToken,
+    ),
   ]);
 
   const groupById = new Map(groups.map((row) => [row.id, row]));
@@ -279,6 +309,20 @@ export async function fetchManagementCoursePlan(
     roomIdsByRequirement.set(row.requirement_id, values);
   });
 
+
+  const requirementByCardId = new Map(
+    cards.map((card) => [card.id, card.requirement_id]),
+  );
+  const placedBlocksByRequirement = new Map<string, number>();
+  placements.forEach((placement) => {
+    const requirementId = requirementByCardId.get(placement.card_id);
+    if (!requirementId) return;
+    placedBlocksByRequirement.set(
+      requirementId,
+      (placedBlocksByRequirement.get(requirementId) ?? 0) + 1,
+    );
+  });
+
   const rows: ManagementCoursePlanRow[] = requirements.flatMap((requirement) => {
     const group = groupById.get(requirement.instructional_group_id);
     if (!group) return [];
@@ -303,9 +347,12 @@ export async function fetchManagementCoursePlan(
       termStatus: requirement.term_status,
       knowledgeStatus: requirement.knowledge_status,
       teacherMode: requirement.teacher_mode,
+      teacherIds,
       teacherNames: teacherIds.map((id) => teacherById.get(id) ?? 'Bilinmeyen öğretmen'),
       resourceMode: requirement.resource_mode,
+      roomIds,
       roomNames: roomIds.map((id) => roomById.get(id) ?? 'Bilinmeyen salon'),
+      placedBlockCount: placedBlocksByRequirement.get(requirement.id) ?? 0,
       requiredCapability: requirement.required_capability,
     }];
   });
@@ -323,5 +370,11 @@ export async function fetchManagementCoursePlan(
   return {
     requirementSetId: revision.requirement_set_id,
     rows,
+    teacherOptions: teachers
+      .map((teacher) => ({ id: teacher.id, name: teacher.name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
+    roomOptions: rooms
+      .map((room) => ({ id: room.id, name: room.name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
   };
 }
