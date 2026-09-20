@@ -102,6 +102,14 @@ function translateCommandError(message: string, fallback: string) {
     return 'Bu yineleme artık geçerli değil; arada yeni bir program kararı verilmiş.';
   }
 
+  if (
+    normalized.includes('propagation root must be one active')
+    || normalized.includes('propagation parent is outside active root chain')
+  ) {
+    return 'Program işlem zinciri güncelliğini kaybetti. Veriyi yenileyip işlemi yeniden deneyin.';
+  }
+
+
   if (normalized.includes('draft')) {
     return 'Bu işlem yalnız taslak program üzerinde yapılabilir.';
   }
