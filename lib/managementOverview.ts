@@ -11,6 +11,7 @@ export interface ManagementOverview {
   unresolvedCount: number;
   contradictionCount: number;
   activeMoveCount: number;
+  touchedCardIds: string[];
   placementsByDay: Record<number, number>;
 }
 
@@ -39,6 +40,10 @@ interface DomainSummaryRow {
 
 interface MoveRow {
   id: string;
+  actor_type: string;
+  action: string;
+  payload: Record<string, unknown> | null;
+  reverted_at: string | null;
 }
 
 function getSupabaseConfig() {
@@ -98,7 +103,7 @@ export async function fetchManagementOverview(
       accessToken,
     ),
     authedGet<MoveRow[]>(
-      `move_transactions?select=id&schedule_revision_id=eq.${revision.id}&reverted_at=is.null`,
+      `move_transactions?select=id,actor_type,action,payload,reverted_at&schedule_revision_id=eq.${revision.id}`,
       accessToken,
     ),
   ]);
@@ -118,6 +123,20 @@ export async function fetchManagementOverview(
     placementsByDay[placement.day_of_week] = (placementsByDay[placement.day_of_week] ?? 0) + 1;
   });
 
+  const touchedCardIds = Array.from(new Set(
+    moves
+      .filter((move) => (
+        move.actor_type === 'USER'
+        && ['PLACE', 'MOVE', 'REMOVE'].includes(move.action)
+      ))
+      .map((move) => (
+        typeof move.payload?.card_id === 'string'
+          ? move.payload.card_id
+          : null
+      ))
+      .filter((value): value is string => Boolean(value)),
+  ));
+
   return {
     revisionId: revision.id,
     versionNumber: revision.version_number,
@@ -128,7 +147,8 @@ export async function fetchManagementOverview(
     forcedCount: revisionSummaries.filter((summary) => summary.is_forced).length,
     unresolvedCount: revisionSummaries.filter((summary) => summary.unresolved_count > 0).length,
     contradictionCount: revisionSummaries.filter((summary) => summary.is_contradiction).length,
-    activeMoveCount: moves.length,
+    activeMoveCount: moves.filter((move) => !move.reverted_at).length,
+    touchedCardIds,
     placementsByDay,
   };
 }
