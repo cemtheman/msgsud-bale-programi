@@ -12,6 +12,43 @@ body {
   overscroll-behavior-y: contain;
 }
 
+
+/* Yönetim çalışma alanı masaüstü / yatay ekran için ayrı bir geniş yüzey kullanır.
+   Öğrenci ve öğretmen uygulamasının 480px mobil kabuğu değişmeden kalır. */
+.app-shell:has(.management-workbench-root) {
+  max-width: none !important;
+  padding: 0 !important;
+  border-left-width: 0 !important;
+  border-right-width: 0 !important;
+  box-shadow: none !important;
+  overflow-x: auto !important;
+}
+
+.app-shell:has(.management-workbench-root) > .relative {
+  width: 100%;
+  min-width: 1180px;
+}
+
+.management-portrait-note {
+  display: none;
+}
+
+@media (orientation: portrait) and (max-width: 1024px) {
+  .management-portrait-note {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    display: block;
+    border-bottom: 1px solid #f59e0b;
+    background: #fffbeb;
+    padding: 9px 16px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 800;
+    color: #92400e;
+  }
+}
+
 @layer utilities {
   @keyframes ballerina-hop {
     0%, 100% {
