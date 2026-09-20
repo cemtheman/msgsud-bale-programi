@@ -262,6 +262,13 @@ export default function ManagementPage() {
     }
   }, [selectedCard, stage]);
 
+
+  useEffect(() => {
+    // İşlem sonucu seçili karta aittir; başka karta geçildiğinde eski başarı/
+    // hata mesajını yeni kartın ayrıntılarında göstermeyelim.
+    setCommandNotice(null);
+  }, [selectedCardId]);
+
   useEffect(() => {
     if (!session || !selectedCardId || status !== 'ready') {
       setCandidateDetail(null);
