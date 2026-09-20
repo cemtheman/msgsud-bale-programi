@@ -11,6 +11,7 @@ import { ManagementInspector } from '@/components/management/ManagementInspector
 import { ManagementBusyOverlay } from '@/components/management/ManagementBusyOverlay';
 import { ManagementConfirmOverlay } from '@/components/management/ManagementConfirmOverlay';
 import { ManagementProgramStatus } from '@/components/management/ManagementProgramStatus';
+import { ManagementCoursePlan } from '@/components/management/ManagementCoursePlan';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   cardMatchesStage,
@@ -29,6 +30,11 @@ import {
   type ManagementOverview,
 } from '@/lib/managementOverview';
 import { deriveManagementHealth } from '@/lib/managementHealth';
+import {
+  fetchManagementCoursePlan,
+  type ManagementCoursePlanData,
+  type ManagementPlanStage,
+} from '@/lib/managementCoursePlan';
 import {
   fetchManagementCommandState,
   moveManagementCard,
@@ -220,11 +226,12 @@ export default function ManagementPage() {
 
   const [overview, setOverview] = useState<ManagementOverview | null>(null);
   const [board, setBoard] = useState<ManagementBoardData | null>(null);
+  const [coursePlan, setCoursePlan] = useState<ManagementCoursePlanData | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
 
-  const [activeSection, setActiveSection] = useState<'PROGRAM' | 'STATUS'>('PROGRAM');
+  const [activeSection, setActiveSection] = useState<'PROGRAM' | 'PLAN' | 'STATUS'>('PROGRAM');
   const [activeDay, setActiveDay] = useState(1);
   const [stage, setStage] = useState<ManagementStage>('ORTAOKUL');
   const [resourceView, setResourceView] =
@@ -266,6 +273,7 @@ export default function ManagementPage() {
     if (status !== 'ready' || !session) {
       setOverview(null);
       setBoard(null);
+      setCoursePlan(null);
       return;
     }
 
@@ -276,12 +284,14 @@ export default function ManagementPage() {
     Promise.all([
       fetchManagementOverview(session.accessToken),
       fetchManagementBoard(session.accessToken),
+      fetchManagementCoursePlan(session.accessToken),
     ])
-      .then(async ([nextOverview, nextBoard]) => {
+      .then(async ([nextOverview, nextBoard, nextCoursePlan]) => {
         if (!active) return;
 
         setOverview(nextOverview);
         setBoard(nextBoard);
+        setCoursePlan(nextCoursePlan);
 
         if (nextBoard) {
           const nextCommandState = await fetchManagementCommandState(
@@ -737,8 +747,16 @@ export default function ManagementPage() {
               >
                 Program
               </button>
-              <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
-                Ders Yükleri
+              <button
+                type="button"
+                onClick={() => setActiveSection('PLAN')}
+                className={
+                  activeSection === 'PLAN'
+                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
+                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                }
+              >
+                Ders Planı
               </button>
               <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
                 Kaynaklar
@@ -993,6 +1011,27 @@ export default function ManagementPage() {
             />
           )}
         </section>
+      ) : activeSection === 'PLAN' ? (
+        <ManagementCoursePlan
+          data={coursePlan}
+          onOpenProgram={(requirementId, planStage: ManagementPlanStage) => {
+            const card = board?.cards.find(
+              (item) => item.requirementId === requirementId,
+            );
+
+            setStage(planStage);
+            setActiveSection('PROGRAM');
+
+            if (card) {
+              setSelectedCardId(card.id);
+              setInspectorOpen(true);
+              setCandidateFocus(null);
+              if (card.placement) {
+                setActiveDay(card.placement.dayOfWeek);
+              }
+            }
+          }}
+        />
       ) : (
         <ManagementProgramStatus
           snapshot={healthSnapshot}
