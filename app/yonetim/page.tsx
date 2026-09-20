@@ -8,6 +8,7 @@ import {
 } from '@/components/management/ManagementBoardGrid';
 import { ManagementCardPool } from '@/components/management/ManagementCardPool';
 import { ManagementInspector } from '@/components/management/ManagementInspector';
+import { ManagementBusyOverlay } from '@/components/management/ManagementBusyOverlay';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   cardMatchesStage,
@@ -32,7 +33,9 @@ import {
   redoManagement,
   removeManagementCard,
   undoManagement,
+  type ManagementCommandDescriptor,
   type ManagementCommandState,
+  type ManagementRootAction,
 } from '@/lib/managementCommands';
 
 const DAYS = [
@@ -70,6 +73,51 @@ function roleLabel(role: string | null | undefined) {
   if (role === 'EDITOR') return 'Editör';
   if (role === 'VIEWER') return 'Görüntüleyici';
   return 'Yetkisiz';
+}
+
+
+function actionNoun(action: ManagementRootAction) {
+  if (action === 'PLACE') return 'yerleştirmesi';
+  if (action === 'MOVE') return 'taşıması';
+  return 'kaldırma işlemi';
+}
+
+function commandContextLabel(
+  descriptor: ManagementCommandDescriptor | null,
+  board: ManagementBoardData | null,
+) {
+  if (!descriptor) return 'Program işlemi';
+
+  const card = descriptor.cardId
+    ? board?.cards.find((item) => item.id === descriptor.cardId) ?? null
+    : null;
+
+  if (!card) {
+    return `Program ${actionNoun(descriptor.action)}`;
+  }
+
+  const audience = card.classCodes.length > 0
+    ? card.classCodes.join(', ')
+    : card.groupName;
+
+  return `${audience} ${card.subjectName} ${actionNoun(descriptor.action)}`;
+}
+
+function completedCommandMessage(
+  descriptor: ManagementCommandDescriptor | null,
+  board: ManagementBoardData | null,
+  mode: 'undo' | 'redo',
+) {
+  const base = commandContextLabel(descriptor, board);
+  const autoText = descriptor && descriptor.autoCount > 0
+    ? ` ve buna bağlı ${descriptor.autoCount} otomatik yerleşim`
+    : '';
+
+  if (mode === 'undo') {
+    return `${base}${autoText} geri alındı.`;
+  }
+
+  return `${base}${autoText} yeniden uygulandı.`;
 }
 
 function LoginScreen({
@@ -153,6 +201,12 @@ function LoginScreen({
           Öğrenci / öğretmen programına dön
         </Link>
       </section>
+
+      {commandBusy && (
+        <ManagementBusyOverlay
+          detail={commandActivity ?? 'Program güncelleniyor.'}
+        />
+      )}
     </main>
   );
 }
@@ -194,12 +248,11 @@ export default function ManagementPage() {
   const dragSequenceRef = useRef(0);
 
   const [commandState, setCommandState] = useState<ManagementCommandState>({
-    undoTransactionId: null,
-    undoLabel: null,
-    redoTransactionId: null,
-    redoLabel: null,
+    undo: null,
+    redo: null,
   });
   const [commandBusy, setCommandBusy] = useState(false);
+  const [commandActivity, setCommandActivity] = useState<string | null>(null);
   const [commandNotice, setCommandNotice] = useState<{
     kind: 'success' | 'error' | 'info';
     text: string;
@@ -234,10 +287,8 @@ export default function ManagementPage() {
           if (active) setCommandState(nextCommandState);
         } else {
           setCommandState({
-            undoTransactionId: null,
-            undoLabel: null,
-            redoTransactionId: null,
-            redoLabel: null,
+            undo: null,
+            redo: null,
           });
         }
       })
@@ -393,6 +444,11 @@ export default function ManagementPage() {
     }
 
     setCommandBusy(true);
+    setCommandActivity(
+      commandCard.placement
+        ? `${commandCard.subjectName} yeni yerine taşınıyor.`
+        : `${commandCard.subjectName} programa yerleştiriliyor.`,
+    );
     setCommandNotice(null);
 
     try {
@@ -423,6 +479,7 @@ export default function ManagementPage() {
       });
     } finally {
       setCommandBusy(false);
+      setCommandActivity(null);
     }
   };
 
@@ -477,6 +534,7 @@ export default function ManagementPage() {
     }
 
     setCommandBusy(true);
+    setCommandActivity(`${selectedCard.subjectName} programdan kaldırılıyor.`);
     setCommandNotice(null);
 
     try {
@@ -493,27 +551,31 @@ export default function ManagementPage() {
       });
     } finally {
       setCommandBusy(false);
+      setCommandActivity(null);
     }
   };
 
   const runUndo = async () => {
+    const descriptor = commandState.undo;
+
     if (
       !session
       || !access?.canEdit
-      || !commandState.undoTransactionId
+      || !descriptor
       || commandBusy
     ) {
       return;
     }
 
     setCommandBusy(true);
+    setCommandActivity(`${commandContextLabel(descriptor, board)} geri alınıyor.`);
     setCommandNotice(null);
 
     try {
-      await undoManagement(session.accessToken, commandState.undoTransactionId);
+      await undoManagement(session.accessToken, descriptor.transactionId);
       setCommandNotice({
         kind: 'success',
-        text: 'Son program işlemi geri alındı.',
+        text: completedCommandMessage(descriptor, board, 'undo'),
       });
       setRefreshToken((value) => value + 1);
     } catch (reason: unknown) {
@@ -525,27 +587,31 @@ export default function ManagementPage() {
       });
     } finally {
       setCommandBusy(false);
+      setCommandActivity(null);
     }
   };
 
   const runRedo = async () => {
+    const descriptor = commandState.redo;
+
     if (
       !session
       || !access?.canEdit
-      || !commandState.redoTransactionId
+      || !descriptor
       || commandBusy
     ) {
       return;
     }
 
     setCommandBusy(true);
+    setCommandActivity(`${commandContextLabel(descriptor, board)} yeniden uygulanıyor.`);
     setCommandNotice(null);
 
     try {
-      await redoManagement(session.accessToken, commandState.redoTransactionId);
+      await redoManagement(session.accessToken, descriptor.transactionId);
       setCommandNotice({
         kind: 'success',
-        text: 'Geri alınan program işlemi yeniden uygulandı.',
+        text: completedCommandMessage(descriptor, board, 'redo'),
       });
       setRefreshToken((value) => value + 1);
     } catch (reason: unknown) {
@@ -557,6 +623,7 @@ export default function ManagementPage() {
       });
     } finally {
       setCommandBusy(false);
+      setCommandActivity(null);
     }
   };
 
@@ -765,10 +832,10 @@ export default function ManagementPage() {
               <button
                 type="button"
                 onClick={() => void runUndo()}
-                disabled={!commandState.undoTransactionId || commandBusy}
+                disabled={!commandState.undo || commandBusy}
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
-                title={commandState.undoLabel
-                  ? `Son işlemi geri al: ${commandState.undoLabel}`
+                title={commandState.undo
+                  ? `${commandContextLabel(commandState.undo, board)} geri al`
                   : 'Geri alınabilecek işlem yok'}
               >
                 ↶ Geri Al
@@ -776,10 +843,10 @@ export default function ManagementPage() {
               <button
                 type="button"
                 onClick={() => void runRedo()}
-                disabled={!commandState.redoTransactionId || commandBusy}
+                disabled={!commandState.redo || commandBusy}
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
-                title={commandState.redoLabel
-                  ? `İşlemi yeniden uygula: ${commandState.redoLabel}`
+                title={commandState.redo
+                  ? `${commandContextLabel(commandState.redo, board)} yeniden uygula`
                   : 'Yinelenecek işlem yok'}
               >
                 ↷ Yinele
