@@ -10,31 +10,31 @@ import type {
 function statusMeta(status: ManagementReadinessStatus) {
   if (status === 'YAYINA_HAZIR') {
     return {
-      label: 'YAYINA HAZIR',
+      label: 'Yayına hazır',
       className: 'border-emerald-200 bg-emerald-50 text-emerald-900',
-      description: 'Yayın engeli veya açık uyarı görünmüyor.',
+      description: 'Programda yayın öncesinde tamamlanması gereken bir eksik görünmüyor.',
     };
   }
 
   if (status === 'UYARILARLA_HAZIR') {
     return {
-      label: 'UYARILARLA HAZIR',
+      label: 'Hazır, ancak kontrol edilmesi gerekenler var',
       className: 'border-amber-200 bg-amber-50 text-amber-900',
-      description: 'Yayını engellemeyen veri borçları veya uyarılar bulunuyor.',
+      description: 'Program yayımlanabilir durumda; yine de aşağıdaki bilgi eksiklerini gözden geçirmeniz iyi olur.',
     };
   }
 
   return {
-    label: 'YAYIN ENGELLİ',
+    label: 'Henüz yayına hazır değil',
     className: 'border-rose-200 bg-rose-50 text-rose-900',
-    description: 'Yayın öncesinde çözülmesi gereken en az bir engel bulunuyor.',
+    description: 'Program tamamlanmadan önce aşağıdaki eksiklerin giderilmesi gerekiyor.',
   };
 }
 
 function originLabel(origin?: ManagementIssueOrigin) {
-  if (origin === 'TOUCHED_INHERITED') return 'Dokunulmuş devralınmış';
+  if (origin === 'TOUCHED_INHERITED') return 'Bu taslakta işlem gördü';
   if (origin === 'INTRODUCED') return 'Bu taslakta oluştu';
-  if (origin === 'INHERITED') return 'Devralınmış';
+  if (origin === 'INHERITED') return 'Mevcut veriden geliyor';
   return null;
 }
 
@@ -60,7 +60,7 @@ function IssueCard({ issue }: { issue: ManagementHealthIssue }) {
                   : 'rounded-full bg-amber-100 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-amber-700'
               }
             >
-              {isBlocker ? 'Engel' : 'Uyarı'}
+              {isBlocker ? 'Tamamlanmalı' : 'Dikkat'}
             </span>
 
             {origin && (
@@ -120,7 +120,7 @@ export function ManagementProgramStatus({
           <div className="flex items-start justify-between gap-5">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.16em] opacity-70">
-                Program Durumu
+                Programın durumu
               </p>
               <h2 className="mt-1 text-2xl font-black">
                 {meta.label}
@@ -132,7 +132,7 @@ export function ManagementProgramStatus({
 
             <div className="text-right">
               <p className="text-[10px] font-bold uppercase tracking-wide opacity-60">
-                Taslak
+                Çalışılan taslak
               </p>
               <p className="mt-1 text-sm font-black">
                 v{versionNumber ?? '–'}
@@ -144,37 +144,37 @@ export function ManagementProgramStatus({
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
-              Yerleşim
+              Programlanan dersler
             </p>
             <p className="mt-2 text-2xl font-black text-slate-900">
               {snapshot.placedCount} / {snapshot.totalCards}
             </p>
             <p className="mt-1 text-[10px] font-medium text-slate-500">
-              kart programda
+              ders kartı yerleştirildi
             </p>
           </div>
 
           <div className="rounded-2xl border border-rose-200 bg-white p-4 shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-wide text-rose-500">
-              Yayın engeli
+              Tamamlanması gereken
             </p>
             <p className="mt-2 text-2xl font-black text-rose-700">
               {blockerCount}
             </p>
             <p className="mt-1 text-[10px] font-medium text-slate-500">
-              çözülmesi gereken kayıt
+              kayıt
             </p>
           </div>
 
           <div className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm">
             <p className="text-[10px] font-black uppercase tracking-wide text-amber-600">
-              Uyarı
+              Bilgi eksiği
             </p>
             <p className="mt-2 text-2xl font-black text-amber-700">
               {warningCount}
             </p>
             <p className="mt-1 text-[10px] font-medium text-slate-500">
-              yayını tek başına engellemeyen
+              kontrol edilmesi önerilen kayıt
             </p>
           </div>
         </div>
@@ -185,10 +185,10 @@ export function ManagementProgramStatus({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                    Yayın engelleri
+                    Önce tamamlanması gerekenler
                   </p>
                   <h3 className="mt-1 text-base font-bold text-slate-900">
-                    Önce bunları çöz
+                    Programı tamamlamak için
                   </h3>
                 </div>
                 <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[9px] font-black text-rose-700">
@@ -203,7 +203,7 @@ export function ManagementProgramStatus({
                   ))
                 ) : (
                   <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
-                    Yayını engelleyen bir durum görünmüyor.
+                    Tamamlanması gereken bir durum görünmüyor.
                   </div>
                 )}
               </div>
@@ -213,10 +213,10 @@ export function ManagementProgramStatus({
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                    Uyarılar
+                    Kontrol edilmesi önerilenler
                   </p>
                   <h3 className="mt-1 text-base font-bold text-slate-900">
-                    Veri borçları ve dikkat noktaları
+                    Eksik veya doğrulanmamış bilgiler
                   </h3>
                 </div>
                 <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[9px] font-black text-amber-700">
@@ -231,7 +231,7 @@ export function ManagementProgramStatus({
                   ))
                 ) : (
                   <div className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">
-                    Açık uyarı görünmüyor.
+                    Kontrol edilmesi gereken ek bir bilgi görünmüyor.
                   </div>
                 )}
               </div>
@@ -241,33 +241,33 @@ export function ManagementProgramStatus({
           <aside className="space-y-4">
             <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                M16 kontrol kapsamı
+                Bu sayfa neyi kontrol ediyor?
               </p>
               <div className="mt-3 space-y-2 text-[11px] font-medium leading-5 text-slate-600">
-                <p>✓ Tüm ders kartları yerleştirildi mi?</p>
-                <p>✓ Çelişkiye düşmüş kart var mı?</p>
-                <p>✓ Dokunulmuş kartlarda belirsiz veri kaldı mı?</p>
-                <p>✓ Dokunulmamış veri borçları uyarı olarak ayrıldı mı?</p>
+                <p>✓ Tüm derslere programda yer verildi mi?</p>
+                <p>✓ Her ders için geçerli bir yerleşim seçeneği var mı?</p>
+                <p>✓ Düzenlenen derslerde eksik öğretmen veya salon bilgisi kaldı mı?</p>
+                <p>✓ Mevcut veriden gelen eksikler ayrı bir dikkat notu olarak gösterildi mi?</p>
               </div>
             </div>
 
             <div className="rounded-[22px] border border-blue-200 bg-blue-50 p-4">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-700">
-                Yayın henüz bağlı değil
+                Bu ekran taslağı kontrol eder
               </p>
               <p className="mt-2 text-[11px] font-medium leading-5 text-blue-800">
-                Bu ekran yalnız sağlık kontrolünü gösterir. Öğrenci ve öğretmen programları bu taslaktan henüz etkilenmez.
+                Burada yaptığınız kontroller henüz öğrenci ve öğretmen programlarını değiştirmez. Yayınlama ayrı bir adım olarak eklenecek.
               </p>
             </div>
 
             <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                Sorun kökeni
+                Bu bilgi nereden geliyor?
               </p>
               <div className="mt-3 space-y-2 text-[10px] font-medium leading-4 text-slate-500">
-                <p><strong className="text-slate-700">Devralınmış:</strong> yönetim taslağından önce var olan veri borcu.</p>
-                <p><strong className="text-slate-700">Dokunulmuş devralınmış:</strong> bu taslakta işlem görmüş eski veri sorunu.</p>
-                <p><strong className="text-slate-700">Bu taslakta oluştu:</strong> baseline farkı doğrulandığında kullanılacak.</p>
+                <p><strong className="text-slate-700">Mevcut veriden geliyor:</strong> bu taslak üzerinde çalışmaya başlamadan önce de eksik olan bilgi.</p>
+                <p><strong className="text-slate-700">Bu taslakta işlem gördü:</strong> önceden var olan eksik bilgiye bu taslakta müdahale edildi.</p>
+                <p><strong className="text-slate-700">Bu taslakta oluştu:</strong> ileride başlangıç durumu ile karşılaştırma kesinleştirildiğinde bu etiket kullanılacak.</p>
               </div>
             </div>
           </aside>
