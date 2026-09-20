@@ -35,12 +35,13 @@ begin
 
   select count(*)
   into v_root_count
-  from public.move_transactions transaction
-  where transaction.id = p_root_transaction_id
-    and transaction.schedule_revision_id = p_schedule_revision_id
-    and transaction.actor_type = 'USER'
-    and transaction.root_transaction_id is null
-    and transaction.parent_transaction_id is null;
+  from public.move_transactions mt
+  where mt.id = p_root_transaction_id
+    and mt.schedule_revision_id = p_schedule_revision_id
+    and mt.actor_type = 'USER'
+    and mt.root_transaction_id is null
+    and mt.parent_transaction_id is null
+    and mt.action = 'PLACE';
 
   if v_root_count <> 1 then
     raise exception 'M6 propagation root must be one USER root transaction: %', p_root_transaction_id;
@@ -48,12 +49,12 @@ begin
 
   select count(*)
   into v_parent_count
-  from public.move_transactions transaction
-  where transaction.id = p_parent_transaction_id
-    and transaction.schedule_revision_id = p_schedule_revision_id
+  from public.move_transactions mt
+  where mt.id = p_parent_transaction_id
+    and mt.schedule_revision_id = p_schedule_revision_id
     and (
-      transaction.id = p_root_transaction_id
-      or transaction.root_transaction_id = p_root_transaction_id
+      mt.id = p_root_transaction_id
+      or mt.root_transaction_id = p_root_transaction_id
     );
 
   if v_parent_count <> 1 then
@@ -403,14 +404,14 @@ begin
     v_stop_reason := 'NO_FORCED_CANDIDATE';
   end if;
 
-  update public.move_transactions transaction
-  set payload = transaction.payload || jsonb_build_object(
+  update public.move_transactions mt
+  set payload = mt.payload || jsonb_build_object(
     'propagation_auto_count', v_auto_count,
     'propagation_stop_reason', v_stop_reason,
     'propagation_contradiction_count', v_contradiction_count,
     'remaining_unplaced_count', v_unplaced_count
   )
-  where transaction.id = v_transaction_id;
+  where mt.id = v_transaction_id;
 
   return v_transaction_id;
 end
