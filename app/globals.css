@@ -451,190 +451,74 @@ body {
 }
 
 
-/* Yönetim işlem göstergesi.
-   Düz bir SVG'yi 3D eksende çevirmiyoruz; bu, balerini ezip ters yüz ediyordu.
-   Balerin dik ve dengede kalır. Hareket hissini kaidenin dönen mekanizması,
-   hafif poise/salınım ve ışık halkası verir. */
-.management-music-box {
+/* Yönetim işlem göstergesi: sade, okunaklı ve teknik durum hissi veren
+   bale temalı loader. Balerin sabit kalır; yalnız çevresindeki halka döner. */
+.management-busy-mark {
   position: relative;
   display: flex;
-  width: 136px;
-  height: 154px;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.management-music-box-glow {
-  position: absolute;
-  left: 50%;
-  top: 18px;
-  width: 106px;
-  height: 106px;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: radial-gradient(
-    circle,
-    rgba(166, 61, 72, 0.11) 0%,
-    rgba(166, 61, 72, 0.045) 44%,
-    rgba(166, 61, 72, 0) 72%
-  );
-  animation: management-music-box-glow 2.4s ease-in-out infinite;
-}
-
-.management-music-box-ballerina {
-  position: absolute;
-  left: 50%;
-  bottom: 43px;
-  z-index: 4;
-  transform: translateX(-50%);
-  transform-origin: 50% 94%;
-  animation: management-ballerina-poise 2.6s ease-in-out infinite;
-  will-change: transform;
-}
-
-.management-music-box-stem {
-  position: absolute;
-  left: 50%;
-  bottom: 35px;
-  z-index: 2;
-  width: 3px;
-  height: 22px;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: linear-gradient(to bottom, #d6bd86, #9f7f49);
-  box-shadow: 0 0 0 1px rgba(143, 113, 62, 0.1);
-}
-
-.management-music-box-base {
-  position: relative;
-  z-index: 3;
-  width: 118px;
-  height: 40px;
-  border: 1px solid rgba(143, 113, 62, 0.28);
-  border-radius: 50% 50% 13px 13px / 28% 28% 13px 13px;
-  background: linear-gradient(
-    180deg,
-    #f7eedf 0%,
-    #e7d4b1 50%,
-    #cbaa70 100%
-  );
-  box-shadow:
-    0 11px 24px rgba(15, 23, 42, 0.13),
-    inset 0 1px 0 rgba(255, 255, 255, 0.82);
-}
-
-.management-music-box-disc {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  top: -8px;
-  height: 19px;
-  border: 1px solid rgba(143, 113, 62, 0.3);
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at center, #ead8b9 0 12%, transparent 13%),
-    conic-gradient(
-      from 0deg,
-      #fbf5e9 0deg 42deg,
-      #c9a96e 42deg 48deg,
-      #fbf5e9 48deg 132deg,
-      #b99354 132deg 138deg,
-      #fbf5e9 138deg 222deg,
-      #c9a96e 222deg 228deg,
-      #fbf5e9 228deg 312deg,
-      #b99354 312deg 318deg,
-      #fbf5e9 318deg 360deg
-    );
-  animation: management-music-box-disc 4.2s linear infinite;
-  box-shadow: inset 0 2px 5px rgba(109, 82, 38, 0.11);
-}
-
-.management-music-box-disc span {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 5px;
-  height: 5px;
-  margin: -2.5px;
-  border-radius: 999px;
-  background: rgba(166, 61, 72, 0.34);
-}
-
-.management-music-box-disc span:nth-child(1) {
-  transform: translate(34px, 0);
-}
-
-.management-music-box-disc span:nth-child(2) {
-  transform: translate(-34px, 0);
-}
-
-.management-music-box-disc span:nth-child(3) {
-  transform: translate(0, 5px);
-}
-
-.management-music-box-disc span:nth-child(4) {
-  transform: translate(0, -5px);
-}
-
-.management-music-box-base-front {
-  position: absolute;
-  inset: 14px 13px 7px;
-  display: flex;
+  width: 112px;
+  height: 112px;
   align-items: center;
   justify-content: center;
-  gap: 9px;
 }
 
-.management-music-box-base-front i,
-.management-music-box-base-front span {
-  display: block;
+.management-busy-ring {
+  position: absolute;
+  inset: 2px;
   border-radius: 999px;
+  border: 3px solid rgba(166, 61, 72, 0.12);
+  border-top-color: rgba(166, 61, 72, 0.92);
+  border-right-color: rgba(166, 61, 72, 0.42);
+  animation: management-busy-ring 1.15s linear infinite;
 }
 
-.management-music-box-base-front i {
-  width: 4px;
-  height: 4px;
-  background: rgba(143, 113, 62, 0.42);
+.management-busy-dot {
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #a63d48;
+  box-shadow: 0 0 0 5px rgba(166, 61, 72, 0.08);
+  animation: management-busy-dot 1.15s linear infinite;
+  transform-origin: 0 53px;
 }
 
-.management-music-box-base-front span {
-  width: 26px;
-  height: 3px;
-  background: rgba(143, 113, 62, 0.24);
+.management-busy-ballerina {
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 5px 10px rgba(166, 61, 72, 0.12));
+  animation: management-busy-ballerina 1.8s ease-in-out infinite;
 }
 
-@keyframes management-ballerina-poise {
-  0%,
-  100% {
-    transform: translateX(-50%) translateY(0) rotate(-0.8deg);
-  }
-  50% {
-    transform: translateX(-50%) translateY(-2px) rotate(0.8deg);
-  }
-}
-
-@keyframes management-music-box-disc {
+@keyframes management-busy-ring {
   to {
     transform: rotate(360deg);
   }
 }
 
-@keyframes management-music-box-glow {
+@keyframes management-busy-dot {
+  to {
+    transform: translateX(-50%) rotate(360deg);
+  }
+}
+
+@keyframes management-busy-ballerina {
   0%,
   100% {
-    opacity: 0.48;
-    transform: translateX(-50%) scale(0.96);
+    transform: translateY(0);
   }
   50% {
-    opacity: 0.92;
-    transform: translateX(-50%) scale(1.035);
+    transform: translateY(-2px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .management-music-box-ballerina,
-  .management-music-box-disc,
-  .management-music-box-glow {
+  .management-busy-ring,
+  .management-busy-dot,
+  .management-busy-ballerina {
     animation: none !important;
   }
 }
