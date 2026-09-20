@@ -12,65 +12,65 @@ export function ManagementBusyOverlay({
       aria-live="polite"
       aria-busy="true"
     >
-      <div className="flex min-w-[260px] flex-col items-center rounded-[30px] border border-white/80 bg-white/95 px-8 py-7 text-center shadow-[0_28px_90px_rgba(15,23,42,0.22)]">
+      <div className="flex min-w-[260px] flex-col items-center rounded-[28px] border border-white/80 bg-white/95 px-8 py-7 text-center shadow-[0_28px_90px_rgba(15,23,42,0.22)]">
         <div className="management-music-box" aria-hidden="true">
           <div className="management-music-box-glow" />
 
           <div className="management-music-box-ballerina">
             <svg
-              viewBox="0 0 90 118"
-              className="h-[92px] w-[70px] text-[#A63D48]"
+              viewBox="0 0 96 126"
+              className="h-[96px] w-[72px] text-[#A63D48]"
             >
-              <circle cx="45" cy="14" r="7" fill="currentColor" />
+              <circle cx="48" cy="15" r="7" fill="currentColor" />
               <path
-                d="M45 22 C42 31 41 41 43 52 C44 58 43 64 40 70"
+                d="M48 23 C45 32 44 43 46 54 C47 60 46 66 43 72"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="4"
                 strokeLinecap="round"
               />
               <path
-                d="M43 32 C31 35 22 31 15 23"
+                d="M46 33 C34 35 25 31 18 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="4"
                 strokeLinecap="round"
               />
               <path
-                d="M45 32 C57 31 67 24 73 15"
+                d="M48 33 C59 31 68 25 76 17"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="4"
                 strokeLinecap="round"
               />
               <path
-                d="M40 49 C32 54 28 61 27 68 C38 73 55 73 66 67 C63 59 57 53 49 49 Z"
+                d="M43 51 C34 56 30 63 29 70 C40 75 56 75 68 69 C65 61 58 55 51 51 Z"
                 fill="currentColor"
-                opacity="0.9"
+                opacity="0.92"
               />
               <path
-                d="M42 70 C35 82 30 94 25 107"
+                d="M45 72 C39 84 34 96 30 112"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="4"
                 strokeLinecap="round"
               />
               <path
-                d="M44 70 C49 82 55 93 66 102"
+                d="M47 72 C53 83 60 94 72 103"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="4"
                 strokeLinecap="round"
               />
               <path
-                d="M24 107 L18 110"
+                d="M29 112 L23 115"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="3"
                 strokeLinecap="round"
               />
               <path
-                d="M66 102 L72 104"
+                d="M72 103 L78 104"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="3"
@@ -82,11 +82,16 @@ export function ManagementBusyOverlay({
           <div className="management-music-box-stem" />
 
           <div className="management-music-box-base">
-            <div className="management-music-box-disc" />
+            <div className="management-music-box-disc">
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
             <div className="management-music-box-base-front">
+              <i />
               <span />
-              <span />
-              <span />
+              <i />
             </div>
           </div>
         </div>
