@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
@@ -94,12 +95,12 @@ function LoginScreen({
           </button>
         </form>
 
-        <a
+        <Link
           href="/"
           className="mt-6 block text-center text-xs font-bold text-slate-400 transition hover:text-slate-700"
         >
           Öğrenci / öğretmen programına dön
-        </a>
+        </Link>
       </section>
     </main>
   );
