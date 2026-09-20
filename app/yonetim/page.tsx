@@ -1,8 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { ManagementBoardGrid } from '@/components/management/ManagementBoardGrid';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ManagementBoardGrid,
+  type ManagementDropTarget,
+} from '@/components/management/ManagementBoardGrid';
 import { ManagementCardPool } from '@/components/management/ManagementCardPool';
 import { ManagementInspector } from '@/components/management/ManagementInspector';
 import { useManagementSession } from '@/hooks/useManagementSession';
@@ -11,6 +14,7 @@ import {
   fetchManagementBoard,
   fetchManagementCardCandidates,
   managementRowsForView,
+  translateCandidateReason,
   type ManagementBoardData,
   type ManagementCandidateAssessment,
   type ManagementCandidateDetail,
@@ -183,6 +187,12 @@ export default function ManagementPage() {
   const [candidateLoading, setCandidateLoading] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
 
+  const [dragCardId, setDragCardId] = useState<string | null>(null);
+  const [dragCandidateDetail, setDragCandidateDetail] =
+    useState<ManagementCandidateDetail | null>(null);
+  const [dragLoading, setDragLoading] = useState(false);
+  const dragSequenceRef = useRef(0);
+
   const [commandState, setCommandState] = useState<ManagementCommandState>({
     undoTransactionId: null,
     undoLabel: null,
@@ -191,7 +201,7 @@ export default function ManagementPage() {
   });
   const [commandBusy, setCommandBusy] = useState(false);
   const [commandNotice, setCommandNotice] = useState<{
-    kind: 'success' | 'error';
+    kind: 'success' | 'error' | 'info';
     text: string;
   } | null>(null);
 
@@ -267,6 +277,11 @@ export default function ManagementPage() {
     [board, selectedCardId],
   );
 
+  const dragCard = useMemo(
+    () => board?.cards.find((card) => card.id === dragCardId) ?? null,
+    [board, dragCardId],
+  );
+
   const selectCard = (cardId: string) => {
     setSelectedCardId(cardId);
     setInspectorOpen(true);
@@ -317,13 +332,59 @@ export default function ManagementPage() {
     };
   }, [refreshToken, selectedCardId, session, status]);
 
+
+  const beginDrag = (cardId: string) => {
+    if (!session || !access?.canEdit || status !== 'ready') return;
+
+    const sequence = dragSequenceRef.current + 1;
+    dragSequenceRef.current = sequence;
+
+    setDragCardId(cardId);
+    setDragCandidateDetail(null);
+    setDragLoading(true);
+    setSelectedCardId(cardId);
+    setCommandNotice(null);
+
+    void fetchManagementCardCandidates(session.accessToken, cardId)
+      .then((detail) => {
+        if (dragSequenceRef.current !== sequence) return;
+        setDragCandidateDetail(detail);
+      })
+      .catch((reason: unknown) => {
+        if (dragSequenceRef.current !== sequence) return;
+        setDragCandidateDetail(null);
+        setCommandNotice({
+          kind: 'error',
+          text: reason instanceof Error
+            ? reason.message
+            : 'Sürükleme için aday alanı hazırlanamadı.',
+        });
+        setInspectorOpen(true);
+      })
+      .finally(() => {
+        if (dragSequenceRef.current === sequence) {
+          setDragLoading(false);
+        }
+      });
+  };
+
+  const endDrag = () => {
+    dragSequenceRef.current += 1;
+    setDragCardId(null);
+    setDragCandidateDetail(null);
+    setDragLoading(false);
+  };
+
   const runCandidateCommand = async (
     candidate: ManagementCandidateAssessment,
+    cardOverride?: ManagementBoardData['cards'][number] | null,
   ) => {
+    const commandCard = cardOverride ?? selectedCard;
+
     if (
       !session
       || !access?.canEdit
-      || !selectedCard
+      || !commandCard
       || !candidate.teacherId
       || !candidate.roomId
       || commandBusy
@@ -336,14 +397,14 @@ export default function ManagementPage() {
 
     try {
       const input = {
-        cardId: selectedCard.id,
+        cardId: commandCard.id,
         dayOfWeek: candidate.dayOfWeek,
         startPeriod: candidate.startPeriod,
         teacherId: candidate.teacherId,
         roomId: candidate.roomId,
       };
 
-      if (selectedCard.placement) {
+      if (commandCard.placement) {
         await moveManagementCard(session.accessToken, input);
         setCommandNotice({ kind: 'success', text: 'Kart yeni yerine taşındı.' });
       } else {
@@ -362,6 +423,42 @@ export default function ManagementPage() {
       });
     } finally {
       setCommandBusy(false);
+    }
+  };
+
+  const handleDropNeedsAttention = (target: ManagementDropTarget) => {
+    setSelectedCardId(target.cardId);
+    setInspectorOpen(true);
+
+    if (target.state === 'AMBIGUOUS') {
+      setCommandNotice({
+        kind: 'info',
+        text: `Bu başlangıç saati için ${target.validCandidates.length} farklı uygun öğretmen/salon seçeneği var. Sağdaki uygun adaylardan birini seçin.`,
+      });
+      return;
+    }
+
+    const reason = target.reasonCodes[0]
+      ? translateCandidateReason(target.reasonCodes[0])
+      : null;
+
+    if (target.state === 'UNRESOLVED') {
+      setCommandNotice({
+        kind: 'info',
+        text: reason
+          ? `Bu konum henüz belirsiz: ${reason}.`
+          : 'Bu konum henüz belirsiz olduğu için doğrudan bırakılamıyor.',
+      });
+      return;
+    }
+
+    if (target.state === 'INVALID') {
+      setCommandNotice({
+        kind: 'error',
+        text: reason
+          ? `Bu konum uygun değil: ${reason}.`
+          : 'Bu konum kart için uygun değil.',
+      });
     }
   };
 
@@ -713,6 +810,9 @@ export default function ManagementPage() {
             selectedCardId={selectedCardId}
             onSelect={selectCard}
             onClose={() => setPoolOpen(false)}
+            canEdit={access?.canEdit === true}
+            onDragStart={beginDrag}
+            onDragEnd={endDrag}
           />
         )}
 
@@ -739,6 +839,23 @@ export default function ManagementPage() {
             activeDay={activeDay}
             selectedCardId={selectedCardId}
             onSelect={selectCard}
+            canEdit={access?.canEdit === true}
+            dragCard={dragCard}
+            dragCandidateDetail={dragCandidateDetail}
+            dragLoading={dragLoading}
+            onDragStart={beginDrag}
+            onDragEnd={endDrag}
+            onDropCandidate={(candidate) => {
+              const card = dragCard;
+              endDrag();
+              if (card) {
+                void runCandidateCommand(candidate, card);
+              }
+            }}
+            onDropNeedsAttention={(target) => {
+              endDrag();
+              handleDropNeedsAttention(target);
+            }}
           />
         </div>
 
