@@ -497,10 +497,7 @@ export default function ManagementPage() {
         startPeriod: target.startPeriod,
         candidates: target.validCandidates,
       });
-      setCommandNotice({
-        kind: 'info',
-        text: `Bu başlangıç saati için ${target.validCandidates.length} farklı uygun öğretmen/salon seçeneği var. Sağdaki bu hücreye ait seçeneklerden birini seçin.`,
-      });
+      setCommandNotice(null);
       return;
     }
 
