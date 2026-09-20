@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   coursePlanMatchesStage,
   type ManagementCoursePlanData,
@@ -10,6 +10,17 @@ import {
 } from '@/lib/managementCoursePlan';
 
 type PlanFilter = 'ACTIVE' | 'INACTIVE' | 'ALL';
+type PlanViewMode = 'SUBJECT' | 'CLASS';
+
+interface PlanGroup {
+  key: string;
+  title: string;
+  subtitle: string;
+  rows: ManagementCoursePlanRow[];
+  totalWeeklyLoad: number;
+  missingTeacherCount: number;
+  missingRoomCount: number;
+}
 
 function termMeta(status: ManagementPlanTermStatus) {
   if (status === 'ACTIVE') {
@@ -97,6 +108,144 @@ function audienceLabel(row: ManagementCoursePlanRow) {
     : 'Ortak grup';
 }
 
+function rowHasMissingTeacher(row: ManagementCoursePlanRow) {
+  return (
+    row.termStatus === 'ACTIVE'
+    && (row.teacherMode === 'UNKNOWN' || row.teacherNames.length === 0)
+  );
+}
+
+function rowHasMissingRoom(row: ManagementCoursePlanRow) {
+  return (
+    row.termStatus === 'ACTIVE'
+    && (
+      row.resourceMode === 'UNKNOWN'
+      || (
+        row.resourceMode !== 'CAPABILITY'
+        && row.roomNames.length === 0
+      )
+    )
+  );
+}
+
+function makeGroup(
+  key: string,
+  title: string,
+  subtitle: string,
+  rows: ManagementCoursePlanRow[],
+): PlanGroup {
+  return {
+    key,
+    title,
+    subtitle,
+    rows,
+    totalWeeklyLoad: rows.reduce((sum, row) => sum + row.weeklyLoad, 0),
+    missingTeacherCount: rows.filter(rowHasMissingTeacher).length,
+    missingRoomCount: rows.filter(rowHasMissingRoom).length,
+  };
+}
+
+function requirementRow(
+  row: ManagementCoursePlanRow,
+  firstColumn: 'GROUP' | 'SUBJECT',
+  stage: ManagementPlanStage,
+  onOpenProgram: (
+    requirementId: string,
+    stage: ManagementPlanStage,
+  ) => void,
+) {
+  const term = termMeta(row.termStatus);
+
+  return (
+    <div
+      key={row.requirementId}
+      className="grid grid-cols-[minmax(170px,1.05fr)_150px_minmax(180px,1fr)_minmax(180px,1fr)_145px] items-center gap-3 border-t border-slate-100 px-4 py-3.5"
+    >
+      <div className="min-w-0">
+        {firstColumn === 'GROUP' ? (
+          <>
+            <p className="text-[11px] font-black text-slate-900">
+              {audienceLabel(row)}
+            </p>
+            <p className="mt-0.5 truncate text-[9px] font-semibold text-slate-400">
+              {row.groupName}
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="flex min-w-0 items-center gap-2">
+              <p className="truncate text-[11px] font-black text-slate-900">
+                {row.subjectName}
+              </p>
+              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[8px] font-bold text-slate-500">
+                {knowledgeLabel(row.knowledgeStatus)}
+              </span>
+            </div>
+            <p className="mt-0.5 truncate text-[9px] font-semibold text-slate-400">
+              {characterLabel(row.courseCharacter)} · {deliveryLabel(row.deliveryMode)}
+            </p>
+          </>
+        )}
+      </div>
+
+      <div>
+        <p className="text-[11px] font-black text-slate-900">
+          {row.weeklyLoad} saat
+        </p>
+        <p className="mt-1 text-[9px] font-semibold text-slate-500">
+          Blok: {partitionLabel(row)}
+        </p>
+      </div>
+
+      <div className="min-w-0">
+        <p className={`truncate text-[10px] font-semibold ${
+          rowHasMissingTeacher(row)
+            ? 'text-amber-700'
+            : 'text-slate-700'
+        }`}>
+          {teacherLabel(row)}
+        </p>
+        {row.teacherMode === 'ELIGIBLE_POOL' && (
+          <p className="mt-1 text-[9px] font-medium text-slate-400">
+            Seçilebilir havuz
+          </p>
+        )}
+      </div>
+
+      <div className="min-w-0">
+        <p className={`truncate text-[10px] font-semibold ${
+          rowHasMissingRoom(row)
+            ? 'text-amber-700'
+            : 'text-slate-700'
+        }`}>
+          {roomLabel(row)}
+        </p>
+        {row.resourceMode === 'ELIGIBLE_POOL' && (
+          <p className="mt-1 text-[9px] font-medium text-slate-400">
+            Seçilebilir havuz
+          </p>
+        )}
+      </div>
+
+      <div>
+        <span className={`inline-flex rounded-full px-2 py-1 text-[8px] font-black ${term.className}`}>
+          {term.label}
+        </span>
+
+        {row.termStatus === 'ACTIVE' && (
+          <button
+            type="button"
+            onClick={() => onOpenProgram(row.requirementId, stage)}
+            className="mt-2 block text-[9px] font-bold text-blue-700 hover:text-blue-900"
+          >
+            Programda göster →
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ManagementCoursePlan({
   data,
   onOpenProgram,
@@ -109,8 +258,10 @@ export function ManagementCoursePlan({
 }) {
   const [stage, setStage] = useState<ManagementPlanStage>('ORTAOKUL');
   const [filter, setFilter] = useState<PlanFilter>('ACTIVE');
+  const [viewMode, setViewMode] = useState<PlanViewMode>('SUBJECT');
   const [query, setQuery] = useState('');
   const [classFilter, setClassFilter] = useState('TÜMÜ');
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
 
   const stageRows = useMemo(
     () => data?.rows.filter((row) => coursePlanMatchesStage(row, stage)) ?? [],
@@ -154,6 +305,84 @@ export function ManagementCoursePlan({
     });
   }, [classFilter, filter, query, stageRows]);
 
+  const subjectGroups = useMemo(() => {
+    const grouped = new Map<string, ManagementCoursePlanRow[]>();
+
+    visibleRows.forEach((row) => {
+      const values = grouped.get(row.subjectName) ?? [];
+      values.push(row);
+      grouped.set(row.subjectName, values);
+    });
+
+    return Array.from(grouped.entries())
+      .map(([subjectName, rows]) => {
+        const classCodes = new Set<string>();
+        rows.forEach((row) => row.classCodes.forEach((code) => classCodes.add(code)));
+        const sortedCodes = Array.from(classCodes).sort((a, b) =>
+          a.localeCompare(b, 'tr', { numeric: true }),
+        );
+
+        return makeGroup(
+          `subject:${subjectName}`,
+          subjectName,
+          sortedCodes.length > 0
+            ? sortedCodes.join(', ')
+            : 'Ortak / birleşik grup',
+          rows,
+        );
+      })
+      .sort((a, b) => a.title.localeCompare(b.title, 'tr'));
+  }, [visibleRows]);
+
+  const classGroups = useMemo(() => {
+    const grouped = new Map<string, ManagementCoursePlanRow[]>();
+
+    visibleRows.forEach((row) => {
+      const key = row.classCodes.length > 0
+        ? row.classCodes.join(', ')
+        : row.groupName;
+      const values = grouped.get(key) ?? [];
+      values.push(row);
+      grouped.set(key, values);
+    });
+
+    return Array.from(grouped.entries())
+      .map(([label, rows]) => makeGroup(
+        `class:${label}`,
+        label,
+        `${rows.length} ders tanımı`,
+        rows,
+      ))
+      .sort((a, b) => a.title.localeCompare(
+        b.title,
+        'tr',
+        { numeric: true },
+      ));
+  }, [visibleRows]);
+
+  const groups = viewMode === 'SUBJECT' ? subjectGroups : classGroups;
+
+  useEffect(() => {
+    setExpandedKeys(new Set());
+  }, [stage, filter, viewMode, classFilter]);
+
+  useEffect(() => {
+    if (!query.trim()) return;
+    setExpandedKeys(new Set(groups.map((group) => group.key)));
+  }, [groups, query]);
+
+  const toggleGroup = (key: string) => {
+    setExpandedKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   if (!data) {
     return (
       <section className="flex min-h-0 flex-1 items-center justify-center p-6">
@@ -165,21 +394,13 @@ export function ManagementCoursePlan({
   }
 
   const activeCount = stageRows.filter((row) => row.termStatus === 'ACTIVE').length;
-  const inactiveCount = stageRows.filter((row) => row.termStatus !== 'ACTIVE').length;
-  const missingTeacherCount = stageRows.filter((row) => (
-    row.termStatus === 'ACTIVE'
-    && (row.teacherMode === 'UNKNOWN' || row.teacherNames.length === 0)
-  )).length;
-  const missingRoomCount = stageRows.filter((row) => (
-    row.termStatus === 'ACTIVE'
-    && (
-      row.resourceMode === 'UNKNOWN'
-      || (
-        row.resourceMode !== 'CAPABILITY'
-        && row.roomNames.length === 0
-      )
-    )
-  )).length;
+  const subjectCount = new Set(
+    stageRows
+      .filter((row) => row.termStatus === 'ACTIVE')
+      .map((row) => row.subjectName),
+  ).size;
+  const missingTeacherCount = stageRows.filter(rowHasMissingTeacher).length;
+  const missingRoomCount = stageRows.filter(rowHasMissingRoom).length;
 
   return (
     <section className="management-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
@@ -194,7 +415,7 @@ export function ManagementCoursePlan({
                 Programa hangi dersler yerleştirilecek?
               </h2>
               <p className="mt-2 max-w-[760px] text-sm font-medium leading-6 text-slate-500">
-                Haftalık ders saati, blok yapısı, öğrenci grubu, öğretmen ve salon tanımları burada görülür. Program ekranı bu tanımları haftaya yerleştirir.
+                Varsayılan görünümde aynı dersin hangi sınıf ve gruplar tarafından alınacağı birlikte görülür. İsterseniz aynı planı sınıf / grup açısından da inceleyebilirsiniz.
               </p>
             </div>
 
@@ -233,21 +454,21 @@ export function ManagementCoursePlan({
           <div className="mt-5 grid grid-cols-4 gap-3">
             <div className="rounded-2xl bg-slate-950 p-4 text-white">
               <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                Aktif ders tanımı
+                Ders
               </p>
-              <p className="mt-2 text-2xl font-black">{activeCount}</p>
+              <p className="mt-2 text-2xl font-black">{subjectCount}</p>
               <p className="mt-1 text-[10px] font-medium text-slate-300">
-                programa kart üretir
+                aktif ders başlığı
               </p>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">
-                Bu dönem kapalı
+                Ders tanımı
               </p>
-              <p className="mt-2 text-2xl font-black text-slate-900">{inactiveCount}</p>
+              <p className="mt-2 text-2xl font-black text-slate-900">{activeCount}</p>
               <p className="mt-1 text-[10px] font-medium text-slate-500">
-                programa yerleştirilmez
+                sınıf / grup yükümlülüğü
               </p>
             </div>
 
@@ -276,6 +497,31 @@ export function ManagementCoursePlan({
         <div className="rounded-[22px] border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 p-4">
             <div className="flex flex-wrap items-center gap-2">
+              <div className="mr-2 flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('SUBJECT')}
+                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                    viewMode === 'SUBJECT'
+                      ? 'bg-slate-950 text-white'
+                      : 'text-slate-500 hover:bg-white'
+                  }`}
+                >
+                  Derslere göre
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('CLASS')}
+                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                    viewMode === 'CLASS'
+                      ? 'bg-slate-950 text-white'
+                      : 'text-slate-500 hover:bg-white'
+                  }`}
+                >
+                  Sınıf / gruba göre
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setFilter('ACTIVE')}
@@ -316,7 +562,7 @@ export function ManagementCoursePlan({
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Ders, sınıf, öğretmen veya salon ara"
-                  className="w-[300px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-medium outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+                  className="w-[280px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-medium outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
                 />
 
                 <select
@@ -334,106 +580,76 @@ export function ManagementCoursePlan({
             </div>
           </div>
 
-          <div className="grid grid-cols-[135px_minmax(190px,1.1fr)_160px_minmax(180px,1fr)_minmax(180px,1fr)_135px] gap-3 border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
-            <span>Grup</span>
-            <span>Ders</span>
-            <span>Haftalık plan</span>
-            <span>Öğretmen</span>
-            <span>Salon</span>
-            <span>Dönem</span>
-          </div>
-
           <div className="divide-y divide-slate-100">
-            {visibleRows.length === 0 ? (
+            {groups.length === 0 ? (
               <div className="p-8 text-center text-sm font-semibold text-slate-400">
                 Bu filtrelere uyan ders tanımı yok.
               </div>
             ) : (
-              visibleRows.map((row) => {
-                const term = termMeta(row.termStatus);
+              groups.map((group) => {
+                const expanded = expandedKeys.has(group.key);
 
                 return (
-                  <div
-                    key={row.requirementId}
-                    className="grid grid-cols-[135px_minmax(190px,1.1fr)_160px_minmax(180px,1fr)_minmax(180px,1fr)_135px] items-center gap-3 px-4 py-3.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-black text-slate-900">
-                        {audienceLabel(row)}
-                      </p>
-                      <p className="mt-0.5 truncate text-[9px] font-semibold text-slate-400">
-                        {row.groupName}
-                      </p>
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-[12px] font-bold text-slate-900">
-                          {row.subjectName}
-                        </p>
-                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[8px] font-bold text-slate-500">
-                          {knowledgeLabel(row.knowledgeStatus)}
-                        </span>
-                      </div>
-                      <p className="mt-1 truncate text-[9px] font-medium text-slate-400">
-                        {characterLabel(row.courseCharacter)} · {deliveryLabel(row.deliveryMode)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-[11px] font-black text-slate-900">
-                        {row.weeklyLoad} saat
-                      </p>
-                      <p className="mt-1 text-[9px] font-semibold text-slate-500">
-                        Blok: {partitionLabel(row)}
-                      </p>
-                    </div>
-
-                    <div className="min-w-0">
-                      <p className={`truncate text-[10px] font-semibold ${
-                        row.teacherMode === 'UNKNOWN'
-                          ? 'text-amber-700'
-                          : 'text-slate-700'
-                      }`}>
-                        {teacherLabel(row)}
-                      </p>
-                      {row.teacherMode === 'ELIGIBLE_POOL' && (
-                        <p className="mt-1 text-[9px] font-medium text-slate-400">
-                          Seçilebilir havuz
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="min-w-0">
-                      <p className={`truncate text-[10px] font-semibold ${
-                        row.resourceMode === 'UNKNOWN'
-                          ? 'text-amber-700'
-                          : 'text-slate-700'
-                      }`}>
-                        {roomLabel(row)}
-                      </p>
-                      {row.resourceMode === 'ELIGIBLE_POOL' && (
-                        <p className="mt-1 text-[9px] font-medium text-slate-400">
-                          Seçilebilir havuz
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <span className={`inline-flex rounded-full px-2 py-1 text-[8px] font-black ${term.className}`}>
-                        {term.label}
+                  <div key={group.key}>
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.key)}
+                      className="flex w-full items-center gap-4 px-4 py-4 text-left transition hover:bg-slate-50/80"
+                    >
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[12px] font-black text-slate-500">
+                        {expanded ? '−' : '+'}
                       </span>
 
-                      {row.termStatus === 'ACTIVE' && (
-                        <button
-                          type="button"
-                          onClick={() => onOpenProgram(row.requirementId, stage)}
-                          className="mt-2 block text-[9px] font-bold text-blue-700 hover:text-blue-900"
-                        >
-                          Programda göster →
-                        </button>
-                      )}
-                    </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-[13px] font-black text-slate-950">
+                            {group.title}
+                          </h3>
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-500">
+                            {group.rows.length} {viewMode === 'SUBJECT' ? 'grup' : 'ders'}
+                          </span>
+                          <span className="rounded-full bg-blue-50 px-2 py-1 text-[8px] font-black text-blue-700">
+                            {group.totalWeeklyLoad} saat
+                          </span>
+                          {group.missingTeacherCount > 0 && (
+                            <span className="rounded-full bg-amber-50 px-2 py-1 text-[8px] font-black text-amber-700">
+                              {group.missingTeacherCount} öğretmen eksik
+                            </span>
+                          )}
+                          {group.missingRoomCount > 0 && (
+                            <span className="rounded-full bg-amber-50 px-2 py-1 text-[8px] font-black text-amber-700">
+                              {group.missingRoomCount} salon eksik
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 truncate text-[9px] font-medium text-slate-400">
+                          {group.subtitle}
+                        </p>
+                      </div>
+
+                      <span className="shrink-0 text-[9px] font-bold text-slate-400">
+                        {expanded ? 'Kapat' : 'Aç'}
+                      </span>
+                    </button>
+
+                    {expanded && (
+                      <div className="bg-slate-50/40">
+                        <div className="grid grid-cols-[minmax(170px,1.05fr)_150px_minmax(180px,1fr)_minmax(180px,1fr)_145px] gap-3 border-t border-slate-100 bg-slate-50 px-4 py-2 text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">
+                          <span>{viewMode === 'SUBJECT' ? 'Sınıf / grup' : 'Ders'}</span>
+                          <span>Haftalık plan</span>
+                          <span>Öğretmen</span>
+                          <span>Salon</span>
+                          <span>Dönem</span>
+                        </div>
+
+                        {group.rows.map((row) => requirementRow(
+                          row,
+                          viewMode === 'SUBJECT' ? 'GROUP' : 'SUBJECT',
+                          stage,
+                          onOpenProgram,
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -442,7 +658,7 @@ export function ManagementCoursePlan({
         </div>
 
         <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-[10px] font-medium leading-5 text-blue-800">
-          Bu ilk sürüm ders planını güvenli biçimde gösterir. Haftalık saat, blok yapısı, öğretmen veya salon tanımını değiştirmek kart yapısını ve aday alanlarını etkilediği için düzenleme işlemleri ayrı bir kontrollü adımda bağlanacak.
+          Bu sürüm ders planını güvenli biçimde gösterir. Haftalık saat, blok yapısı, öğretmen veya salon tanımını değiştirmek kart yapısını ve aday alanlarını etkilediği için düzenleme işlemleri ayrı bir kontrollü adımda bağlanacak.
         </div>
       </div>
     </section>
