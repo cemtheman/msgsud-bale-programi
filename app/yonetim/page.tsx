@@ -2,7 +2,20 @@
 
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { ManagementBoardGrid } from '@/components/management/ManagementBoardGrid';
+import { ManagementCardPool } from '@/components/management/ManagementCardPool';
+import { ManagementInspector } from '@/components/management/ManagementInspector';
 import { useManagementSession } from '@/hooks/useManagementSession';
+import {
+  cardMatchesStage,
+  fetchManagementBoard,
+  fetchManagementCardCandidates,
+  managementRowsForView,
+  type ManagementBoardData,
+  type ManagementCandidateDetail,
+  type ManagementResourceView,
+  type ManagementStage,
+} from '@/lib/managementBoard';
 import {
   fetchManagementOverview,
   type ManagementOverview,
@@ -16,9 +29,16 @@ const DAYS = [
   { id: 5, label: 'Cuma' },
 ] as const;
 
-const PERIODS = Array.from({ length: 12 }, (_, index) => index + 1);
+const STAGES: Array<{ id: ManagementStage; label: string }> = [
+  { id: 'ORTAOKUL', label: 'Ortaokul' },
+  { id: 'LISE', label: 'Lise' },
+];
 
-type ResourceView = 'SINIFLAR' | 'ÖĞRETMENLER' | 'SALONLAR';
+const RESOURCE_VIEWS: ManagementResourceView[] = [
+  'SINIFLAR',
+  'ÖĞRETMENLER',
+  'SALONLAR',
+];
 
 function roleLabel(role: string | null | undefined) {
   if (role === 'ADMIN') return 'Yönetici';
@@ -48,8 +68,12 @@ function LoginScreen({
     <main className="management-workbench-root flex min-h-screen items-center justify-center bg-[#F5F3EE] px-5 py-10 text-slate-900">
       <section className="w-full max-w-[430px] rounded-[28px] border border-slate-200 bg-white p-7 shadow-[0_24px_70px_rgba(15,23,42,0.10)]">
         <div className="mb-7">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#A63D48]">MSGSÜ Ders Programı</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">Yönetim</h1>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#A63D48]">
+            MSGSÜ Ders Programı
+          </p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950">
+            Yönetim
+          </h1>
           <p className="mt-2 text-sm leading-6 text-slate-500">
             Taslak program çalışma alanına erişmek için yönetim hesabınızla giriş yapın.
           </p>
@@ -57,7 +81,9 @@ function LoginScreen({
 
         <form onSubmit={submit} className="space-y-4">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-extrabold text-slate-600">E-posta</span>
+            <span className="mb-1.5 block text-xs font-extrabold text-slate-600">
+              E-posta
+            </span>
             <input
               type="email"
               required
@@ -69,7 +95,9 @@ function LoginScreen({
           </label>
 
           <label className="block">
-            <span className="mb-1.5 block text-xs font-extrabold text-slate-600">Parola</span>
+            <span className="mb-1.5 block text-xs font-extrabold text-slate-600">
+              Parola
+            </span>
             <input
               type="password"
               required
@@ -117,41 +145,120 @@ export default function ManagementPage() {
   } = useManagementSession();
 
   const [overview, setOverview] = useState<ManagementOverview | null>(null);
-  const [overviewError, setOverviewError] = useState<string | null>(null);
-  const [overviewLoading, setOverviewLoading] = useState(false);
-  const [overviewToken, setOverviewToken] = useState(0);
+  const [board, setBoard] = useState<ManagementBoardData | null>(null);
+  const [dataError, setDataError] = useState<string | null>(null);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
+
   const [activeDay, setActiveDay] = useState(1);
-  const [resourceView, setResourceView] = useState<ResourceView>('SINIFLAR');
+  const [stage, setStage] = useState<ManagementStage>('ORTAOKUL');
+  const [resourceView, setResourceView] =
+    useState<ManagementResourceView>('SINIFLAR');
+
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [candidateDetail, setCandidateDetail] =
+    useState<ManagementCandidateDetail | null>(null);
+  const [candidateLoading, setCandidateLoading] = useState(false);
+  const [candidateError, setCandidateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (status !== 'ready' || !session) {
       setOverview(null);
+      setBoard(null);
       return;
     }
 
     let active = true;
-    setOverviewLoading(true);
-    setOverviewError(null);
+    setDataLoading(true);
+    setDataError(null);
 
-    fetchManagementOverview(session.accessToken)
-      .then((value) => {
+    Promise.all([
+      fetchManagementOverview(session.accessToken),
+      fetchManagementBoard(session.accessToken),
+    ])
+      .then(([nextOverview, nextBoard]) => {
         if (!active) return;
-        setOverview(value);
+        setOverview(nextOverview);
+        setBoard(nextBoard);
       })
       .catch((reason: unknown) => {
         if (!active) return;
-        setOverviewError(
-          reason instanceof Error ? reason.message : 'Taslak program özeti alınamadı.',
+        setDataError(
+          reason instanceof Error
+            ? reason.message
+            : 'Taslak program verisi alınamadı.',
         );
       })
       .finally(() => {
-        if (active) setOverviewLoading(false);
+        if (active) setDataLoading(false);
       });
 
     return () => {
       active = false;
     };
-  }, [overviewToken, session, status]);
+  }, [refreshToken, session, status]);
+
+  const visibleCards = useMemo(
+    () => board?.cards.filter((card) => cardMatchesStage(card, stage)) ?? [],
+    [board, stage],
+  );
+
+  const rows = useMemo(
+    () => (
+      board
+        ? managementRowsForView(board, resourceView, stage)
+        : []
+    ),
+    [board, resourceView, stage],
+  );
+
+  const selectedCard = useMemo(
+    () => board?.cards.find((card) => card.id === selectedCardId) ?? null,
+    [board, selectedCardId],
+  );
+
+  useEffect(() => {
+    if (
+      selectedCard
+      && !cardMatchesStage(selectedCard, stage)
+    ) {
+      setSelectedCardId(null);
+    }
+  }, [selectedCard, stage]);
+
+  useEffect(() => {
+    if (!session || !selectedCardId || status !== 'ready') {
+      setCandidateDetail(null);
+      setCandidateError(null);
+      setCandidateLoading(false);
+      return;
+    }
+
+    let active = true;
+    setCandidateLoading(true);
+    setCandidateError(null);
+
+    fetchManagementCardCandidates(session.accessToken, selectedCardId)
+      .then((detail) => {
+        if (!active) return;
+        setCandidateDetail(detail);
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        setCandidateError(
+          reason instanceof Error
+            ? reason.message
+            : 'Aday alanı ayrıntıları alınamadı.',
+        );
+      })
+      .finally(() => {
+        if (active) setCandidateLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [refreshToken, selectedCardId, session, status]);
 
   const activeDayLabel = useMemo(
     () => DAYS.find((day) => day.id === activeDay)?.label ?? '',
@@ -182,8 +289,12 @@ export default function ManagementPage() {
     return (
       <main className="management-workbench-root flex min-h-screen items-center justify-center bg-[#F5F3EE] px-5 py-10 text-slate-900">
         <section className="w-full max-w-[520px] rounded-[28px] border border-amber-200 bg-white p-7 text-center shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">Erişim sınırı</p>
-          <h1 className="mt-2 text-2xl font-black">Bu hesap Yönetim üyesi değil</h1>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">
+            Erişim sınırı
+          </p>
+          <h1 className="mt-2 text-2xl font-black">
+            Bu hesap Yönetim üyesi değil
+          </h1>
           <p className="mt-3 text-sm leading-6 text-slate-500">
             Oturum açıldı ancak aktif Görüntüleyici, Editör veya Yönetici yetkisi bulunamadı.
           </p>
@@ -199,7 +310,8 @@ export default function ManagementPage() {
     );
   }
 
-  const dayPlacementCount = overview?.placementsByDay[activeDay] ?? 0;
+  const visiblePlacedCount = visibleCards.filter((card) => card.placement).length;
+  const visibleUnplacedCount = visibleCards.length - visiblePlacedCount;
 
   return (
     <main className="management-workbench-root min-h-screen min-w-[1180px] bg-[#F3F1EB] text-slate-900">
@@ -214,7 +326,9 @@ export default function ManagementPage() {
               MSGSÜ Ders Programı
             </p>
             <div className="mt-1 flex items-center gap-3">
-              <h1 className="text-2xl font-black tracking-tight">Yönetim Çalışma Alanı</h1>
+              <h1 className="text-2xl font-black tracking-tight">
+                Yönetim Çalışma Alanı
+              </h1>
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
                 {roleLabel(access?.role)}
               </span>
@@ -237,11 +351,11 @@ export default function ManagementPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setOverviewToken((value) => value + 1)}
-              disabled={overviewLoading}
+              onClick={() => setRefreshToken((value) => value + 1)}
+              disabled={dataLoading}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
             >
-              {overviewLoading ? 'Yenileniyor…' : 'Veriyi yenile'}
+              {dataLoading ? 'Yenileniyor…' : 'Veriyi yenile'}
             </button>
             <button
               type="button"
@@ -254,34 +368,61 @@ export default function ManagementPage() {
         </div>
 
         <nav className="mt-5 flex gap-7 text-sm font-black">
-          <button className="border-b-2 border-slate-950 pb-3 text-slate-950">Program</button>
-          <button disabled className="pb-3 text-slate-300">Ders Yükleri</button>
-          <button disabled className="pb-3 text-slate-300">Kaynaklar</button>
-          <button disabled className="pb-3 text-slate-300">Program Durumu</button>
+          <button className="border-b-2 border-slate-950 pb-3 text-slate-950">
+            Program
+          </button>
+          <button disabled className="pb-3 text-slate-300">
+            Ders Yükleri
+          </button>
+          <button disabled className="pb-3 text-slate-300">
+            Kaynaklar
+          </button>
+          <button disabled className="pb-3 text-slate-300">
+            Program Durumu
+          </button>
         </nav>
       </header>
 
       <section className="border-b border-slate-200 bg-[#FAF9F6] px-6 py-3">
-        <div className="flex items-center justify-between gap-8">
-          <div className="flex gap-1 rounded-2xl bg-slate-200/70 p-1">
-            {DAYS.map((day) => (
-              <button
-                key={day.id}
-                type="button"
-                onClick={() => setActiveDay(day.id)}
-                className={`rounded-xl px-4 py-2 text-xs font-black transition ${
-                  activeDay === day.id
-                    ? 'bg-white text-slate-950 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                {day.label}
-              </button>
-            ))}
+        <div className="flex items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <div className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1">
+              {STAGES.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setStage(item.id)}
+                  className={`rounded-xl px-3 py-2 text-[11px] font-black transition ${
+                    stage === item.id
+                      ? 'bg-[#A63D48] text-white'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-1 rounded-2xl bg-slate-200/70 p-1">
+              {DAYS.map((day) => (
+                <button
+                  key={day.id}
+                  type="button"
+                  onClick={() => setActiveDay(day.id)}
+                  className={`rounded-xl px-4 py-2 text-xs font-black transition ${
+                    activeDay === day.id
+                      ? 'bg-white text-slate-950 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  {day.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1">
-            {(['SINIFLAR', 'ÖĞRETMENLER', 'SALONLAR'] as ResourceView[]).map((view) => (
+            {RESOURCE_VIEWS.map((view) => (
               <button
                 key={view}
                 type="button"
@@ -299,117 +440,61 @@ export default function ManagementPage() {
         </div>
       </section>
 
-      {overviewError && (
+      {dataError && (
         <div className="mx-6 mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">
-          {overviewError}
+          {dataError}
         </div>
       )}
 
-      <section className="grid min-h-[650px] grid-cols-[270px_minmax(0,1fr)_300px] gap-4 p-4">
-        <aside className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between">
+      <section className="grid min-h-[680px] grid-cols-[310px_minmax(0,1fr)_320px] gap-4 p-4">
+        <ManagementCardPool
+          cards={visibleCards}
+          totalUnplaced={overview?.unplacedCount ?? visibleUnplacedCount}
+          selectedCardId={selectedCardId}
+          onSelect={setSelectedCardId}
+        />
+
+        <div className="min-w-0">
+          <div className="mb-3 flex items-center justify-between px-1">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Kart Havuzu</p>
-              <h2 className="mt-1 text-lg font-black">Yerleşmemiş</h2>
-            </div>
-            <span className="rounded-xl bg-slate-950 px-3 py-1.5 text-sm font-black text-white">
-              {overview?.unplacedCount ?? '—'}
-            </span>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-emerald-50 p-3">
-              <p className="text-[10px] font-black uppercase text-emerald-700">Zorunlu</p>
-              <p className="mt-1 text-xl font-black text-emerald-950">{overview?.forcedCount ?? '—'}</p>
-            </div>
-            <div className="rounded-2xl bg-amber-50 p-3">
-              <p className="text-[10px] font-black uppercase text-amber-700">Belirsiz</p>
-              <p className="mt-1 text-xl font-black text-amber-950">{overview?.unresolvedCount ?? '—'}</p>
-            </div>
-            <div className="rounded-2xl bg-rose-50 p-3">
-              <p className="text-[10px] font-black uppercase text-rose-700">Çelişki</p>
-              <p className="mt-1 text-xl font-black text-rose-950">{overview?.contradictionCount ?? '—'}</p>
-            </div>
-            <div className="rounded-2xl bg-slate-100 p-3">
-              <p className="text-[10px] font-black uppercase text-slate-500">Kilitli</p>
-              <p className="mt-1 text-xl font-black text-slate-900">{overview?.lockedCount ?? '—'}</p>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-500">
-            Kart ayrıntıları ve sürükle-bırak bu canlı taslak özetinin üzerine bağlanacak.
-          </div>
-        </aside>
-
-        <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
                 {resourceView}
               </p>
-              <h2 className="mt-1 text-lg font-black">{activeDayLabel}</h2>
+              <h2 className="mt-0.5 text-lg font-black">
+                {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} · {activeDayLabel}
+              </h2>
             </div>
-            <div className="flex gap-2 text-[11px] font-black">
-              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-600">
-                {overview?.cardCount ?? '—'} kart
+            <div className="flex gap-2 text-[10px] font-black">
+              <span className="rounded-full bg-white px-3 py-1.5 text-slate-600 shadow-sm">
+                {visibleCards.length} kart
               </span>
               <span className="rounded-full bg-blue-50 px-3 py-1.5 text-blue-700">
-                {overview?.placedCount ?? '—'} yerleşmiş
+                {visiblePlacedCount} yerleşmiş
+              </span>
+              <span className="rounded-full bg-slate-200/70 px-3 py-1.5 text-slate-600">
+                {visibleUnplacedCount} yerleşmemiş
               </span>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <div className="min-w-[900px]">
-              <div className="grid grid-cols-12 border-b border-slate-200 bg-slate-50">
-                {PERIODS.map((period) => (
-                  <div
-                    key={period}
-                    className="border-r border-slate-200 px-2 py-3 text-center text-[11px] font-black text-slate-500 last:border-r-0"
-                  >
-                    {period}
-                  </div>
-                ))}
-              </div>
+          <ManagementBoardGrid
+            rows={rows}
+            cards={visibleCards}
+            view={resourceView}
+            activeDay={activeDay}
+            selectedCardId={selectedCardId}
+            onSelect={setSelectedCardId}
+          />
+        </div>
 
-              <div className="flex min-h-[470px] items-center justify-center p-8">
-                <div className="max-w-[470px] text-center">
-                  <p className="text-sm font-black text-slate-800">
-                    {dayPlacementCount === 0
-                      ? 'Bu gün için taslak yerleşim yok.'
-                      : `Bu gün için ${dayPlacementCount} yerleşim var.`}
-                  </p>
-                  <p className="mt-2 text-xs leading-5 text-slate-400">
-                    Yatay ders saati ızgarası canlı taslak program verisine bağlı. Sınıf / öğretmen / salon satırları bir sonraki veri bağlama aşamasında bu yüzeye eklenecek.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <aside className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Ayrıntılar</p>
-          <h2 className="mt-1 text-lg font-black">Kart seçimi</h2>
-
-          <div className="mt-5 space-y-3">
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Erişim</p>
-              <p className="mt-1 text-sm font-black">{roleLabel(access?.role)}</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                {access?.canEdit
-                  ? 'Yerleştir / Taşı / Kaldır / Geri Al / Yinele işlemleri kontrollü yönetim komutlarıyla çalışır.'
-                  : 'Bu oturum yalnız yönetim taslak verisini okuyabilir.'}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-dashed border-slate-200 p-4">
-              <p className="text-xs font-bold text-slate-500">
-                Kart seçildiğinde aday alanı, öğretmen, salon ve “Neden değil?” açıklamaları burada gösterilecek.
-              </p>
-            </div>
-          </div>
-        </aside>
+        <ManagementInspector
+          card={selectedCard}
+          candidateDetail={candidateDetail}
+          candidateLoading={candidateLoading}
+          candidateError={candidateError}
+          teacherNamesById={board?.teacherNamesById ?? {}}
+          roomNamesById={board?.roomNamesById ?? {}}
+        />
       </section>
 
       <footer className="sticky bottom-0 border-t border-slate-200 bg-white/95 px-6 py-3 backdrop-blur">
@@ -420,7 +505,7 @@ export default function ManagementPage() {
             <span>Yerleşmemiş: {overview?.unplacedCount ?? '—'}</span>
           </div>
           <div className="text-[11px] font-bold text-slate-400">
-            Geri Al / Yinele hazır · Arayüz komutları henüz bağlanmadı
+            Canlı kartlar ve aday alanı bağlı · Düzenleme komutları henüz kapalı
           </div>
         </div>
       </footer>
