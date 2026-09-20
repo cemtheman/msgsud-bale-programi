@@ -111,6 +111,33 @@ export function ManagementCardPool({
           </div>
         </div>
 
+        <div className="mt-4 grid grid-cols-4 gap-1.5">
+          <div className="rounded-xl bg-emerald-50 px-2 py-2">
+            <p className="text-[8px] font-black uppercase text-emerald-700">Zorunlu</p>
+            <p className="mt-0.5 text-sm font-black text-emerald-950">
+              {cards.filter((card) => !card.placement && card.isForced).length}
+            </p>
+          </div>
+          <div className="rounded-xl bg-amber-50 px-2 py-2">
+            <p className="text-[8px] font-black uppercase text-amber-700">Belirsiz</p>
+            <p className="mt-0.5 text-sm font-black text-amber-950">
+              {cards.filter((card) => !card.placement && card.unresolvedCount > 0).length}
+            </p>
+          </div>
+          <div className="rounded-xl bg-rose-50 px-2 py-2">
+            <p className="text-[8px] font-black uppercase text-rose-700">Çelişki</p>
+            <p className="mt-0.5 text-sm font-black text-rose-950">
+              {cards.filter((card) => !card.placement && card.isContradiction).length}
+            </p>
+          </div>
+          <div className="rounded-xl bg-slate-100 px-2 py-2">
+            <p className="text-[8px] font-black uppercase text-slate-500">Kilitli</p>
+            <p className="mt-0.5 text-sm font-black text-slate-900">
+              {cards.filter((card) => card.locked).length}
+            </p>
+          </div>
+        </div>
+
         <label className="mt-4 block">
           <span className="sr-only">Kart ara</span>
           <input
