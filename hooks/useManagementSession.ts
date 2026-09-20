@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
+  clearManagementSession,
   fetchManagementAccessContext,
   getValidManagementSession,
   signInManagement,
@@ -70,6 +71,7 @@ export function useManagementSession() {
       const nextSession = await signInManagement(email, password);
       return await applySession(nextSession);
     } catch (reason: unknown) {
+      clearManagementSession();
       setSession(null);
       setAccess(null);
       setStatus('anonymous');
