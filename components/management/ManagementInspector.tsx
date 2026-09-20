@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import {
   managementCardStatus,
   translateCandidateReason,
@@ -105,6 +106,73 @@ export function ManagementInspector({
   onRemove: () => void;
   onClose: () => void;
 }) {
+  const focusTeacherIds = useMemo(
+    () => Array.from(new Set(
+      (candidateFocus?.candidates ?? [])
+        .map((candidate) => candidate.teacherId)
+        .filter((value): value is string => Boolean(value)),
+    )),
+    [candidateFocus],
+  );
+
+  const [focusTeacherId, setFocusTeacherId] = useState<string | null>(null);
+  const [focusRoomId, setFocusRoomId] = useState<string | null>(null);
+
+  const focusCandidatesForTeacher = useMemo(
+    () => (
+      focusTeacherId
+        ? (candidateFocus?.candidates ?? []).filter(
+          (candidate) => candidate.teacherId === focusTeacherId,
+        )
+        : []
+    ),
+    [candidateFocus, focusTeacherId],
+  );
+
+  const focusRoomIds = useMemo(
+    () => Array.from(new Set(
+      focusCandidatesForTeacher
+        .map((candidate) => candidate.roomId)
+        .filter((value): value is string => Boolean(value)),
+    )),
+    [focusCandidatesForTeacher],
+  );
+
+  const focusCandidate = useMemo(
+    () => (
+      focusTeacherId && focusRoomId
+        ? focusCandidatesForTeacher.find(
+          (candidate) => candidate.roomId === focusRoomId,
+        ) ?? null
+        : null
+    ),
+    [focusCandidatesForTeacher, focusRoomId, focusTeacherId],
+  );
+
+  useEffect(() => {
+    if (!candidateFocus) {
+      setFocusTeacherId(null);
+      setFocusRoomId(null);
+      return;
+    }
+
+    setFocusTeacherId(
+      focusTeacherIds.length === 1 ? focusTeacherIds[0] : null,
+    );
+    setFocusRoomId(null);
+  }, [candidateFocus, focusTeacherIds]);
+
+  useEffect(() => {
+    if (!candidateFocus || !focusTeacherId) {
+      setFocusRoomId(null);
+      return;
+    }
+
+    setFocusRoomId(
+      focusRoomIds.length === 1 ? focusRoomIds[0] : null,
+    );
+  }, [candidateFocus, focusRoomIds, focusTeacherId]);
+
   if (!card) {
     return (
       <aside className="h-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -288,22 +356,111 @@ export function ManagementInspector({
 
       {candidateFocus && (
         <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/70 p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-700">
-                Bu hücre için seçim
-              </p>
-              <p className="mt-1 text-xs font-black text-blue-950">
-                {DAY_LABELS[candidateFocus.dayOfWeek]} · {candidateFocus.startPeriod}. ders
-              </p>
-            </div>
-            <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black text-blue-700">
-              {candidateFocus.candidates.length} seçenek
-            </span>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-700">
+              Bu hücre için seçim
+            </p>
+            <p className="mt-1 text-xs font-black text-blue-950">
+              {DAY_LABELS[candidateFocus.dayOfWeek]} · {candidateFocus.startPeriod}. ders
+            </p>
+            <p className="mt-1 text-[10px] font-medium text-blue-700">
+              Yalnızca kararsız kalan bilgiyi seçin.
+            </p>
           </div>
 
-          <div className="mt-3 space-y-1.5">
-            {candidateFocus.candidates.map(renderCandidate)}
+          <div className="mt-4">
+            <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              Öğretmen
+            </p>
+
+            {focusTeacherIds.length === 1 ? (
+              <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-bold text-slate-700">
+                {teacherNamesById[focusTeacherIds[0]] ?? 'Öğretmen'}
+                <span className="ml-2 text-[9px] font-semibold text-slate-400">
+                  Sabit
+                </span>
+              </div>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {focusTeacherIds.map((teacherId) => (
+                  <button
+                    key={teacherId}
+                    type="button"
+                    onClick={() => setFocusTeacherId(teacherId)}
+                    className={`rounded-xl border px-3 py-2 text-[10px] font-bold transition ${
+                      focusTeacherId === teacherId
+                        ? 'border-slate-950 bg-slate-950 text-white'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {teacherNamesById[teacherId] ?? 'Öğretmen'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4">
+            <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              Salon
+            </p>
+
+            {!focusTeacherId ? (
+              <p className="mt-2 rounded-xl bg-white/70 px-3 py-2.5 text-[10px] font-semibold text-slate-400">
+                Önce öğretmeni seçin.
+              </p>
+            ) : focusRoomIds.length === 1 ? (
+              <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-bold text-slate-700">
+                {roomNamesById[focusRoomIds[0]] ?? 'Salon'}
+                <span className="ml-2 text-[9px] font-semibold text-slate-400">
+                  Tek uygun salon
+                </span>
+              </div>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {focusRoomIds.map((roomId) => (
+                  <button
+                    key={roomId}
+                    type="button"
+                    onClick={() => setFocusRoomId(roomId)}
+                    className={`rounded-xl border px-3 py-2 text-[10px] font-bold transition ${
+                      focusRoomId === roomId
+                        ? 'border-emerald-700 bg-emerald-700 text-white'
+                        : 'border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50'
+                    }`}
+                  >
+                    {roomNamesById[roomId] ?? 'Salon'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 border-t border-blue-100 pt-3">
+            {focusCandidate ? (
+              <p className="mb-2 text-[10px] font-semibold text-slate-500">
+                {teacherNamesById[focusCandidate.teacherId ?? ''] ?? 'Öğretmen'}
+                {' · '}
+                {roomNamesById[focusCandidate.roomId ?? ''] ?? 'Salon'}
+              </p>
+            ) : (
+              <p className="mb-2 text-[10px] font-semibold text-slate-400">
+                Seçimi tamamlayın.
+              </p>
+            )}
+
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (focusCandidate) onCandidateAction(focusCandidate);
+                }}
+                disabled={!focusCandidate || commandBusy || card.locked}
+                className="w-full rounded-xl bg-emerald-800 px-3 py-2.5 text-[10px] font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {placement ? 'Taşı' : 'Yerleştir'}
+              </button>
+            )}
           </div>
         </div>
       )}
