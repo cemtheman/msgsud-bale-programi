@@ -31,7 +31,9 @@ import {
   type ManagementOverview,
 } from '@/lib/managementOverview';
 import {
+  applyManagementRoomProfile,
   fetchManagementResources,
+  previewManagementRoomProfile,
   updateManagementRoomDisplayName,
   updateManagementTeacherDisplayName,
   type ManagementResourceInventoryData,
@@ -1242,6 +1244,55 @@ export default function ManagementPage() {
                 text: result.overridden
                   ? `Salon adı taslakta “${result.displayName}” olarak güncellendi. Yayınlanan program değişmedi.`
                   : 'Salon adı orijinal yayınlanan ada döndürüldü.',
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onPreviewRoomProfile={async (
+            roomId,
+            capabilities,
+            knowledgeStatus,
+          ) => {
+            if (!session || !access?.canEdit || !resources) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            return previewManagementRoomProfile(
+              session.accessToken,
+              resources.revisionId,
+              roomId,
+              capabilities,
+              knowledgeStatus,
+            );
+          }}
+          onApplyRoomProfile={async (
+            roomId,
+            capabilities,
+            knowledgeStatus,
+            expectedStateToken,
+          ) => {
+            if (!session || !access?.canEdit || !resources) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Salon özellikleri güvenli biçimde uygulanıyor.');
+
+            try {
+              const result = await applyManagementRoomProfile(
+                session.accessToken,
+                resources.revisionId,
+                roomId,
+                capabilities,
+                knowledgeStatus,
+                expectedStateToken,
+              );
+              setCommandNotice({
+                kind: 'success',
+                text: `Salon özellikleri güncellendi. ${result.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirildi.`,
               });
               setRefreshToken((value) => value + 1);
             } finally {
