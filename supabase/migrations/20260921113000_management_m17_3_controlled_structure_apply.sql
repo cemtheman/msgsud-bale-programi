@@ -69,7 +69,7 @@ as $$
           'locked', card.locked
         )
         order by card.block_index, card.id
-      ),
+      ) filter (where card.id is not null),
       '[]'::jsonb
     ) as value
     from target
@@ -79,7 +79,10 @@ as $$
   ),
   target_teachers as (
     select coalesce(
-      jsonb_agg(assignment.teacher_id order by assignment.teacher_id),
+      jsonb_agg(
+        assignment.teacher_id
+        order by assignment.teacher_id
+      ) filter (where assignment.teacher_id is not null),
       '[]'::jsonb
     ) as value
     from target
@@ -88,7 +91,10 @@ as $$
   ),
   target_rooms as (
     select coalesce(
-      jsonb_agg(assignment.room_id order by assignment.room_id),
+      jsonb_agg(
+        assignment.room_id
+        order by assignment.room_id
+      ) filter (where assignment.room_id is not null),
       '[]'::jsonb
     ) as value
     from target
@@ -108,7 +114,7 @@ as $$
           'moveTransactionId', placement.move_transaction_id
         )
         order by placement.card_id
-      ),
+      ) filter (where placement.id is not null),
       '[]'::jsonb
     ) as value
     from target
@@ -253,6 +259,7 @@ declare
   v_preview jsonb;
   v_block_reasons jsonb;
   v_removed_count integer;
+  v_deleted_count integer := 0;
   v_created_count integer;
   v_preserved_count integer;
   v_result_card_ids uuid[];
@@ -353,8 +360,13 @@ begin
     and card.schedule_revision_id = v_revision_id
     and card.requirement_id = p_requirement_id;
 
-  if found is false and v_removed_count > 0 then
-    raise exception 'M17.3 failed to remove preview-selected cards';
+  get diagnostics v_deleted_count = row_count;
+
+  if v_deleted_count <> v_removed_count then
+    raise exception
+      'M17.3 removed-card count mismatch: expected %, deleted %',
+      v_removed_count,
+      v_deleted_count;
   end if;
 
   -- Move remaining block indexes out of the destination range first so swaps
