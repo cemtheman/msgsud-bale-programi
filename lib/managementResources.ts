@@ -32,6 +32,7 @@ export interface ManagementResourceInventoryData {
   revisionId: string;
   teachers: ManagementTeacherResourceRow[];
   rooms: ManagementRoomResourceRow[];
+  availableCapabilities: string[];
 }
 
 interface RevisionRow {
@@ -55,6 +56,7 @@ interface RoomRow {
 interface RequirementRow {
   id: string;
   term_status: 'ACTIVE' | 'INACTIVE' | 'UNKNOWN';
+  required_capability: string | null;
 }
 
 interface RequirementTeacherRow {
@@ -184,6 +186,26 @@ async function authedRpc<T>(
       throw new Error('Takma ad kayıtları Kaynaklar ekranından düzenlenmez.');
     }
 
+    if (normalized.includes('room profile preview is stale')) {
+      throw new Error('Salon bilgileri veya taslak program önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.');
+    }
+
+    if (normalized.includes('room profile apply blocked')) {
+      throw new Error('Bu salon değişikliği mevcut bir program yerleşimini geçersiz kılacağı için uygulanamıyor.');
+    }
+
+    if (normalized.includes('invalid room knowledge status')) {
+      throw new Error('Salon bilgi durumu geçersiz.');
+    }
+
+    if (normalized.includes('invalid room capability')) {
+      throw new Error('Salon özelliklerinden biri geçersiz.');
+    }
+
+    if (normalized.includes('room aliases are not editable')) {
+      throw new Error('Takma ad kayıtlarının salon özellikleri düzenlenmez.');
+    }
+
     throw new Error(message);
   }
 
@@ -221,7 +243,7 @@ export async function fetchManagementResources(
       accessToken,
     ),
     authedGet<RequirementRow[]>(
-      `course_requirements?select=id,term_status&requirement_set_id=eq.${revision.requirement_set_id}`,
+      `course_requirements?select=id,term_status,required_capability&requirement_set_id=eq.${revision.requirement_set_id}`,
       accessToken,
     ),
     authedGet<RequirementTeacherRow[]>(
@@ -320,8 +342,18 @@ export async function fetchManagementResources(
     );
   });
 
+  const availableCapabilities = Array.from(
+    new Set([
+      ...rooms.flatMap((room) => room.capabilities ?? []),
+      ...requirements
+        .map((requirement) => requirement.required_capability)
+        .filter((value): value is string => Boolean(value)),
+    ]),
+  ).sort((a, b) => a.localeCompare(b, 'en'));
+
   return {
     revisionId: revision.id,
+    availableCapabilities,
     teachers: teachers.map((teacher) => {
       const overrideName = teacherOverrideById.get(teacher.id);
 
@@ -401,6 +433,102 @@ export function updateManagementRoomDisplayName(
       p_schedule_revision_id: revisionId,
       p_room_id: roomId,
       p_display_name: displayName,
+    },
+  );
+}
+
+export interface ManagementRoomProfileRequirementImpact {
+  requirementId: string;
+  subjectName: string;
+  groupName: string;
+  requiredCapability: string;
+  cardCount: number;
+  placedInRoomCount: number;
+}
+
+export interface ManagementRoomProfilePlacedImpact {
+  cardId: string;
+  requirementId: string;
+  subjectName: string;
+  groupName: string;
+  requiredCapability: string;
+  dayOfWeek: number;
+  startPeriod: number;
+}
+
+export interface ManagementRoomProfilePreview {
+  roomId: string;
+  revisionId: string;
+  roomName: string;
+  hasChanges: boolean;
+  canApply: boolean;
+  blockReasons: string[];
+  current: {
+    capabilities: string[];
+    knowledgeStatus: ManagementResourceKnowledgeStatus;
+  };
+  proposed: {
+    capabilities: string[];
+    knowledgeStatus: ManagementResourceKnowledgeStatus;
+  };
+  addedCapabilities: string[];
+  removedCapabilities: string[];
+  confirmationChanged: boolean;
+  affectedCapabilities: string[];
+  affectedRequirements: ManagementRoomProfileRequirementImpact[];
+  affectedRequirementCount: number;
+  affectedCardIds: string[];
+  candidateRebuildCardCount: number;
+  placedImpacts: ManagementRoomProfilePlacedImpact[];
+  placedImpactCount: number;
+  stateToken: string;
+}
+
+export interface ManagementRoomProfileApplyResult {
+  applied: boolean;
+  roomId: string;
+  revisionId: string;
+  candidateRebuildCardCount: number;
+  affectedRequirementCount: number;
+  publishedChanged: false;
+}
+
+export function previewManagementRoomProfile(
+  accessToken: string,
+  revisionId: string,
+  roomId: string,
+  capabilities: string[],
+  knowledgeStatus: ManagementResourceKnowledgeStatus,
+) {
+  return authedRpc<ManagementRoomProfilePreview>(
+    'management_preview_room_profile',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_room_id: roomId,
+      p_capabilities: capabilities,
+      p_knowledge_status: knowledgeStatus,
+    },
+  );
+}
+
+export function applyManagementRoomProfile(
+  accessToken: string,
+  revisionId: string,
+  roomId: string,
+  capabilities: string[],
+  knowledgeStatus: ManagementResourceKnowledgeStatus,
+  expectedStateToken: string,
+) {
+  return authedRpc<ManagementRoomProfileApplyResult>(
+    'management_apply_room_profile',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_room_id: roomId,
+      p_capabilities: capabilities,
+      p_knowledge_status: knowledgeStatus,
+      p_expected_state_token: expectedStateToken,
     },
   );
 }
