@@ -1,9 +1,18 @@
 'use client';
 
-import {
-  MANAGEMENT_ROOM_CAPABILITIES,
-  isManagementRoomCapability,
-} from '@/lib/managementRoomCapabilities';
+const MANAGEMENT_ROOM_CAPABILITY_IDS = [
+  'GENERAL_CLASSROOM_SMALL_GROUP',
+  'GENERAL_CLASSROOM_LARGE_GROUP',
+  'STUDIO_SMALL_GROUP',
+  'STUDIO_LARGE_GROUP',
+  'INSTRUMENT_RELATED_CLASSROOM',
+] as const;
+
+function isManagementRoomCapability(value: string) {
+  return MANAGEMENT_ROOM_CAPABILITY_IDS.includes(
+    value as typeof MANAGEMENT_ROOM_CAPABILITY_IDS[number],
+  );
+}
 
 export type ManagementResourceKnowledgeStatus =
   | 'CONFIRMED'
@@ -347,9 +356,7 @@ export async function fetchManagementResources(
     );
   });
 
-  const availableCapabilities = MANAGEMENT_ROOM_CAPABILITIES.map(
-    (capability) => capability.id,
-  );
+  const availableCapabilities = [...MANAGEMENT_ROOM_CAPABILITY_IDS];
 
   return {
     revisionId: revision.id,
