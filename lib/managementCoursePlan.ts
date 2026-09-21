@@ -41,6 +41,65 @@ export interface ManagementCoursePlanData {
   roomOptions: ManagementCoursePlanOption[];
 }
 
+export interface ManagementRequirementStructurePreviewInput {
+  requirementId: string;
+  weeklyLoad: number;
+  preferredPartition: number[];
+  allowedPartitions: number[][];
+  termStatus: ManagementPlanTermStatus;
+}
+
+export interface ManagementRequirementStructureCardImpact {
+  cardId: string;
+  currentBlockIndex: number;
+  proposedBlockIndex?: number;
+  durationPeriods: number;
+  placed: boolean;
+  dayOfWeek: number | null;
+  startPeriod: number | null;
+  teacherId: string | null;
+  roomId: string | null;
+}
+
+export interface ManagementRequirementStructureCreatedBlock {
+  proposedBlockIndex: number;
+  durationPeriods: number;
+}
+
+export interface ManagementRequirementStructureAmbiguity {
+  code: string;
+  durationPeriods: number;
+  currentCount: number;
+  proposedCount: number;
+  placedCount: number;
+  message: string;
+}
+
+export interface ManagementRequirementStructureSnapshot {
+  weeklyLoad: number;
+  preferredPartition: number[];
+  allowedPartitions: number[][];
+  termStatus: ManagementPlanTermStatus;
+  cardCount: number;
+  placedBlockCount?: number;
+}
+
+export interface ManagementRequirementStructurePreview {
+  requirementId: string;
+  revisionId: string;
+  hasChanges: boolean;
+  canApply: boolean;
+  blockReasons: string[];
+  current: ManagementRequirementStructureSnapshot;
+  proposed: ManagementRequirementStructureSnapshot;
+  preservedCards: ManagementRequirementStructureCardImpact[];
+  removedCards: ManagementRequirementStructureCardImpact[];
+  createdBlocks: ManagementRequirementStructureCreatedBlock[];
+  ambiguities: ManagementRequirementStructureAmbiguity[];
+  candidateRebuildCardCount: number;
+  previewOnly: boolean;
+}
+
 interface RevisionRow {
   id: string;
   requirement_set_id: string;
@@ -132,6 +191,43 @@ async function authedGet<T>(path: string, accessToken: string): Promise<T> {
 
   if (!response.ok) {
     throw new Error(`Ders planı verisi alınamadı (${response.status}).`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function authedRpc<T>(
+  name: string,
+  accessToken: string,
+  payload: Record<string, unknown>,
+): Promise<T> {
+  const { url, key } = getSupabaseConfig();
+
+  const response = await fetch(`${url}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    let detail = 'Ders yapısı etkisi hesaplanamadı.';
+
+    try {
+      const body = await response.json() as {
+        message?: string;
+        details?: string;
+      };
+      detail = body.message ?? body.details ?? detail;
+    } catch {
+      // Keep the user-facing fallback.
+    }
+
+    throw new Error(detail);
   }
 
   return response.json() as Promise<T>;
@@ -377,4 +473,21 @@ export async function fetchManagementCoursePlan(
       .map((room) => ({ id: room.id, name: room.name }))
       .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
   };
+}
+
+export function previewManagementRequirementStructure(
+  accessToken: string,
+  input: ManagementRequirementStructurePreviewInput,
+) {
+  return authedRpc<ManagementRequirementStructurePreview>(
+    'management_preview_requirement_structure',
+    accessToken,
+    {
+      p_requirement_id: input.requirementId,
+      p_weekly_load: input.weeklyLoad,
+      p_preferred_partition: input.preferredPartition,
+      p_allowed_partitions: input.allowedPartitions,
+      p_term_status: input.termStatus,
+    },
+  );
 }
