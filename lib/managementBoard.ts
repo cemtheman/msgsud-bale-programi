@@ -287,6 +287,7 @@ export function translateCandidateReason(code: string) {
     LUNCH_BREAK_CROSSING: 'Ders öğle arasını kesiyor',
     TEACHER_CONFLICT: 'Öğretmen aynı saatte başka derste',
     ROOM_CONFLICT: 'Salon aynı saatte kullanımda',
+    ROOM_INACTIVE: 'Salon kullanımda değil',
     GROUP_CONFLICT: 'Öğrenci grubu aynı saatte başka derste',
   };
 
