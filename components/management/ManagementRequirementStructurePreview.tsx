@@ -113,24 +113,34 @@ export function ManagementRequirementStructurePreview({
     ? row.classCodes.join(', ')
     : row.groupName;
 
-  const draftSummary = useMemo(() => {
+  const draftSummary = useMemo<{
+    input: ManagementRequirementStructurePreviewInput | null;
+    error: string | null;
+  }>(() => {
     try {
       const load = Number(weeklyLoad);
       const preferred = parsePartition(preferredPartition);
       const allowed = parseAllowedPartitions(allowedPartitions);
 
       if (!Number.isInteger(load) || load < 0) {
-        return { error: 'Haftalık ders saati sıfır veya pozitif tam sayı olmalı.' };
+        return {
+          input: null,
+          error: 'Haftalık ders saati sıfır veya pozitif tam sayı olmalı.',
+        };
       }
 
       if (termStatus === 'ACTIVE') {
         if (load <= 0) {
-          return { error: 'Aktif bir dersin haftalık saati sıfır olamaz.' };
+          return {
+            input: null,
+            error: 'Aktif bir dersin haftalık saati sıfır olamaz.',
+          };
         }
 
         const preferredTotal = preferred.reduce((sum, item) => sum + item, 0);
         if (preferredTotal !== load) {
           return {
+            input: null,
             error: `Tercih edilen blokların toplamı ${preferredTotal}; haftalık saat ${load} olmalı.`,
           };
         }
@@ -140,6 +150,7 @@ export function ManagementRequirementStructurePreview({
         );
         if (invalidAllowed) {
           return {
+            input: null,
             error: 'Alternatif blok yapılarının her biri haftalık ders saatine eşit olmalı.',
           };
         }
@@ -152,10 +163,12 @@ export function ManagementRequirementStructurePreview({
           preferredPartition: preferred,
           allowedPartitions: allowed,
           termStatus,
-        } satisfies ManagementRequirementStructurePreviewInput,
+        },
+        error: null,
       };
     } catch (reason: unknown) {
       return {
+        input: null,
         error: reason instanceof Error
           ? reason.message
           : 'Blok yapısı okunamadı.',
