@@ -519,12 +519,12 @@ export function ManagementRequirementStructurePreview({
                     {preview.candidateRebuildCardCount} kart
                   </p>
                   <p className="mt-1 text-[9px] font-medium leading-4 text-slate-400">
-                    Yalnız bu ders tanımının sonuçtaki kartları yeniden değerlendirilecek. Diğer derslerin candidate-domain verisine dokunulmayacak.
+                    Yalnız bu ders tanımının sonuçtaki kartları yeniden değerlendirilecek. Diğer derslerin uygun yer hesaplarına dokunulmayacak.
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-medium leading-5 text-slate-500">
-                  Bu ekran bir karar önizlemesidir. “Uygula” işlemi M17.2 kapsamında yoktur; ders planında kalıcı yapısal değişiklik yapılmaz.
+                  Bu ekran bir karar önizlemesidir. Bu aşamada “Uygula” işlemi yoktur; ders planında kalıcı yapısal değişiklik yapılmaz.
                 </div>
               </>
             )}
