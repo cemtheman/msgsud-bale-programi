@@ -39,13 +39,18 @@ begin
   select
     room.id,
     room.canonical_room_id,
-    coalesce(room.capabilities, array[]::text[]) as capabilities,
+    array(
+      select distinct btrim(capability)
+      from unnest(coalesce(room.capabilities, array[]::text[])) capability
+      where length(btrim(capability)) > 0
+      order by btrim(capability)
+    ) as capabilities,
     coalesce(room.knowledge_status, 'UNKNOWN') as knowledge_status
   into v_room
   from public.rooms room
   where room.id = p_room_id;
 
-  if v_room.id is null then
+  if not found then
     return null;
   end if;
 
@@ -254,13 +259,18 @@ begin
     room.id,
     room.name,
     room.canonical_room_id,
-    coalesce(room.capabilities, array[]::text[]) as capabilities,
+    array(
+      select distinct btrim(capability)
+      from unnest(coalesce(room.capabilities, array[]::text[])) capability
+      where length(btrim(capability)) > 0
+      order by btrim(capability)
+    ) as capabilities,
     coalesce(room.knowledge_status, 'UNKNOWN') as knowledge_status
   into v_room
   from public.rooms room
   where room.id = p_room_id;
 
-  if v_room.id is null then
+  if not found then
     raise exception 'M18.3 room not found: %', p_room_id;
   end if;
 
@@ -269,7 +279,8 @@ begin
       'M18.3 room aliases are not editable resource profiles';
   end if;
 
-  if p_knowledge_status not in ('CONFIRMED', 'OBSERVED', 'UNKNOWN') then
+  if p_knowledge_status is null
+     or p_knowledge_status not in ('CONFIRMED', 'OBSERVED', 'UNKNOWN') then
     raise exception 'M18.3 invalid room knowledge status';
   end if;
 
@@ -602,7 +613,7 @@ begin
   into v_card_ids
   from jsonb_array_elements_text(
     coalesce(v_preview -> 'affectedCardIds', '[]'::jsonb)
-  ) value;
+  ) as card_value(value);
 
   select coalesce(
     array_agg(distinct requirement.id order by requirement.id),
