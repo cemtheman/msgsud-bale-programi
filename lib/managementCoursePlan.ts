@@ -149,6 +149,16 @@ interface NamedRow {
   name: string;
 }
 
+interface TeacherNameOverrideRow {
+  teacher_id: string;
+  display_name: string;
+}
+
+interface RoomNameOverrideRow {
+  room_id: string;
+  display_name: string;
+}
+
 interface RequirementTeacherRow {
   requirement_id: string;
   teacher_id: string;
@@ -376,6 +386,8 @@ export async function fetchManagementCoursePlan(
     rooms,
     cards,
     placements,
+    teacherNameOverrides,
+    roomNameOverrides,
   ] = await Promise.all([
     authedGet<RequirementRow[]>(
       `course_requirements?select=id,subject_id,instructional_group_id,weekly_load,preferred_partition,allowed_partitions,min_distinct_days,max_blocks_per_day,max_consecutive_periods,course_character,delivery_mode,term_status,knowledge_status,teacher_mode,resource_mode,required_capability&requirement_set_id=eq.${revision.requirement_set_id}`,
@@ -412,13 +424,37 @@ export async function fetchManagementCoursePlan(
       'placements?select=card_id',
       accessToken,
     ),
+    authedGet<TeacherNameOverrideRow[]>(
+      `management_teacher_name_overrides?select=teacher_id,display_name&schedule_revision_id=eq.${revision.id}`,
+      accessToken,
+    ),
+    authedGet<RoomNameOverrideRow[]>(
+      `management_room_name_overrides?select=room_id,display_name&schedule_revision_id=eq.${revision.id}`,
+      accessToken,
+    ),
   ]);
 
   const groupById = new Map(groups.map((row) => [row.id, row]));
   const classById = new Map(classGroups.map((row) => [row.id, row]));
   const subjectById = new Map(subjects.map((row) => [row.id, row.name]));
-  const teacherById = new Map(teachers.map((row) => [row.id, row.name]));
-  const roomById = new Map(rooms.map((row) => [row.id, row.name]));
+  const teacherOverrideById = new Map(
+    teacherNameOverrides.map((row) => [row.teacher_id, row.display_name]),
+  );
+  const roomOverrideById = new Map(
+    roomNameOverrides.map((row) => [row.room_id, row.display_name]),
+  );
+  const teacherById = new Map(
+    teachers.map((row) => [
+      row.id,
+      teacherOverrideById.get(row.id) ?? row.name,
+    ]),
+  );
+  const roomById = new Map(
+    rooms.map((row) => [
+      row.id,
+      roomOverrideById.get(row.id) ?? row.name,
+    ]),
+  );
 
   const childrenByComposite = new Map<string, string[]>();
   groupRelations
@@ -539,10 +575,16 @@ export async function fetchManagementCoursePlan(
     requirementSetId: revision.requirement_set_id,
     rows,
     teacherOptions: teachers
-      .map((teacher) => ({ id: teacher.id, name: teacher.name }))
+      .map((teacher) => ({
+        id: teacher.id,
+        name: teacherById.get(teacher.id) ?? teacher.name,
+      }))
       .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
     roomOptions: rooms
-      .map((room) => ({ id: room.id, name: room.name }))
+      .map((room) => ({
+        id: room.id,
+        name: roomById.get(room.id) ?? room.name,
+      }))
       .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
   };
 }
