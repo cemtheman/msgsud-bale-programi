@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type {
   ManagementResourceInventoryData,
   ManagementResourceKnowledgeStatus,
+  ManagementRoomProfilePreview,
   ManagementRoomResourceRow,
   ManagementTeacherResourceRow,
 } from '@/lib/managementResources';
@@ -83,11 +84,24 @@ export function ManagementResources({
   canEdit,
   onUpdateTeacherName,
   onUpdateRoomName,
+  onPreviewRoomProfile,
+  onApplyRoomProfile,
 }: {
   data: ManagementResourceInventoryData | null;
   canEdit: boolean;
   onUpdateTeacherName: (teacherId: string, displayName: string) => Promise<void>;
   onUpdateRoomName: (roomId: string, displayName: string) => Promise<void>;
+  onPreviewRoomProfile: (
+    roomId: string,
+    capabilities: string[],
+    knowledgeStatus: ManagementResourceKnowledgeStatus,
+  ) => Promise<ManagementRoomProfilePreview>;
+  onApplyRoomProfile: (
+    roomId: string,
+    capabilities: string[],
+    knowledgeStatus: ManagementResourceKnowledgeStatus,
+    expectedStateToken: string,
+  ) => Promise<void>;
 }) {
   const [tab, setTab] = useState<ResourceTab>('TEACHERS');
   const [query, setQuery] = useState('');
@@ -101,6 +115,16 @@ export function ManagementResources({
   const [editName, setEditName] = useState('');
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  const [profileTarget, setProfileTarget] = useState<ManagementRoomResourceRow | null>(null);
+  const [profileCapabilities, setProfileCapabilities] = useState<string[]>([]);
+  const [profileKnowledgeStatus, setProfileKnowledgeStatus] =
+    useState<ManagementResourceKnowledgeStatus>('UNKNOWN');
+  const [profilePreview, setProfilePreview] =
+    useState<ManagementRoomProfilePreview | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profilePreviewing, setProfilePreviewing] = useState(false);
+  const [profileApplying, setProfileApplying] = useState(false);
 
   const openEditor = (
     kind: 'TEACHER' | 'ROOM',
@@ -144,6 +168,82 @@ export function ManagementResources({
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openProfileEditor = (row: ManagementRoomResourceRow) => {
+    setProfileTarget(row);
+    setProfileCapabilities([...row.capabilities].sort((a, b) => a.localeCompare(b, 'en')));
+    setProfileKnowledgeStatus(row.knowledgeStatus);
+    setProfilePreview(null);
+    setProfileError(null);
+  };
+
+  const toggleCapability = (capability: string) => {
+    setProfileCapabilities((current) => (
+      current.includes(capability)
+        ? current.filter((value) => value !== capability)
+        : [...current, capability].sort((a, b) => a.localeCompare(b, 'en'))
+    ));
+    setProfilePreview(null);
+    setProfileError(null);
+  };
+
+  const previewProfile = async () => {
+    if (!profileTarget || profilePreviewing || profileApplying) return;
+
+    setProfilePreviewing(true);
+    setProfileError(null);
+    setProfilePreview(null);
+
+    try {
+      setProfilePreview(await onPreviewRoomProfile(
+        profileTarget.id,
+        profileCapabilities,
+        profileKnowledgeStatus,
+      ));
+    } catch (reason: unknown) {
+      setProfileError(
+        reason instanceof Error
+          ? reason.message
+          : 'Salon değişikliğinin etkisi hesaplanamadı.',
+      );
+    } finally {
+      setProfilePreviewing(false);
+    }
+  };
+
+  const applyProfile = async () => {
+    if (
+      !profileTarget
+      || !profilePreview
+      || !profilePreview.canApply
+      || profileApplying
+      || profilePreviewing
+    ) {
+      return;
+    }
+
+    setProfileApplying(true);
+    setProfileError(null);
+
+    try {
+      await onApplyRoomProfile(
+        profileTarget.id,
+        profileCapabilities,
+        profileKnowledgeStatus,
+        profilePreview.stateToken,
+      );
+      setProfileTarget(null);
+      setProfilePreview(null);
+    } catch (reason: unknown) {
+      setProfileError(
+        reason instanceof Error
+          ? reason.message
+          : 'Salon özellikleri güncellenemedi.',
+      );
+    } finally {
+      setProfileApplying(false);
     }
   };
 
@@ -421,7 +521,7 @@ export function ManagementResources({
             </div>
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(180px,0.8fr)_110px_140px_minmax(250px,1.4fr)_90px_100px_92px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="grid grid-cols-[minmax(180px,0.8fr)_100px_130px_minmax(240px,1.3fr)_82px_92px_150px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
                 <span>Salon</span>
                 <span>Tür</span>
                 <span>Bilgi durumu</span>
@@ -438,7 +538,7 @@ export function ManagementResources({
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-[minmax(180px,0.8fr)_110px_140px_minmax(250px,1.4fr)_90px_100px_92px] items-center gap-0 border-b border-slate-100 px-4 py-3 last:border-b-0"
+                      className="grid grid-cols-[minmax(180px,0.8fr)_100px_130px_minmax(240px,1.3fr)_82px_92px_150px] items-center gap-0 border-b border-slate-100 px-4 py-3 last:border-b-0"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-[12px] font-bold text-slate-900">
@@ -501,14 +601,22 @@ export function ManagementResources({
                         {row.placedBlockCount}
                       </p>
 
-                      <div className="text-right">
+                      <div className="flex justify-end gap-1.5">
                         <button
                           type="button"
                           onClick={() => openEditor('ROOM', row)}
                           disabled={!canEdit}
                           className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
                         >
-                          Düzenle
+                          Ad
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openProfileEditor(row)}
+                          disabled={!canEdit}
+                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+                        >
+                          Özellikler
                         </button>
                       </div>
                     </div>
@@ -534,6 +642,234 @@ export function ManagementResources({
           </p>
         </div>
       </div>
+
+      {profileTarget && (
+        <div className="fixed inset-0 z-[112] flex items-center justify-center bg-slate-950/30 p-4">
+          <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-[760px] flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_30px_100px_rgba(15,23,42,0.25)]">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+                  Salon özellikleri
+                </p>
+                <h3 className="mt-1 text-lg font-black text-slate-950">
+                  {profileTarget.name}
+                </h3>
+                <p className="mt-1 text-[10px] font-medium text-slate-500">
+                  Değişiklik yalnız CAPABILITY tabanlı derslerin uygun salon hesaplarını etkiler.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProfileTarget(null)}
+                disabled={profilePreviewing || profileApplying}
+                className="rounded-lg px-2 py-1 text-sm font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="management-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              <div className="grid grid-cols-[180px_1fr] gap-5">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                    Bilgi durumu
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {([
+                      { id: 'CONFIRMED', label: 'Doğrulanmış' },
+                      { id: 'OBSERVED', label: 'Mevcut veriden' },
+                      { id: 'UNKNOWN', label: 'Belirsiz' },
+                    ] as const).map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setProfileKnowledgeStatus(item.id);
+                          setProfilePreview(null);
+                          setProfileError(null);
+                        }}
+                        disabled={profilePreviewing || profileApplying}
+                        className={`w-full rounded-xl border px-3 py-2.5 text-left text-[10px] font-bold transition ${
+                          profileKnowledgeStatus === item.id
+                            ? 'border-slate-950 bg-slate-950 text-white'
+                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                    Salon özellikleri
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {data.availableCapabilities.map((capability) => {
+                      const selected = profileCapabilities.includes(capability);
+
+                      return (
+                        <button
+                          key={capability}
+                          type="button"
+                          onClick={() => toggleCapability(capability)}
+                          disabled={profilePreviewing || profileApplying}
+                          className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[10px] font-bold transition ${
+                            selected
+                              ? 'border-blue-300 bg-blue-50 text-blue-800'
+                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[9px] ${
+                            selected
+                              ? 'border-blue-500 bg-blue-500 text-white'
+                              : 'border-slate-300 bg-white text-transparent'
+                          }`}>
+                            ✓
+                          </span>
+                          {capabilityLabel(capability)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {profileError && (
+                <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-semibold text-rose-700">
+                  {profileError}
+                </p>
+              )}
+
+              {profilePreview && (
+                <div className="mt-5 space-y-3">
+                  <div className={`rounded-2xl border p-4 ${
+                    profilePreview.canApply
+                      ? 'border-emerald-200 bg-emerald-50'
+                      : profilePreview.hasChanges
+                        ? 'border-amber-200 bg-amber-50'
+                        : 'border-slate-200 bg-slate-50'
+                  }`}>
+                    <p className={`text-[10px] font-black ${
+                      profilePreview.canApply
+                        ? 'text-emerald-800'
+                        : profilePreview.hasChanges
+                          ? 'text-amber-800'
+                          : 'text-slate-700'
+                    }`}>
+                      {profilePreview.canApply
+                        ? 'Bu değişiklik güvenle uygulanabilir.'
+                        : profilePreview.hasChanges
+                          ? 'Bu değişiklik mevcut program yerleşimini etkiliyor.'
+                          : 'Değişiklik yok.'}
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium leading-5 text-slate-600">
+                      {profilePreview.affectedRequirementCount} ders tanımı · {profilePreview.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirilecek.
+                    </p>
+                  </div>
+
+                  {(profilePreview.addedCapabilities.length > 0
+                    || profilePreview.removedCapabilities.length > 0) && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border border-slate-200 bg-white p-3">
+                        <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                          Eklenecek
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {profilePreview.addedCapabilities.length > 0
+                            ? profilePreview.addedCapabilities.map((value) => (
+                              <span key={value} className="rounded-full bg-emerald-50 px-2 py-1 text-[8px] font-bold text-emerald-700">
+                                {capabilityLabel(value)}
+                              </span>
+                            ))
+                            : <span className="text-[9px] font-semibold text-slate-400">Yok</span>}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-white p-3">
+                        <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                          Kaldırılacak
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {profilePreview.removedCapabilities.length > 0
+                            ? profilePreview.removedCapabilities.map((value) => (
+                              <span key={value} className="rounded-full bg-rose-50 px-2 py-1 text-[8px] font-bold text-rose-700">
+                                {capabilityLabel(value)}
+                              </span>
+                            ))
+                            : <span className="text-[9px] font-semibold text-slate-400">Yok</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {profilePreview.placedImpacts.length > 0 && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-[10px] font-black text-amber-900">
+                        Önce Program’da müdahale gerekiyor
+                      </p>
+                      <p className="mt-1 text-[10px] font-medium leading-5 text-amber-800">
+                        Bu salonu kullanan yerleşmiş bloklardan bazıları yeni özelliklerle artık geçerli olmayacak.
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {profilePreview.placedImpacts.map((impact) => (
+                          <div key={impact.cardId} className="rounded-xl border border-amber-200 bg-white/70 px-3 py-2">
+                            <p className="text-[10px] font-bold text-slate-800">
+                              {impact.subjectName} · {impact.groupName}
+                            </p>
+                            <p className="mt-0.5 text-[9px] font-medium text-slate-500">
+                              Gereken özellik: {capabilityLabel(impact.requiredCapability)} · Gün {impact.dayOfWeek}, {impact.startPeriod}. ders
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-4">
+              <p className="text-[9px] font-medium text-slate-400">
+                Önizleme hiçbir değişiklik yapmaz.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setProfileTarget(null)}
+                  disabled={profilePreviewing || profileApplying}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  Kapat
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void previewProfile()}
+                  disabled={profilePreviewing || profileApplying}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[10px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-35"
+                >
+                  {profilePreviewing
+                    ? 'Etki hesaplanıyor…'
+                    : profilePreview
+                      ? 'Etkiyi yeniden hesapla'
+                      : 'Etkiyi hesapla'}
+                </button>
+                {profilePreview?.canApply && (
+                  <button
+                    type="button"
+                    onClick={() => void applyProfile()}
+                    disabled={profilePreviewing || profileApplying}
+                    className="rounded-xl bg-slate-950 px-4 py-2 text-[10px] font-black text-white hover:bg-slate-800 disabled:opacity-35"
+                  >
+                    {profileApplying ? 'Uygulanıyor…' : 'Değişikliği uygula'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editTarget && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/30 p-4">
