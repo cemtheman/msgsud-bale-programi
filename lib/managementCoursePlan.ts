@@ -2,6 +2,7 @@
 
 export type ManagementPlanStage = 'ORTAOKUL' | 'LISE';
 export type ManagementPlanTermStatus = 'ACTIVE' | 'INACTIVE' | 'UNKNOWN';
+export type ManagementRoomStrategy = 'SPECIFIC' | 'CAPABILITY' | 'UNKNOWN';
 
 export interface ManagementCoursePlanRow {
   requirementId: string;
@@ -39,6 +40,7 @@ export interface ManagementCoursePlanData {
   rows: ManagementCoursePlanRow[];
   teacherOptions: ManagementCoursePlanOption[];
   roomOptions: ManagementCoursePlanOption[];
+  roomCapabilityOptions: string[];
 }
 
 export interface ManagementRequirementStructurePreviewInput {
@@ -147,6 +149,13 @@ interface ClassGroupRow {
 interface NamedRow {
   id: string;
   name: string;
+}
+
+interface RoomOptionRow {
+  id: string;
+  name: string;
+  canonical_room_id: string | null;
+  capabilities: string[] | null;
 }
 
 interface TeacherNameOverrideRow {
@@ -264,6 +273,28 @@ function translateStructurePreviewError(message: string) {
 
   if (normalized.includes('created card is placed or locked')) {
     return 'Ders yapısıyla eklenen bloklardan biri artık programda kullanılıyor veya kilitli. Önce bu bloğu serbest bırakın.';
+  }
+
+  if (
+    normalized.includes('m18.4 room strategy change requires all requirement cards to be unplaced')
+  ) {
+    return 'Salon seçme yöntemini değiştirmek için önce bu dersin programdaki tüm bloklarını kaldırın.';
+  }
+
+  if (normalized.includes('m18.4 specific strategy requires at least one room')) {
+    return 'Belirli salon seçeneğinde en az bir salon seçin.';
+  }
+
+  if (normalized.includes('m18.4 capability strategy requires a capability')) {
+    return 'Salon özelliğine göre seçim için gerekli özelliği seçin.';
+  }
+
+  if (normalized.includes('m18.4 specific strategy contains an unknown or alias room')) {
+    return 'Yalnız ana salon kayıtları seçilebilir.';
+  }
+
+  if (normalized.includes('m18.4 invalid room strategy')) {
+    return 'Salon seçme yöntemi geçersiz.';
   }
 
   if (
@@ -415,7 +446,10 @@ export async function fetchManagementCoursePlan(
       'course_requirement_rooms?select=requirement_id,room_id',
       accessToken,
     ),
-    authedGet<NamedRow[]>('rooms?select=id,name', accessToken),
+    authedGet<RoomOptionRow[]>(
+      'rooms?select=id,name,canonical_room_id,capabilities',
+      accessToken,
+    ),
     authedGet<CardRow[]>(
       `schedule_cards?select=id,requirement_id&schedule_revision_id=eq.${revision.id}`,
       accessToken,
@@ -581,11 +615,22 @@ export async function fetchManagementCoursePlan(
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
     roomOptions: rooms
+      .filter((room) => room.canonical_room_id === null)
       .map((room) => ({
         id: room.id,
         name: roomById.get(room.id) ?? room.name,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
+    roomCapabilityOptions: Array.from(
+      new Set([
+        ...rooms
+          .filter((room) => room.canonical_room_id === null)
+          .flatMap((room) => room.capabilities ?? []),
+        ...requirements
+          .map((requirement) => requirement.required_capability)
+          .filter((value): value is string => Boolean(value)),
+      ]),
+    ).sort((a, b) => a.localeCompare(b, 'en')),
   };
 }
 
@@ -633,6 +678,37 @@ export function applyManagementRequirementStructure(
       p_allowed_partitions: input.allowedPartitions,
       p_term_status: input.termStatus,
       p_expected_structure_token: expectedStructureToken,
+    },
+  );
+}
+
+export interface ManagementRequirementRoomStrategyResult {
+  applied: boolean;
+  requirementId: string;
+  revisionId: string;
+  strategy: ManagementRoomStrategy;
+  resourceMode: string;
+  roomCount: number;
+  requiredCapability: string | null;
+  candidateRebuildCardCount: number;
+  publishedChanged: false;
+}
+
+export function updateManagementRequirementRoomStrategy(
+  accessToken: string,
+  requirementId: string,
+  strategy: ManagementRoomStrategy,
+  roomIds: string[],
+  requiredCapability: string | null,
+) {
+  return authedRpc<ManagementRequirementRoomStrategyResult>(
+    'management_update_requirement_room_strategy',
+    accessToken,
+    {
+      p_requirement_id: requirementId,
+      p_strategy: strategy,
+      p_room_ids: roomIds,
+      p_required_capability: requiredCapability,
     },
   );
 }
