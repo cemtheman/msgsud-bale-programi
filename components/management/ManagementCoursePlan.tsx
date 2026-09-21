@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { ManagementRequirementStructurePreview } from '@/components/management/ManagementRequirementStructurePreview';
 import {
   coursePlanMatchesStage,
   type ManagementCoursePlanData,
   type ManagementCoursePlanRow,
   type ManagementPlanStage,
   type ManagementPlanTermStatus,
+  type ManagementRequirementStructurePreview as ManagementRequirementStructurePreviewResult,
+  type ManagementRequirementStructurePreviewInput,
 } from '@/lib/managementCoursePlan';
 
 type PlanFilter = 'ACTIVE' | 'INACTIVE' | 'ALL';
@@ -157,6 +160,7 @@ function requirementRow(
   canEdit: boolean,
   onEditTeacher: (row: ManagementCoursePlanRow) => void,
   onEditRoom: (row: ManagementCoursePlanRow) => void,
+  onEditStructure: (row: ManagementCoursePlanRow) => void,
 ) {
   const term = termMeta(row.termStatus);
 
@@ -246,21 +250,32 @@ function requirementRow(
           </button>
         )}
 
-        {canEdit && row.termStatus === 'ACTIVE' && (
+        {canEdit && (
           <div className="mt-2 flex flex-wrap gap-1">
+            {row.termStatus === 'ACTIVE' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onEditTeacher(row)}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  Öğretmen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onEditRoom(row)}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  Salon
+                </button>
+              </>
+            )}
             <button
               type="button"
-              onClick={() => onEditTeacher(row)}
-              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50"
+              onClick={() => onEditStructure(row)}
+              className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[8px] font-bold text-blue-700 hover:bg-blue-100"
             >
-              Öğretmen
-            </button>
-            <button
-              type="button"
-              onClick={() => onEditRoom(row)}
-              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50"
-            >
-              Salon
+              Ders yapısı
             </button>
           </div>
         )}
@@ -275,6 +290,7 @@ export function ManagementCoursePlan({
   canEdit,
   onUpdateTeachers,
   onUpdateRooms,
+  onPreviewStructure,
 }: {
   data: ManagementCoursePlanData | null;
   onOpenProgram: (
@@ -290,6 +306,9 @@ export function ManagementCoursePlan({
     requirementId: string,
     roomIds: string[],
   ) => Promise<void>;
+  onPreviewStructure: (
+    input: ManagementRequirementStructurePreviewInput,
+  ) => Promise<ManagementRequirementStructurePreviewResult>;
 }) {
   const [stage, setStage] = useState<ManagementPlanStage>('ORTAOKUL');
   const [filter, setFilter] = useState<PlanFilter>('ACTIVE');
@@ -302,6 +321,8 @@ export function ManagementCoursePlan({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [structureRow, setStructureRow] =
+    useState<ManagementCoursePlanRow | null>(null);
 
   const stageRows = useMemo(
     () => data?.rows.filter((row) => coursePlanMatchesStage(row, stage)) ?? [],
@@ -741,6 +762,7 @@ export function ManagementCoursePlan({
                           canEdit,
                           (row) => openEditor(row, 'TEACHER'),
                           (row) => openEditor(row, 'ROOM'),
+                          (row) => setStructureRow(row),
                         ))}
                       </div>
                     )}
@@ -752,9 +774,22 @@ export function ManagementCoursePlan({
         </div>
 
         <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-[10px] font-medium leading-5 text-blue-800">
-          Öğretmen ve salon tanımları artık kontrollü biçimde düzenlenebilir. Haftalık saat, blok yapısı ve dönem durumu kart yapısını değiştirdiği için sonraki adımda etki önizlemesiyle bağlanacak.
+          Öğretmen ve salon atamaları kontrollü biçimde düzenlenebilir. Haftalık saat, blok yapısı ve dönem durumu için “Ders yapısı” önizlemesi değişikliğin kartlara etkisini kaydetmeden gösterir.
         </div>
       </div>
+
+      {structureRow && (
+        <ManagementRequirementStructurePreview
+          row={structureRow}
+          stage={stage}
+          onClose={() => setStructureRow(null)}
+          onOpenProgram={(requirementId, targetStage) => {
+            setStructureRow(null);
+            onOpenProgram(requirementId, targetStage);
+          }}
+          onPreview={onPreviewStructure}
+        />
+      )}
 
       {editRow && editKind && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-[1px]">
