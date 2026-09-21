@@ -358,8 +358,8 @@ export default function ManagementPage() {
 
 
   const healthSnapshot = useMemo(
-    () => deriveManagementHealth(board, overview),
-    [board, overview],
+    () => deriveManagementHealth(board, overview, stage),
+    [board, overview, stage],
   );
 
   const selectCard = (cardId: string) => {
@@ -1176,6 +1176,8 @@ export default function ManagementPage() {
         <ManagementProgramStatus
           snapshot={healthSnapshot}
           versionNumber={overview?.versionNumber ?? null}
+          stage={stage}
+          onStageChange={setStage}
         />
       )}
 
