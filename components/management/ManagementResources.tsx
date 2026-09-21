@@ -637,8 +637,8 @@ export function ManagementResources({
           </p>
           <p className="mt-1 text-[10px] font-medium leading-5 text-blue-800">
             Öğretmen ve ana salon adları yalnız Yönetim taslağında düzeltilebilir; yayınlanan
-            programdaki adlar değişmez. Salon özellikleri ise etki önizlemesinden sonra güvenli
-            biçimde güncellenebilir; yerleşmiş bir dersi geçersiz kılacak değişiklik uygulanmaz.
+            programdaki adlar değişmez. Salon özellikleri kaynak envanterini doğrular. Bu bilgiler,
+            Ders Planı’nda bir ders “salon özelliğine göre” tanımlandığında uygun yer hesabına katılır.
           </p>
         </div>
       </div>
@@ -655,7 +655,7 @@ export function ManagementResources({
                   {profileTarget.name}
                 </h3>
                 <p className="mt-1 text-[10px] font-medium text-slate-500">
-                  Değişiklik yalnız özelliğe göre salon seçilen derslerin uygun yer hesaplarını etkiler.
+                  Salon profilini doğrular. Programı yalnız Ders Planı’nda salonu özelliğine göre seçilen dersler varsa etkiler.
                 </p>
               </div>
               <button
@@ -759,13 +759,17 @@ export function ManagementResources({
                           : 'text-slate-700'
                     }`}>
                       {profilePreview.canApply
-                        ? 'Bu değişiklik güvenle uygulanabilir.'
+                        ? profilePreview.affectedRequirementCount === 0
+                          ? 'Bu değişiklik kaynak envanterini günceller.'
+                          : 'Bu değişiklik güvenle uygulanabilir.'
                         : profilePreview.hasChanges
                           ? 'Bu değişiklik mevcut program yerleşimini etkiliyor.'
                           : 'Değişiklik yok.'}
                     </p>
                     <p className="mt-1 text-[10px] font-medium leading-5 text-slate-600">
-                      {profilePreview.affectedRequirementCount} ders tanımı · {profilePreview.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirilecek.
+                      {profilePreview.affectedRequirementCount === 0
+                        ? 'Şu an salon özelliğine göre yerleştirilen ders yok. Programın uygun yer hesabı değişmeyecek.'
+                        : `${profilePreview.affectedRequirementCount} ders tanımı · ${profilePreview.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirilecek.`}
                     </p>
                   </div>
 
