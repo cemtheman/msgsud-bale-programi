@@ -300,17 +300,19 @@ export async function fetchManagementCommandState(
 
   const rows = await response.json() as RootTransactionRow[];
 
-  const activeStructureBarrier = rows.find((row) => (
+  const latestStructureRow = rows.find((row) => (
     row.action === 'STRUCTURE'
-    && row.payload?.source === 'STRUCTURE_APPLY'
-    && row.reverted_at === null
+    && (
+      row.payload?.source === 'STRUCTURE_APPLY'
+      || row.payload?.source === 'STRUCTURE_REVERT'
+    )
   )) ?? null;
 
-  const latestStructureBarrierSequence =
-    activeStructureBarrier?.history_sequence ?? 0;
+  const latestStructureSequence =
+    latestStructureRow?.history_sequence ?? 0;
 
   const currentEpochRows = rows.filter(
-    (row) => row.history_sequence > latestStructureBarrierSequence,
+    (row) => row.history_sequence > latestStructureSequence,
   );
 
   const scheduleUndoRow = currentEpochRows.find((row) => {
@@ -320,13 +322,20 @@ export async function fetchManagementCommandState(
       && ['PLACE', 'MOVE', 'REMOVE'].includes(row.action);
   });
 
+  const activeStructureApply = (
+    latestStructureRow?.payload?.source === 'STRUCTURE_APPLY'
+    && latestStructureRow.reverted_at === null
+    && latestStructureRow.payload?.revertible === true
+  )
+    ? latestStructureRow
+    : null;
+
   const structureUndoRow = (
     !scheduleUndoRow
     && currentEpochRows.length === 0
-    && activeStructureBarrier
-    && activeStructureBarrier.payload?.revertible === true
+    && activeStructureApply
   )
-    ? activeStructureBarrier
+    ? activeStructureApply
     : null;
 
   const undoRow = scheduleUndoRow ?? structureUndoRow;
