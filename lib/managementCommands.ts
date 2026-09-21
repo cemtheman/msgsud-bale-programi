@@ -1,6 +1,6 @@
 'use client';
 
-export type ManagementRootAction = 'PLACE' | 'MOVE' | 'REMOVE';
+export type ManagementRootAction = 'PLACE' | 'MOVE' | 'REMOVE' | 'STRUCTURE';
 
 export interface ManagementCommandDescriptor {
   transactionId: string;
@@ -104,6 +104,18 @@ function translateCommandError(message: string, fallback: string) {
 
   if (normalized.includes('structural history barrier')) {
     return 'Ders yapısı değiştiği için bu eski program işlemi artık geri alınamaz veya yinelenemez.';
+  }
+
+  if (normalized.includes('structural revert was invalidated')) {
+    return 'Ders yapısı değişikliğinden sonra yeni bir yönetim kararı verildiği için bu değişiklik artık otomatik geri alınamaz.';
+  }
+
+  if (normalized.includes('structural revert is stale')) {
+    return 'Taslak program ders yapısı değişikliğinden sonra değişti. Güvenli geri alma için koşullar artık aynı değil.';
+  }
+
+  if (normalized.includes('created card is placed or locked')) {
+    return 'Ders yapısıyla eklenen bloklardan biri artık programda kullanılıyor veya kilitli. Önce bu bloğu serbest bırakın.';
   }
 
   if (
@@ -288,26 +300,36 @@ export async function fetchManagementCommandState(
 
   const rows = await response.json() as RootTransactionRow[];
 
-  const latestStructureBarrierSequence = rows
-    .filter((row) => (
-      row.action === 'STRUCTURE'
-      && row.payload?.source === 'STRUCTURE_APPLY'
-    ))
-    .reduce(
-      (latest, row) => Math.max(latest, row.history_sequence),
-      0,
-    );
+  const activeStructureBarrier = rows.find((row) => (
+    row.action === 'STRUCTURE'
+    && row.payload?.source === 'STRUCTURE_APPLY'
+    && row.reverted_at === null
+  )) ?? null;
+
+  const latestStructureBarrierSequence =
+    activeStructureBarrier?.history_sequence ?? 0;
 
   const currentEpochRows = rows.filter(
     (row) => row.history_sequence > latestStructureBarrierSequence,
   );
 
-  const undoRow = currentEpochRows.find((row) => {
+  const scheduleUndoRow = currentEpochRows.find((row) => {
     const source = row.payload?.source;
     return row.reverted_at === null
       && (source === 'MANUAL' || source === 'ROOT_REDO')
       && ['PLACE', 'MOVE', 'REMOVE'].includes(row.action);
   });
+
+  const structureUndoRow = (
+    !scheduleUndoRow
+    && currentEpochRows.length === 0
+    && activeStructureBarrier
+    && activeStructureBarrier.payload?.revertible === true
+  )
+    ? activeStructureBarrier
+    : null;
+
+  const undoRow = scheduleUndoRow ?? structureUndoRow;
 
   const manualSequences = currentEpochRows
     .filter((row) => row.payload?.source === 'MANUAL')
