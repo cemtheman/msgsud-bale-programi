@@ -42,6 +42,10 @@ import {
 } from '@/lib/managementResources';
 import { deriveManagementHealth } from '@/lib/managementHealth';
 import {
+  fetchManagementPublicationPreview,
+  type ManagementPublicationPreviewData,
+} from '@/lib/managementPublicationPreview';
+import {
   applyManagementRequirementStructure,
   fetchManagementCoursePlan,
   previewManagementRequirementStructure,
@@ -248,6 +252,8 @@ export default function ManagementPage() {
   const [board, setBoard] = useState<ManagementBoardData | null>(null);
   const [coursePlan, setCoursePlan] = useState<ManagementCoursePlanData | null>(null);
   const [resources, setResources] = useState<ManagementResourceInventoryData | null>(null);
+  const [publicationPreview, setPublicationPreview] =
+    useState<ManagementPublicationPreviewData | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
@@ -296,6 +302,7 @@ export default function ManagementPage() {
       setBoard(null);
       setCoursePlan(null);
       setResources(null);
+      setPublicationPreview(null);
       return;
     }
 
@@ -308,14 +315,22 @@ export default function ManagementPage() {
       fetchManagementBoard(session.accessToken),
       fetchManagementCoursePlan(session.accessToken),
       fetchManagementResources(session.accessToken),
+      fetchManagementPublicationPreview(session.accessToken),
     ])
-      .then(async ([nextOverview, nextBoard, nextCoursePlan, nextResources]) => {
+      .then(async ([
+        nextOverview,
+        nextBoard,
+        nextCoursePlan,
+        nextResources,
+        nextPublicationPreview,
+      ]) => {
         if (!active) return;
 
         setOverview(nextOverview);
         setBoard(nextBoard);
         setCoursePlan(nextCoursePlan);
         setResources(nextResources);
+        setPublicationPreview(nextPublicationPreview);
 
         if (nextBoard) {
           const nextCommandState = await fetchManagementCommandState(
@@ -1373,6 +1388,7 @@ export default function ManagementPage() {
           versionNumber={overview?.versionNumber ?? null}
           stage={stage}
           onStageChange={setStage}
+          publicationPreview={publicationPreview}
         />
       )}
 
