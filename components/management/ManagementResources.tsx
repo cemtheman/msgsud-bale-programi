@@ -25,28 +25,6 @@ function capabilityLabel(value: string) {
 }
 
 
-function knowledgeMeta(status: ManagementResourceKnowledgeStatus) {
-  if (status === 'CONFIRMED') {
-    return {
-      label: 'Doğrulanmış',
-      className: 'bg-emerald-50 text-emerald-700',
-    };
-  }
-
-  if (status === 'OBSERVED') {
-    return {
-      label: 'Mevcut veriden',
-      className: 'bg-amber-50 text-amber-700',
-    };
-  }
-
-  return {
-    label: 'Belirsiz',
-    className: 'bg-slate-100 text-slate-600',
-  };
-}
-
-
 function teacherState(row: ManagementTeacherResourceRow) {
   if (row.activeRequirementCount === 0 && row.placedBlockCount === 0) {
     return {
