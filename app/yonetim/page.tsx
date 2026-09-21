@@ -12,6 +12,7 @@ import { ManagementBusyOverlay } from '@/components/management/ManagementBusyOve
 import { ManagementConfirmOverlay } from '@/components/management/ManagementConfirmOverlay';
 import { ManagementProgramStatus } from '@/components/management/ManagementProgramStatus';
 import { ManagementCoursePlan } from '@/components/management/ManagementCoursePlan';
+import { ManagementResources } from '@/components/management/ManagementResources';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   cardMatchesStage,
@@ -29,6 +30,10 @@ import {
   fetchManagementOverview,
   type ManagementOverview,
 } from '@/lib/managementOverview';
+import {
+  fetchManagementResources,
+  type ManagementResourceInventoryData,
+} from '@/lib/managementResources';
 import { deriveManagementHealth } from '@/lib/managementHealth';
 import {
   applyManagementRequirementStructure,
@@ -236,11 +241,12 @@ export default function ManagementPage() {
   const [overview, setOverview] = useState<ManagementOverview | null>(null);
   const [board, setBoard] = useState<ManagementBoardData | null>(null);
   const [coursePlan, setCoursePlan] = useState<ManagementCoursePlanData | null>(null);
+  const [resources, setResources] = useState<ManagementResourceInventoryData | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
 
-  const [activeSection, setActiveSection] = useState<'PROGRAM' | 'PLAN' | 'STATUS'>('PROGRAM');
+  const [activeSection, setActiveSection] = useState<'PROGRAM' | 'PLAN' | 'RESOURCES' | 'STATUS'>('PROGRAM');
   const [activeDay, setActiveDay] = useState(1);
   const [stage, setStage] = useState<ManagementStage>('ORTAOKUL');
   const [resourceView, setResourceView] =
@@ -283,6 +289,7 @@ export default function ManagementPage() {
       setOverview(null);
       setBoard(null);
       setCoursePlan(null);
+      setResources(null);
       return;
     }
 
@@ -294,13 +301,15 @@ export default function ManagementPage() {
       fetchManagementOverview(session.accessToken),
       fetchManagementBoard(session.accessToken),
       fetchManagementCoursePlan(session.accessToken),
+      fetchManagementResources(session.accessToken),
     ])
-      .then(async ([nextOverview, nextBoard, nextCoursePlan]) => {
+      .then(async ([nextOverview, nextBoard, nextCoursePlan, nextResources]) => {
         if (!active) return;
 
         setOverview(nextOverview);
         setBoard(nextBoard);
         setCoursePlan(nextCoursePlan);
+        setResources(nextResources);
 
         if (nextBoard) {
           const nextCommandState = await fetchManagementCommandState(
@@ -767,7 +776,15 @@ export default function ManagementPage() {
               >
                 Ders Planı
               </button>
-              <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
+              <button
+                type="button"
+                onClick={() => setActiveSection('RESOURCES')}
+                className={
+                  activeSection === 'RESOURCES'
+                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
+                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                }
+              >
                 Kaynaklar
               </button>
               <button
@@ -1171,6 +1188,10 @@ export default function ManagementPage() {
               setCommandActivity(null);
             }
           }}
+        />
+      ) : activeSection === 'RESOURCES' ? (
+        <ManagementResources
+          data={resources}
         />
       ) : (
         <ManagementProgramStatus
