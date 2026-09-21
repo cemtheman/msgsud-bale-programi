@@ -99,22 +99,34 @@ export function ManagementResources({
   );
 
   const filteredRooms = useMemo(
-    () => (
-      data?.rooms.filter((row) => {
-        if (normalizedQuery.length === 0) return true;
+    () => {
+      if (!data) return [];
 
-        const haystack = [
-          row.name,
-          row.canonicalRoomName ?? '',
-          ...row.capabilities.map(capabilityLabel),
-        ]
-          .join(' ')
-          .toLocaleLowerCase('tr-TR');
+      const aliasesByCanonical = new Map<string, string[]>();
+      data.rooms.forEach((room) => {
+        if (!room.canonicalRoomId) return;
+        const aliases = aliasesByCanonical.get(room.canonicalRoomId) ?? [];
+        aliases.push(room.name);
+        aliasesByCanonical.set(room.canonicalRoomId, aliases);
+      });
 
-        return haystack.includes(normalizedQuery);
-      }) ?? []
-    ),
-    [data?.rooms, normalizedQuery],
+      return data.rooms
+        .filter((row) => !row.canonicalRoomId)
+        .filter((row) => {
+          if (normalizedQuery.length === 0) return true;
+
+          const haystack = [
+            row.name,
+            ...(aliasesByCanonical.get(row.id) ?? []),
+            ...row.capabilities.map(capabilityLabel),
+          ]
+            .join(' ')
+            .toLocaleLowerCase('tr-TR');
+
+          return haystack.includes(normalizedQuery);
+        });
+    },
+    [data, normalizedQuery],
   );
 
   if (!data) {
@@ -406,7 +418,7 @@ export function ManagementResources({
                 })
               ) : (
                 <div className="p-6 text-center text-sm font-semibold text-slate-400">
-                  Aramanızla eşleşen salon bulunamadı.
+                  Aramanızla eşleşen ana salon kaydı bulunamadı.
                 </div>
               )}
             </div>
