@@ -43,6 +43,7 @@ import {
   applyManagementRequirementStructure,
   fetchManagementCoursePlan,
   previewManagementRequirementStructure,
+  updateManagementRequirementRoomStrategy,
   type ManagementCoursePlanData,
   type ManagementPlanStage,
 } from '@/lib/managementCoursePlan';
@@ -53,7 +54,6 @@ import {
   redoManagement,
   removeManagementCard,
   undoManagement,
-  updateManagementRequirementRooms,
   updateManagementRequirementTeachers,
   type ManagementCommandDescriptor,
   type ManagementCommandState,
@@ -1138,20 +1138,35 @@ export default function ManagementPage() {
               setCommandActivity(null);
             }
           }}
-          onUpdateRooms={async (requirementId, roomIds) => {
+          onUpdateRoomStrategy={async (
+            requirementId,
+            strategy,
+            roomIds,
+            requiredCapability,
+          ) => {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
             setCommandBusy(true);
-            setCommandActivity('Ders planındaki salon tanımı güncelleniyor.');
+            setCommandActivity('Ders planındaki salon seçme yöntemi güncelleniyor.');
 
             try {
-              await updateManagementRequirementRooms(
+              const result = await updateManagementRequirementRoomStrategy(
                 session.accessToken,
                 requirementId,
+                strategy,
                 roomIds,
+                requiredCapability,
               );
+              setCommandNotice({
+                kind: 'success',
+                text: strategy === 'CAPABILITY'
+                  ? `Salon seçimi “özelliğe göre” olarak güncellendi. ${result.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden hesaplandı.`
+                  : strategy === 'SPECIFIC'
+                    ? `Salon seçimi güncellendi. ${result.roomCount} ana salon tanımlandı ve ${result.candidateRebuildCardCount} ders bloğu yeniden hesaplandı.`
+                    : `Salon bilgisi belirsiz olarak işaretlendi. ${result.candidateRebuildCardCount} ders bloğu yeniden hesaplandı.`,
+              });
               setRefreshToken((value) => value + 1);
             } finally {
               setCommandBusy(false);
