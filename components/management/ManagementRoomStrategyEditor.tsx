@@ -1,13 +1,24 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { managementRoomCapabilityLabel } from '@/lib/managementRoomCapabilities';
 import type {
   ManagementCoursePlanOption,
   ManagementCoursePlanRow,
   ManagementPlanStage,
   ManagementRoomStrategy,
 } from '@/lib/managementCoursePlan';
+
+function capabilityLabel(value: string) {
+  const labels: Record<string, string> = {
+    GENERAL_CLASSROOM_SMALL_GROUP: 'Genel Derslik (Küçük Grup)',
+    GENERAL_CLASSROOM_LARGE_GROUP: 'Genel Derslik (Büyük Grup)',
+    STUDIO_SMALL_GROUP: 'Stüdyo (Küçük Grup)',
+    STUDIO_LARGE_GROUP: 'Stüdyo (Büyük Grup)',
+    INSTRUMENT_RELATED_CLASSROOM: 'Enstrüman ilişkili derslik',
+  };
+
+  return labels[value] ?? value;
+}
 
 function initialStrategy(row: ManagementCoursePlanRow): ManagementRoomStrategy {
   if (row.resourceMode === 'CAPABILITY') return 'CAPABILITY';
@@ -282,7 +293,7 @@ export function ManagementRoomStrategyEditor({
                         : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                     } disabled:cursor-not-allowed disabled:opacity-45`}
                   >
-                    {managementRoomCapabilityLabel(value)}
+                    {capabilityLabel(value)}
                   </button>
                 ))}
               </div>
@@ -323,7 +334,7 @@ export function ManagementRoomStrategyEditor({
                   : `${roomIds.length} salonluk seçilebilir havuz`
               : strategy === 'CAPABILITY'
                 ? capability
-                  ? `Özellik: ${managementRoomCapabilityLabel(capability)}`
+                  ? `Özellik: ${capabilityLabel(capability)}`
                   : 'Bir özellik seçin'
                 : 'Salon bilinmiyor'}
           </p>
