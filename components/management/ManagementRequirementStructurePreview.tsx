@@ -536,6 +536,7 @@ export function ManagementRequirementStructurePreview({
             )}
           </div>
         </div>
+        </div>
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-3 sm:px-6">
           <p className="min-w-0 text-[9px] font-medium leading-4 text-slate-400">
