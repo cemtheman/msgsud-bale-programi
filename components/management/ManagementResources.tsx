@@ -80,11 +80,72 @@ function roomType(row: ManagementRoomResourceRow) {
 
 export function ManagementResources({
   data,
+  canEdit,
+  onUpdateTeacherName,
+  onUpdateRoomName,
 }: {
   data: ManagementResourceInventoryData | null;
+  canEdit: boolean;
+  onUpdateTeacherName: (teacherId: string, displayName: string) => Promise<void>;
+  onUpdateRoomName: (roomId: string, displayName: string) => Promise<void>;
 }) {
   const [tab, setTab] = useState<ResourceTab>('TEACHERS');
   const [query, setQuery] = useState('');
+  const [editTarget, setEditTarget] = useState<{
+    kind: 'TEACHER' | 'ROOM';
+    id: string;
+    currentName: string;
+    baseName: string;
+    nameOverridden: boolean;
+  } | null>(null);
+  const [editName, setEditName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const openEditor = (
+    kind: 'TEACHER' | 'ROOM',
+    row: ManagementTeacherResourceRow | ManagementRoomResourceRow,
+  ) => {
+    setEditTarget({
+      kind,
+      id: row.id,
+      currentName: row.name,
+      baseName: row.baseName,
+      nameOverridden: row.nameOverridden,
+    });
+    setEditName(row.name);
+    setEditError(null);
+  };
+
+  const saveName = async (name: string) => {
+    if (!editTarget || saving) return;
+
+    const nextName = name.trim();
+    if (!nextName) {
+      setEditError('Kaynak adı boş bırakılamaz.');
+      return;
+    }
+
+    setSaving(true);
+    setEditError(null);
+
+    try {
+      if (editTarget.kind === 'TEACHER') {
+        await onUpdateTeacherName(editTarget.id, nextName);
+      } else {
+        await onUpdateRoomName(editTarget.id, nextName);
+      }
+      setEditTarget(null);
+    } catch (reason: unknown) {
+      setEditError(
+        reason instanceof Error
+          ? reason.message
+          : 'Kaynak adı güncellenemedi.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const normalizedQuery = query.trim().toLocaleLowerCase('tr-TR');
 
@@ -93,6 +154,7 @@ export function ManagementResources({
       data?.teachers.filter((row) => (
         normalizedQuery.length === 0
         || row.name.toLocaleLowerCase('tr-TR').includes(normalizedQuery)
+        || row.baseName.toLocaleLowerCase('tr-TR').includes(normalizedQuery)
       )) ?? []
     ),
     [data?.teachers, normalizedQuery],
@@ -117,6 +179,7 @@ export function ManagementResources({
 
           const haystack = [
             row.name,
+            row.baseName,
             ...(aliasesByCanonical.get(row.id) ?? []),
             ...row.capabilities.map(capabilityLabel),
           ]
@@ -179,10 +242,10 @@ export function ManagementResources({
 
             <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
               <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                M18.1
+                M18.2
               </p>
               <p className="mt-1 text-[11px] font-bold text-slate-700">
-                Salt okunur envanter
+                Taslak ad düzenleme
               </p>
             </div>
           </div>
@@ -257,11 +320,12 @@ export function ManagementResources({
             </div>
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(260px,1fr)_140px_150px_140px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="grid grid-cols-[minmax(260px,1fr)_120px_140px_120px_92px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
                 <span>Öğretmen</span>
                 <span className="text-right">Aktif ders</span>
                 <span className="text-right">Programdaki blok</span>
                 <span className="text-right">Durum</span>
+                <span className="text-right">İşlem</span>
               </div>
 
               {filteredTeachers.length > 0 ? (
@@ -271,15 +335,21 @@ export function ManagementResources({
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-[minmax(260px,1fr)_140px_150px_140px] items-center border-b border-slate-100 px-4 py-3 last:border-b-0"
+                      className="grid grid-cols-[minmax(260px,1fr)_120px_140px_120px_92px] items-center border-b border-slate-100 px-4 py-3 last:border-b-0"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-[12px] font-bold text-slate-900">
                           {row.name}
                         </p>
-                        <p className="mt-0.5 text-[9px] font-medium text-slate-400">
-                          Öğretmen kaydı
-                        </p>
+                        {row.nameOverridden ? (
+                          <p className="mt-0.5 truncate text-[9px] font-semibold text-blue-600">
+                            Taslak ad · Yayınlanan: {row.baseName}
+                          </p>
+                        ) : (
+                          <p className="mt-0.5 text-[9px] font-medium text-slate-400">
+                            Öğretmen kaydı
+                          </p>
+                        )}
                       </div>
 
                       <p className="text-right text-[11px] font-black text-slate-700">
@@ -294,6 +364,17 @@ export function ManagementResources({
                         <span className={`inline-flex rounded-full px-2 py-1 text-[9px] font-black ${state.className}`}>
                           {state.label}
                         </span>
+                      </div>
+
+                      <div className="text-right">
+                        <button
+                          type="button"
+                          onClick={() => openEditor('TEACHER', row)}
+                          disabled={!canEdit}
+                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+                        >
+                          Düzenle
+                        </button>
                       </div>
                     </div>
                   );
@@ -340,13 +421,14 @@ export function ManagementResources({
             </div>
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(180px,0.8fr)_120px_150px_minmax(260px,1.4fr)_100px_120px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="grid grid-cols-[minmax(180px,0.8fr)_110px_140px_minmax(250px,1.4fr)_90px_100px_92px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
                 <span>Salon</span>
                 <span>Tür</span>
                 <span>Bilgi durumu</span>
                 <span>Özellikler</span>
                 <span className="text-right">Aktif ders</span>
                 <span className="text-right">Program</span>
+                <span className="text-right">İşlem</span>
               </div>
 
               {filteredRooms.length > 0 ? (
@@ -356,7 +438,7 @@ export function ManagementResources({
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-[minmax(180px,0.8fr)_120px_150px_minmax(260px,1.4fr)_100px_120px] items-center gap-0 border-b border-slate-100 px-4 py-3 last:border-b-0"
+                      className="grid grid-cols-[minmax(180px,0.8fr)_110px_140px_minmax(250px,1.4fr)_90px_100px_92px] items-center gap-0 border-b border-slate-100 px-4 py-3 last:border-b-0"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-[12px] font-bold text-slate-900">
@@ -365,6 +447,11 @@ export function ManagementResources({
                         {row.canonicalRoomName && (
                           <p className="mt-0.5 truncate text-[9px] font-medium text-slate-400">
                             → {row.canonicalRoomName}
+                          </p>
+                        )}
+                        {row.nameOverridden && (
+                          <p className="mt-0.5 truncate text-[9px] font-semibold text-blue-600">
+                            Taslak ad · Yayınlanan: {row.baseName}
                           </p>
                         )}
                         {!row.canonicalRoomId && row.aliasCount > 0 && (
@@ -413,6 +500,17 @@ export function ManagementResources({
                       <p className="text-right text-[11px] font-black text-slate-700">
                         {row.placedBlockCount}
                       </p>
+
+                      <div className="text-right">
+                        <button
+                          type="button"
+                          onClick={() => openEditor('ROOM', row)}
+                          disabled={!canEdit}
+                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+                        >
+                          Düzenle
+                        </button>
+                      </div>
                     </div>
                   );
                 })
@@ -427,14 +525,115 @@ export function ManagementResources({
 
         <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-blue-700">
-            Bu aşama envanteri görünür kılar
+            Taslak adlar yayınlanan programı değiştirmez
           </p>
           <p className="mt-1 text-[10px] font-medium leading-5 text-blue-800">
-            M18.1 kaynak kayıtlarını değiştirmez. Öğretmen ve salon düzenleme kuralları,
-            aday alanına etkileri ve güvenli değişiklik akışı ayrı bir sonraki adımda ele alınacak.
+            M18.2’de öğretmen ve ana salon adları yalnız Yönetim taslağında düzeltilebilir.
+            Öğrenci / öğretmen programındaki yayınlanmış ad değişmeden kalır. Salon özellikleri
+            ve uygunluk kuralları bu aşamada hâlâ salt okunurdur.
           </p>
         </div>
       </div>
+
+      {editTarget && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/30 p-4">
+          <div className="w-full max-w-[480px] rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_30px_100px_rgba(15,23,42,0.25)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+                  {editTarget.kind === 'TEACHER' ? 'Öğretmen adı' : 'Salon adı'}
+                </p>
+                <h3 className="mt-1 text-lg font-black text-slate-950">
+                  Taslakta görünen adı düzenle
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditTarget(null)}
+                disabled={saving}
+                className="rounded-lg px-2 py-1 text-sm font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5">
+              <p className="text-[10px] font-semibold leading-5 text-blue-800">
+                Bu ad yalnız Yönetim taslağında kullanılır. Öğrenci / öğretmen programında
+                yayınlanan ad şimdilik <strong>{editTarget.baseName}</strong> olarak kalır.
+              </p>
+            </div>
+
+            <label className="mt-4 block">
+              <span className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                Taslak ad
+              </span>
+              <input
+                autoFocus
+                type="text"
+                maxLength={120}
+                value={editName}
+                onChange={(event) => {
+                  setEditName(event.target.value);
+                  setEditError(null);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void saveName(editName);
+                  }
+                }}
+                disabled={saving}
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-800 outline-none transition focus:border-slate-400 disabled:bg-slate-50"
+              />
+            </label>
+
+            {editError && (
+              <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-semibold text-rose-700">
+                {editError}
+              </p>
+            )}
+
+            <div className="mt-5 flex items-center justify-between gap-3">
+              <div>
+                {editTarget.nameOverridden && (
+                  <button
+                    type="button"
+                    onClick={() => void saveName(editTarget.baseName)}
+                    disabled={saving}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                  >
+                    Orijinal ada dön
+                  </button>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditTarget(null)}
+                  disabled={saving}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void saveName(editName)}
+                  disabled={
+                    saving
+                    || editName.trim().length === 0
+                    || editName.trim() === editTarget.currentName
+                  }
+                  className="rounded-xl bg-slate-950 px-4 py-2 text-[10px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  {saving ? 'Kaydediliyor…' : 'Kaydet'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
