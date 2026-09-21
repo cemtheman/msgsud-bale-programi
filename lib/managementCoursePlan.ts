@@ -1,5 +1,7 @@
 'use client';
 
+import { MANAGEMENT_ROOM_CAPABILITIES } from '@/lib/managementRoomCapabilities';
+
 export type ManagementPlanStage = 'ORTAOKUL' | 'LISE';
 export type ManagementPlanTermStatus = 'ACTIVE' | 'INACTIVE' | 'UNKNOWN';
 export type ManagementRoomStrategy = 'SPECIFIC' | 'CAPABILITY' | 'UNKNOWN';
@@ -621,16 +623,9 @@ export async function fetchManagementCoursePlan(
         name: roomById.get(room.id) ?? room.name,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
-    roomCapabilityOptions: Array.from(
-      new Set([
-        ...rooms
-          .filter((room) => room.canonical_room_id === null)
-          .flatMap((room) => room.capabilities ?? []),
-        ...requirements
-          .map((requirement) => requirement.required_capability)
-          .filter((value): value is string => Boolean(value)),
-      ]),
-    ).sort((a, b) => a.localeCompare(b, 'en')),
+    roomCapabilityOptions: MANAGEMENT_ROOM_CAPABILITIES.map(
+      (capability) => capability.id,
+    ),
   };
 }
 
