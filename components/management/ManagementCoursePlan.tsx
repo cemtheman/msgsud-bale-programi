@@ -291,6 +291,7 @@ export function ManagementCoursePlan({
   onUpdateTeachers,
   onUpdateRooms,
   onPreviewStructure,
+  onApplyStructure,
 }: {
   data: ManagementCoursePlanData | null;
   onOpenProgram: (
@@ -309,6 +310,10 @@ export function ManagementCoursePlan({
   onPreviewStructure: (
     input: ManagementRequirementStructurePreviewInput,
   ) => Promise<ManagementRequirementStructurePreviewResult>;
+  onApplyStructure: (
+    input: ManagementRequirementStructurePreviewInput,
+    expectedStructureToken: string,
+  ) => Promise<void>;
 }) {
   const [stage, setStage] = useState<ManagementPlanStage>('ORTAOKUL');
   const [filter, setFilter] = useState<PlanFilter>('ACTIVE');
@@ -788,6 +793,7 @@ export function ManagementCoursePlan({
             onOpenProgram(requirementId, targetStage);
           }}
           onPreview={onPreviewStructure}
+          onApply={onApplyStructure}
         />
       )}
 
