@@ -87,6 +87,7 @@ export interface ManagementRequirementStructureSnapshot {
 export interface ManagementRequirementStructurePreview {
   requirementId: string;
   revisionId: string;
+  structureToken: string;
   hasChanges: boolean;
   canApply: boolean;
   blockReasons: string[];
@@ -225,6 +226,22 @@ function translateStructurePreviewError(message: string) {
 
   if (normalized.includes('active requirement must have positive weekly load')) {
     return 'Aktif bir dersin haftalık ders saati sıfırdan büyük olmalı.';
+  }
+
+  if (normalized.includes('preview is stale')) {
+    return 'Taslak program önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.';
+  }
+
+  if (normalized.includes('structural apply blocked')) {
+    return 'Bu değişiklik şu anda uygulanamıyor. Etki önizlemesini kontrol edin.';
+  }
+
+  if (normalized.includes('removable card became placed or locked')) {
+    return 'Etkilenen bloklardan biri önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.';
+  }
+
+  if (normalized.includes('structural history barrier')) {
+    return 'Ders yapısı değiştiği için bu eski program işlemi artık geri alınamaz veya yinelenemez.';
   }
 
   if (
@@ -523,7 +540,7 @@ export function previewManagementRequirementStructure(
   input: ManagementRequirementStructurePreviewInput,
 ) {
   return authedRpc<ManagementRequirementStructurePreview>(
-    'management_preview_requirement_structure',
+    'management_preview_requirement_structure_v2',
     accessToken,
     {
       p_requirement_id: input.requirementId,
@@ -531,6 +548,37 @@ export function previewManagementRequirementStructure(
       p_preferred_partition: input.preferredPartition,
       p_allowed_partitions: input.allowedPartitions,
       p_term_status: input.termStatus,
+    },
+  );
+}
+
+export interface ManagementRequirementStructureApplyResult {
+  applied: boolean;
+  requirementId: string;
+  revisionId: string;
+  historyBarrierTransactionId: string;
+  preservedCardCount: number;
+  removedCardCount: number;
+  createdCardCount: number;
+  resultCardCount: number;
+  structureToken: string;
+}
+
+export function applyManagementRequirementStructure(
+  accessToken: string,
+  input: ManagementRequirementStructurePreviewInput,
+  expectedStructureToken: string,
+) {
+  return authedRpc<ManagementRequirementStructureApplyResult>(
+    'management_apply_requirement_structure',
+    accessToken,
+    {
+      p_requirement_id: input.requirementId,
+      p_weekly_load: input.weeklyLoad,
+      p_preferred_partition: input.preferredPartition,
+      p_allowed_partitions: input.allowedPartitions,
+      p_term_status: input.termStatus,
+      p_expected_structure_token: expectedStructureToken,
     },
   );
 }
