@@ -112,8 +112,6 @@ export function ManagementResources({
 
   const [profileTarget, setProfileTarget] = useState<ManagementRoomResourceRow | null>(null);
   const [profileCapabilities, setProfileCapabilities] = useState<string[]>([]);
-  const [profileKnowledgeStatus, setProfileKnowledgeStatus] =
-    useState<ManagementResourceKnowledgeStatus>('UNKNOWN');
   const [profilePreview, setProfilePreview] =
     useState<ManagementRoomProfilePreview | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -168,7 +166,6 @@ export function ManagementResources({
   const openProfileEditor = (row: ManagementRoomResourceRow) => {
     setProfileTarget(row);
     setProfileCapabilities([...row.capabilities].sort((a, b) => a.localeCompare(b, 'en')));
-    setProfileKnowledgeStatus(row.knowledgeStatus);
     setProfilePreview(null);
     setProfileError(null);
   };
@@ -194,7 +191,7 @@ export function ManagementResources({
       setProfilePreview(await onPreviewRoomProfile(
         profileTarget.id,
         profileCapabilities,
-        profileKnowledgeStatus,
+        'CONFIRMED',
       ));
     } catch (reason: unknown) {
       setProfileError(
@@ -225,7 +222,7 @@ export function ManagementResources({
       await onApplyRoomProfile(
         profileTarget.id,
         profileCapabilities,
-        profileKnowledgeStatus,
+        'CONFIRMED',
         profilePreview.stateToken,
       );
       setProfileTarget(null);
@@ -308,8 +305,8 @@ export function ManagementResources({
     (row) => !row.canonicalRoomId,
   );
 
-  const confirmedRoomCount = canonicalRooms.filter(
-    (row) => row.knowledgeStatus === 'CONFIRMED',
+  const profiledRoomCount = canonicalRooms.filter(
+    (row) => row.capabilities.length > 0,
   ).length;
 
   const usedRoomCount = canonicalRooms.filter(
@@ -336,10 +333,10 @@ export function ManagementResources({
 
             <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
               <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                M18.2
+                M18.4
               </p>
               <p className="mt-1 text-[11px] font-bold text-slate-700">
-                Taslak ad düzenleme
+                Kaynak profilleri
               </p>
             </div>
           </div>
@@ -497,10 +494,10 @@ export function ManagementResources({
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                  Özelliği doğrulanmış
+                  Özellik tanımlı
                 </p>
                 <p className="mt-2 text-2xl font-black text-slate-900">
-                  {confirmedRoomCount}
+                  {profiledRoomCount}
                 </p>
               </div>
 
@@ -515,10 +512,9 @@ export function ManagementResources({
             </div>
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(180px,0.8fr)_100px_130px_minmax(240px,1.3fr)_82px_92px_150px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="grid grid-cols-[minmax(190px,0.9fr)_100px_minmax(300px,1.55fr)_82px_92px_150px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
                 <span>Salon</span>
                 <span>Tür</span>
-                <span>Bilgi durumu</span>
                 <span>Özellikler</span>
                 <span className="text-right">Aktif ders</span>
                 <span className="text-right">Program</span>
@@ -527,12 +523,10 @@ export function ManagementResources({
 
               {filteredRooms.length > 0 ? (
                 filteredRooms.map((row) => {
-                  const knowledge = knowledgeMeta(row.knowledgeStatus);
-
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-[minmax(180px,0.8fr)_100px_130px_minmax(240px,1.3fr)_82px_92px_150px] items-center gap-0 border-b border-slate-100 px-4 py-3 last:border-b-0"
+                      className="grid grid-cols-[minmax(190px,0.9fr)_100px_minmax(300px,1.55fr)_82px_92px_150px] items-center gap-0 border-b border-slate-100 px-4 py-3 last:border-b-0"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-[12px] font-bold text-slate-900">
@@ -558,12 +552,6 @@ export function ManagementResources({
                       <p className="text-[10px] font-bold text-slate-600">
                         {roomType(row)}
                       </p>
-
-                      <div>
-                        <span className={`inline-flex rounded-full px-2 py-1 text-[9px] font-black ${knowledge.className}`}>
-                          {knowledge.label}
-                        </span>
-                      </div>
 
                       <div className="flex min-w-0 flex-wrap gap-1">
                         {row.capabilities.length > 0 ? (
@@ -649,7 +637,7 @@ export function ManagementResources({
                   {profileTarget.name}
                 </h3>
                 <p className="mt-1 text-[10px] font-medium text-slate-500">
-                  Salon profilini doğrular. Programı yalnız Ders Planı’nda salonu özelliğine göre seçilen dersler varsa etkiler.
+                  Bu salonun kullanım özelliklerini tanımlar. Kaydedilen bilgiler doğrulanmış salon bilgisi olarak kullanılır; Programı yalnız Ders Planı’nda salonu özelliğine göre seçilen dersler varsa etkiler.
                 </p>
               </div>
               <button
@@ -663,42 +651,10 @@ export function ManagementResources({
             </div>
 
             <div className="management-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-4">
-              <div className="grid grid-cols-[180px_1fr] gap-5">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                    Bilgi durumu
-                  </p>
-                  <div className="mt-2 space-y-2">
-                    {([
-                      { id: 'CONFIRMED', label: 'Doğrulanmış' },
-                      { id: 'OBSERVED', label: 'Mevcut veriden' },
-                      { id: 'UNKNOWN', label: 'Belirsiz' },
-                    ] as const).map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          setProfileKnowledgeStatus(item.id);
-                          setProfilePreview(null);
-                          setProfileError(null);
-                        }}
-                        disabled={profilePreviewing || profileApplying}
-                        className={`w-full rounded-xl border px-3 py-2.5 text-left text-[10px] font-bold transition ${
-                          profileKnowledgeStatus === item.id
-                            ? 'border-slate-950 bg-slate-950 text-white'
-                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                    Salon özellikleri
-                  </p>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                  Salon özellikleri
+                </p>
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     {data.availableCapabilities.map((capability) => {
                       const selected = profileCapabilities.includes(capability);
@@ -727,7 +683,6 @@ export function ManagementResources({
                       );
                     })}
                   </div>
-                </div>
               </div>
 
               {profileError && (
