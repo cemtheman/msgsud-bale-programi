@@ -30,8 +30,10 @@ alter table public.move_transactions
 -- The token covers:
 --   * the complete target requirement scheduling definition,
 --   * target card identities / block structure / lock state,
---   * target teacher + room assignment sets,
 --   * all current placements in the DRAFT revision.
+--
+-- Teacher / room assignment edits intentionally do not invalidate this token;
+-- they are independently controlled by M17.1 and do not change card identity.
 --
 -- Existing scheduling commands serialize on schedule_revisions FOR UPDATE.
 -- The apply RPC takes the same revision lock before comparing this token.
@@ -50,7 +52,21 @@ as $$
       requirement.id as requirement_id,
       requirement.requirement_set_id,
       revision.id as revision_id,
-      to_jsonb(requirement) as requirement_snapshot
+      jsonb_build_object(
+        'id', requirement.id,
+        'requirementSetId', requirement.requirement_set_id,
+        'subjectId', requirement.subject_id,
+        'instructionalGroupId', requirement.instructional_group_id,
+        'weeklyLoad', requirement.weekly_load,
+        'preferredPartition', requirement.preferred_partition,
+        'allowedPartitions', requirement.allowed_partitions,
+        'minDistinctDays', requirement.min_distinct_days,
+        'maxBlocksPerDay', requirement.max_blocks_per_day,
+        'maxConsecutivePeriods', requirement.max_consecutive_periods,
+        'courseCharacter', requirement.course_character,
+        'deliveryMode', requirement.delivery_mode,
+        'termStatus', requirement.term_status
+      ) as requirement_snapshot
     from public.course_requirements requirement
     join public.schedule_revisions revision
       on revision.requirement_set_id = requirement.requirement_set_id
@@ -76,30 +92,6 @@ as $$
     left join public.schedule_cards card
       on card.schedule_revision_id = target.revision_id
      and card.requirement_id = target.requirement_id
-  ),
-  target_teachers as (
-    select coalesce(
-      jsonb_agg(
-        assignment.teacher_id
-        order by assignment.teacher_id
-      ) filter (where assignment.teacher_id is not null),
-      '[]'::jsonb
-    ) as value
-    from target
-    left join public.course_requirement_teachers assignment
-      on assignment.requirement_id = target.requirement_id
-  ),
-  target_rooms as (
-    select coalesce(
-      jsonb_agg(
-        assignment.room_id
-        order by assignment.room_id
-      ) filter (where assignment.room_id is not null),
-      '[]'::jsonb
-    ) as value
-    from target
-    left join public.course_requirement_rooms assignment
-      on assignment.requirement_id = target.requirement_id
   ),
   revision_placements as (
     select coalesce(
@@ -129,12 +121,10 @@ as $$
       'revisionId', target.revision_id,
       'requirement', target.requirement_snapshot,
       'cards', target_cards.value,
-      'teachers', target_teachers.value,
-      'rooms', target_rooms.value,
       'placements', revision_placements.value
     )::text
   )
-  from target, target_cards, target_teachers, target_rooms, revision_placements
+  from target, target_cards, revision_placements
 $$;
 
 revoke all
