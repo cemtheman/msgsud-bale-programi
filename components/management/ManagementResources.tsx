@@ -4,13 +4,14 @@ import { useMemo, useState } from 'react';
 import type {
   ManagementResourceInventoryData,
   ManagementResourceKnowledgeStatus,
+  ManagementRoomOperationalStatus,
   ManagementRoomProfilePreview,
   ManagementRoomResourceRow,
+  ManagementRoomStatusPreview,
   ManagementTeacherResourceRow,
 } from '@/lib/managementResources';
 
 type ResourceTab = 'TEACHERS' | 'ROOMS';
-type RoomProfileFilter = 'ALL' | 'MISSING' | 'DEFINED';
 
 function capabilityLabel(value: string) {
   const labels: Record<string, string> = {
@@ -52,6 +53,27 @@ function roomType(row: ManagementRoomResourceRow) {
   return 'Salon';
 }
 
+function roomStatusMeta(status: ManagementRoomOperationalStatus) {
+  if (status === 'MAINTENANCE') {
+    return {
+      label: 'Tadilatta',
+      className: 'border-amber-200 bg-amber-50 text-amber-800',
+    };
+  }
+
+  if (status === 'OUT_OF_SERVICE') {
+    return {
+      label: 'Kullanım dışı',
+      className: 'border-rose-200 bg-rose-50 text-rose-700',
+    };
+  }
+
+  return {
+    label: 'Aktif',
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  };
+}
+
 export function ManagementResources({
   data,
   canEdit,
@@ -59,6 +81,8 @@ export function ManagementResources({
   onUpdateRoomName,
   onPreviewRoomProfile,
   onApplyRoomProfile,
+  onPreviewRoomStatus,
+  onApplyRoomStatus,
 }: {
   data: ManagementResourceInventoryData | null;
   canEdit: boolean;
@@ -75,10 +99,17 @@ export function ManagementResources({
     knowledgeStatus: ManagementResourceKnowledgeStatus,
     expectedStateToken: string,
   ) => Promise<void>;
+  onPreviewRoomStatus: (
+    roomId: string,
+    operationalStatus: ManagementRoomOperationalStatus,
+  ) => Promise<ManagementRoomStatusPreview>;
+  onApplyRoomStatus: (
+    roomId: string,
+    operationalStatus: ManagementRoomOperationalStatus,
+    expectedStateToken: string,
+  ) => Promise<void>;
 }) {
   const [tab, setTab] = useState<ResourceTab>('TEACHERS');
-  const [roomProfileFilter, setRoomProfileFilter] =
-    useState<RoomProfileFilter>('ALL');
   const [query, setQuery] = useState('');
   const [editTarget, setEditTarget] = useState<{
     kind: 'TEACHER' | 'ROOM';
@@ -98,6 +129,16 @@ export function ManagementResources({
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profilePreviewing, setProfilePreviewing] = useState(false);
   const [profileApplying, setProfileApplying] = useState(false);
+
+  const [statusTarget, setStatusTarget] =
+    useState<ManagementRoomResourceRow | null>(null);
+  const [statusSelection, setStatusSelection] =
+    useState<ManagementRoomOperationalStatus>('ACTIVE');
+  const [statusPreview, setStatusPreview] =
+    useState<ManagementRoomStatusPreview | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusPreviewing, setStatusPreviewing] = useState(false);
+  const [statusApplying, setStatusApplying] = useState(false);
 
   const openEditor = (
     kind: 'TEACHER' | 'ROOM',
@@ -219,6 +260,69 @@ export function ManagementResources({
     }
   };
 
+  const openStatusEditor = (row: ManagementRoomResourceRow) => {
+    setStatusTarget(row);
+    setStatusSelection(row.operationalStatus);
+    setStatusPreview(null);
+    setStatusError(null);
+  };
+
+  const previewStatus = async () => {
+    if (!statusTarget || statusPreviewing || statusApplying) return;
+
+    setStatusPreviewing(true);
+    setStatusError(null);
+    setStatusPreview(null);
+
+    try {
+      setStatusPreview(await onPreviewRoomStatus(
+        statusTarget.id,
+        statusSelection,
+      ));
+    } catch (reason: unknown) {
+      setStatusError(
+        reason instanceof Error
+          ? reason.message
+          : 'Salon durumu değişikliğinin etkisi hesaplanamadı.',
+      );
+    } finally {
+      setStatusPreviewing(false);
+    }
+  };
+
+  const applyStatus = async () => {
+    if (
+      !statusTarget
+      || !statusPreview
+      || !statusPreview.canApply
+      || statusPreviewing
+      || statusApplying
+    ) {
+      return;
+    }
+
+    setStatusApplying(true);
+    setStatusError(null);
+
+    try {
+      await onApplyRoomStatus(
+        statusTarget.id,
+        statusSelection,
+        statusPreview.stateToken,
+      );
+      setStatusTarget(null);
+      setStatusPreview(null);
+    } catch (reason: unknown) {
+      setStatusError(
+        reason instanceof Error
+          ? reason.message
+          : 'Salon durumu güncellenemedi.',
+      );
+    } finally {
+      setStatusApplying(false);
+    }
+  };
+
   const normalizedQuery = query.trim().toLocaleLowerCase('tr-TR');
 
   const filteredTeachers = useMemo(
@@ -247,25 +351,13 @@ export function ManagementResources({
       return data.rooms
         .filter((row) => !row.canonicalRoomId)
         .filter((row) => {
-          if (
-            roomProfileFilter === 'MISSING'
-            && row.capabilities.length > 0
-          ) {
-            return false;
-          }
-
-          if (
-            roomProfileFilter === 'DEFINED'
-            && row.capabilities.length === 0
-          ) {
-            return false;
-          }
-
           if (normalizedQuery.length === 0) return true;
 
+          const status = roomStatusMeta(row.operationalStatus).label;
           const haystack = [
             row.name,
             row.baseName,
+            status,
             ...(aliasesByCanonical.get(row.id) ?? []),
             ...row.capabilities.map(capabilityLabel),
           ]
@@ -274,13 +366,13 @@ export function ManagementResources({
 
           return haystack.includes(normalizedQuery);
         })
-        .sort((a, b) => (
-          Number(a.capabilities.length > 0)
-          - Number(b.capabilities.length > 0)
-          || a.name.localeCompare(b.name, 'tr', { numeric: true })
+        .sort((a, b) => a.name.localeCompare(
+          b.name,
+          'tr',
+          { numeric: true },
         ));
     },
-    [data, normalizedQuery, roomProfileFilter],
+    [data, normalizedQuery],
   );
 
   if (!data) {
@@ -312,8 +404,16 @@ export function ManagementResources({
   const missingRoomProfileCount =
     canonicalRooms.length - profiledRoomCount;
 
-  const usedRoomCount = canonicalRooms.filter(
-    (row) => row.placedBlockCount > 0,
+  const activeRoomCount = canonicalRooms.filter(
+    (row) => row.operationalStatus === 'ACTIVE',
+  ).length;
+
+  const maintenanceRoomCount = canonicalRooms.filter(
+    (row) => row.operationalStatus === 'MAINTENANCE',
+  ).length;
+
+  const outOfServiceRoomCount = canonicalRooms.filter(
+    (row) => row.operationalStatus === 'OUT_OF_SERVICE',
   ).length;
 
   return (
@@ -336,10 +436,10 @@ export function ManagementResources({
 
             <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
               <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                M18.5
+                M18.6
               </p>
               <p className="mt-1 text-[11px] font-bold text-slate-700">
-                Salon profil tamamlama
+                Salon durumu ve etki
               </p>
             </div>
           </div>
@@ -485,98 +585,57 @@ export function ManagementResources({
             <div className="grid grid-cols-4 gap-3">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                  Ana salon kaydı
+                  Ana salon
                 </p>
                 <p className="mt-2 text-2xl font-black text-slate-900">
                   {canonicalRooms.length}
                 </p>
-                <p className="mt-1 text-[9px] font-medium text-slate-400">
-                  {data.rooms.length - canonicalRooms.length} takma ad ayrıca korunuyor
+              </div>
+
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+                <p className="text-[9px] font-black uppercase tracking-wide text-emerald-700">
+                  Aktif
+                </p>
+                <p className="mt-2 text-2xl font-black text-emerald-900">
+                  {activeRoomCount}
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setRoomProfileFilter('MISSING')}
-                className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left shadow-sm transition hover:bg-amber-100"
-              >
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-wide text-amber-700">
-                  Profil eksik
+                  Tadilatta
                 </p>
                 <p className="mt-2 text-2xl font-black text-amber-900">
-                  {missingRoomProfileCount}
+                  {maintenanceRoomCount}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
+                <p className="text-[9px] font-black uppercase tracking-wide text-rose-700">
+                  Kullanım dışı
+                </p>
+                <p className="mt-2 text-2xl font-black text-rose-900">
+                  {outOfServiceRoomCount}
+                </p>
+              </div>
+            </div>
+
+            {missingRoomProfileCount > 0 && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-[10px] font-bold text-amber-900">
+                  {missingRoomProfileCount} salonun kullanım özellikleri henüz tanımlanmadı.
                 </p>
                 <p className="mt-1 text-[9px] font-medium text-amber-700">
-                  özellik tanımı bekleyen salon
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setRoomProfileFilter('DEFINED')}
-                className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:bg-slate-50"
-              >
-                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                  Özellik tanımlı
-                </p>
-                <p className="mt-2 text-2xl font-black text-slate-900">
-                  {profiledRoomCount}
-                </p>
-              </button>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                  Programda kullanılan
-                </p>
-                <p className="mt-2 text-2xl font-black text-slate-900">
-                  {usedRoomCount}
+                  İlgili salonun “Tanımla” düğmesinden bir kez tamamlanması yeterlidir.
                 </p>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-              <div className="flex rounded-xl bg-slate-100 p-1">
-                {([
-                  {
-                    id: 'ALL',
-                    label: 'Tümü',
-                    count: canonicalRooms.length,
-                  },
-                  {
-                    id: 'MISSING',
-                    label: 'Profil eksik',
-                    count: missingRoomProfileCount,
-                  },
-                  {
-                    id: 'DEFINED',
-                    label: 'Özellik tanımlı',
-                    count: profiledRoomCount,
-                  },
-                ] as const).map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setRoomProfileFilter(item.id)}
-                    className={`rounded-lg px-3 py-1.5 text-[9px] font-black transition ${
-                      roomProfileFilter === item.id
-                        ? 'bg-white text-slate-950 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    {item.label} · {item.count}
-                  </button>
-                ))}
-              </div>
-
-              <p className="text-[9px] font-medium text-slate-400">
-                Eksik profiller listede önce gösterilir.
-              </p>
-            </div>
+            )}
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(190px,0.9fr)_100px_minmax(300px,1.55fr)_82px_92px_150px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="grid grid-cols-[minmax(170px,0.8fr)_90px_125px_minmax(270px,1.45fr)_82px_92px_150px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
                 <span>Salon</span>
                 <span>Tür</span>
+                <span>Durum</span>
                 <span>Özellikler</span>
                 <span className="text-right">Aktif ders</span>
                 <span className="text-right">Program</span>
@@ -588,7 +647,7 @@ export function ManagementResources({
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-[minmax(190px,0.9fr)_100px_minmax(300px,1.55fr)_82px_92px_150px] items-center gap-0 border-b border-slate-100 px-4 py-3 last:border-b-0"
+                      className="grid grid-cols-[minmax(170px,0.8fr)_90px_125px_minmax(270px,1.45fr)_82px_92px_150px] items-center gap-0 border-b border-slate-100 px-4 py-3 last:border-b-0"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-[12px] font-bold text-slate-900">
@@ -614,6 +673,19 @@ export function ManagementResources({
                       <p className="text-[10px] font-bold text-slate-600">
                         {roomType(row)}
                       </p>
+
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => openStatusEditor(row)}
+                          disabled={!canEdit}
+                          className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] font-black transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45 ${
+                            roomStatusMeta(row.operationalStatus).className
+                          }`}
+                        >
+                          {roomStatusMeta(row.operationalStatus).label}
+                        </button>
+                      </div>
 
                       <div className="flex min-w-0 flex-wrap gap-1">
                         {row.capabilities.length > 0 ? (
@@ -668,11 +740,7 @@ export function ManagementResources({
                 })
               ) : (
                 <div className="p-6 text-center text-sm font-semibold text-slate-400">
-                  {roomProfileFilter === 'MISSING'
-                    ? 'Özellik tanımı bekleyen salon bulunamadı.'
-                    : roomProfileFilter === 'DEFINED'
-                      ? 'Özellik tanımlı salon bulunamadı.'
-                      : 'Aramanızla eşleşen ana salon kaydı bulunamadı.'}
+                  Aramanızla eşleşen ana salon kaydı bulunamadı.
                 </div>
               )}
             </div>
@@ -684,13 +752,185 @@ export function ManagementResources({
             Taslak adlar yayınlanan programı değiştirmez
           </p>
           <p className="mt-1 text-[10px] font-medium leading-5 text-blue-800">
-            Öğretmen ve ana salon adları yalnız Yönetim taslağında düzeltilebilir; yayınlanan
-            programdaki adlar değişmez. Özelliksiz salonlar “Profil eksik” filtresinden tamamlanabilir.
-            Salon özellikleri, Ders Planı’nda bir ders “salon özelliğine göre” tanımlandığında uygun
-            yer hesabına katılır.
+            Salon özelliği değişiklikleri etki önizlemesinden geçer. Tadilatta veya kullanım dışı
+            salonlar yeni program adaylarından çıkarılır; salonda mevcut yerleşim varsa durum
+            değişikliği önce bu derslerin Program ekranında taşınmasını veya kaldırılmasını ister.
           </p>
         </div>
       </div>
+
+      {statusTarget && (
+        <div className="fixed inset-0 z-[114] flex items-center justify-center bg-slate-950/30 p-4">
+          <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-[620px] flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_30px_100px_rgba(15,23,42,0.25)]">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+                  Salon durumu
+                </p>
+                <h3 className="mt-1 text-lg font-black text-slate-950">
+                  {statusTarget.name}
+                </h3>
+                <p className="mt-1 text-[10px] font-medium text-slate-500">
+                  Aktif olmayan salonlar Program’ın uygun yer hesabından çıkarılır.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStatusTarget(null)}
+                disabled={statusPreviewing || statusApplying}
+                className="rounded-lg px-2 py-1 text-sm font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="management-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  {
+                    id: 'ACTIVE',
+                    label: 'Aktif',
+                    detail: 'Programda kullanılabilir.',
+                  },
+                  {
+                    id: 'MAINTENANCE',
+                    label: 'Tadilatta',
+                    detail: 'Geçici olarak kullanılamaz.',
+                  },
+                  {
+                    id: 'OUT_OF_SERVICE',
+                    label: 'Kullanım dışı',
+                    detail: 'Programda kullanılmaz.',
+                  },
+                ] as const).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setStatusSelection(item.id);
+                      setStatusPreview(null);
+                      setStatusError(null);
+                    }}
+                    disabled={statusPreviewing || statusApplying}
+                    className={`rounded-2xl border p-3 text-left transition ${
+                      statusSelection === item.id
+                        ? 'border-slate-950 bg-slate-950 text-white'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="block text-[10px] font-black">
+                      {item.label}
+                    </span>
+                    <span className={`mt-1 block text-[9px] font-medium leading-4 ${
+                      statusSelection === item.id
+                        ? 'text-slate-300'
+                        : 'text-slate-400'
+                    }`}>
+                      {item.detail}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {statusError && (
+                <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-semibold text-rose-700">
+                  {statusError}
+                </p>
+              )}
+
+              {statusPreview && (
+                <div className="mt-4 space-y-3">
+                  <div className={`rounded-2xl border p-4 ${
+                    statusPreview.canApply
+                      ? 'border-emerald-200 bg-emerald-50'
+                      : statusPreview.hasChanges
+                        ? 'border-amber-200 bg-amber-50'
+                        : 'border-slate-200 bg-slate-50'
+                  }`}>
+                    <p className={`text-[10px] font-black ${
+                      statusPreview.canApply
+                        ? 'text-emerald-800'
+                        : statusPreview.hasChanges
+                          ? 'text-amber-800'
+                          : 'text-slate-700'
+                    }`}>
+                      {statusPreview.canApply
+                        ? 'Bu durum değişikliği uygulanabilir.'
+                        : statusPreview.hasChanges
+                          ? 'Önce mevcut program yerleşimleri çözülmeli.'
+                          : 'Durum değişikliği yok.'}
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium leading-5 text-slate-600">
+                      {statusPreview.affectedRequirementCount} ders tanımı · {statusPreview.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirilecek.
+                    </p>
+                  </div>
+
+                  {statusPreview.placedImpacts.length > 0 && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-[10px] font-black text-amber-900">
+                        Bu salon şu anda programda kullanılıyor
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        {statusPreview.placedImpacts.map((impact) => (
+                          <div
+                            key={impact.cardId}
+                            className="rounded-xl border border-amber-200 bg-white/70 px-3 py-2"
+                          >
+                            <p className="text-[10px] font-bold text-slate-800">
+                              {impact.subjectName} · {impact.groupName}
+                            </p>
+                            <p className="mt-0.5 text-[9px] font-medium text-slate-500">
+                              Gün {impact.dayOfWeek}, {impact.startPeriod}. ders
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-4">
+              <p className="text-[9px] font-medium text-slate-400">
+                Önizleme hiçbir değişiklik yapmaz.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStatusTarget(null)}
+                  disabled={statusPreviewing || statusApplying}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  Kapat
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void previewStatus()}
+                  disabled={statusPreviewing || statusApplying}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[10px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-35"
+                >
+                  {statusPreviewing
+                    ? 'Etki hesaplanıyor…'
+                    : statusPreview
+                      ? 'Etkiyi yeniden hesapla'
+                      : 'Etkiyi hesapla'}
+                </button>
+                {statusPreview?.canApply && (
+                  <button
+                    type="button"
+                    onClick={() => void applyStatus()}
+                    disabled={statusPreviewing || statusApplying}
+                    className="rounded-xl bg-slate-950 px-4 py-2 text-[10px] font-black text-white hover:bg-slate-800 disabled:opacity-35"
+                  >
+                    {statusApplying ? 'Uygulanıyor…' : 'Durumu uygula'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {profileTarget && (
         <div className="fixed inset-0 z-[112] flex items-center justify-center bg-slate-950/30 p-4">
