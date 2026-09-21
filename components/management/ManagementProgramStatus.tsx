@@ -222,6 +222,7 @@ export function ManagementProgramStatus({
         <ManagementPublicationPreview
           data={publicationPreview}
           stage={stage}
+          health={snapshot}
         />
 
         <div className="grid grid-cols-[minmax(0,1fr)_320px] gap-4">
