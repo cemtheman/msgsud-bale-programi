@@ -636,9 +636,9 @@ export function ManagementResources({
             Taslak adlar yayınlanan programı değiştirmez
           </p>
           <p className="mt-1 text-[10px] font-medium leading-5 text-blue-800">
-            M18.2’de öğretmen ve ana salon adları yalnız Yönetim taslağında düzeltilebilir.
-            Öğrenci / öğretmen programındaki yayınlanmış ad değişmeden kalır. Salon özellikleri
-            ve uygunluk kuralları bu aşamada hâlâ salt okunurdur.
+            Öğretmen ve ana salon adları yalnız Yönetim taslağında düzeltilebilir; yayınlanan
+            programdaki adlar değişmez. Salon özellikleri ise etki önizlemesinden sonra güvenli
+            biçimde güncellenebilir; yerleşmiş bir dersi geçersiz kılacak değişiklik uygulanmaz.
           </p>
         </div>
       </div>
@@ -655,7 +655,7 @@ export function ManagementResources({
                   {profileTarget.name}
                 </h3>
                 <p className="mt-1 text-[10px] font-medium text-slate-500">
-                  Değişiklik yalnız CAPABILITY tabanlı derslerin uygun salon hesaplarını etkiler.
+                  Değişiklik yalnız özelliğe göre salon seçilen derslerin uygun yer hesaplarını etkiler.
                 </p>
               </div>
               <button
