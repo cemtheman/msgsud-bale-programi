@@ -106,6 +106,10 @@ function translateCommandError(message: string, fallback: string) {
     return 'Ders yapısı değiştiği için bu eski program işlemi artık geri alınamaz veya yinelenemez.';
   }
 
+  if (normalized.includes('structural history epoch')) {
+    return 'Bu işlem daha eski bir ders yapısı dönemine ait olduğu için artık geri alınamaz veya yinelenemez.';
+  }
+
   if (normalized.includes('structural revert was invalidated')) {
     return 'Ders yapısı değişikliğinden sonra yeni bir yönetim kararı verildiği için bu değişiklik artık otomatik geri alınamaz.';
   }
