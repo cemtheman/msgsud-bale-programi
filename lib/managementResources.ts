@@ -1,5 +1,10 @@
 'use client';
 
+import {
+  MANAGEMENT_ROOM_CAPABILITIES,
+  isManagementRoomCapability,
+} from '@/lib/managementRoomCapabilities';
+
 export type ManagementResourceKnowledgeStatus =
   | 'CONFIRMED'
   | 'OBSERVED'
@@ -342,14 +347,9 @@ export async function fetchManagementResources(
     );
   });
 
-  const availableCapabilities = Array.from(
-    new Set([
-      ...rooms.flatMap((room) => room.capabilities ?? []),
-      ...requirements
-        .map((requirement) => requirement.required_capability)
-        .filter((value): value is string => Boolean(value)),
-    ]),
-  ).sort((a, b) => a.localeCompare(b, 'en'));
+  const availableCapabilities = MANAGEMENT_ROOM_CAPABILITIES.map(
+    (capability) => capability.id,
+  );
 
   return {
     revisionId: revision.id,
@@ -383,7 +383,7 @@ export async function fetchManagementResources(
       aliasCount: aliasCountByCanonical.get(room.id) ?? 0,
       knowledgeStatus: room.knowledge_status ?? 'UNKNOWN',
       capabilities: Array.isArray(room.capabilities)
-        ? room.capabilities
+        ? room.capabilities.filter(isManagementRoomCapability)
         : [],
       activeRequirementCount:
         activeRoomRequirements.get(room.id)?.size ?? 0,
