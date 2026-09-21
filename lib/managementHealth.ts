@@ -1,6 +1,10 @@
 'use client';
 
-import type { ManagementBoardData } from '@/lib/managementBoard';
+import {
+  cardMatchesStage,
+  type ManagementBoardData,
+  type ManagementStage,
+} from '@/lib/managementBoard';
 import type { ManagementOverview } from '@/lib/managementOverview';
 
 export type ManagementReadinessStatus =
@@ -34,26 +38,30 @@ export interface ManagementHealthSnapshot {
 export function deriveManagementHealth(
   board: ManagementBoardData | null,
   overview: ManagementOverview | null,
+  stage?: ManagementStage,
 ): ManagementHealthSnapshot | null {
   if (!board || !overview) return null;
 
   const touched = new Set(overview.touchedCardIds);
+  const cards = stage
+    ? cards.filter((card) => cardMatchesStage(card, stage))
+    : board.cards;
 
-  const unplacedTouched = board.cards.filter(
+  const unplacedTouched = cards.filter(
     (card) => !card.placement && touched.has(card.id),
   );
-  const unplacedUntouched = board.cards.filter(
+  const unplacedUntouched = cards.filter(
     (card) => !card.placement && !touched.has(card.id),
   );
 
-  const contradictionTouched = board.cards.filter(
+  const contradictionTouched = cards.filter(
     (card) => card.isContradiction && touched.has(card.id),
   );
-  const contradictionUntouched = board.cards.filter(
+  const contradictionUntouched = cards.filter(
     (card) => card.isContradiction && !touched.has(card.id),
   );
 
-  const unresolvedTouched = board.cards.filter(
+  const unresolvedTouched = cards.filter(
     (card) => (
       card.unresolvedCount > 0
       && touched.has(card.id)
@@ -61,7 +69,7 @@ export function deriveManagementHealth(
     ),
   );
 
-  const unresolvedInherited = board.cards.filter(
+  const unresolvedInherited = cards.filter(
     (card) => (
       card.unresolvedCount > 0
       && !touched.has(card.id)
@@ -148,8 +156,8 @@ export function deriveManagementHealth(
     status,
     blockers,
     warnings,
-    checkedCount: board.cards.length,
-    placedCount: overview.placedCount,
-    totalCards: overview.cardCount,
+    checkedCount: cards.length,
+    placedCount: cards.filter((card) => Boolean(card.placement)).length,
+    totalCards: cards.length,
   };
 }
