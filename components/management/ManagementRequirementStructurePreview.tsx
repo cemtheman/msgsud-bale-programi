@@ -64,6 +64,9 @@ function impactReasonLabel(code: string) {
   if (code === 'HUMAN_CARD_CHOICE_REQUIRED') {
     return 'Hangi eşdeğer bloğun korunacağı insan kararı gerektiriyor.';
   }
+  if (code === 'LOCKED_CARD_REMOVAL_REQUIRED') {
+    return 'Kaldırılması gereken bloklardan en az biri kilitli.';
+  }
   return code;
 }
 
@@ -82,6 +85,7 @@ export function ManagementRequirementStructurePreview({
   onClose,
   onOpenProgram,
   onPreview,
+  onApply,
 }: {
   row: ManagementCoursePlanRow;
   stage: ManagementPlanStage;
@@ -93,6 +97,10 @@ export function ManagementRequirementStructurePreview({
   onPreview: (
     input: ManagementRequirementStructurePreviewInput,
   ) => Promise<ManagementRequirementStructurePreview>;
+  onApply: (
+    input: ManagementRequirementStructurePreviewInput,
+    expectedStructureToken: string,
+  ) => Promise<void>;
 }) {
   const [weeklyLoad, setWeeklyLoad] = useState(String(row.weeklyLoad));
   const [preferredPartition, setPreferredPartition] = useState(
@@ -107,6 +115,7 @@ export function ManagementRequirementStructurePreview({
   const [preview, setPreview] =
     useState<ManagementRequirementStructurePreview | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [applying, setApplying] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
   const audience = row.classCodes.length > 0
@@ -202,6 +211,37 @@ export function ManagementRequirementStructurePreview({
     }
   };
 
+  const applyPreview = async () => {
+    if (
+      !draftSummary.input
+      || !preview
+      || !preview.canApply
+      || applying
+      || previewing
+    ) {
+      return;
+    }
+
+    setApplying(true);
+    setPreviewError(null);
+
+    try {
+      await onApply(
+        draftSummary.input,
+        preview.structureToken,
+      );
+      onClose();
+    } catch (reason: unknown) {
+      setPreviewError(
+        reason instanceof Error
+          ? reason.message
+          : 'Ders yapısı değişikliği uygulanamadı.',
+      );
+    } finally {
+      setApplying(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[92] flex items-center justify-center bg-slate-950/30 p-3 sm:p-4 backdrop-blur-[1px]">
       <div className="flex max-h-[calc(100vh-1.5rem)] w-full max-w-[920px] flex-col overflow-hidden rounded-[28px] border border-white/80 bg-white shadow-[0_30px_100px_rgba(15,23,42,0.28)] sm:max-h-[calc(100vh-2rem)]">
@@ -221,7 +261,7 @@ export function ManagementRequirementStructurePreview({
           <button
             type="button"
             onClick={onClose}
-            disabled={previewing}
+            disabled={previewing || applying}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-40"
           >
             Kapat
@@ -236,7 +276,7 @@ export function ManagementRequirementStructurePreview({
                 Önizleme
               </span>
               <p className="text-[9px] font-semibold text-blue-700">
-                Bu ekranda hiçbir değişiklik kaydedilmez.
+                Önce etkiyi hesaplayın; kalıcı uygulama yalnız güvenli bir önizlemeden sonra açılır.
               </p>
             </div>
 
@@ -530,7 +570,7 @@ export function ManagementRequirementStructurePreview({
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[10px] font-medium leading-5 text-slate-500">
-                  Bu ekran bir karar önizlemesidir. Bu aşamada “Uygula” işlemi yoktur; ders planında kalıcı yapısal değişiklik yapılmaz.
+                  Etkiyi hesaplamak hiçbir şeyi değiştirmez. Kalıcı uygulama yalnız önizleme güvenliyse ve taslak o sırada değişmemişse yapılır.
                 </div>
               </>
             )}
@@ -540,14 +580,14 @@ export function ManagementRequirementStructurePreview({
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-3 sm:px-6">
           <p className="min-w-0 text-[9px] font-medium leading-4 text-slate-400">
-            Önizleme değişiklikleri kaydetmez.
+            Etkiyi hesaplamak değişiklikleri kaydetmez.
           </p>
 
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              disabled={previewing}
+              disabled={previewing || applying}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
             >
               Kapat
@@ -555,11 +595,21 @@ export function ManagementRequirementStructurePreview({
             <button
               type="button"
               onClick={() => void runPreview()}
-              disabled={previewing || !draftSummary.input}
-              className="rounded-xl bg-slate-950 px-5 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+              disabled={previewing || applying || !draftSummary.input}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[10px] font-black text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
             >
-              {previewing ? 'Etki hesaplanıyor…' : 'Etkiyi hesapla'}
+              {previewing ? 'Etki hesaplanıyor…' : preview ? 'Etkiyi yeniden hesapla' : 'Etkiyi hesapla'}
             </button>
+            {preview?.canApply && (
+              <button
+                type="button"
+                onClick={() => void applyPreview()}
+                disabled={previewing || applying || !draftSummary.input}
+                className="rounded-xl bg-slate-950 px-5 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {applying ? 'Uygulanıyor…' : 'Değişikliği uygula'}
+              </button>
+            )}
           </div>
         </div>
       </div>
