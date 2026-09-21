@@ -32,6 +32,8 @@ import {
 } from '@/lib/managementOverview';
 import {
   fetchManagementResources,
+  updateManagementRoomDisplayName,
+  updateManagementTeacherDisplayName,
   type ManagementResourceInventoryData,
 } from '@/lib/managementResources';
 import { deriveManagementHealth } from '@/lib/managementHealth';
@@ -956,7 +958,7 @@ export default function ManagementPage() {
         </div>
       )}
 
-      {commandNotice && (activeSection === 'PLAN' || !showInspector) && (
+      {commandNotice && (activeSection !== 'PROGRAM' || !showInspector) && (
         <div className="fixed right-4 top-20 z-[96] w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_20px_70px_rgba(15,23,42,0.18)]">
           <div className="flex items-start gap-3">
             <div
@@ -1192,6 +1194,61 @@ export default function ManagementPage() {
       ) : activeSection === 'RESOURCES' ? (
         <ManagementResources
           data={resources}
+          canEdit={access?.canEdit === true}
+          onUpdateTeacherName={async (teacherId, displayName) => {
+            if (!session || !access?.canEdit || !resources) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Öğretmenin taslak adı güncelleniyor.');
+
+            try {
+              const result = await updateManagementTeacherDisplayName(
+                session.accessToken,
+                resources.revisionId,
+                teacherId,
+                displayName,
+              );
+              setCommandNotice({
+                kind: 'success',
+                text: result.overridden
+                  ? `Öğretmen adı taslakta “${result.displayName}” olarak güncellendi. Yayınlanan program değişmedi.`
+                  : 'Öğretmen adı orijinal yayınlanan ada döndürüldü.',
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onUpdateRoomName={async (roomId, displayName) => {
+            if (!session || !access?.canEdit || !resources) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Salonun taslak adı güncelleniyor.');
+
+            try {
+              const result = await updateManagementRoomDisplayName(
+                session.accessToken,
+                resources.revisionId,
+                roomId,
+                displayName,
+              );
+              setCommandNotice({
+                kind: 'success',
+                text: result.overridden
+                  ? `Salon adı taslakta “${result.displayName}” olarak güncellendi. Yayınlanan program değişmedi.`
+                  : 'Salon adı orijinal yayınlanan ada döndürüldü.',
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
         />
       ) : (
         <ManagementProgramStatus
