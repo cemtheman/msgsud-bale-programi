@@ -196,6 +196,49 @@ async function authedGet<T>(path: string, accessToken: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function translateStructurePreviewError(message: string) {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes('editor role required')) {
+    return 'Bu işlem için düzenleme yetkisi gerekiyor.';
+  }
+
+  if (normalized.includes('not part of an active draft')) {
+    return 'Bu ders tanımı artık güncel taslak programın parçası değil. Veriyi yenileyin.';
+  }
+
+  if (normalized.includes('preferred partition must sum to weekly load')) {
+    return 'Tercih edilen blokların toplamı haftalık ders saatine eşit olmalı.';
+  }
+
+  if (normalized.includes('every allowed partition must sum to weekly load')) {
+    return 'Her alternatif blok yapısının toplamı haftalık ders saatine eşit olmalı.';
+  }
+
+  if (normalized.includes('preferred partition must be included in allowed partitions')) {
+    return 'Tercih edilen blok yapısı alternatifler arasında da yer almalı.';
+  }
+
+  if (normalized.includes('active requirement requires a preferred partition')) {
+    return 'Aktif bir ders için tercih edilen blok yapısını belirtin.';
+  }
+
+  if (normalized.includes('active requirement must have positive weekly load')) {
+    return 'Aktif bir dersin haftalık ders saati sıfırdan büyük olmalı.';
+  }
+
+  if (
+    normalized.includes('invalid block duration')
+    || normalized.includes('must contain arrays only')
+  ) {
+    return 'Blok yapılarını pozitif tam sayılarla ve geçerli biçimde yazın.';
+  }
+
+  return message.includes('M17.2')
+    ? 'Etki önizlemesi oluşturulamadı. Veriyi yenileyip yeniden deneyin.'
+    : message;
+}
+
 async function authedRpc<T>(
   name: string,
   accessToken: string,
@@ -227,7 +270,7 @@ async function authedRpc<T>(
       // Keep the user-facing fallback.
     }
 
-    throw new Error(detail);
+    throw new Error(translateStructurePreviewError(detail));
   }
 
   return response.json() as Promise<T>;
