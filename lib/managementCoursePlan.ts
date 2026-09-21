@@ -1,6 +1,12 @@
 'use client';
 
-import { MANAGEMENT_ROOM_CAPABILITIES } from '@/lib/managementRoomCapabilities';
+const MANAGEMENT_ROOM_CAPABILITY_IDS = [
+  'GENERAL_CLASSROOM_SMALL_GROUP',
+  'GENERAL_CLASSROOM_LARGE_GROUP',
+  'STUDIO_SMALL_GROUP',
+  'STUDIO_LARGE_GROUP',
+  'INSTRUMENT_RELATED_CLASSROOM',
+] as const;
 
 export type ManagementPlanStage = 'ORTAOKUL' | 'LISE';
 export type ManagementPlanTermStatus = 'ACTIVE' | 'INACTIVE' | 'UNKNOWN';
@@ -623,9 +629,7 @@ export async function fetchManagementCoursePlan(
         name: roomById.get(room.id) ?? room.name,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
-    roomCapabilityOptions: MANAGEMENT_ROOM_CAPABILITIES.map(
-      (capability) => capability.id,
-    ),
+    roomCapabilityOptions: [...MANAGEMENT_ROOM_CAPABILITY_IDS],
   };
 }
 
