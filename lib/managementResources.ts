@@ -8,6 +8,8 @@ export type ManagementResourceKnowledgeStatus =
 export interface ManagementTeacherResourceRow {
   id: string;
   name: string;
+  baseName: string;
+  nameOverridden: boolean;
   activeRequirementCount: number;
   placedBlockCount: number;
 }
@@ -15,6 +17,8 @@ export interface ManagementTeacherResourceRow {
 export interface ManagementRoomResourceRow {
   id: string;
   name: string;
+  baseName: string;
+  nameOverridden: boolean;
   canonicalRoomId: string | null;
   canonicalRoomName: string | null;
   aliasCount: number;
@@ -74,6 +78,16 @@ interface PlacementRow {
   room_id: string | null;
 }
 
+interface TeacherNameOverrideRow {
+  teacher_id: string;
+  display_name: string;
+}
+
+interface RoomNameOverrideRow {
+  room_id: string;
+  display_name: string;
+}
+
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -118,6 +132,64 @@ async function authedGet<T>(
   return response.json() as Promise<T>;
 }
 
+async function authedRpc<T>(
+  functionName: string,
+  accessToken: string,
+  body: Record<string, unknown>,
+): Promise<T> {
+  const { url, key } = getSupabaseConfig();
+
+  const response = await fetch(`${url}/rest/v1/rpc/${functionName}`, {
+    method: 'POST',
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    let message = 'Kaynak adı güncellenemedi.';
+
+    try {
+      const errorBody = await response.json() as {
+        message?: string;
+        details?: string;
+      };
+      message = errorBody.message ?? errorBody.details ?? message;
+    } catch {
+      // Keep the user-facing fallback.
+    }
+
+    const normalized = message.toLocaleLowerCase('tr-TR');
+
+    if (normalized.includes('editor role required')) {
+      throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+    }
+
+    if (normalized.includes('cannot be empty')) {
+      throw new Error('Kaynak adı boş bırakılamaz.');
+    }
+
+    if (normalized.includes('too long')) {
+      throw new Error('Kaynak adı çok uzun.');
+    }
+
+    if (normalized.includes('requires draft revision')) {
+      throw new Error('Kaynak adı yalnız taslak programda düzenlenebilir.');
+    }
+
+    if (normalized.includes('room alias names are not edited')) {
+      throw new Error('Takma ad kayıtları Kaynaklar ekranından düzenlenmez.');
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<T>;
+}
+
 export async function fetchManagementResources(
   accessToken: string,
 ): Promise<ManagementResourceInventoryData | null> {
@@ -137,6 +209,8 @@ export async function fetchManagementResources(
     requirementRooms,
     cards,
     placements,
+    teacherNameOverrides,
+    roomNameOverrides,
   ] = await Promise.all([
     authedGet<TeacherRow[]>(
       'teachers?select=id,name&order=name.asc',
@@ -164,6 +238,14 @@ export async function fetchManagementResources(
     ),
     authedGet<PlacementRow[]>(
       'placements?select=card_id,teacher_id,room_id',
+      accessToken,
+    ),
+    authedGet<TeacherNameOverrideRow[]>(
+      `management_teacher_name_overrides?select=teacher_id,display_name&schedule_revision_id=eq.${revision.id}`,
+      accessToken,
+    ),
+    authedGet<RoomNameOverrideRow[]>(
+      `management_room_name_overrides?select=room_id,display_name&schedule_revision_id=eq.${revision.id}`,
       accessToken,
     ),
   ]);
@@ -215,8 +297,18 @@ export async function fetchManagementResources(
     }
   });
 
-  const roomNameById = new Map(
-    rooms.map((room) => [room.id, room.name]),
+  const teacherOverrideById = new Map(
+    teacherNameOverrides.map((row) => [row.teacher_id, row.display_name]),
+  );
+  const roomOverrideById = new Map(
+    roomNameOverrides.map((row) => [row.room_id, row.display_name]),
+  );
+
+  const resolvedRoomNameById = new Map(
+    rooms.map((room) => [
+      room.id,
+      roomOverrideById.get(room.id) ?? room.name,
+    ]),
   );
   const aliasCountByCanonical = new Map<string, number>();
 
@@ -230,20 +322,31 @@ export async function fetchManagementResources(
 
   return {
     revisionId: revision.id,
-    teachers: teachers.map((teacher) => ({
+    teachers: teachers.map((teacher) => {
+      const overrideName = teacherOverrideById.get(teacher.id);
+
+      return {
       id: teacher.id,
-      name: teacher.name,
+      name: overrideName ?? teacher.name,
+      baseName: teacher.name,
+      nameOverridden: Boolean(overrideName),
       activeRequirementCount:
         activeTeacherRequirements.get(teacher.id)?.size ?? 0,
       placedBlockCount:
         teacherPlacedCounts.get(teacher.id) ?? 0,
-    })),
-    rooms: rooms.map((room) => ({
+      };
+    }),
+    rooms: rooms.map((room) => {
+      const overrideName = roomOverrideById.get(room.id);
+
+      return {
       id: room.id,
-      name: room.name,
+      name: overrideName ?? room.name,
+      baseName: room.name,
+      nameOverridden: Boolean(overrideName),
       canonicalRoomId: room.canonical_room_id,
       canonicalRoomName: room.canonical_room_id
-        ? roomNameById.get(room.canonical_room_id) ?? null
+        ? resolvedRoomNameById.get(room.canonical_room_id) ?? null
         : null,
       aliasCount: aliasCountByCanonical.get(room.id) ?? 0,
       knowledgeStatus: room.knowledge_status ?? 'UNKNOWN',
@@ -254,6 +357,50 @@ export async function fetchManagementResources(
         activeRoomRequirements.get(room.id)?.size ?? 0,
       placedBlockCount:
         roomPlacedCounts.get(room.id) ?? 0,
-    })),
+      };
+    }),
   };
+}
+
+export interface ManagementResourceNameUpdateResult {
+  resourceType: 'TEACHER' | 'ROOM';
+  resourceId: string;
+  baseName: string;
+  displayName: string;
+  overridden: boolean;
+  publishedChanged: false;
+}
+
+export function updateManagementTeacherDisplayName(
+  accessToken: string,
+  revisionId: string,
+  teacherId: string,
+  displayName: string,
+) {
+  return authedRpc<ManagementResourceNameUpdateResult>(
+    'management_set_teacher_display_name',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_teacher_id: teacherId,
+      p_display_name: displayName,
+    },
+  );
+}
+
+export function updateManagementRoomDisplayName(
+  accessToken: string,
+  revisionId: string,
+  roomId: string,
+  displayName: string,
+) {
+  return authedRpc<ManagementResourceNameUpdateResult>(
+    'management_set_room_display_name',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_room_id: roomId,
+      p_display_name: displayName,
+    },
+  );
 }
