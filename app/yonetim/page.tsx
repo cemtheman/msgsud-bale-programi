@@ -92,7 +92,8 @@ function roleLabel(role: string | null | undefined) {
 function actionNoun(action: ManagementRootAction) {
   if (action === 'PLACE') return 'yerleştirmesi';
   if (action === 'MOVE') return 'taşıması';
-  return 'kaldırma işlemi';
+  if (action === 'REMOVE') return 'kaldırma işlemi';
+  return 'ders yapısı değişikliği';
 }
 
 function commandContextLabel(
@@ -100,6 +101,10 @@ function commandContextLabel(
   board: ManagementBoardData | null,
 ) {
   if (!descriptor) return 'Program işlemi';
+
+  if (descriptor.action === 'STRUCTURE') {
+    return 'Ders yapısı değişikliği';
+  }
 
   const card = descriptor.cardId
     ? board?.cards.find((item) => item.id === descriptor.cardId) ?? null
@@ -931,6 +936,62 @@ export default function ManagementPage() {
       {dataError && (
         <div className="mx-3 mt-3 shrink-0 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-700">
           {dataError}
+        </div>
+      )}
+
+      {commandNotice && (activeSection === 'PLAN' || !showInspector) && (
+        <div className="fixed right-4 top-20 z-[96] w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_20px_70px_rgba(15,23,42,0.18)]">
+          <div className="flex items-start gap-3">
+            <div
+              className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+                commandNotice.kind === 'success'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : commandNotice.kind === 'error'
+                    ? 'bg-rose-100 text-rose-700'
+                    : 'bg-blue-100 text-blue-700'
+              }`}
+            >
+              {commandNotice.kind === 'success'
+                ? '✓'
+                : commandNotice.kind === 'error'
+                  ? '!'
+                  : 'i'}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-black text-slate-900">
+                {commandNotice.kind === 'success'
+                  ? 'İşlem tamamlandı'
+                  : commandNotice.kind === 'error'
+                    ? 'İşlem tamamlanamadı'
+                    : 'Bilgi'}
+              </p>
+              <p className="mt-1 text-[10px] font-medium leading-5 text-slate-600">
+                {commandNotice.text}
+              </p>
+
+              {commandNotice.kind === 'success'
+                && commandState.undo?.action === 'STRUCTURE' && (
+                <button
+                  type="button"
+                  onClick={() => void runUndo()}
+                  disabled={commandBusy}
+                  className="mt-3 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[10px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  ↶ Ders yapısı değişikliğini geri al
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setCommandNotice(null)}
+              className="shrink-0 rounded-lg px-2 py-1 text-xs font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+              aria-label="Bildirimi kapat"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
 
