@@ -329,7 +329,7 @@ export async function fetchManagementCommandState(
   const undo = undoRow
     ? {
       transactionId: undoRow.id,
-      action: undoRow.action,
+      action: undoRow.action as ManagementRootAction,
       cardId: typeof undoCardIdValue === 'string'
         ? undoCardIdValue
         : null,
