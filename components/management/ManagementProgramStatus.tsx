@@ -127,7 +127,7 @@ export function ManagementProgramStatus({
               Program durumu
             </p>
             <p className="mt-1 text-sm font-bold text-slate-900">
-              {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} için sağlık ve eksik kontrolü
+              {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} için genel durum ve eksikler
             </p>
           </div>
 
