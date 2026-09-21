@@ -244,6 +244,18 @@ function translateStructurePreviewError(message: string) {
     return 'Ders yapısı değiştiği için bu eski program işlemi artık geri alınamaz veya yinelenemez.';
   }
 
+  if (normalized.includes('structural revert was invalidated')) {
+    return 'Ders yapısı değişikliğinden sonra yeni bir yönetim kararı verildiği için bu değişiklik artık otomatik geri alınamaz.';
+  }
+
+  if (normalized.includes('structural revert is stale')) {
+    return 'Taslak program ders yapısı değişikliğinden sonra değişti. Otomatik geri alma güvenli olmadığı için işlem durduruldu.';
+  }
+
+  if (normalized.includes('created card is placed or locked')) {
+    return 'Ders yapısıyla eklenen bloklardan biri artık programda kullanılıyor veya kilitli. Önce bu bloğu serbest bırakın.';
+  }
+
   if (
     normalized.includes('invalid block duration')
     || normalized.includes('must contain arrays only')
@@ -570,7 +582,7 @@ export function applyManagementRequirementStructure(
   expectedStructureToken: string,
 ) {
   return authedRpc<ManagementRequirementStructureApplyResult>(
-    'management_apply_requirement_structure',
+    'management_apply_requirement_structure_v2',
     accessToken,
     {
       p_requirement_id: input.requirementId,
