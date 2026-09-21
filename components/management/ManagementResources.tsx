@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { managementRoomCapabilityLabel } from '@/lib/managementRoomCapabilities';
 import type {
   ManagementResourceInventoryData,
   ManagementResourceKnowledgeStatus,
@@ -11,6 +10,19 @@ import type {
 } from '@/lib/managementResources';
 
 type ResourceTab = 'TEACHERS' | 'ROOMS';
+
+function capabilityLabel(value: string) {
+  const labels: Record<string, string> = {
+    GENERAL_CLASSROOM_SMALL_GROUP: 'Genel Derslik (Küçük Grup)',
+    GENERAL_CLASSROOM_LARGE_GROUP: 'Genel Derslik (Büyük Grup)',
+    STUDIO_SMALL_GROUP: 'Stüdyo (Küçük Grup)',
+    STUDIO_LARGE_GROUP: 'Stüdyo (Büyük Grup)',
+    INSTRUMENT_RELATED_CLASSROOM: 'Enstrüman ilişkili derslik',
+  };
+
+  return labels[value] ?? value;
+}
+
 
 function knowledgeMeta(status: ManagementResourceKnowledgeStatus) {
   if (status === 'CONFIRMED') {
@@ -560,7 +572,7 @@ export function ManagementResources({
                               key={capability}
                               className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-bold text-slate-600"
                             >
-                              {managementRoomCapabilityLabel(capability)}
+                              {capabilityLabel(capability)}
                             </span>
                           ))
                         ) : (
@@ -710,7 +722,7 @@ export function ManagementResources({
                           }`}>
                             ✓
                           </span>
-                          {managementRoomCapabilityLabel(capability)}
+                          {capabilityLabel(capability)}
                         </button>
                       );
                     })}
@@ -766,7 +778,7 @@ export function ManagementResources({
                           {profilePreview.addedCapabilities.length > 0
                             ? profilePreview.addedCapabilities.map((value) => (
                               <span key={value} className="rounded-full bg-emerald-50 px-2 py-1 text-[8px] font-bold text-emerald-700">
-                                {managementRoomCapabilityLabel(value)}
+                                {capabilityLabel(value)}
                               </span>
                             ))
                             : <span className="text-[9px] font-semibold text-slate-400">Yok</span>}
@@ -781,7 +793,7 @@ export function ManagementResources({
                           {profilePreview.removedCapabilities.length > 0
                             ? profilePreview.removedCapabilities.map((value) => (
                               <span key={value} className="rounded-full bg-rose-50 px-2 py-1 text-[8px] font-bold text-rose-700">
-                                {managementRoomCapabilityLabel(value)}
+                                {capabilityLabel(value)}
                               </span>
                             ))
                             : <span className="text-[9px] font-semibold text-slate-400">Yok</span>}
@@ -805,7 +817,7 @@ export function ManagementResources({
                               {impact.subjectName} · {impact.groupName}
                             </p>
                             <p className="mt-0.5 text-[9px] font-medium text-slate-500">
-                              Gereken özellik: {managementRoomCapabilityLabel(impact.requiredCapability)} · Gün {impact.dayOfWeek}, {impact.startPeriod}. ders
+                              Gereken özellik: {capabilityLabel(impact.requiredCapability)} · Gün {impact.dayOfWeek}, {impact.startPeriod}. ders
                             </p>
                           </div>
                         ))}
