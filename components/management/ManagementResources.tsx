@@ -129,6 +129,12 @@ export function ManagementResources({
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profilePreviewing, setProfilePreviewing] = useState(false);
   const [profileApplying, setProfileApplying] = useState(false);
+  const [profileWizardActive, setProfileWizardActive] = useState(false);
+  const [profileWizardTotal, setProfileWizardTotal] = useState(0);
+  const [profileWizardCompletedIds, setProfileWizardCompletedIds] =
+    useState<string[]>([]);
+  const [profileWizardSkippedIds, setProfileWizardSkippedIds] =
+    useState<string[]>([]);
 
   const [statusTarget, setStatusTarget] =
     useState<ManagementRoomResourceRow | null>(null);
@@ -185,11 +191,98 @@ export function ManagementResources({
     }
   };
 
-  const openProfileEditor = (row: ManagementRoomResourceRow) => {
+  const loadProfileTarget = (row: ManagementRoomResourceRow) => {
     setProfileTarget(row);
-    setProfileCapabilities([...row.capabilities].sort((a, b) => a.localeCompare(b, 'en')));
+    setProfileCapabilities(
+      [...row.capabilities].sort((a, b) => a.localeCompare(b, 'en')),
+    );
     setProfilePreview(null);
     setProfileError(null);
+  };
+
+  const closeProfileEditor = () => {
+    setProfileTarget(null);
+    setProfilePreview(null);
+    setProfileError(null);
+    setProfileWizardActive(false);
+    setProfileWizardTotal(0);
+    setProfileWizardCompletedIds([]);
+    setProfileWizardSkippedIds([]);
+  };
+
+  const openProfileEditor = (row: ManagementRoomResourceRow) => {
+    setProfileWizardActive(false);
+    setProfileWizardTotal(0);
+    setProfileWizardCompletedIds([]);
+    setProfileWizardSkippedIds([]);
+    loadProfileTarget(row);
+  };
+
+  const wizardCandidates = (
+    completedIds: string[],
+    skippedIds: string[],
+    excludeId?: string,
+  ) => (
+    data?.rooms
+      .filter((row) => (
+        !row.canonicalRoomId
+        && row.capabilities.length === 0
+        && row.id !== excludeId
+        && !completedIds.includes(row.id)
+        && !skippedIds.includes(row.id)
+      ))
+      .sort((a, b) => a.name.localeCompare(
+        b.name,
+        'tr',
+        { numeric: true },
+      )) ?? []
+  );
+
+  const openProfileWizard = () => {
+    const candidates = wizardCandidates([], []);
+
+    if (candidates.length === 0) return;
+
+    setProfileWizardActive(true);
+    setProfileWizardTotal(candidates.length);
+    setProfileWizardCompletedIds([]);
+    setProfileWizardSkippedIds([]);
+    loadProfileTarget(candidates[0]);
+  };
+
+  const advanceProfileWizard = (
+    completedIds: string[],
+    skippedIds: string[],
+    excludeId?: string,
+  ) => {
+    const next = wizardCandidates(
+      completedIds,
+      skippedIds,
+      excludeId,
+    )[0];
+
+    if (!next) {
+      closeProfileEditor();
+      return;
+    }
+
+    loadProfileTarget(next);
+  };
+
+  const skipProfileWizardRoom = () => {
+    if (!profileTarget || !profileWizardActive) return;
+
+    const skipped = [
+      ...profileWizardSkippedIds,
+      profileTarget.id,
+    ];
+
+    setProfileWizardSkippedIds(skipped);
+    advanceProfileWizard(
+      profileWizardCompletedIds,
+      skipped,
+      profileTarget.id,
+    );
   };
 
   const toggleCapability = (capability: string) => {
@@ -247,8 +340,23 @@ export function ManagementResources({
         'CONFIRMED',
         profilePreview.stateToken,
       );
-      setProfileTarget(null);
-      setProfilePreview(null);
+
+      if (profileWizardActive) {
+        const completed = [
+          ...profileWizardCompletedIds,
+          profileTarget.id,
+        ];
+
+        setProfileWizardCompletedIds(completed);
+        advanceProfileWizard(
+          completed,
+          profileWizardSkippedIds,
+          profileTarget.id,
+        );
+      } else {
+        setProfileTarget(null);
+        setProfilePreview(null);
+      }
     } catch (reason: unknown) {
       setProfileError(
         reason instanceof Error
@@ -436,10 +544,10 @@ export function ManagementResources({
 
             <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
               <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                M18.6
+                M18.7
               </p>
               <p className="mt-1 text-[11px] font-bold text-slate-700">
-                Salon durumu ve etki
+                Salon profili sihirbazı
               </p>
             </div>
           </div>
@@ -621,13 +729,23 @@ export function ManagementResources({
             </div>
 
             {missingRoomProfileCount > 0 && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-[10px] font-bold text-amber-900">
-                  {missingRoomProfileCount} salonun kullanım özellikleri henüz tanımlanmadı.
-                </p>
-                <p className="mt-1 text-[9px] font-medium text-amber-700">
-                  İlgili salonun “Tanımla” düğmesinden bir kez tamamlanması yeterlidir.
-                </p>
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <div>
+                  <p className="text-[10px] font-bold text-amber-900">
+                    {missingRoomProfileCount} salonun kullanım özellikleri henüz tanımlanmadı.
+                  </p>
+                  <p className="mt-1 text-[9px] font-medium text-amber-700">
+                    Sihirbaz eksik salonları sırayla açar; bilmediğiniz salonu şimdilik atlayabilirsiniz.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openProfileWizard}
+                  disabled={!canEdit}
+                  className="shrink-0 rounded-xl bg-amber-900 px-4 py-2.5 text-[10px] font-black text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Profilleri tamamla
+                </button>
               </div>
             )}
 
@@ -937,9 +1055,21 @@ export function ManagementResources({
           <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-[760px] flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_30px_100px_rgba(15,23,42,0.25)]">
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
-                  Salon özellikleri
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+                    Salon özellikleri
+                  </p>
+                  {profileWizardActive && (
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-600">
+                      {Math.min(
+                        profileWizardCompletedIds.length
+                        + profileWizardSkippedIds.length
+                        + 1,
+                        profileWizardTotal,
+                      )} / {profileWizardTotal}
+                    </span>
+                  )}
+                </div>
                 <h3 className="mt-1 text-lg font-black text-slate-950">
                   {profileTarget.name}
                 </h3>
@@ -949,7 +1079,7 @@ export function ManagementResources({
               </div>
               <button
                 type="button"
-                onClick={() => setProfileTarget(null)}
+                onClick={closeProfileEditor}
                 disabled={profilePreviewing || profileApplying}
                 className="rounded-lg px-2 py-1 text-sm font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-40"
               >
@@ -992,7 +1122,15 @@ export function ManagementResources({
                   </div>
               </div>
 
-              {profileError && (
+              {profileWizardActive && profileCapabilities.length === 0 && (
+                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                  <p className="text-[10px] font-bold text-amber-900">
+                    En az bir salon özelliği seçin veya “Şimdilik atla” ile sıradaki salona geçin.
+                  </p>
+                </div>
+              )}
+
+                            {profileError && (
                 <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-semibold text-rose-700">
                   {profileError}
                 </p>
@@ -1097,16 +1235,33 @@ export function ManagementResources({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setProfileTarget(null)}
+                  onClick={closeProfileEditor}
                   disabled={profilePreviewing || profileApplying}
                   className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                 >
-                  Kapat
+                  {profileWizardActive ? 'Sihirbazdan çık' : 'Kapat'}
                 </button>
+                {profileWizardActive && (
+                  <button
+                    type="button"
+                    onClick={skipProfileWizardRoom}
+                    disabled={profilePreviewing || profileApplying}
+                    className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-[10px] font-black text-amber-800 hover:bg-amber-100 disabled:opacity-35"
+                  >
+                    Şimdilik atla
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => void previewProfile()}
-                  disabled={profilePreviewing || profileApplying}
+                  disabled={
+                    profilePreviewing
+                    || profileApplying
+                    || (
+                      profileWizardActive
+                      && profileCapabilities.length === 0
+                    )
+                  }
                   className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[10px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-35"
                 >
                   {profilePreviewing
@@ -1122,7 +1277,11 @@ export function ManagementResources({
                     disabled={profilePreviewing || profileApplying}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-[10px] font-black text-white hover:bg-slate-800 disabled:opacity-35"
                   >
-                    {profileApplying ? 'Uygulanıyor…' : 'Değişikliği uygula'}
+                    {profileApplying
+                      ? 'Uygulanıyor…'
+                      : profileWizardActive
+                        ? 'Uygula ve sonraki salon'
+                        : 'Değişikliği uygula'}
                   </button>
                 )}
               </div>
