@@ -127,6 +127,16 @@ interface NamedRow {
   name: string;
 }
 
+interface TeacherNameOverrideRow {
+  teacher_id: string;
+  display_name: string;
+}
+
+interface RoomNameOverrideRow {
+  room_id: string;
+  display_name: string;
+}
+
 interface RequirementTeacherRow {
   requirement_id: string;
   teacher_id: string;
@@ -364,6 +374,8 @@ export async function fetchManagementBoard(
     rooms,
     placements,
     domains,
+    teacherNameOverrides,
+    roomNameOverrides,
   ] = await Promise.all([
     authedGet<CardRow[]>(
       `schedule_cards?select=id,requirement_id,block_index,duration_periods,locked&schedule_revision_id=eq.${revision.id}`,
@@ -413,14 +425,38 @@ export async function fetchManagementBoard(
       'schedule_card_domain_summaries?select=card_id,domain_status,valid_count,invalid_count,unresolved_count,is_forced,is_contradiction',
       accessToken,
     ),
+    authedGet<TeacherNameOverrideRow[]>(
+      `management_teacher_name_overrides?select=teacher_id,display_name&schedule_revision_id=eq.${revision.id}`,
+      accessToken,
+    ),
+    authedGet<RoomNameOverrideRow[]>(
+      `management_room_name_overrides?select=room_id,display_name&schedule_revision_id=eq.${revision.id}`,
+      accessToken,
+    ),
   ]);
 
   const requirementById = new Map(requirements.map((row) => [row.id, row]));
   const groupById = new Map(groups.map((row) => [row.id, row]));
   const classById = new Map(classGroups.map((row) => [row.id, row]));
   const subjectById = new Map(subjects.map((row) => [row.id, row.name]));
-  const teacherById = new Map(teachers.map((row) => [row.id, row.name]));
-  const roomById = new Map(rooms.map((row) => [row.id, row.name]));
+  const teacherOverrideById = new Map(
+    teacherNameOverrides.map((row) => [row.teacher_id, row.display_name]),
+  );
+  const roomOverrideById = new Map(
+    roomNameOverrides.map((row) => [row.room_id, row.display_name]),
+  );
+  const teacherById = new Map(
+    teachers.map((row) => [
+      row.id,
+      teacherOverrideById.get(row.id) ?? row.name,
+    ]),
+  );
+  const roomById = new Map(
+    rooms.map((row) => [
+      row.id,
+      roomOverrideById.get(row.id) ?? row.name,
+    ]),
+  );
   const placementByCard = new Map(placements.map((row) => [row.card_id, row]));
   const domainByCard = new Map(domains.map((row) => [row.card_id, row]));
 
@@ -556,7 +592,7 @@ export async function fetchManagementBoard(
   const teacherRows: ManagementBoardRow[] = teachers
     .map((row) => ({
       id: row.id,
-      label: row.name,
+      label: teacherById.get(row.id) ?? row.name,
       secondary: 'Öğretmen',
     }))
     .sort((a, b) => a.label.localeCompare(b.label, 'tr'));
@@ -564,7 +600,7 @@ export async function fetchManagementBoard(
   const roomRows: ManagementBoardRow[] = rooms
     .map((row) => ({
       id: row.id,
-      label: row.name,
+      label: roomById.get(row.id) ?? row.name,
       secondary: 'Salon',
     }))
     .sort((a, b) => a.label.localeCompare(b.label, 'tr', { numeric: true }));
@@ -575,8 +611,12 @@ export async function fetchManagementBoard(
     classRows,
     teacherRows,
     roomRows,
-    teacherNamesById: Object.fromEntries(teachers.map((row) => [row.id, row.name])),
-    roomNamesById: Object.fromEntries(rooms.map((row) => [row.id, row.name])),
+    teacherNamesById: Object.fromEntries(
+      teachers.map((row) => [row.id, teacherById.get(row.id) ?? row.name]),
+    ),
+    roomNamesById: Object.fromEntries(
+      rooms.map((row) => [row.id, roomById.get(row.id) ?? row.name]),
+    ),
   };
 }
 
