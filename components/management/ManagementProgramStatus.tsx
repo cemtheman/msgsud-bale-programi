@@ -1,5 +1,6 @@
 'use client';
 
+import type { ManagementStage } from '@/lib/managementBoard';
 import type {
   ManagementHealthIssue,
   ManagementHealthSnapshot,
@@ -95,9 +96,13 @@ function IssueCard({ issue }: { issue: ManagementHealthIssue }) {
 export function ManagementProgramStatus({
   snapshot,
   versionNumber,
+  stage,
+  onStageChange,
 }: {
   snapshot: ManagementHealthSnapshot | null;
   versionNumber: number | null;
+  stage: ManagementStage;
+  onStageChange: (stage: ManagementStage) => void;
 }) {
   if (!snapshot) {
     return (
@@ -116,6 +121,37 @@ export function ManagementProgramStatus({
   return (
     <section className="management-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
       <div className="mx-auto max-w-[1120px] space-y-4">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+              Program durumu
+            </p>
+            <p className="mt-1 text-sm font-bold text-slate-900">
+              {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} için genel durum ve eksikler
+            </p>
+          </div>
+
+          <div className="flex rounded-xl border border-slate-200 bg-white p-1">
+            {([
+              { id: 'ORTAOKUL', label: 'Ortaokul' },
+              { id: 'LISE', label: 'Lise' },
+            ] as const).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onStageChange(item.id)}
+                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                  stage === item.id
+                    ? 'bg-[#A63D48] text-white'
+                    : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className={['rounded-[24px] border p-5 shadow-sm', meta.className].join(' ')}>
           <div className="flex items-start justify-between gap-5">
             <div>

@@ -1,6 +1,6 @@
 'use client';
 
-export type ManagementRootAction = 'PLACE' | 'MOVE' | 'REMOVE';
+export type ManagementRootAction = 'PLACE' | 'MOVE' | 'REMOVE' | 'STRUCTURE';
 
 export interface ManagementCommandDescriptor {
   transactionId: string;
@@ -16,7 +16,7 @@ export interface ManagementCommandState {
 
 interface RootTransactionRow {
   id: string;
-  action: 'PLACE' | 'MOVE' | 'REMOVE';
+  action: 'PLACE' | 'MOVE' | 'REMOVE' | 'STRUCTURE';
   payload: {
     source?: string;
     reverted_root_action?: string;
@@ -102,6 +102,26 @@ function translateCommandError(message: string, fallback: string) {
     return 'Bu yineleme artık geçerli değil; arada yeni bir program kararı verilmiş.';
   }
 
+  if (normalized.includes('structural history barrier')) {
+    return 'Ders yapısı değiştiği için bu eski program işlemi artık geri alınamaz veya yinelenemez.';
+  }
+
+  if (normalized.includes('structural history epoch')) {
+    return 'Bu işlem daha eski bir ders yapısı dönemine ait olduğu için artık geri alınamaz veya yinelenemez.';
+  }
+
+  if (normalized.includes('structural revert was invalidated')) {
+    return 'Ders yapısı değişikliğinden sonra yeni bir yönetim kararı verildiği için bu değişiklik artık otomatik geri alınamaz.';
+  }
+
+  if (normalized.includes('structural revert is stale')) {
+    return 'Taslak program ders yapısı değişikliğinden sonra değişti. Güvenli geri alma için koşullar artık aynı değil.';
+  }
+
+  if (normalized.includes('created card is placed or locked')) {
+    return 'Ders yapısıyla eklenen bloklardan biri artık programda kullanılıyor veya kilitli. Önce bu bloğu serbest bırakın.';
+  }
+
   if (
     normalized.includes('propagation root must be one active')
     || normalized.includes('propagation parent is outside active root chain')
@@ -109,6 +129,18 @@ function translateCommandError(message: string, fallback: string) {
     return 'Program işlem zinciri güncelliğini kaybetti. Veriyi yenileyip işlemi yeniden deneyin.';
   }
 
+  if (
+    normalized.includes('assignment change requires all requirement cards to be unplaced first')
+  ) {
+    return 'Bu dersin programda yerleşmiş blokları var. Öğretmen veya salonu değiştirmeden önce bu dersin yerleşimlerini programdan kaldırın.';
+  }
+
+  if (
+    normalized.includes('teacher selection contains an unknown teacher')
+    || normalized.includes('room selection contains an unknown room')
+  ) {
+    return 'Seçilen öğretmen veya salon artık kullanılamıyor. Veriyi yenileyip tekrar deneyin.';
+  }
 
   if (normalized.includes('draft')) {
     return 'Bu işlem yalnız taslak program üzerinde yapılabilir.';
@@ -199,6 +231,29 @@ export function removeManagementCard(
   });
 }
 
+
+export function updateManagementRequirementTeachers(
+  accessToken: string,
+  requirementId: string,
+  teacherIds: string[],
+) {
+  return callRpc('management_update_requirement_teachers', accessToken, {
+    p_requirement_id: requirementId,
+    p_teacher_ids: teacherIds,
+  });
+}
+
+export function updateManagementRequirementRooms(
+  accessToken: string,
+  requirementId: string,
+  roomIds: string[],
+) {
+  return callRpc('management_update_requirement_rooms', accessToken, {
+    p_requirement_id: requirementId,
+    p_room_ids: roomIds,
+  });
+}
+
 export function undoManagement(
   accessToken: string,
   rootTransactionId: string,
@@ -249,18 +304,51 @@ export async function fetchManagementCommandState(
 
   const rows = await response.json() as RootTransactionRow[];
 
-  const undoRow = rows.find((row) => {
+  const latestStructureRow = rows.find((row) => (
+    row.action === 'STRUCTURE'
+    && (
+      row.payload?.source === 'STRUCTURE_APPLY'
+      || row.payload?.source === 'STRUCTURE_REVERT'
+    )
+  )) ?? null;
+
+  const latestStructureSequence =
+    latestStructureRow?.history_sequence ?? 0;
+
+  const currentEpochRows = rows.filter(
+    (row) => row.history_sequence > latestStructureSequence,
+  );
+
+  const scheduleUndoRow = currentEpochRows.find((row) => {
     const source = row.payload?.source;
     return row.reverted_at === null
       && (source === 'MANUAL' || source === 'ROOT_REDO')
       && ['PLACE', 'MOVE', 'REMOVE'].includes(row.action);
   });
 
-  const manualSequences = rows
+  const activeStructureApply = (
+    latestStructureRow?.payload?.source === 'STRUCTURE_APPLY'
+    && latestStructureRow.reverted_at === null
+    && latestStructureRow.payload?.revertible === true
+  )
+    ? latestStructureRow
+    : null;
+
+  const structureUndoRow = (
+    !scheduleUndoRow
+    && currentEpochRows.length === 0
+    && activeStructureApply
+  )
+    ? activeStructureApply
+    : null;
+
+  const undoRow = scheduleUndoRow ?? structureUndoRow;
+
+  const manualSequences = currentEpochRows
     .filter((row) => row.payload?.source === 'MANUAL')
     .map((row) => row.history_sequence);
 
-  const redoRow = rows.find((row) => {
+  const redoRow = currentEpochRows.find((row) => {
     if (row.payload?.source !== 'ROOT_UNDO' || row.redone_at !== null) {
       return false;
     }
@@ -276,7 +364,7 @@ export async function fetchManagementCommandState(
   const undo = undoRow
     ? {
       transactionId: undoRow.id,
-      action: undoRow.action,
+      action: undoRow.action as ManagementRootAction,
       cardId: typeof undoCardIdValue === 'string'
         ? undoCardIdValue
         : null,

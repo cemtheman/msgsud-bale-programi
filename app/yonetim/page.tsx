@@ -11,6 +11,7 @@ import { ManagementInspector } from '@/components/management/ManagementInspector
 import { ManagementBusyOverlay } from '@/components/management/ManagementBusyOverlay';
 import { ManagementConfirmOverlay } from '@/components/management/ManagementConfirmOverlay';
 import { ManagementProgramStatus } from '@/components/management/ManagementProgramStatus';
+import { ManagementCoursePlan } from '@/components/management/ManagementCoursePlan';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   cardMatchesStage,
@@ -30,12 +31,21 @@ import {
 } from '@/lib/managementOverview';
 import { deriveManagementHealth } from '@/lib/managementHealth';
 import {
+  applyManagementRequirementStructure,
+  fetchManagementCoursePlan,
+  previewManagementRequirementStructure,
+  type ManagementCoursePlanData,
+  type ManagementPlanStage,
+} from '@/lib/managementCoursePlan';
+import {
   fetchManagementCommandState,
   moveManagementCard,
   placeManagementCard,
   redoManagement,
   removeManagementCard,
   undoManagement,
+  updateManagementRequirementRooms,
+  updateManagementRequirementTeachers,
   type ManagementCommandDescriptor,
   type ManagementCommandState,
   type ManagementRootAction,
@@ -82,7 +92,8 @@ function roleLabel(role: string | null | undefined) {
 function actionNoun(action: ManagementRootAction) {
   if (action === 'PLACE') return 'yerleştirmesi';
   if (action === 'MOVE') return 'taşıması';
-  return 'kaldırma işlemi';
+  if (action === 'REMOVE') return 'kaldırma işlemi';
+  return 'ders yapısı değişikliği';
 }
 
 function commandContextLabel(
@@ -90,6 +101,10 @@ function commandContextLabel(
   board: ManagementBoardData | null,
 ) {
   if (!descriptor) return 'Program işlemi';
+
+  if (descriptor.action === 'STRUCTURE') {
+    return 'Ders yapısı değişikliği';
+  }
 
   const card = descriptor.cardId
     ? board?.cards.find((item) => item.id === descriptor.cardId) ?? null
@@ -220,11 +235,12 @@ export default function ManagementPage() {
 
   const [overview, setOverview] = useState<ManagementOverview | null>(null);
   const [board, setBoard] = useState<ManagementBoardData | null>(null);
+  const [coursePlan, setCoursePlan] = useState<ManagementCoursePlanData | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
 
-  const [activeSection, setActiveSection] = useState<'PROGRAM' | 'STATUS'>('PROGRAM');
+  const [activeSection, setActiveSection] = useState<'PROGRAM' | 'PLAN' | 'STATUS'>('PROGRAM');
   const [activeDay, setActiveDay] = useState(1);
   const [stage, setStage] = useState<ManagementStage>('ORTAOKUL');
   const [resourceView, setResourceView] =
@@ -266,6 +282,7 @@ export default function ManagementPage() {
     if (status !== 'ready' || !session) {
       setOverview(null);
       setBoard(null);
+      setCoursePlan(null);
       return;
     }
 
@@ -276,12 +293,14 @@ export default function ManagementPage() {
     Promise.all([
       fetchManagementOverview(session.accessToken),
       fetchManagementBoard(session.accessToken),
+      fetchManagementCoursePlan(session.accessToken),
     ])
-      .then(async ([nextOverview, nextBoard]) => {
+      .then(async ([nextOverview, nextBoard, nextCoursePlan]) => {
         if (!active) return;
 
         setOverview(nextOverview);
         setBoard(nextBoard);
+        setCoursePlan(nextCoursePlan);
 
         if (nextBoard) {
           const nextCommandState = await fetchManagementCommandState(
@@ -339,8 +358,8 @@ export default function ManagementPage() {
 
 
   const healthSnapshot = useMemo(
-    () => deriveManagementHealth(board, overview),
-    [board, overview],
+    () => deriveManagementHealth(board, overview, stage),
+    [board, overview, stage],
   );
 
   const selectCard = (cardId: string) => {
@@ -737,8 +756,16 @@ export default function ManagementPage() {
               >
                 Program
               </button>
-              <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
-                Ders Yükleri
+              <button
+                type="button"
+                onClick={() => setActiveSection('PLAN')}
+                className={
+                  activeSection === 'PLAN'
+                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
+                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                }
+              >
+                Ders Planı
               </button>
               <button disabled className="h-full px-1 text-[12px] font-semibold text-slate-300">
                 Kaynaklar
@@ -912,6 +939,62 @@ export default function ManagementPage() {
         </div>
       )}
 
+      {commandNotice && (activeSection === 'PLAN' || !showInspector) && (
+        <div className="fixed right-4 top-20 z-[96] w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_20px_70px_rgba(15,23,42,0.18)]">
+          <div className="flex items-start gap-3">
+            <div
+              className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+                commandNotice.kind === 'success'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : commandNotice.kind === 'error'
+                    ? 'bg-rose-100 text-rose-700'
+                    : 'bg-blue-100 text-blue-700'
+              }`}
+            >
+              {commandNotice.kind === 'success'
+                ? '✓'
+                : commandNotice.kind === 'error'
+                  ? '!'
+                  : 'i'}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-black text-slate-900">
+                {commandNotice.kind === 'success'
+                  ? 'İşlem tamamlandı'
+                  : commandNotice.kind === 'error'
+                    ? 'İşlem tamamlanamadı'
+                    : 'Bilgi'}
+              </p>
+              <p className="mt-1 text-[10px] font-medium leading-5 text-slate-600">
+                {commandNotice.text}
+              </p>
+
+              {commandNotice.kind === 'success'
+                && commandState.undo?.action === 'STRUCTURE' && (
+                <button
+                  type="button"
+                  onClick={() => void runUndo()}
+                  disabled={commandBusy}
+                  className="mt-3 rounded-xl border border-slate-300 bg-white px-3 py-2 text-[10px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                >
+                  ↶ Ders yapısı değişikliğini geri al
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setCommandNotice(null)}
+              className="shrink-0 rounded-lg px-2 py-1 text-xs font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+              aria-label="Bildirimi kapat"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       {activeSection === 'PROGRAM' ? (
         <section
           className="grid min-h-0 flex-1 gap-3 p-3"
@@ -993,10 +1076,108 @@ export default function ManagementPage() {
             />
           )}
         </section>
+      ) : activeSection === 'PLAN' ? (
+        <ManagementCoursePlan
+          data={coursePlan}
+          canEdit={access?.canEdit === true}
+          onOpenProgram={(requirementId, planStage: ManagementPlanStage) => {
+            const card = board?.cards.find(
+              (item) => item.requirementId === requirementId,
+            );
+
+            setStage(planStage);
+            setActiveSection('PROGRAM');
+
+            if (card) {
+              setSelectedCardId(card.id);
+              setInspectorOpen(true);
+              setCandidateFocus(null);
+              if (card.placement) {
+                setActiveDay(card.placement.dayOfWeek);
+              }
+            }
+          }}
+          onUpdateTeachers={async (requirementId, teacherIds) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Ders planındaki öğretmen tanımı güncelleniyor.');
+
+            try {
+              await updateManagementRequirementTeachers(
+                session.accessToken,
+                requirementId,
+                teacherIds,
+              );
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onUpdateRooms={async (requirementId, roomIds) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Ders planındaki salon tanımı güncelleniyor.');
+
+            try {
+              await updateManagementRequirementRooms(
+                session.accessToken,
+                requirementId,
+                roomIds,
+              );
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onPreviewStructure={async (input) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            return previewManagementRequirementStructure(
+              session.accessToken,
+              input,
+            );
+          }}
+          onApplyStructure={async (input, expectedStructureToken) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Ders yapısı güvenli biçimde uygulanıyor.');
+
+            try {
+              await applyManagementRequirementStructure(
+                session.accessToken,
+                input,
+                expectedStructureToken,
+              );
+              setCommandNotice({
+                kind: 'success',
+                text: 'Ders yapısı güncellendi. Program kartları yeni plana göre yenilendi.',
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+        />
       ) : (
         <ManagementProgramStatus
           snapshot={healthSnapshot}
           versionNumber={overview?.versionNumber ?? null}
+          stage={stage}
+          onStageChange={setStage}
         />
       )}
 
