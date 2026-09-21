@@ -1,6 +1,8 @@
 'use client';
 
+import { ManagementPublicationPreview } from '@/components/management/ManagementPublicationPreview';
 import type { ManagementStage } from '@/lib/managementBoard';
+import type { ManagementPublicationPreviewData } from '@/lib/managementPublicationPreview';
 import type {
   ManagementHealthIssue,
   ManagementHealthSnapshot,
@@ -98,11 +100,13 @@ export function ManagementProgramStatus({
   versionNumber,
   stage,
   onStageChange,
+  publicationPreview,
 }: {
   snapshot: ManagementHealthSnapshot | null;
   versionNumber: number | null;
   stage: ManagementStage;
   onStageChange: (stage: ManagementStage) => void;
+  publicationPreview: ManagementPublicationPreviewData | null;
 }) {
   if (!snapshot) {
     return (
@@ -215,6 +219,11 @@ export function ManagementProgramStatus({
           </div>
         </div>
 
+        <ManagementPublicationPreview
+          data={publicationPreview}
+          stage={stage}
+        />
+
         <div className="grid grid-cols-[minmax(0,1fr)_320px] gap-4">
           <div className="space-y-4">
             <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
@@ -292,7 +301,7 @@ export function ManagementProgramStatus({
                 Bu ekran taslağı kontrol eder
               </p>
               <p className="mt-2 text-[11px] font-medium leading-5 text-blue-800">
-                Burada yaptığınız kontroller henüz öğrenci ve öğretmen programlarını değiştirmez. Yayınlama ayrı bir adım olarak eklenecek.
+                Burada yaptığınız kontroller henüz öğrenci ve öğretmen programlarını değiştirmez. M19.1 mevcut yayın ile taslağın farkını gösterir; gerçek yayınlama ayrı ve kontrollü bir adım olacaktır.
               </p>
             </div>
 
