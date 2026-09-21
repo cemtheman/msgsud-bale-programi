@@ -77,6 +77,26 @@ function deliveryLabel(value: string) {
   return labels[value] ?? value;
 }
 
+function roomCapabilityLabel(value: string) {
+  const labels: Record<string, string> = {
+    GENERAL_CLASSROOM: 'Genel derslik',
+    MUSIC_THEORY: 'Müzik teorisi',
+    INSTRUMENT_RELATED: 'Çalgı ilişkili',
+    SOLFEGE: 'Solfej',
+    RHYTHMIC: 'Ritmik',
+    CLASSICAL_BALLET: 'Klasik bale',
+    DANCE_TECHNIQUE: 'Dans tekniği',
+    POINT_DANCE_TECHNIQUE: 'Point / dans tekniği',
+    REPERTOIRE: 'Repertuvar',
+  };
+
+  return labels[value]
+    ?? value
+      .replaceAll('_', ' ')
+      .toLocaleLowerCase('tr-TR')
+      .replace(/^./, (letter) => letter.toLocaleUpperCase('tr-TR'));
+}
+
 function partitionLabel(row: ManagementCoursePlanRow) {
   if (row.preferredPartition.length === 0) return 'Henüz tanımlanmadı';
   return row.preferredPartition.join(' + ');
@@ -97,7 +117,7 @@ function roomLabel(row: ManagementCoursePlanRow) {
 
   if (row.resourceMode === 'CAPABILITY') {
     return row.requiredCapability
-      ? `Uygun özellik: ${row.requiredCapability}`
+      ? `Özellik: ${roomCapabilityLabel(row.requiredCapability)}`
       : 'Uygun salon özelliği aranıyor';
   }
 
