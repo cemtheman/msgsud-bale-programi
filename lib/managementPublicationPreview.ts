@@ -323,7 +323,6 @@ export async function fetchManagementPublicationPreview(
   const classById = new Map(classGroups.map((row) => [row.id, row]));
   const subjectById = new Map(subjects.map((row) => [row.id, row.name]));
   const publicById = new Map(publicSessions.map((row) => [row.id, row]));
-  const cardById = new Map(cards.map((row) => [row.id, row]));
   const placementByCard = new Map(
     placements.map((row) => [row.card_id, row]),
   );
