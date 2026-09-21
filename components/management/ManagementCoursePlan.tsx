@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ManagementRequirementStructurePreview } from '@/components/management/ManagementRequirementStructurePreview';
 import { ManagementRoomStrategyEditor } from '@/components/management/ManagementRoomStrategyEditor';
-import { managementRoomCapabilityLabel } from '@/lib/managementRoomCapabilities';
 import {
   coursePlanMatchesStage,
   type ManagementCoursePlanData,
@@ -79,6 +78,18 @@ function deliveryLabel(value: string) {
 }
 
 
+function capabilityLabel(value: string) {
+  const labels: Record<string, string> = {
+    GENERAL_CLASSROOM_SMALL_GROUP: 'Genel Derslik (Küçük Grup)',
+    GENERAL_CLASSROOM_LARGE_GROUP: 'Genel Derslik (Büyük Grup)',
+    STUDIO_SMALL_GROUP: 'Stüdyo (Küçük Grup)',
+    STUDIO_LARGE_GROUP: 'Stüdyo (Büyük Grup)',
+    INSTRUMENT_RELATED_CLASSROOM: 'Enstrüman ilişkili derslik',
+  };
+
+  return labels[value] ?? value;
+}
+
 function partitionLabel(row: ManagementCoursePlanRow) {
   if (row.preferredPartition.length === 0) return 'Henüz tanımlanmadı';
   return row.preferredPartition.join(' + ');
@@ -99,7 +110,7 @@ function roomLabel(row: ManagementCoursePlanRow) {
 
   if (row.resourceMode === 'CAPABILITY') {
     return row.requiredCapability
-      ? `Özellik: ${managementRoomCapabilityLabel(row.requiredCapability)}`
+      ? `Özellik: ${capabilityLabel(row.requiredCapability)}`
       : 'Uygun salon özelliği aranıyor';
   }
 
