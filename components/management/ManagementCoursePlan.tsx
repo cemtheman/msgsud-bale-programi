@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ManagementRequirementStructurePreview } from '@/components/management/ManagementRequirementStructurePreview';
 import { ManagementRoomStrategyEditor } from '@/components/management/ManagementRoomStrategyEditor';
+import { managementRoomCapabilityLabel } from '@/lib/managementRoomCapabilities';
 import {
   coursePlanMatchesStage,
   type ManagementCoursePlanData,
@@ -77,25 +78,6 @@ function deliveryLabel(value: string) {
   return labels[value] ?? value;
 }
 
-function roomCapabilityLabel(value: string) {
-  const labels: Record<string, string> = {
-    GENERAL_CLASSROOM: 'Genel derslik',
-    MUSIC_THEORY: 'Müzik teorisi',
-    INSTRUMENT_RELATED: 'Çalgı ilişkili',
-    SOLFEGE: 'Solfej',
-    RHYTHMIC: 'Ritmik',
-    CLASSICAL_BALLET: 'Klasik bale',
-    DANCE_TECHNIQUE: 'Dans tekniği',
-    POINT_DANCE_TECHNIQUE: 'Point / dans tekniği',
-    REPERTOIRE: 'Repertuvar',
-  };
-
-  return labels[value]
-    ?? value
-      .replaceAll('_', ' ')
-      .toLocaleLowerCase('tr-TR')
-      .replace(/^./, (letter) => letter.toLocaleUpperCase('tr-TR'));
-}
 
 function partitionLabel(row: ManagementCoursePlanRow) {
   if (row.preferredPartition.length === 0) return 'Henüz tanımlanmadı';
@@ -117,7 +99,7 @@ function roomLabel(row: ManagementCoursePlanRow) {
 
   if (row.resourceMode === 'CAPABILITY') {
     return row.requiredCapability
-      ? `Özellik: ${roomCapabilityLabel(row.requiredCapability)}`
+      ? `Özellik: ${managementRoomCapabilityLabel(row.requiredCapability)}`
       : 'Uygun salon özelliği aranıyor';
   }
 
