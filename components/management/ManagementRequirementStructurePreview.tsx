@@ -203,9 +203,9 @@ export function ManagementRequirementStructurePreview({
   };
 
   return (
-    <div className="fixed inset-0 z-[92] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-[1px]">
-      <div className="management-scrollbar max-h-[92vh] w-full max-w-[920px] overflow-y-auto rounded-[28px] border border-white/80 bg-white shadow-[0_30px_100px_rgba(15,23,42,0.28)]">
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-100 bg-white/95 px-6 py-5 backdrop-blur">
+    <div className="fixed inset-0 z-[92] flex items-center justify-center bg-slate-950/30 p-3 sm:p-4 backdrop-blur-[1px]">
+      <div className="flex max-h-[calc(100vh-1.5rem)] w-full max-w-[920px] flex-col overflow-hidden rounded-[28px] border border-white/80 bg-white shadow-[0_30px_100px_rgba(15,23,42,0.28)] sm:max-h-[calc(100vh-2rem)]">
+        <div className="z-10 flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur sm:px-6">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
               Ders Yapısı · Etki Önizlemesi
@@ -228,7 +228,8 @@ export function ManagementRequirementStructurePreview({
           </button>
         </div>
 
-        <div className="grid gap-5 p-6 lg:grid-cols-[340px_minmax(0,1fr)]">
+        <div className="management-scrollbar min-h-0 flex-1 overflow-y-auto">
+          <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[340px_minmax(0,1fr)]">
           <div className="space-y-4">
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
               <p className="text-[10px] font-black text-blue-800">
@@ -324,14 +325,6 @@ export function ManagementRequirementStructurePreview({
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={() => void runPreview()}
-              disabled={previewing || !draftSummary.input}
-              className="w-full rounded-xl bg-slate-950 px-4 py-3 text-[11px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
-            >
-              {previewing ? 'Etki hesaplanıyor…' : 'Etkiyi hesapla'}
-            </button>
           </div>
 
           <div className="space-y-4">
@@ -541,6 +534,31 @@ export function ManagementRequirementStructurePreview({
                 </div>
               </>
             )}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-3 sm:px-6">
+          <p className="min-w-0 text-[9px] font-medium leading-4 text-slate-400">
+            Önizleme değişiklikleri kaydetmez.
+          </p>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={previewing}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              Kapat
+            </button>
+            <button
+              type="button"
+              onClick={() => void runPreview()}
+              disabled={previewing || !draftSummary.input}
+              className="rounded-xl bg-slate-950 px-5 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              {previewing ? 'Etki hesaplanıyor…' : 'Etkiyi hesapla'}
+            </button>
           </div>
         </div>
       </div>
