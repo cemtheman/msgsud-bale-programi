@@ -1,3 +1,5 @@
+'use client';
+
 export const MANAGEMENT_ROOM_CAPABILITIES = [
   {
     id: 'GENERAL_CLASSROOM_SMALL_GROUP',
