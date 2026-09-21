@@ -31,6 +31,7 @@ import {
 } from '@/lib/managementOverview';
 import { deriveManagementHealth } from '@/lib/managementHealth';
 import {
+  applyManagementRequirementStructure,
   fetchManagementCoursePlan,
   previewManagementRequirementStructure,
   type ManagementCoursePlanData,
@@ -1084,6 +1085,30 @@ export default function ManagementPage() {
               session.accessToken,
               input,
             );
+          }}
+          onApplyStructure={async (input, expectedStructureToken) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Ders yapısı güvenli biçimde uygulanıyor.');
+
+            try {
+              await applyManagementRequirementStructure(
+                session.accessToken,
+                input,
+                expectedStructureToken,
+              );
+              setCommandNotice({
+                kind: 'success',
+                text: 'Ders yapısı güncellendi. Program kartları yeni plana göre yenilendi.',
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
           }}
         />
       ) : (
