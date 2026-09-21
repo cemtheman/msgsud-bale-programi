@@ -4,7 +4,11 @@ import type {
   ManagementPublicationPreviewData,
   ManagementPublicationRequirementChange,
 } from '@/lib/managementPublicationPreview';
-import type { ManagementStage } from '@/lib/managementBoard';
+import {
+  formatInstructionalGroupName,
+  type ManagementStage,
+} from '@/lib/managementBoard';
+import type { ManagementHealthSnapshot } from '@/lib/managementHealth';
 
 function changeMagnitude(
   change: ManagementPublicationRequirementChange,
@@ -19,9 +23,11 @@ function changeMagnitude(
 export function ManagementPublicationPreview({
   data,
   stage,
+  health,
 }: {
   data: ManagementPublicationPreviewData | null;
   stage: ManagementStage;
+  health: ManagementHealthSnapshot;
 }) {
   if (!data) {
     return (
@@ -62,8 +68,8 @@ export function ManagementPublicationPreview({
             : 'border-rose-200 bg-rose-50 text-rose-700'
         }`}>
           {data.mappingHealthy
-            ? 'Yayın eşlemesi sağlam'
-            : 'Yayın eşlemesi kontrol edilmeli'}
+            ? 'Kaynak eşlemesi sağlam'
+            : 'Kaynak eşlemesi kontrol edilmeli'}
         </span>
       </div>
 
@@ -76,6 +82,19 @@ export function ManagementPublicationPreview({
             {data.missingEvidenceSessionCount} source oturumu mevcut yayında bulunamadı ·{' '}
             {data.unmappedCurrentPublicSessionCount} mevcut yayın oturumu source eşlemesinde yok.
             Bu durum çözülmeden yayınlama adımı güvenli biçimde açılamaz.
+          </p>
+        </div>
+      )}
+
+      {health.status === 'YAYIN_ENGELLI' && (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-[10px] font-black text-amber-900">
+            Bu karşılaştırma henüz tamamlanmamış bir taslağı gösteriyor.
+          </p>
+          <p className="mt-1 text-[10px] font-medium leading-5 text-amber-800">
+            {health.totalCards - health.placedCount} ders kartı henüz yerleşmediği için
+            “yayından çıkacak” sayısı geçici olarak yüksek görünebilir. Bu rakamlar
+            final yayın kararı değil, taslağın şu anki halinin mevcut yayına göre farkıdır.
           </p>
         </div>
       )}
@@ -131,7 +150,7 @@ export function ManagementPublicationPreview({
 
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
           <p className="text-[8px] font-black uppercase tracking-wide text-rose-600">
-            Yayından çıkacak
+            Bu haliyle yayından çıkacak
           </p>
           <p className="mt-1 text-xl font-black text-rose-800">
             {preview.removedUnits}
@@ -143,19 +162,25 @@ export function ManagementPublicationPreview({
       </div>
 
       <div className="mt-4 rounded-2xl border border-slate-200">
-        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-3 py-2.5">
+        <div className="grid grid-cols-[minmax(0,1fr)_80px_80px_80px] items-end gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2.5">
           <div>
             <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
               Etkilenen ders tanımları
             </p>
             <p className="mt-0.5 text-[10px] font-semibold text-slate-600">
-              {preview.affectedRequirementCount} ders tanımında yayın farkı var
+              {preview.affectedRequirementCount} ders tanımında yayın farkı var · {preview.unchangedUnits} saat aynı
             </p>
           </div>
 
-          <span className="rounded-full bg-white px-2.5 py-1 text-[9px] font-black text-slate-600">
-            {preview.unchangedUnits} saat aynı
-          </span>
+          <p className="text-right text-[8px] font-black uppercase tracking-wide text-blue-600">
+            Değişecek
+          </p>
+          <p className="text-right text-[8px] font-black uppercase tracking-wide text-emerald-600">
+            Eklenecek
+          </p>
+          <p className="text-right text-[8px] font-black uppercase tracking-wide text-rose-600">
+            Çıkacak
+          </p>
         </div>
 
         {hasChanges ? (
@@ -171,8 +196,8 @@ export function ManagementPublicationPreview({
                     {' · '}
                     {change.classCodes.join(', ') || change.groupName}
                   </p>
-                  <p className="mt-0.5 text-[8px] font-medium text-slate-400">
-                    Toplam {changeMagnitude(change)} saatlik yayın farkı
+                  <p className="mt-0.5 truncate text-[8px] font-medium text-slate-400">
+                    {formatInstructionalGroupName(change.groupName)} · Toplam {changeMagnitude(change)} saatlik yayın farkı
                   </p>
                 </div>
 
