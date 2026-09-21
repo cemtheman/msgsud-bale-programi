@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { managementRoomCapabilityLabel } from '@/lib/managementRoomCapabilities';
 import type {
   ManagementResourceInventoryData,
   ManagementResourceKnowledgeStatus,
@@ -32,25 +33,6 @@ function knowledgeMeta(status: ManagementResourceKnowledgeStatus) {
   };
 }
 
-function capabilityLabel(value: string) {
-  const labels: Record<string, string> = {
-    GENERAL_CLASSROOM: 'Genel derslik',
-    MUSIC_THEORY: 'Müzik teorisi',
-    INSTRUMENT_RELATED: 'Çalgı ilişkili',
-    SOLFEGE: 'Solfej',
-    RHYTHMIC: 'Ritmik',
-    CLASSICAL_BALLET: 'Klasik bale',
-    DANCE_TECHNIQUE: 'Dans tekniği',
-    POINT_DANCE_TECHNIQUE: 'Point / dans tekniği',
-    REPERTOIRE: 'Repertuvar',
-  };
-
-  return labels[value]
-    ?? value
-      .replaceAll('_', ' ')
-      .toLocaleLowerCase('tr-TR')
-      .replace(/^./, (letter) => letter.toLocaleUpperCase('tr-TR'));
-}
 
 function teacherState(row: ManagementTeacherResourceRow) {
   if (row.activeRequirementCount === 0 && row.placedBlockCount === 0) {
@@ -578,7 +560,7 @@ export function ManagementResources({
                               key={capability}
                               className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-bold text-slate-600"
                             >
-                              {capabilityLabel(capability)}
+                              {managementRoomCapabilityLabel(capability)}
                             </span>
                           ))
                         ) : (
@@ -728,7 +710,7 @@ export function ManagementResources({
                           }`}>
                             ✓
                           </span>
-                          {capabilityLabel(capability)}
+                          {managementRoomCapabilityLabel(capability)}
                         </button>
                       );
                     })}
@@ -784,7 +766,7 @@ export function ManagementResources({
                           {profilePreview.addedCapabilities.length > 0
                             ? profilePreview.addedCapabilities.map((value) => (
                               <span key={value} className="rounded-full bg-emerald-50 px-2 py-1 text-[8px] font-bold text-emerald-700">
-                                {capabilityLabel(value)}
+                                {managementRoomCapabilityLabel(value)}
                               </span>
                             ))
                             : <span className="text-[9px] font-semibold text-slate-400">Yok</span>}
@@ -799,7 +781,7 @@ export function ManagementResources({
                           {profilePreview.removedCapabilities.length > 0
                             ? profilePreview.removedCapabilities.map((value) => (
                               <span key={value} className="rounded-full bg-rose-50 px-2 py-1 text-[8px] font-bold text-rose-700">
-                                {capabilityLabel(value)}
+                                {managementRoomCapabilityLabel(value)}
                               </span>
                             ))
                             : <span className="text-[9px] font-semibold text-slate-400">Yok</span>}
@@ -823,7 +805,7 @@ export function ManagementResources({
                               {impact.subjectName} · {impact.groupName}
                             </p>
                             <p className="mt-0.5 text-[9px] font-medium text-slate-500">
-                              Gereken özellik: {capabilityLabel(impact.requiredCapability)} · Gün {impact.dayOfWeek}, {impact.startPeriod}. ders
+                              Gereken özellik: {managementRoomCapabilityLabel(impact.requiredCapability)} · Gün {impact.dayOfWeek}, {impact.startPeriod}. ders
                             </p>
                           </div>
                         ))}
