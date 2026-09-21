@@ -44,7 +44,7 @@ export function deriveManagementHealth(
 
   const touched = new Set(overview.touchedCardIds);
   const cards = stage
-    ? cards.filter((card) => cardMatchesStage(card, stage))
+    ? board.cards.filter((card) => cardMatchesStage(card, stage))
     : board.cards;
 
   const unplacedTouched = cards.filter(
