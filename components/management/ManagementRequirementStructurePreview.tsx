@@ -230,13 +230,13 @@ export function ManagementRequirementStructurePreview({
 
         <div className="management-scrollbar min-h-0 flex-1 overflow-y-auto">
           <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[340px_minmax(0,1fr)]">
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
-              <p className="text-[10px] font-black text-blue-800">
-                Yalnızca önizleme
-              </p>
-              <p className="mt-1 text-[10px] font-medium leading-5 text-blue-700">
-                Bu ekranda hiçbir ders tanımı, kart veya program yerleşimi değiştirilmez.
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2">
+              <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.1em] text-blue-700">
+                Önizleme
+              </span>
+              <p className="text-[9px] font-semibold text-blue-700">
+                Bu ekranda hiçbir değişiklik kaydedilmez.
               </p>
             </div>
 
