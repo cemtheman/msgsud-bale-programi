@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ManagementRequirementStructurePreview } from '@/components/management/ManagementRequirementStructurePreview';
+import { ManagementRoomStrategyEditor } from '@/components/management/ManagementRoomStrategyEditor';
 import {
   coursePlanMatchesStage,
   type ManagementCoursePlanData,
   type ManagementCoursePlanRow,
   type ManagementPlanStage,
   type ManagementPlanTermStatus,
+  type ManagementRoomStrategy,
   type ManagementRequirementStructurePreview as ManagementRequirementStructurePreviewResult,
   type ManagementRequirementStructurePreviewInput,
 } from '@/lib/managementCoursePlan';
@@ -289,7 +291,7 @@ export function ManagementCoursePlan({
   onOpenProgram,
   canEdit,
   onUpdateTeachers,
-  onUpdateRooms,
+  onUpdateRoomStrategy,
   onPreviewStructure,
   onApplyStructure,
 }: {
@@ -303,9 +305,11 @@ export function ManagementCoursePlan({
     requirementId: string,
     teacherIds: string[],
   ) => Promise<void>;
-  onUpdateRooms: (
+  onUpdateRoomStrategy: (
     requirementId: string,
+    strategy: ManagementRoomStrategy,
     roomIds: string[],
+    requiredCapability: string | null,
   ) => Promise<void>;
   onPreviewStructure: (
     input: ManagementRequirementStructurePreviewInput,
@@ -327,6 +331,8 @@ export function ManagementCoursePlan({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [structureRow, setStructureRow] =
+    useState<ManagementCoursePlanRow | null>(null);
+  const [roomStrategyRow, setRoomStrategyRow] =
     useState<ManagementCoursePlanRow | null>(null);
 
   const stageRows = useMemo(
@@ -480,11 +486,7 @@ export function ManagementCoursePlan({
     setSaveError(null);
 
     try {
-      if (editKind === 'TEACHER') {
-        await onUpdateTeachers(editRow.requirementId, selectedIds);
-      } else {
-        await onUpdateRooms(editRow.requirementId, selectedIds);
-      }
+      await onUpdateTeachers(editRow.requirementId, selectedIds);
       setEditRow(null);
       setEditKind(null);
       setSelectedIds([]);
@@ -766,7 +768,7 @@ export function ManagementCoursePlan({
                           onOpenProgram,
                           canEdit,
                           (row) => openEditor(row, 'TEACHER'),
-                          (row) => openEditor(row, 'ROOM'),
+                          (row) => setRoomStrategyRow(row),
                           (row) => setStructureRow(row),
                         ))}
                       </div>
@@ -797,7 +799,22 @@ export function ManagementCoursePlan({
         />
       )}
 
-      {editRow && editKind && (
+      {roomStrategyRow && (
+        <ManagementRoomStrategyEditor
+          row={roomStrategyRow}
+          stage={stage}
+          roomOptions={data.roomOptions}
+          capabilityOptions={data.roomCapabilityOptions}
+          onClose={() => setRoomStrategyRow(null)}
+          onOpenProgram={(requirementId, targetStage) => {
+            setRoomStrategyRow(null);
+            onOpenProgram(requirementId, targetStage);
+          }}
+          onSave={onUpdateRoomStrategy}
+        />
+      )}
+
+      {editRow && editKind === 'TEACHER' && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-[1px]">
           <div className="w-full max-w-[560px] rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_28px_90px_rgba(15,23,42,0.24)]">
             <div className="flex items-start justify-between gap-4">
@@ -809,7 +826,7 @@ export function ManagementCoursePlan({
                   {editRow.subjectName} · {audienceLabel(editRow)}
                 </h3>
                 <p className="mt-1 text-[11px] font-medium text-slate-500">
-                  {editKind === 'TEACHER' ? 'Öğretmen seçimi' : 'Salon seçimi'}
+                  Öğretmen seçimi
                 </p>
               </div>
 
@@ -859,19 +876,14 @@ export function ManagementCoursePlan({
 
             <div className="mt-4">
               <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
-                {editKind === 'TEACHER'
-                  ? 'Uygun öğretmenler'
-                  : 'Kullanılabilecek salonlar'}
+                Uygun öğretmenler
               </p>
               <p className="mt-1 text-[10px] font-medium text-slate-500">
                 Bir seçim sabit atama, birden fazla seçim seçilebilir havuz oluşturur. Hiç seçim yapmazsanız bilgi belirsiz olarak işaretlenir.
               </p>
 
               <div className="mt-3 max-h-[280px] space-y-1.5 overflow-y-auto pr-1">
-                {(editKind === 'TEACHER'
-                  ? data.teacherOptions
-                  : data.roomOptions
-                ).map((option) => {
+                {data.teacherOptions.map((option) => {
                   const selected = selectedIds.includes(option.id);
 
                   return (
