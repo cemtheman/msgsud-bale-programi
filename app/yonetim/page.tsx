@@ -32,6 +32,7 @@ import {
 import { deriveManagementHealth } from '@/lib/managementHealth';
 import {
   fetchManagementCoursePlan,
+  previewManagementRequirementStructure,
   type ManagementCoursePlanData,
   type ManagementPlanStage,
 } from '@/lib/managementCoursePlan';
@@ -1073,6 +1074,16 @@ export default function ManagementPage() {
               setCommandBusy(false);
               setCommandActivity(null);
             }
+          }}
+          onPreviewStructure={async (input) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            return previewManagementRequirementStructure(
+              session.accessToken,
+              input,
+            );
           }}
         />
       ) : (
