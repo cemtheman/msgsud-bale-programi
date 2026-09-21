@@ -31,8 +31,10 @@ import {
   type ManagementOverview,
 } from '@/lib/managementOverview';
 import {
+  applyManagementRoomOperationalStatus,
   applyManagementRoomProfile,
   fetchManagementResources,
+  previewManagementRoomOperationalStatus,
   previewManagementRoomProfile,
   updateManagementRoomDisplayName,
   updateManagementTeacherDisplayName,
@@ -1308,6 +1310,55 @@ export default function ManagementPage() {
               setCommandNotice({
                 kind: 'success',
                 text: `Salon özellikleri güncellendi. ${result.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirildi.`,
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onPreviewRoomStatus={async (roomId, operationalStatus) => {
+            if (!session || !access?.canEdit || !resources) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            return previewManagementRoomOperationalStatus(
+              session.accessToken,
+              resources.revisionId,
+              roomId,
+              operationalStatus,
+            );
+          }}
+          onApplyRoomStatus={async (
+            roomId,
+            operationalStatus,
+            expectedStateToken,
+          ) => {
+            if (!session || !access?.canEdit || !resources) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Salon durumu güvenli biçimde uygulanıyor.');
+
+            try {
+              const result = await applyManagementRoomOperationalStatus(
+                session.accessToken,
+                resources.revisionId,
+                roomId,
+                operationalStatus,
+                expectedStateToken,
+              );
+
+              const statusLabel = operationalStatus === 'MAINTENANCE'
+                ? 'Tadilatta'
+                : operationalStatus === 'OUT_OF_SERVICE'
+                  ? 'Kullanım dışı'
+                  : 'Aktif';
+
+              setCommandNotice({
+                kind: 'success',
+                text: `Salon durumu “${statusLabel}” olarak güncellendi. ${result.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirildi.`,
               });
               setRefreshToken((value) => value + 1);
             } finally {
