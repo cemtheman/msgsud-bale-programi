@@ -16,7 +16,7 @@ export interface ManagementCommandState {
 
 interface RootTransactionRow {
   id: string;
-  action: 'PLACE' | 'MOVE' | 'REMOVE';
+  action: 'PLACE' | 'MOVE' | 'REMOVE' | 'STRUCTURE';
   payload: {
     source?: string;
     reverted_root_action?: string;
@@ -100,6 +100,10 @@ function translateCommandError(message: string, fallback: string) {
     || normalized.includes('latest redoable undo')
   ) {
     return 'Bu yineleme artık geçerli değil; arada yeni bir program kararı verilmiş.';
+  }
+
+  if (normalized.includes('structural history barrier')) {
+    return 'Ders yapısı değiştiği için bu eski program işlemi artık geri alınamaz veya yinelenemez.';
   }
 
   if (
@@ -284,18 +288,32 @@ export async function fetchManagementCommandState(
 
   const rows = await response.json() as RootTransactionRow[];
 
-  const undoRow = rows.find((row) => {
+  const latestStructureBarrierSequence = rows
+    .filter((row) => (
+      row.action === 'STRUCTURE'
+      && row.payload?.source === 'STRUCTURE_APPLY'
+    ))
+    .reduce(
+      (latest, row) => Math.max(latest, row.history_sequence),
+      0,
+    );
+
+  const currentEpochRows = rows.filter(
+    (row) => row.history_sequence > latestStructureBarrierSequence,
+  );
+
+  const undoRow = currentEpochRows.find((row) => {
     const source = row.payload?.source;
     return row.reverted_at === null
       && (source === 'MANUAL' || source === 'ROOT_REDO')
       && ['PLACE', 'MOVE', 'REMOVE'].includes(row.action);
   });
 
-  const manualSequences = rows
+  const manualSequences = currentEpochRows
     .filter((row) => row.payload?.source === 'MANUAL')
     .map((row) => row.history_sequence);
 
-  const redoRow = rows.find((row) => {
+  const redoRow = currentEpochRows.find((row) => {
     if (row.payload?.source !== 'ROOT_UNDO' || row.redone_at !== null) {
       return false;
     }
