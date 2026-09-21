@@ -10,6 +10,7 @@ import type {
 } from '@/lib/managementResources';
 
 type ResourceTab = 'TEACHERS' | 'ROOMS';
+type RoomProfileFilter = 'ALL' | 'MISSING' | 'DEFINED';
 
 function capabilityLabel(value: string) {
   const labels: Record<string, string> = {
@@ -98,6 +99,8 @@ export function ManagementResources({
   ) => Promise<void>;
 }) {
   const [tab, setTab] = useState<ResourceTab>('TEACHERS');
+  const [roomProfileFilter, setRoomProfileFilter] =
+    useState<RoomProfileFilter>('ALL');
   const [query, setQuery] = useState('');
   const [editTarget, setEditTarget] = useState<{
     kind: 'TEACHER' | 'ROOM';
@@ -266,6 +269,20 @@ export function ManagementResources({
       return data.rooms
         .filter((row) => !row.canonicalRoomId)
         .filter((row) => {
+          if (
+            roomProfileFilter === 'MISSING'
+            && row.capabilities.length > 0
+          ) {
+            return false;
+          }
+
+          if (
+            roomProfileFilter === 'DEFINED'
+            && row.capabilities.length === 0
+          ) {
+            return false;
+          }
+
           if (normalizedQuery.length === 0) return true;
 
           const haystack = [
@@ -278,9 +295,14 @@ export function ManagementResources({
             .toLocaleLowerCase('tr-TR');
 
           return haystack.includes(normalizedQuery);
-        });
+        })
+        .sort((a, b) => (
+          Number(a.capabilities.length > 0)
+          - Number(b.capabilities.length > 0)
+          || a.name.localeCompare(b.name, 'tr', { numeric: true })
+        ));
     },
-    [data, normalizedQuery],
+    [data, normalizedQuery, roomProfileFilter],
   );
 
   if (!data) {
@@ -309,6 +331,9 @@ export function ManagementResources({
     (row) => row.capabilities.length > 0,
   ).length;
 
+  const missingRoomProfileCount =
+    canonicalRooms.length - profiledRoomCount;
+
   const usedRoomCount = canonicalRooms.filter(
     (row) => row.placedBlockCount > 0,
   ).length;
@@ -333,10 +358,10 @@ export function ManagementResources({
 
             <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
               <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                M18.4
+                M18.5
               </p>
               <p className="mt-1 text-[11px] font-bold text-slate-700">
-                Kaynak profilleri
+                Salon profil tamamlama
               </p>
             </div>
           </div>
@@ -479,7 +504,7 @@ export function ManagementResources({
           </>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
                   Ana salon kaydı
@@ -492,14 +517,34 @@ export function ManagementResources({
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setRoomProfileFilter('MISSING')}
+                className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left shadow-sm transition hover:bg-amber-100"
+              >
+                <p className="text-[9px] font-black uppercase tracking-wide text-amber-700">
+                  Profil eksik
+                </p>
+                <p className="mt-2 text-2xl font-black text-amber-900">
+                  {missingRoomProfileCount}
+                </p>
+                <p className="mt-1 text-[9px] font-medium text-amber-700">
+                  özellik tanımı bekleyen salon
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRoomProfileFilter('DEFINED')}
+                className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:bg-slate-50"
+              >
                 <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
                   Özellik tanımlı
                 </p>
                 <p className="mt-2 text-2xl font-black text-slate-900">
                   {profiledRoomCount}
                 </p>
-              </div>
+              </button>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
@@ -509,6 +554,45 @@ export function ManagementResources({
                   {usedRoomCount}
                 </p>
               </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+              <div className="flex rounded-xl bg-slate-100 p-1">
+                {([
+                  {
+                    id: 'ALL',
+                    label: 'Tümü',
+                    count: canonicalRooms.length,
+                  },
+                  {
+                    id: 'MISSING',
+                    label: 'Profil eksik',
+                    count: missingRoomProfileCount,
+                  },
+                  {
+                    id: 'DEFINED',
+                    label: 'Özellik tanımlı',
+                    count: profiledRoomCount,
+                  },
+                ] as const).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setRoomProfileFilter(item.id)}
+                    className={`rounded-lg px-3 py-1.5 text-[9px] font-black transition ${
+                      roomProfileFilter === item.id
+                        ? 'bg-white text-slate-950 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    {item.label} · {item.count}
+                  </button>
+                ))}
+              </div>
+
+              <p className="text-[9px] font-medium text-slate-400">
+                Eksik profiller listede önce gösterilir.
+              </p>
             </div>
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
@@ -564,8 +648,8 @@ export function ManagementResources({
                             </span>
                           ))
                         ) : (
-                          <span className="text-[9px] font-semibold text-slate-400">
-                            Özellik tanımı yok
+                          <span className="rounded-full bg-amber-50 px-2 py-1 text-[8px] font-black text-amber-700">
+                            Profil tamamlanmalı
                           </span>
                         )}
                         {row.capabilities.length > 4 && (
@@ -598,7 +682,7 @@ export function ManagementResources({
                           disabled={!canEdit}
                           className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
                         >
-                          Özellikler
+                          {row.capabilities.length === 0 ? 'Tanımla' : 'Düzenle'}
                         </button>
                       </div>
                     </div>
@@ -606,7 +690,11 @@ export function ManagementResources({
                 })
               ) : (
                 <div className="p-6 text-center text-sm font-semibold text-slate-400">
-                  Aramanızla eşleşen ana salon kaydı bulunamadı.
+                  {roomProfileFilter === 'MISSING'
+                    ? 'Özellik tanımı bekleyen salon bulunamadı.'
+                    : roomProfileFilter === 'DEFINED'
+                      ? 'Özellik tanımlı salon bulunamadı.'
+                      : 'Aramanızla eşleşen ana salon kaydı bulunamadı.'}
                 </div>
               )}
             </div>
@@ -619,8 +707,9 @@ export function ManagementResources({
           </p>
           <p className="mt-1 text-[10px] font-medium leading-5 text-blue-800">
             Öğretmen ve ana salon adları yalnız Yönetim taslağında düzeltilebilir; yayınlanan
-            programdaki adlar değişmez. Salon özellikleri kaynak envanterini doğrular. Bu bilgiler,
-            Ders Planı’nda bir ders “salon özelliğine göre” tanımlandığında uygun yer hesabına katılır.
+            programdaki adlar değişmez. Özelliksiz salonlar “Profil eksik” filtresinden tamamlanabilir.
+            Salon özellikleri, Ders Planı’nda bir ders “salon özelliğine göre” tanımlandığında uygun
+            yer hesabına katılır.
           </p>
         </div>
       </div>
