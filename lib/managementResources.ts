@@ -19,6 +19,11 @@ export type ManagementResourceKnowledgeStatus =
   | 'OBSERVED'
   | 'UNKNOWN';
 
+export type ManagementRoomOperationalStatus =
+  | 'ACTIVE'
+  | 'MAINTENANCE'
+  | 'OUT_OF_SERVICE';
+
 export interface ManagementTeacherResourceRow {
   id: string;
   name: string;
@@ -37,6 +42,7 @@ export interface ManagementRoomResourceRow {
   canonicalRoomName: string | null;
   aliasCount: number;
   knowledgeStatus: ManagementResourceKnowledgeStatus;
+  operationalStatus: ManagementRoomOperationalStatus;
   capabilities: string[];
   activeRequirementCount: number;
   placedBlockCount: number;
@@ -64,6 +70,7 @@ interface RoomRow {
   name: string;
   canonical_room_id: string | null;
   knowledge_status: ManagementResourceKnowledgeStatus | null;
+  operational_status: ManagementRoomOperationalStatus;
   capabilities: string[] | null;
 }
 
@@ -220,6 +227,22 @@ async function authedRpc<T>(
       throw new Error('Takma ad kayıtlarının salon özellikleri düzenlenmez.');
     }
 
+    if (normalized.includes('m18.6 room status preview is stale')) {
+      throw new Error('Salon durumu veya taslak program önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.');
+    }
+
+    if (normalized.includes('m18.6 room status apply blocked')) {
+      throw new Error('Bu salon şu anda programda kullanıldığı için kullanım dışına alınamaz. Önce etkilenen dersleri taşıyın veya kaldırın.');
+    }
+
+    if (normalized.includes('m18.6 invalid room operational status')) {
+      throw new Error('Salon durumu geçersiz.');
+    }
+
+    if (normalized.includes('m18.6 room aliases do not have independent')) {
+      throw new Error('Takma ad kayıtlarının bağımsız kullanım durumu yoktur.');
+    }
+
     throw new Error(message);
   }
 
@@ -253,7 +276,7 @@ export async function fetchManagementResources(
       accessToken,
     ),
     authedGet<RoomRow[]>(
-      'rooms?select=id,name,canonical_room_id,knowledge_status,capabilities&order=name.asc',
+      'rooms?select=id,name,canonical_room_id,knowledge_status,operational_status,capabilities&order=name.asc',
       accessToken,
     ),
     authedGet<RequirementRow[]>(
@@ -389,6 +412,7 @@ export async function fetchManagementResources(
         : null,
       aliasCount: aliasCountByCanonical.get(room.id) ?? 0,
       knowledgeStatus: room.knowledge_status ?? 'UNKNOWN',
+      operationalStatus: room.operational_status ?? 'ACTIVE',
       capabilities: Array.isArray(room.capabilities)
         ? room.capabilities.filter(isManagementRoomCapability)
         : [],
@@ -535,6 +559,89 @@ export function applyManagementRoomProfile(
       p_room_id: roomId,
       p_capabilities: capabilities,
       p_knowledge_status: knowledgeStatus,
+      p_expected_state_token: expectedStateToken,
+    },
+  );
+}
+
+export interface ManagementRoomStatusRequirementImpact {
+  requirementId: string;
+  subjectName: string;
+  groupName: string;
+  resourceMode: string;
+  requiredCapability: string | null;
+  explicitlyUsesRoom: boolean;
+}
+
+export interface ManagementRoomStatusPlacedImpact {
+  cardId: string;
+  requirementId: string;
+  subjectName: string;
+  groupName: string;
+  roomId: string;
+  dayOfWeek: number;
+  startPeriod: number;
+}
+
+export interface ManagementRoomStatusPreview {
+  roomId: string;
+  revisionId: string;
+  roomName: string;
+  currentStatus: ManagementRoomOperationalStatus;
+  proposedStatus: ManagementRoomOperationalStatus;
+  hasChanges: boolean;
+  canApply: boolean;
+  blockReasons: string[];
+  affectedRequirements: ManagementRoomStatusRequirementImpact[];
+  affectedRequirementCount: number;
+  affectedCardIds: string[];
+  candidateRebuildCardCount: number;
+  placedImpacts: ManagementRoomStatusPlacedImpact[];
+  placedImpactCount: number;
+  stateToken: string;
+}
+
+export interface ManagementRoomStatusApplyResult {
+  applied: boolean;
+  roomId: string;
+  revisionId: string;
+  operationalStatus: ManagementRoomOperationalStatus;
+  candidateRebuildCardCount: number;
+  affectedRequirementCount: number;
+  publishedChanged: false;
+}
+
+export function previewManagementRoomOperationalStatus(
+  accessToken: string,
+  revisionId: string,
+  roomId: string,
+  operationalStatus: ManagementRoomOperationalStatus,
+) {
+  return authedRpc<ManagementRoomStatusPreview>(
+    'management_preview_room_operational_status',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_room_id: roomId,
+      p_operational_status: operationalStatus,
+    },
+  );
+}
+
+export function applyManagementRoomOperationalStatus(
+  accessToken: string,
+  revisionId: string,
+  roomId: string,
+  operationalStatus: ManagementRoomOperationalStatus,
+  expectedStateToken: string,
+) {
+  return authedRpc<ManagementRoomStatusApplyResult>(
+    'management_apply_room_operational_status',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_room_id: roomId,
+      p_operational_status: operationalStatus,
       p_expected_state_token: expectedStateToken,
     },
   );
