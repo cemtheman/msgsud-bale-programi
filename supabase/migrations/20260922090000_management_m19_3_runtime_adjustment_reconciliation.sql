@@ -330,9 +330,27 @@ begin
   where name = 'V. Kondisyon'
   limit 1;
 
+  -- Piyano existed only in the frontend compatibility overlay, so the
+  -- canonical subject row may legitimately be absent from the current DB.
+  insert into public.subjects (
+    id,
+    name,
+    active
+  )
+  select
+    gen_random_uuid(),
+    'Piyano',
+    true
+  where not exists (
+    select 1
+    from public.subjects
+    where name = 'Piyano'
+  );
+
   select id into v_piano_subject_id
   from public.subjects
   where name = 'Piyano'
+  order by id
   limit 1;
 
   select id into v_kbale_subject_id
@@ -350,12 +368,24 @@ begin
   where name = 'E. Gemalmaz'
   limit 1;
 
-  if v_vcond_subject_id is null
-     or v_piano_subject_id is null
-     or v_kbale_subject_id is null
-     or v_buyg_subject_id is null
-     or v_egemalmaz_teacher_id is null then
-    raise exception 'M19.3 required subject/teacher reference data is missing';
+  if v_vcond_subject_id is null then
+    raise exception 'M19.3 missing subject: V. Kondisyon';
+  end if;
+
+  if v_piano_subject_id is null then
+    raise exception 'M19.3 failed to create/resolve subject: Piyano';
+  end if;
+
+  if v_kbale_subject_id is null then
+    raise exception 'M19.3 missing subject: K. Bale';
+  end if;
+
+  if v_buyg_subject_id is null then
+    raise exception 'M19.3 missing subject: B. Uygulama';
+  end if;
+
+  if v_egemalmaz_teacher_id is null then
+    raise exception 'M19.3 missing teacher: E. Gemalmaz';
   end if;
 
 
