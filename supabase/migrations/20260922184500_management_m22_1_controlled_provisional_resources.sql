@@ -1423,8 +1423,11 @@ revoke all
     smallint,
     uuid,
     uuid
-  ),
-  function public.management_move_card(
+  )
+  from public, anon, authenticated;
+
+revoke all
+  on function public.management_move_card(
     uuid,
     smallint,
     smallint,
@@ -1440,8 +1443,11 @@ grant execute
     smallint,
     uuid,
     uuid
-  ),
-  function public.management_move_card(
+  )
+  to authenticated;
+
+grant execute
+  on function public.management_move_card(
     uuid,
     smallint,
     smallint,
