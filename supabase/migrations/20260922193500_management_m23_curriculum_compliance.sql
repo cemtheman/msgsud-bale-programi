@@ -1141,7 +1141,7 @@ declare
   v_placement_count integer;
   v_public_session_count integer;
   v_public_group_count integer;
-  v_diagnostic jsonb;
+  v_compliance_row_count integer;
 begin
   select id
   into v_rule_set_id
@@ -1296,21 +1296,27 @@ begin
       'M23 caused public baseline drift';
   end if;
 
-  v_diagnostic :=
-    public.management_curriculum_compliance_status(
-      v_current_revision_id,
-      'BALLET'
-    );
+  -- Installation must not call the role-gated public diagnostic: Supabase
+  -- migration sessions are not management users. Validate the same comparison
+  -- engine through the private/internal function instead and keep production
+  -- authorization unchanged.
+  select count(*)
+  into v_compliance_row_count
+  from public.management_curriculum_compliance_rows_internal(
+    v_current_revision_id,
+    'BALLET'
+  );
 
-  if v_diagnostic is null
-     or jsonb_typeof(v_diagnostic) <> 'object' then
+  if v_compliance_row_count = 0 then
     raise exception
-      'M23 compliance diagnostic did not return an object';
+      'M23 internal compliance engine returned no rows';
   end if;
 
-  if coalesce(
-    (v_diagnostic ->> 'publicationBlocking')::boolean,
-    true
+  if not exists (
+    select 1
+    from public.curriculum_rule_sets rule_set
+    where rule_set.id = v_rule_set_id
+      and rule_set.advisory_only
   ) then
     raise exception
       'M23 v1 must remain advisory-only';
