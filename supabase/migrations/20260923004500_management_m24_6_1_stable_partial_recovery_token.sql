@@ -30,7 +30,8 @@ set search_path = pg_catalog, public
 as $$
 declare
   v_revision record;
-  v_triage jsonb;
+  v_remaining_card_count integer;
+  v_exact_target_count integer;
   v_targets jsonb;
   v_token_targets jsonb;
   v_conflicts jsonb;
@@ -76,21 +77,24 @@ begin
     p_schedule_revision_id
   );
 
-  v_triage :=
-    public.management_diagnose_remaining_recovery_triage(
-      p_schedule_revision_id
-    );
+  select
+    count(*)::integer,
+    count(*) filter (
+      where triage.triage_class = 'EXACT_SOURCE_SLOT_AVAILABLE'
+    )::integer
+  into
+    v_remaining_card_count,
+    v_exact_target_count
+  from public.management_remaining_recovery_triage_rows_internal(
+    p_schedule_revision_id
+  ) triage;
 
-  if coalesce(
-       (v_triage #>> '{summary,remainingCardCount}')::integer,
-       -1
-     ) <> 64
-     or coalesce(
-       (v_triage #>> '{summary,exactSourceSlotAvailableCards}')::integer,
-       -1
-     ) <> 28 then
+  if v_remaining_card_count <> 64
+     or v_exact_target_count <> 28 then
     raise exception
-      'M24.6.1 current triage no longer matches accepted baseline';
+      'M24.6.1 current triage no longer matches accepted baseline: remaining %, exact targets %',
+      v_remaining_card_count,
+      v_exact_target_count;
   end if;
 
   -- Returned targets retain the fresh derived candidateAssessmentId.
