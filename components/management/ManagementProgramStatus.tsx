@@ -1,7 +1,9 @@
 'use client';
 
+import { ManagementPublicationGate } from '@/components/management/ManagementPublicationGate';
 import { ManagementPublicationPreview } from '@/components/management/ManagementPublicationPreview';
 import type { ManagementStage } from '@/lib/managementBoard';
+import type { ManagementPublicationGateData } from '@/lib/managementPublicationGate';
 import type { ManagementPublicationPreviewData } from '@/lib/managementPublicationPreview';
 import type {
   ManagementHealthIssue,
@@ -101,12 +103,14 @@ export function ManagementProgramStatus({
   stage,
   onStageChange,
   publicationPreview,
+  publicationGate,
 }: {
   snapshot: ManagementHealthSnapshot | null;
   versionNumber: number | null;
   stage: ManagementStage;
   onStageChange: (stage: ManagementStage) => void;
   publicationPreview: ManagementPublicationPreviewData | null;
+  publicationGate: ManagementPublicationGateData | null;
 }) {
   if (!snapshot) {
     return (
@@ -218,6 +222,8 @@ export function ManagementProgramStatus({
             </p>
           </div>
         </div>
+
+        <ManagementPublicationGate data={publicationGate} />
 
         <ManagementPublicationPreview
           data={publicationPreview}
