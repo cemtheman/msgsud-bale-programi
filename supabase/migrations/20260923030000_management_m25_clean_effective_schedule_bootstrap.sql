@@ -16,10 +16,11 @@
 --
 -- IMPORTANT
 --   * Existing test/recovery revision is ARCHIVED, never deleted.
---   * Existing requirement/group/card STRUCTURE is preserved.
+--   * Requirement/group identities are reused, but the test card partition is
+--     NOT copied; clean cards are rebuilt from real public source runs.
 --   * Existing placements and move history are NOT copied.
 --   * New revision starts with zero move_transactions.
---   * Every active card receives one baseline placement.
+--   * Every clean card receives one baseline placement.
 --   * Public projection is not changed by this migration.
 --   * Publication apply remains locked.
 --
@@ -39,10 +40,13 @@ create table if not exists public.management_clean_effective_bootstrap_runs (
     references public.schedule_revisions(id) on delete restrict,
   engine_version text not null,
   source_card_count integer not null,
+  clean_card_count integer not null,
   target_placement_count integer not null,
   target_period_count integer not null,
   public_source_target_count integer not null,
   runtime_adjustment_target_count integer not null,
+  active_source_requirement_count integer not null,
+  active_source_unit_count integer not null,
   projected_group_row_count integer not null,
   source_public_session_count integer not null,
   source_public_group_count integer not null,
@@ -53,10 +57,13 @@ create table if not exists public.management_clean_effective_bootstrap_runs (
   constraint management_clean_effective_bootstrap_counts_nonnegative
     check (
       source_card_count >= 0
+      and clean_card_count >= 0
       and target_placement_count >= 0
       and target_period_count >= 0
       and public_source_target_count >= 0
       and runtime_adjustment_target_count >= 0
+      and active_source_requirement_count >= 0
+      and active_source_unit_count >= 0
       and projected_group_row_count >= 0
       and source_public_session_count >= 0
       and source_public_group_count >= 0
@@ -108,15 +115,15 @@ declare
 
   v_egemalmaz_teacher_id uuid;
 
-  v_source_target_count integer;
+  v_active_source_requirement_count integer;
+  v_active_source_unit_count integer;
+  v_public_source_target_count integer;
   v_overlay_target_count integer;
+  v_no_source_card_count integer;
   v_target_count integer;
   v_target_period_count integer;
-  v_target_distinct_card_count integer;
-  v_unmatched_card_count integer;
-  v_duplicate_target_count integer;
-  v_off_grid_count integer;
   v_pair_conflict_count integer;
+  v_partition_load_mismatch_count integer;
 
   v_clean_card_count integer;
   v_clean_placement_count integer;
@@ -312,12 +319,33 @@ begin
   end if;
 
   -- -----------------------------------------------------------------------
-  -- BUILD EFFECTIVE TARGET PLAN FROM CURRENT PUBLIC SOURCE EVIDENCE
+  -- REBUILD THE CLEAN CARD GRAPH FROM THE EFFECTIVE STUDENT PROGRAM
   -- -----------------------------------------------------------------------
+  -- The test DRAFT has 292 cards, but the public source evidence contains
+  -- fewer real contiguous teaching blocks. Current cards are used only to
+  -- decide which requirements are active; their old partition is not copied.
 
+  drop table if exists pg_temp.m25_active_source_requirements;
   drop table if exists pg_temp.m25_source_units;
   drop table if exists pg_temp.m25_source_runs;
+  drop table if exists pg_temp.m25_partitions;
   drop table if exists pg_temp.m25_targets;
+
+  create temporary table m25_active_source_requirements
+  on commit drop
+  as
+  select distinct card.requirement_id
+  from public.schedule_cards card
+  where card.schedule_revision_id = v_source_revision_id
+    and exists (
+      select 1
+      from public.course_requirement_source_sessions evidence
+      where evidence.requirement_id = card.requirement_id
+    );
+
+  select count(*)
+  into v_active_source_requirement_count
+  from m25_active_source_requirements;
 
   create temporary table m25_source_units
   on commit drop
@@ -334,9 +362,8 @@ begin
     ) as room_id,
     period_map.period_number is null as off_grid
   from public.course_requirement_source_sessions evidence
-  join public.course_requirements requirement
-    on requirement.id = evidence.requirement_id
-   and requirement.requirement_set_id = v_requirement_set_id
+  join m25_active_source_requirements active_requirement
+    on active_requirement.requirement_id = evidence.requirement_id
   left join public.schedule_sessions session_row
     on session_row.id = evidence.source_session_id
    and session_row.academic_year = '2026-2027'
@@ -354,16 +381,18 @@ begin
     limit 1
   ) period_map on true;
 
-  select count(*)
-  into v_off_grid_count
-  from m25_source_units source
-  where source.off_grid;
-
-  if v_off_grid_count <> 0 then
+  if exists (
+    select 1
+    from m25_source_units source
+    where source.off_grid
+  ) then
     raise exception
-      'M25 found % off-grid public source sessions',
-      v_off_grid_count;
+      'M25 active public source contains off-grid sessions';
   end if;
+
+  select count(*)
+  into v_active_source_unit_count
+  from m25_source_units;
 
   create temporary table m25_source_runs
   on commit drop
@@ -376,7 +405,6 @@ begin
       lag(source.teacher_id) over source_order as previous_teacher,
       lag(source.room_id) over source_order as previous_room
     from m25_source_units source
-    where not source.off_grid
     window source_order as (
       partition by source.requirement_id
       order by
@@ -416,11 +444,21 @@ begin
   select
     numbered.requirement_id,
     numbered.run_number,
-    numbered.day_of_week,
+    min(numbered.day_of_week)::smallint as day_of_week,
     min(numbered.period_number)::smallint as start_period,
     count(*)::smallint as duration_periods,
-    numbered.teacher_id,
-    numbered.room_id,
+    (
+      array_agg(
+        numbered.teacher_id
+        order by numbered.period_number, numbered.source_session_id
+      )
+    )[1] as teacher_id,
+    (
+      array_agg(
+        numbered.room_id
+        order by numbered.period_number, numbered.source_session_id
+      )
+    )[1] as room_id,
     jsonb_agg(
       numbered.source_session_id
       order by numbered.period_number, numbered.source_session_id
@@ -428,13 +466,39 @@ begin
   from numbered
   group by
     numbered.requirement_id,
-    numbered.run_number,
-    numbered.day_of_week,
-    numbered.teacher_id,
-    numbered.room_id;
+    numbered.run_number;
+
+  create temporary table m25_partitions
+  on commit drop
+  as
+  select
+    source_run.requirement_id,
+    jsonb_agg(
+      source_run.duration_periods
+      order by
+        source_run.day_of_week,
+        source_run.start_period,
+        source_run.run_number
+    ) as partition_json,
+    sum(source_run.duration_periods)::integer as source_period_count
+  from m25_source_runs source_run
+  group by source_run.requirement_id;
+
+  select count(*)
+  into v_partition_load_mismatch_count
+  from m25_partitions partition_row
+  join public.course_requirements requirement
+    on requirement.id = partition_row.requirement_id
+  where partition_row.source_period_count <> requirement.weekly_load;
+
+  if v_partition_load_mismatch_count <> 0 then
+    raise exception
+      'M25 found % active requirements whose public source period total differs from weekly_load',
+      v_partition_load_mismatch_count;
+  end if;
 
   create temporary table m25_targets (
-    source_card_id uuid primary key,
+    target_card_id uuid primary key,
     requirement_id uuid not null,
     block_index smallint not null,
     duration_periods smallint not null,
@@ -442,13 +506,15 @@ begin
     start_period smallint not null,
     teacher_id uuid null,
     room_id uuid null,
+    publication_end_time_override time null,
     source_kind text not null,
-    source_session_ids jsonb not null default '[]'::jsonb
+    source_session_ids jsonb not null default '[]'::jsonb,
+    unique (requirement_id, block_index)
   ) on commit drop;
 
-  -- Pair same-duration logical cards to same-duration public source runs.
+  -- One clean card per real contiguous public source run.
   insert into m25_targets (
-    source_card_id,
+    target_card_id,
     requirement_id,
     block_index,
     duration_periods,
@@ -456,67 +522,53 @@ begin
     start_period,
     teacher_id,
     room_id,
+    publication_end_time_override,
     source_kind,
     source_session_ids
   )
-  with card_ranked as (
-    select
-      card.id as source_card_id,
-      card.requirement_id,
-      card.block_index,
-      card.duration_periods,
-      row_number() over (
-        partition by card.requirement_id, card.duration_periods
-        order by card.block_index, card.id
-      ) as duration_ordinal
-    from public.schedule_cards card
-    where card.schedule_revision_id = v_source_revision_id
-      and exists (
-        select 1
-        from public.course_requirement_source_sessions evidence
-        where evidence.requirement_id = card.requirement_id
-      )
-  ),
-  run_ranked as (
-    select
-      source_run.*,
-      row_number() over (
-        partition by
-          source_run.requirement_id,
-          source_run.duration_periods
-        order by
-          source_run.day_of_week,
-          source_run.start_period,
-          source_run.run_number
-      ) as duration_ordinal
-    from m25_source_runs source_run
-  )
   select
-    card.source_card_id,
-    card.requirement_id,
-    card.block_index,
-    card.duration_periods,
+    gen_random_uuid(),
+    source_run.requirement_id,
+    row_number() over (
+      partition by source_run.requirement_id
+      order by
+        source_run.day_of_week,
+        source_run.start_period,
+        source_run.run_number
+    )::smallint,
+    source_run.duration_periods,
     source_run.day_of_week,
     source_run.start_period,
     source_run.teacher_id,
     source_run.room_id,
+    null::time,
     'PUBLIC_BASELINE',
     source_run.source_session_ids
-  from card_ranked card
-  join run_ranked source_run
-    on source_run.requirement_id = card.requirement_id
-   and source_run.duration_periods = card.duration_periods
-   and source_run.duration_ordinal = card.duration_ordinal;
+  from m25_source_runs source_run;
 
-  get diagnostics v_source_target_count = row_count;
+  get diagnostics v_public_source_target_count = row_count;
 
-  -- -----------------------------------------------------------------------
-  -- MATERIALIZE THE FOUR EFFECTIVE RUNTIME-ADJUSTMENT RULES
-  -- -----------------------------------------------------------------------
+  -- Every active current card with no source evidence must be one of the five
+  -- explicitly modeled effective runtime overlays.
+  select count(*)
+  into v_no_source_card_count
+  from public.schedule_cards card
+  where card.schedule_revision_id = v_source_revision_id
+    and not exists (
+      select 1
+      from public.course_requirement_source_sessions evidence
+      where evidence.requirement_id = card.requirement_id
+    );
+
+  if v_no_source_card_count <> 5 then
+    raise exception
+      'M25 expected exactly 5 active no-source runtime cards, found %',
+      v_no_source_card_count;
+  end if;
 
   -- 5A Monday V. Kondisyon.
   insert into m25_targets (
-    source_card_id,
+    target_card_id,
     requirement_id,
     block_index,
     duration_periods,
@@ -524,11 +576,12 @@ begin
     start_period,
     teacher_id,
     room_id,
+    publication_end_time_override,
     source_kind,
     source_session_ids
   )
   select
-    card.id,
+    gen_random_uuid(),
     card.requirement_id,
     card.block_index,
     card.duration_periods,
@@ -536,6 +589,7 @@ begin
     v_period_1140,
     null,
     null,
+    card.publication_end_time_override,
     'RUNTIME_ADJUSTMENT',
     '[]'::jsonb
   from public.schedule_cards card
@@ -552,12 +606,11 @@ begin
       select 1
       from public.course_requirement_source_sessions evidence
       where evidence.requirement_id = requirement.id
-    )
-  on conflict (source_card_id) do nothing;
+    );
 
-  -- 5A Wednesday Piyano Group 1.
+  -- 5A Wednesday Piyano groups.
   insert into m25_targets (
-    source_card_id,
+    target_card_id,
     requirement_id,
     block_index,
     duration_periods,
@@ -565,18 +618,23 @@ begin
     start_period,
     teacher_id,
     room_id,
+    publication_end_time_override,
     source_kind,
     source_session_ids
   )
   select
-    card.id,
+    gen_random_uuid(),
     card.requirement_id,
     card.block_index,
     card.duration_periods,
     3,
-    v_period_1530,
+    case instructional_group.name
+      when '5A BALLET / 1. Grup' then v_period_1530
+      when '5A BALLET / 2. Grup' then v_period_1620
+    end,
     null,
     null,
+    card.publication_end_time_override,
     'RUNTIME_ADJUSTMENT',
     '[]'::jsonb
   from public.schedule_cards card
@@ -588,12 +646,14 @@ begin
     on instructional_group.id = requirement.instructional_group_id
   where card.schedule_revision_id = v_source_revision_id
     and subject.name = 'Piyano'
-    and instructional_group.name = '5A BALLET / 1. Grup'
-  on conflict (source_card_id) do nothing;
+    and instructional_group.name in (
+      '5A BALLET / 1. Grup',
+      '5A BALLET / 2. Grup'
+    );
 
-  -- 5A Wednesday Piyano Group 2.
+  -- 5A Friday K. Bale supplemental blocks.
   insert into m25_targets (
-    source_card_id,
+    target_card_id,
     requirement_id,
     block_index,
     duration_periods,
@@ -601,47 +661,12 @@ begin
     start_period,
     teacher_id,
     room_id,
+    publication_end_time_override,
     source_kind,
     source_session_ids
   )
   select
-    card.id,
-    card.requirement_id,
-    card.block_index,
-    card.duration_periods,
-    3,
-    v_period_1620,
-    null,
-    null,
-    'RUNTIME_ADJUSTMENT',
-    '[]'::jsonb
-  from public.schedule_cards card
-  join public.course_requirements requirement
-    on requirement.id = card.requirement_id
-  join public.subjects subject
-    on subject.id = requirement.subject_id
-  join public.instructional_groups instructional_group
-    on instructional_group.id = requirement.instructional_group_id
-  where card.schedule_revision_id = v_source_revision_id
-    and subject.name = 'Piyano'
-    and instructional_group.name = '5A BALLET / 2. Grup'
-  on conflict (source_card_id) do nothing;
-
-  -- 5A Friday K. Bale supplemental blocks, block index preserves 13:50/14:40.
-  insert into m25_targets (
-    source_card_id,
-    requirement_id,
-    block_index,
-    duration_periods,
-    day_of_week,
-    start_period,
-    teacher_id,
-    room_id,
-    source_kind,
-    source_session_ids
-  )
-  select
-    card.id,
+    gen_random_uuid(),
     card.requirement_id,
     card.block_index,
     card.duration_periods,
@@ -652,6 +677,7 @@ begin
     end,
     v_egemalmaz_teacher_id,
     null,
+    card.publication_end_time_override,
     'RUNTIME_ADJUSTMENT',
     '[]'::jsonb
   from public.schedule_cards card
@@ -665,60 +691,34 @@ begin
     and subject.name = 'K. Bale'
     and instructional_group.name =
       'STANDARD • 5A BALLET • Cuma ek dersi'
-    and card.block_index in (1, 2)
-  on conflict (source_card_id) do nothing;
+    and card.block_index in (1, 2);
 
   select count(*)
   into v_overlay_target_count
   from m25_targets target
   where target.source_kind = 'RUNTIME_ADJUSTMENT';
 
-  select
-    count(*),
-    count(distinct target.source_card_id),
-    coalesce(sum(target.duration_periods), 0)
-  into
-    v_target_count,
-    v_target_distinct_card_count,
-    v_target_period_count
-  from m25_targets target;
-
-  select count(*)
-  into v_unmatched_card_count
-  from public.schedule_cards card
-  where card.schedule_revision_id = v_source_revision_id
-    and not exists (
-      select 1
-      from m25_targets target
-      where target.source_card_id = card.id
-    );
-
-  select count(*)
-  into v_duplicate_target_count
-  from (
-    select target.source_card_id
-    from m25_targets target
-    group by target.source_card_id
-    having count(*) > 1
-  ) duplicate;
-
   if v_overlay_target_count <> 5 then
     raise exception
-      'M25 expected exactly 5 runtime-adjustment cards, found %',
+      'M25 expected 5 runtime-adjustment targets, found %',
       v_overlay_target_count;
   end if;
 
-  if v_target_count <> v_source_card_count
-     or v_target_distinct_card_count <> v_source_card_count
-     or v_unmatched_card_count <> 0
-     or v_duplicate_target_count <> 0 then
+  select
+    count(*),
+    coalesce(sum(target.duration_periods), 0)
+  into
+    v_target_count,
+    v_target_period_count
+  from m25_targets target;
+
+  if v_target_count <>
+       v_public_source_target_count + v_overlay_target_count then
     raise exception
-      'M25 target coverage mismatch: cards %, targets %, distinct %, unmatched %, duplicate %',
-      v_source_card_count,
+      'M25 target accounting mismatch: total %, public %, overlay %',
       v_target_count,
-      v_target_distinct_card_count,
-      v_unmatched_card_count,
-      v_duplicate_target_count;
+      v_public_source_target_count,
+      v_overlay_target_count;
   end if;
 
   if exists (
@@ -736,13 +736,12 @@ begin
       'M25 target plan contains invalid period/lunch crossing';
   end if;
 
-  -- The complete effective target set must be internally conflict-free before
-  -- any new revision is created.
+  -- Complete effective target set must be internally conflict-free.
   select count(*)
   into v_pair_conflict_count
   from m25_targets left_target
   join m25_targets right_target
-    on right_target.source_card_id > left_target.source_card_id
+    on right_target.target_card_id > left_target.target_card_id
    and right_target.day_of_week = left_target.day_of_week
    and right_target.start_period
       <= left_target.start_period + left_target.duration_periods - 1
@@ -772,6 +771,44 @@ begin
       v_pair_conflict_count;
   end if;
 
+  -- Bring requirement partition metadata in line with the actual source runs.
+  -- The archived test revision is intentionally no longer authoritative.
+  update public.course_requirements requirement
+  set
+    preferred_partition = partition_row.partition_json,
+    allowed_partitions = (
+      select
+        case
+          when exists (
+            select 1
+            from jsonb_array_elements(
+              case
+                when jsonb_typeof(requirement.allowed_partitions) = 'array'
+                  then requirement.allowed_partitions
+                else '[]'::jsonb
+              end
+            ) alternative
+            where alternative = partition_row.partition_json
+          )
+            then case
+              when jsonb_typeof(requirement.allowed_partitions) = 'array'
+                then requirement.allowed_partitions
+              else '[]'::jsonb
+            end
+          else
+            (
+              case
+                when jsonb_typeof(requirement.allowed_partitions) = 'array'
+                  then requirement.allowed_partitions
+                else '[]'::jsonb
+              end
+            )
+            || jsonb_build_array(partition_row.partition_json)
+        end
+    )
+  from m25_partitions partition_row
+  where requirement.id = partition_row.requirement_id;
+
   -- -----------------------------------------------------------------------
   -- CREATE THE CLEAN REVISION
   -- -----------------------------------------------------------------------
@@ -781,8 +818,6 @@ begin
   from public.schedule_revisions revision
   where revision.requirement_set_id = v_requirement_set_id;
 
-  -- Retire the test/recovery schedule revision, but preserve it and all audit
-  -- history permanently.
   update public.schedule_revisions
   set
     status = 'ARCHIVED',
@@ -811,8 +846,12 @@ begin
     v_source_revision_id,
     jsonb_build_object(
       'phase', 'M25',
-      'engine_version', 'M25-v1',
+      'engine_version', 'M25-v2',
       'bootstrap_source', 'EFFECTIVE_STUDENT_SCHEDULE',
+      'source_test_card_count', v_source_card_count,
+      'clean_card_count', v_target_count,
+      'public_source_block_count', v_public_source_target_count,
+      'runtime_adjustment_card_count', v_overlay_target_count,
       'public_baseline', jsonb_build_object(
         'academicYear', '2026-2027',
         'term', 1,
@@ -829,26 +868,10 @@ begin
       ),
       'move_history', 'EMPTY_BASELINE',
       'test_placements_copied', false,
+      'test_card_partition_copied', false,
       'candidate_domain', 'REBUILD_PENDING'
     )
   );
-
-  drop table if exists pg_temp.m25_card_map;
-
-  create temporary table m25_card_map (
-    source_card_id uuid primary key,
-    clean_card_id uuid not null unique
-  ) on commit drop;
-
-  insert into m25_card_map (
-    source_card_id,
-    clean_card_id
-  )
-  select
-    card.id,
-    gen_random_uuid()
-  from public.schedule_cards card
-  where card.schedule_revision_id = v_source_revision_id;
 
   insert into public.schedule_cards (
     id,
@@ -860,16 +883,17 @@ begin
     publication_end_time_override
   )
   select
-    mapping.clean_card_id,
+    target.target_card_id,
     v_clean_revision_id,
-    source_card.requirement_id,
-    source_card.block_index,
-    source_card.duration_periods,
+    target.requirement_id,
+    target.block_index,
+    target.duration_periods,
     false,
-    source_card.publication_end_time_override
-  from m25_card_map mapping
-  join public.schedule_cards source_card
-    on source_card.id = mapping.source_card_id;
+    target.publication_end_time_override
+  from m25_targets target
+  order by
+    target.requirement_id,
+    target.block_index;
 
   insert into public.placements (
     card_id,
@@ -880,23 +904,19 @@ begin
     move_transaction_id
   )
   select
-    mapping.clean_card_id,
+    target.target_card_id,
     target.day_of_week,
     target.start_period,
     target.teacher_id,
     target.room_id,
     null
   from m25_targets target
-  join m25_card_map mapping
-    on mapping.source_card_id = target.source_card_id
   order by
     target.day_of_week,
     target.start_period,
     target.requirement_id,
     target.block_index;
 
-  -- New revision intentionally has no USER/AUTO history. It is the imported
-  -- baseline, not a sequence of scheduling decisions.
   if exists (
     select 1
     from public.move_transactions move
@@ -931,11 +951,12 @@ begin
   from public.move_transactions move
   where move.schedule_revision_id = v_clean_revision_id;
 
-  if v_clean_card_count <> 292
-     or v_clean_placement_count <> 292
+  if v_clean_card_count <> v_target_count
+     or v_clean_placement_count <> v_target_count
      or v_clean_move_count <> 0 then
     raise exception
-      'M25 clean revision cardinality mismatch: cards %, placements %, moves %',
+      'M25 clean revision cardinality mismatch: planned %, cards %, placements %, moves %',
+      v_target_count,
       v_clean_card_count,
       v_clean_placement_count,
       v_clean_move_count;
@@ -1122,12 +1143,19 @@ begin
     coalesce(validation_summary, '{}'::jsonb)
     || jsonb_build_object(
       'm25_clean_effective_bootstrap', 'PASS',
-      'card_count', v_clean_card_count,
+      'engine_version', 'M25-v2',
+      'source_test_card_count', v_source_card_count,
+      'clean_card_count', v_clean_card_count,
       'placement_count', v_clean_placement_count,
       'move_transaction_count', v_clean_move_count,
       'projected_session_count', v_target_period_count,
       'projected_group_count', v_projected_group_count,
-      'public_source_target_count', v_source_target_count,
+      'active_source_requirement_count',
+        v_active_source_requirement_count,
+      'active_source_unit_count',
+        v_active_source_unit_count,
+      'public_source_target_count',
+        v_public_source_target_count,
       'runtime_adjustment_target_count', v_overlay_target_count,
       'unresolved_inherited_count', v_unresolved_inherited_count,
       'provisional_placement_count', v_provisional_placement_count,
@@ -1141,10 +1169,13 @@ begin
     clean_revision_id,
     engine_version,
     source_card_count,
+    clean_card_count,
     target_placement_count,
     target_period_count,
     public_source_target_count,
     runtime_adjustment_target_count,
+    active_source_requirement_count,
+    active_source_unit_count,
     projected_group_row_count,
     source_public_session_count,
     source_public_group_count,
@@ -1156,12 +1187,15 @@ begin
     v_requirement_set_id,
     v_source_revision_id,
     v_clean_revision_id,
-    'M25-v1',
+    'M25-v2',
     v_source_card_count,
+    v_clean_card_count,
     v_clean_placement_count,
     v_target_period_count,
-    v_source_target_count,
+    v_public_source_target_count,
     v_overlay_target_count,
+    v_active_source_requirement_count,
+    v_active_source_unit_count,
     v_projected_group_count,
     v_public_session_count,
     v_public_group_count,
@@ -1170,6 +1204,7 @@ begin
     jsonb_build_object(
       'allCardsPlaced', v_clean_placement_count = v_clean_card_count,
       'moveHistoryEmpty', v_clean_move_count = 0,
+      'testCardPartitionCopied', false,
       'missingDomainSummaryCount', v_missing_summary_count,
       'contradictionCount', v_contradiction_count,
       'invalidPeriodCount', v_invalid_period_count,
