@@ -33,6 +33,8 @@ export interface ManagementPublicationStagePreview {
 export interface ManagementPublicationPreviewData {
   revisionId: string;
   academicYear: string;
+  mappingSource: 'BOOTSTRAP_EVIDENCE' | 'MANAGED_PUBLICATION';
+  publicationNumber: number | null;
   publicSessionCount: number;
   evidenceSessionCount: number;
   mappedCurrentPublicSessionCount: number;
@@ -79,6 +81,21 @@ interface NamedRow {
 interface EvidenceRow {
   requirement_id: string;
   source_session_id: string;
+}
+
+interface PublicationRow {
+  id: string;
+  publication_number: number;
+}
+
+interface PublicationSessionRow {
+  requirement_id: string;
+  session_id: string;
+}
+
+interface RequirementLineageRow {
+  child_requirement_id: string;
+  parent_requirement_id: string;
 }
 
 interface PublicSessionRow {
@@ -263,6 +280,12 @@ export async function fetchManagementPublicationPreview(
   const revision = revisions[0];
   if (!revision) return null;
 
+  const publications = await authedGet<PublicationRow[]>(
+    `management_publications?select=id,publication_number&academic_year=eq.${ACADEMIC_YEAR}&order=publication_number.desc&limit=1`,
+    accessToken,
+  );
+  const latestPublication = publications[0] ?? null;
+
   const [
     requirements,
     groups,
@@ -274,6 +297,8 @@ export async function fetchManagementPublicationPreview(
     cards,
     placements,
     rooms,
+    publicationSessions,
+    requirementLineage,
   ] = await Promise.all([
     authedGet<RequirementRow[]>(
       `course_requirements?select=id,subject_id,instructional_group_id&requirement_set_id=eq.${revision.requirement_set_id}`,
@@ -315,6 +340,18 @@ export async function fetchManagementPublicationPreview(
       'rooms?select=id,canonical_room_id',
       accessToken,
     ),
+    latestPublication
+      ? authedGet<PublicationSessionRow[]>(
+        `management_publication_sessions?select=requirement_id,session_id&publication_id=eq.${latestPublication.id}`,
+        accessToken,
+      )
+      : Promise.resolve([] as PublicationSessionRow[]),
+    latestPublication
+      ? authedGet<RequirementLineageRow[]>(
+        `management_requirement_lineage?select=child_requirement_id,parent_requirement_id&publication_id=eq.${latestPublication.id}`,
+        accessToken,
+      )
+      : Promise.resolve([] as RequirementLineageRow[]),
   ]);
 
   const requirementById = new Map(
@@ -396,19 +433,58 @@ export async function fetchManagementPublicationPreview(
     }),
   );
 
-  const evidenceSourceIds = new Set(
-    evidence.map((row) => row.source_session_id),
+  const mappingSource: ManagementPublicationPreviewData['mappingSource'] =
+    latestPublication ? 'MANAGED_PUBLICATION' : 'BOOTSTRAP_EVIDENCE';
+
+  const parentToChildRequirement = new Map(
+    requirementLineage.map((row) => [
+      row.parent_requirement_id,
+      row.child_requirement_id,
+    ]),
+  );
+
+  const activeMapping: EvidenceRow[] = latestPublication
+    ? publicationSessions.flatMap((row) => {
+      const childRequirementId = parentToChildRequirement.get(
+        row.requirement_id,
+      );
+
+      return childRequirementId
+        ? [{
+          requirement_id: childRequirementId,
+          source_session_id: row.session_id,
+        }]
+        : [];
+    })
+    : evidence;
+
+  const sourceMappingSessionCount = latestPublication
+    ? publicationSessions.length
+    : evidence.length;
+
+  const mappingSourceIds = new Set(
+    activeMapping.map((row) => row.source_session_id),
   );
   const currentPublicIds = new Set(publicSessions.map((row) => row.id));
 
-  const missingEvidenceSessionCount = evidence.filter(
-    (row) => !currentPublicIds.has(row.source_session_id),
-  ).length;
+  const missingRequirementMappingCount = latestPublication
+    ? publicationSessions.filter(
+      (row) => !parentToChildRequirement.has(row.requirement_id),
+    ).length
+    : 0;
+
+  const missingEvidenceSessionCount = (
+    activeMapping.filter(
+      (row) => !currentPublicIds.has(row.source_session_id),
+    ).length
+    + missingRequirementMappingCount
+  );
+
   const unmappedCurrentPublicSessionCount = publicSessions.filter(
-    (row) => !evidenceSourceIds.has(row.id),
+    (row) => !mappingSourceIds.has(row.id),
   ).length;
 
-  const publishedUnits: Unit[] = evidence.flatMap((row) => {
+  const publishedUnits: Unit[] = activeMapping.flatMap((row) => {
     const session = publicById.get(row.source_session_id);
     if (!session || !requirementById.has(row.requirement_id)) return [];
 
@@ -560,8 +636,10 @@ export async function fetchManagementPublicationPreview(
   return {
     revisionId: revision.id,
     academicYear: ACADEMIC_YEAR,
+    mappingSource,
+    publicationNumber: latestPublication?.publication_number ?? null,
     publicSessionCount: publicSessions.length,
-    evidenceSessionCount: evidence.length,
+    evidenceSessionCount: sourceMappingSessionCount,
     mappedCurrentPublicSessionCount: publishedUnits.length,
     missingEvidenceSessionCount,
     unmappedCurrentPublicSessionCount,
