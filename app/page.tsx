@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { useNow } from '@/hooks/useNow';
 import { useHolidays } from '@/hooks/useHolidays';
@@ -35,6 +36,33 @@ const MODE_KEY = 'msgsu-app-mode:v1';
 function readInitialMode(): AppMode {
   if (typeof window === 'undefined') return 'student';
   return localStorage.getItem(MODE_KEY) === 'teacher' ? 'teacher' : 'student';
+}
+
+function ManagementAccessLink() {
+  return (
+    <Link
+      href="/yonetim"
+      aria-label="Yönetim girişi"
+      title="Yönetim girişi"
+      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm transition hover:border-gray-300 hover:text-gray-700 active:scale-95 dark:border-white/10 dark:bg-[#1C1C1E] dark:text-gray-500 dark:hover:text-gray-200"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        className="h-4 w-4"
+        aria-hidden="true"
+      >
+        <circle cx="8" cy="15" r="3.25" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="m10.4 12.6 7.1-7.1 2 2-1.35 1.35 1.1 1.1-1.8 1.8-1.1-1.1-3.55 3.55"
+        />
+      </svg>
+    </Link>
+  );
 }
 
 export default function Home() {
@@ -80,7 +108,8 @@ export default function Home() {
   if (appMode === 'student' && !classSchedule.schedule) {
     return (
       <main className="w-full flex-1 px-4 pt-6 pb-28">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <ManagementAccessLink />
           <ClassSelector value={classSchedule.selectedClass} onChange={classSchedule.setSelectedClass} />
         </div>
         <div className="rounded-3xl border border-rose-200 bg-rose-50/80 p-5 text-center dark:border-rose-900/40 dark:bg-rose-950/20">
@@ -103,7 +132,8 @@ export default function Home() {
   if (appMode === 'teacher' && !teacherSchedule.schedule) {
     return (
       <main className="w-full flex-1 px-4 pt-6 pb-28">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <ManagementAccessLink />
           <TeacherSelector
             value={teacherSchedule.selectedTeacher}
             teachers={teacherSchedule.teachers}
@@ -187,7 +217,8 @@ export default function Home() {
 
   return (
     <main className="w-full flex-1 px-4 pt-6 pb-28">
-      <div className="mb-3 flex items-center justify-end">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <ManagementAccessLink />
         {appMode === 'student' ? (
           <ClassSelector value={classSchedule.selectedClass} onChange={classSchedule.setSelectedClass} />
         ) : (
