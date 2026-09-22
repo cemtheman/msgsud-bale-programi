@@ -180,8 +180,18 @@ begin
     min(numbered.day_of_week)::smallint as day_of_week,
     min(numbered.period_number)::smallint as start_period,
     count(*)::smallint as duration_periods,
-    min(numbered.teacher_id) as teacher_id,
-    min(numbered.room_id) as room_id,
+    (
+      array_agg(
+        numbered.teacher_id
+        order by numbered.period_number, numbered.source_session_id
+      )
+    )[1] as teacher_id,
+    (
+      array_agg(
+        numbered.room_id
+        order by numbered.period_number, numbered.source_session_id
+      )
+    )[1] as room_id,
     jsonb_agg(
       numbered.source_session_id
       order by
