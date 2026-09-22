@@ -60,6 +60,11 @@ export function ManagementPublicationPreview({
             Yerleşmiş taslak dersleri gerçek ders saatlerine açılarak mevcut
             yayın oturumlarıyla karşılaştırılır. Bu ekran hiçbir şeyi yayımlamaz.
           </p>
+          <span className="mt-2 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-bold text-slate-600">
+            Kaynak: {data.mappingSource === 'MANAGED_PUBLICATION'
+              ? `Yönetilen yayın #${data.publicationNumber ?? '—'}`
+              : 'Başlangıç eşlemesi'}
+          </span>
         </div>
 
         <span className={`shrink-0 rounded-full border px-3 py-1.5 text-[9px] font-black ${
@@ -76,11 +81,11 @@ export function ManagementPublicationPreview({
       {!data.mappingHealthy && (
         <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
           <p className="text-[10px] font-black text-rose-800">
-            Mevcut yayın ile tarihsel source eşlemesi artık birebir değil.
+            Mevcut yayın ile karşılaştırma eşlemesi artık birebir değil.
           </p>
           <p className="mt-1 text-[10px] font-medium leading-5 text-rose-700">
-            {data.missingEvidenceSessionCount} source oturumu mevcut yayında bulunamadı ·{' '}
-            {data.unmappedCurrentPublicSessionCount} mevcut yayın oturumu source eşlemesinde yok.
+            {data.missingEvidenceSessionCount} eşlenmiş oturum mevcut yayında veya güncel taslak zincirinde bulunamadı ·{' '}
+            {data.unmappedCurrentPublicSessionCount} mevcut yayın oturumu karşılaştırma eşlemesinde yok.
             Bu durum çözülmeden yayınlama adımı güvenli biçimde açılamaz.
           </p>
         </div>
@@ -236,8 +241,8 @@ export function ManagementPublicationPreview({
 
       <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5">
         <p className="text-[9px] font-semibold leading-4 text-blue-800">
-          M19.1 yalnız karşılaştırma yapar. Yayınlama, revision kilidi ve
-          atomik projection değişimi M19.2’de ayrı güvenlik sözleşmesiyle ele alınacak.
+          Bu bölüm yalnız karşılaştırma yapar. Gerçek yayınlama ayrı sunucu
+          güvenlik kapısı, state-token ve atomik publication sözleşmesiyle korunur.
         </p>
       </div>
     </div>
