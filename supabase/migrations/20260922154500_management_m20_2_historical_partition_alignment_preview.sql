@@ -25,6 +25,7 @@ as $$
 declare
   v_recovery jsonb;
   v_requirement jsonb;
+  v_block_reason jsonb;
   v_requirement_id uuid;
   v_source_partition smallint[];
   v_weekly_load smallint;
@@ -202,7 +203,7 @@ begin
     else
       v_blocked_count := v_blocked_count + 1;
 
-      for v_requirement in
+      for v_block_reason in
         select jsonb_build_object('code', reason.value) as value
         from jsonb_array_elements_text(
           coalesce(
@@ -214,12 +215,12 @@ begin
         v_block_reason_counts :=
           jsonb_set(
             v_block_reason_counts,
-            array[v_requirement ->> 'code'],
+            array[v_block_reason ->> 'code'],
             to_jsonb(
               coalesce(
                 (
                   v_block_reason_counts
-                  ->> (v_requirement ->> 'code')
+                  ->> (v_block_reason ->> 'code')
                 )::integer,
                 0
               ) + 1
