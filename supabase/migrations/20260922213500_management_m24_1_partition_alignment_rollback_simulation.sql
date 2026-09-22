@@ -119,6 +119,7 @@ declare
 
   v_alignment_count integer := 0;
   v_removed_card_count integer := 0;
+  v_removed_this integer := 0;
   v_created_card_count integer := 0;
 
   v_before_structure_hash text;
@@ -334,16 +335,16 @@ begin
       end if;
 
       select count(*)
-      into strict v_removed_card_count
+      into v_removed_this
       from public.schedule_cards card
       where card.schedule_revision_id =
           p_schedule_revision_id
         and card.requirement_id =
           v_requirement_id;
 
-      -- Accumulate before deleting.
       v_removed_card_count :=
-        coalesce(v_removed_card_count, 0);
+        v_removed_card_count
+        + coalesce(v_removed_this, 0);
 
       delete from public.schedule_cards card
       where card.schedule_revision_id =
@@ -410,6 +411,8 @@ begin
         false,
       'alignedRequirementCount',
         v_alignment_count,
+      'simulatedRemovedCardCount',
+        v_removed_card_count,
       'simulatedCreatedCardCount',
         v_created_card_count,
       'before',
