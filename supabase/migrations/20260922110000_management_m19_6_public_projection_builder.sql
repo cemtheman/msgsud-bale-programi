@@ -85,6 +85,9 @@ begin
   v_notes_preservation_ready :=
     v_existing_notes_count = 0;
 
+  drop table if exists pg_temp.m196_groups;
+  drop table if exists pg_temp.m196_sessions;
+
   create temporary table m196_sessions
   on commit drop
   as
