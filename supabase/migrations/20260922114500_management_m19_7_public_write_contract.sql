@@ -37,6 +37,8 @@ declare
   v_group_session_fk boolean;
   v_unexpected_schedule_inbound_fk_count integer;
   v_unexpected_group_inbound_fk_count integer;
+  v_schedule_trigger_count integer;
+  v_group_trigger_count integer;
 
   v_schedule_count integer;
   v_group_count integer;
@@ -337,6 +339,28 @@ begin
     and referenced_table.relname = 'session_groups';
 
   select count(*)
+  into v_schedule_trigger_count
+  from pg_trigger trigger_row
+  join pg_class table_row
+    on table_row.oid = trigger_row.tgrelid
+  join pg_namespace namespace_row
+    on namespace_row.oid = table_row.relnamespace
+  where namespace_row.nspname = 'public'
+    and table_row.relname = 'schedule_sessions'
+    and not trigger_row.tgisinternal;
+
+  select count(*)
+  into v_group_trigger_count
+  from pg_trigger trigger_row
+  join pg_class table_row
+    on table_row.oid = trigger_row.tgrelid
+  join pg_namespace namespace_row
+    on namespace_row.oid = table_row.relnamespace
+  where namespace_row.nspname = 'public'
+    and table_row.relname = 'session_groups'
+    and not trigger_row.tgisinternal;
+
+  select count(*)
   into v_schedule_count
   from public.schedule_sessions
   where academic_year = p_academic_year;
@@ -355,7 +379,9 @@ begin
     and v_group_id_uuid
     and v_group_session_fk
     and v_unexpected_schedule_inbound_fk_count = 0
-    and v_unexpected_group_inbound_fk_count = 0;
+    and v_unexpected_group_inbound_fk_count = 0
+    and v_schedule_trigger_count = 0
+    and v_group_trigger_count = 0;
 
   return jsonb_build_object(
     'academicYear', p_academic_year,
@@ -379,7 +405,11 @@ begin
       'unexpectedScheduleSessionInboundForeignKeyCount',
         v_unexpected_schedule_inbound_fk_count,
       'unexpectedSessionGroupInboundForeignKeyCount',
-        v_unexpected_group_inbound_fk_count
+        v_unexpected_group_inbound_fk_count,
+      'scheduleSessionTriggerCount',
+        v_schedule_trigger_count,
+      'sessionGroupTriggerCount',
+        v_group_trigger_count
     ),
     'currentProjection', jsonb_build_object(
       'sessionCount', v_schedule_count,
