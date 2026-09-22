@@ -1120,8 +1120,8 @@ begin
 
   select coalesce(
     jsonb_object_agg(
-      class.triage_class,
-      class.card_count
+      class_summary.triage_class,
+      class_summary.card_count
     ),
     '{}'::jsonb
   )
@@ -1135,7 +1135,7 @@ begin
     ) triage
     group by triage.triage_class
     order by triage.triage_class
-  ) class;
+  ) class_summary;
 
   select coalesce(
     jsonb_object_agg(
