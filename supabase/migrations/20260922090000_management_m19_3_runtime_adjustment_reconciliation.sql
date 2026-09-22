@@ -225,43 +225,43 @@ begin
   end if;
 
   -- Resolve the standard management periods used by the effective overlays.
-  select period_number
+  select periods.period_number
   into v_period_1120
-  from generate_series(1, 12) period_number
+  from generate_series(1, 12) as periods(period_number)
   cross join lateral public.management_publication_period_bounds(
-    period_number::smallint
+    periods.period_number::smallint
   ) bounds
   where bounds.start_time = '11:40'::time;
 
-  select period_number
+  select periods.period_number
   into v_period_1350
-  from generate_series(1, 12) period_number
+  from generate_series(1, 12) as periods(period_number)
   cross join lateral public.management_publication_period_bounds(
-    period_number::smallint
+    periods.period_number::smallint
   ) bounds
   where bounds.start_time = '13:50'::time;
 
-  select period_number
+  select periods.period_number
   into v_period_1440
-  from generate_series(1, 12) period_number
+  from generate_series(1, 12) as periods(period_number)
   cross join lateral public.management_publication_period_bounds(
-    period_number::smallint
+    periods.period_number::smallint
   ) bounds
   where bounds.start_time = '14:40'::time;
 
-  select period_number
+  select periods.period_number
   into v_period_1530
-  from generate_series(1, 12) period_number
+  from generate_series(1, 12) as periods(period_number)
   cross join lateral public.management_publication_period_bounds(
-    period_number::smallint
+    periods.period_number::smallint
   ) bounds
   where bounds.start_time = '15:30'::time;
 
-  select period_number
+  select periods.period_number
   into v_period_1620
-  from generate_series(1, 12) period_number
+  from generate_series(1, 12) as periods(period_number)
   cross join lateral public.management_publication_period_bounds(
-    period_number::smallint
+    periods.period_number::smallint
   ) bounds
   where bounds.start_time = '16:20'::time;
 
@@ -419,8 +419,8 @@ begin
       'M19.3 cannot narrow V. Kondisyon: a separate 6A requirement already exists';
   end if;
 
-  select count(*), min(card.id)
-  into v_count, v_vcond_shared_card_id
+  select count(*)
+  into v_count
   from public.schedule_cards card
   where card.schedule_revision_id = v_revision_id
     and card.requirement_id = v_vcond_shared_requirement_id;
@@ -431,6 +431,14 @@ begin
       v_count;
   end if;
 
+  select card.id
+  into v_vcond_shared_card_id
+  from public.schedule_cards card
+  where card.schedule_revision_id = v_revision_id
+    and card.requirement_id = v_vcond_shared_requirement_id
+  order by card.id
+  limit 1;
+
   if exists (
     select 1
     from public.placements placement
@@ -440,8 +448,8 @@ begin
       'M19.3 expected shared V. Kondisyon card to be unplaced';
   end if;
 
-  select count(*), min(evidence.source_session_id)
-  into v_count, v_vcond_source_session_id
+  select count(*)
+  into v_count
   from public.course_requirement_source_sessions evidence
   where evidence.requirement_id = v_vcond_shared_requirement_id;
 
@@ -450,6 +458,13 @@ begin
       'M19.3 expected one V. Kondisyon source session, found %',
       v_count;
   end if;
+
+  select evidence.source_session_id
+  into v_vcond_source_session_id
+  from public.course_requirement_source_sessions evidence
+  where evidence.requirement_id = v_vcond_shared_requirement_id
+  order by evidence.source_session_id
+  limit 1;
 
   select
     session.day_of_week,
