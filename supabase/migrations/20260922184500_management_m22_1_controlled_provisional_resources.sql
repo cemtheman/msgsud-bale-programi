@@ -27,7 +27,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = pg_catalog, public
-as $
+as $$
 declare
   v_reasons text[] :=
     coalesce(new.reason_codes, array[]::text[]);
@@ -266,7 +266,7 @@ create or replace function public.redo_management_undo_transaction(
 )
 returns uuid
 language plpgsql
-as $
+as $$
 declare
   v_revision_id uuid;
   v_revision_status text;
