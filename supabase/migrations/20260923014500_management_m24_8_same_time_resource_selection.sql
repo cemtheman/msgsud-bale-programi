@@ -449,13 +449,13 @@ begin
   stats as (
     select
       option.card_id,
-      min(option.requirement_id) as requirement_id,
-      min(option.block_index) as block_index,
-      min(option.duration_periods) as duration_periods,
-      min(option.subject_name) as subject_name,
-      min(option.group_name) as group_name,
-      min(option.source_day) as day_of_week,
-      min(option.source_start_period) as start_period,
+      option.requirement_id,
+      option.block_index,
+      option.duration_periods,
+      option.subject_name,
+      option.group_name,
+      option.source_day as day_of_week,
+      option.source_start_period as start_period,
       count(*)::integer as option_count,
       count(*) filter (
         where option.resource_certainty = 'RESOLVED'
@@ -464,7 +464,15 @@ begin
         where option.resource_certainty = 'PROVISIONAL'
       )::integer as provisional_option_count
     from option_rows option
-    group by option.card_id
+    group by
+      option.card_id,
+      option.requirement_id,
+      option.block_index,
+      option.duration_periods,
+      option.subject_name,
+      option.group_name,
+      option.source_day,
+      option.source_start_period
   )
   select coalesce(
     jsonb_agg(
@@ -601,7 +609,7 @@ begin
   stats as (
     select
       option.card_id,
-      min(option.duration_periods)::integer
+      option.duration_periods::integer
         as duration_periods,
       count(*)::integer as option_count,
       count(*) filter (
@@ -611,7 +619,9 @@ begin
         where option.resource_certainty = 'PROVISIONAL'
       )::integer as provisional_option_count
     from option_rows option
-    group by option.card_id
+    group by
+      option.card_id,
+      option.duration_periods
   )
   select
     count(*)::integer,
