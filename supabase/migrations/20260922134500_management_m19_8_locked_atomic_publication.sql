@@ -36,6 +36,10 @@ begin;
 alter function public.management_preview_publication_lifecycle(uuid)
   rename to management_preview_publication_lifecycle_m19_5;
 
+revoke all
+  on function public.management_preview_publication_lifecycle_m19_5(uuid)
+  from public, anon, authenticated;
+
 create or replace function public.management_preview_publication_lifecycle(
   p_schedule_revision_id uuid
 )
@@ -553,6 +557,19 @@ begin
   from public.management_room_name_overrides name_override
   where name_override.schedule_revision_id =
     p_schedule_revision_id;
+
+  if exists (
+    select 1
+    from public.management_room_name_overrides name_override
+    join public.rooms room
+      on room.id = name_override.room_id
+    where name_override.schedule_revision_id =
+        p_schedule_revision_id
+      and room.canonical_room_id is not null
+  ) then
+    raise exception
+      'M19.8 room-name publication requires canonical room overrides only';
+  end if;
 
   update public.teachers teacher
   set name = name_override.display_name
