@@ -172,7 +172,7 @@ $$;
 
 revoke all
   on function public.management_public_sessions_hash(text),
-     function public.management_public_groups_hash(text)
+     public.management_public_groups_hash(text)
   from public, anon, authenticated;
 
 
