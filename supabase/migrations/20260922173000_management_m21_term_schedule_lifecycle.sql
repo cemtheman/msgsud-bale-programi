@@ -97,7 +97,30 @@ alter table public.management_publication_controls
   alter column active_term set default 1,
   alter column active_term set not null;
 
-do $$
+-- Adding schedule_sessions.term intentionally changes the JSON row shape used
+-- by the M19 bootstrap session hash. No schedule meaning changed, so when the
+-- year has never had a managed publication, re-anchor the bootstrap hash to
+-- the same rows with their explicit term identity. This prevents a false
+-- PUBLIC_BASELINE_DRIFT caused only by the additive schema column.
+update public.management_publication_controls control
+set
+  bootstrap_sessions_hash =
+    public.management_public_sessions_hash(control.academic_year),
+  bootstrap_groups_hash =
+    public.management_public_groups_hash(control.academic_year),
+  note = concat_ws(
+    ' ',
+    nullif(control.note, ''),
+    'M21: bootstrap hash re-anchored after explicit term metadata backfill.'
+  ),
+  updated_at = now()
+where not exists (
+  select 1
+  from public.management_publications publication
+  where publication.academic_year = control.academic_year
+);
+
+do $
 begin
   if not exists (
     select 1
@@ -298,7 +321,8 @@ begin
     raise exception 'M21 target academic year is required';
   end if;
 
-  if p_target_term not between 1 and 2 then
+  if p_target_term is null
+     or p_target_term not between 1 and 2 then
     raise exception 'M21 target term must be 1 or 2';
   end if;
 
@@ -935,6 +959,7 @@ declare
   v_publications integer;
   v_metadata_term smallint;
   v_control_term smallint;
+  v_baseline_healthy boolean;
 begin
   select count(*)
   into v_sessions
@@ -968,6 +993,15 @@ begin
   from public.management_publication_controls
   where academic_year = '2026-2027';
 
+  select coalesce(
+    (
+      public.management_publication_baseline_status('2026-2027')
+      ->> 'healthy'
+    )::boolean,
+    false
+  )
+  into v_baseline_healthy;
+
   if v_sessions <> 517 or v_groups <> 609 then
     raise exception
       'M21 installation modified public projection cardinality: sessions %, groups %',
@@ -984,6 +1018,11 @@ begin
      or v_control_term is distinct from 1 then
     raise exception
       'M21 expected current 2026-2027 active term to remain 1';
+  end if;
+
+  if not v_baseline_healthy then
+    raise exception
+      'M21 term metadata backfill caused public baseline drift';
   end if;
 
   if v_publications <> 0 then
