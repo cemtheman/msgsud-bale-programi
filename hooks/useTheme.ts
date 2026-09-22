@@ -5,9 +5,10 @@ export function useTheme() {
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    const initialTheme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+
+    // İlk ziyaret her zaman açık tema ile başlar. Kullanıcı daha önce
+    // açık/koyu tema seçtiyse yalnız o açık tercih korunur.
+    const initialTheme = savedTheme ?? 'light';
     queueMicrotask(() => setTheme(initialTheme));
     
     if (initialTheme === 'dark') {
