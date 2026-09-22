@@ -33,7 +33,10 @@ declare
   v_revision record;
   v_result jsonb;
 begin
-  if not public.has_management_role('VIEWER') then
+  -- Direct database diagnostics may be run by the linked postgres role.
+  -- API callers still require the normal management VIEWER gate.
+  if session_user <> 'postgres'
+     and not public.has_management_role('VIEWER') then
     raise exception 'M20.4 management VIEWER role required'
       using errcode = '42501';
   end if;
