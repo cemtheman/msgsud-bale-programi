@@ -19,7 +19,7 @@
 begin;
 
 
-create or replace function public.management_preview_exact_partial_recovery_v2(
+create or replace function public.management_preview_exact_partial_recovery_v2_internal(
   p_schedule_revision_id uuid
 )
 returns jsonb
@@ -54,12 +54,6 @@ declare
   v_move_count integer;
   v_recovery_run_count integer;
 begin
-  if session_user <> 'postgres' then
-    raise exception
-      'M24.6.1 exact partial recovery preview is SQL-Editor/postgres only'
-      using errcode = '42501';
-  end if;
-
   select
     revision.id,
     requirement_set.academic_year,
@@ -348,11 +342,45 @@ end
 $$;
 
 revoke all
+  on function public.management_preview_exact_partial_recovery_v2_internal(uuid)
+  from public, anon, authenticated;
+
+comment on function public.management_preview_exact_partial_recovery_v2_internal(uuid) is
+  'M24.6.1 internal stable-token exact-source partial recovery preview. Used by installation invariants and the SQL-Editor-only public wrapper.';
+
+
+-- -------------------------------------------------------------------------
+-- SQL-EDITOR-ONLY PUBLIC WRAPPER
+-- -------------------------------------------------------------------------
+
+create or replace function public.management_preview_exact_partial_recovery_v2(
+  p_schedule_revision_id uuid
+)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = pg_catalog, public
+as $
+begin
+  if session_user <> 'postgres' then
+    raise exception
+      'M24.6.1 exact partial recovery preview is SQL-Editor/postgres only'
+      using errcode = '42501';
+  end if;
+
+  return public.management_preview_exact_partial_recovery_v2_internal(
+    p_schedule_revision_id
+  );
+end
+$;
+
+revoke all
   on function public.management_preview_exact_partial_recovery_v2(uuid)
   from public, anon, authenticated;
 
 comment on function public.management_preview_exact_partial_recovery_v2(uuid) is
-  'M24.6.1 stable-token exact-source partial recovery preview. Refreshes and returns fresh candidateAssessmentId values for apply binding, but excludes those ephemeral derived-row UUIDs from the plan token. The token still covers all semantic target fields, conflicts, and persistent-state hashes.';
+  'M24.6.1 SQL-Editor/postgres-only wrapper for the stable-token exact-source partial recovery preview.';
 
 
 -- -------------------------------------------------------------------------
@@ -394,7 +422,7 @@ begin
   end if;
 
   v_preview_1 :=
-    public.management_preview_exact_partial_recovery_v2(
+    public.management_preview_exact_partial_recovery_v2_internal(
       v_revision_id
     );
 
@@ -405,7 +433,7 @@ begin
   -- This call refreshes derived candidates again. The semantic token MUST stay
   -- identical even though candidateAssessmentId is allowed/expected to change.
   v_preview_2 :=
-    public.management_preview_exact_partial_recovery_v2(
+    public.management_preview_exact_partial_recovery_v2_internal(
       v_revision_id
     );
 
