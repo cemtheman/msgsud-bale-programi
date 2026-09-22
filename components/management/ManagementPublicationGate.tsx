@@ -113,9 +113,12 @@ export function ManagementPublicationGate({
             Tüm program için yayın kapısı
           </h3>
           <p className="mt-1 max-w-[720px] text-[11px] font-medium leading-5 text-slate-500">
-            Bu kontrol Ortaokul/Lise sekmesinden bağımsızdır. Sunucu, bütün taslağı
-            tek revision olarak doğrular; yalnız seçili ekranın durumuna bakarak yayın açılmaz.
+            Bu kontrol bütün taslağı birlikte değerlendirir. Yalnız seçili Ortaokul
+            veya Lise görünümüne bakılarak yayın açılamaz.
           </p>
+          <span className="mt-2 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-black text-slate-600">
+            Kapsam: Tüm program · Ortaokul + Lise
+          </span>
         </div>
 
         <span className={[
@@ -175,7 +178,7 @@ export function ManagementPublicationGate({
             'text-[8px] font-black uppercase tracking-wide',
             data.baseline.healthy ? 'text-emerald-600' : 'text-rose-600',
           ].join(' ')}>
-            Public baseline
+            Yayın dayanağı
           </p>
           <p className={[
             'mt-1 text-lg font-black',
@@ -212,7 +215,7 @@ export function ManagementPublicationGate({
       {data.blockReasons.length > 0 && (
         <div className="mt-4">
           <p className="text-[9px] font-black uppercase tracking-wide text-rose-600">
-            Sunucunun yayını kapatma nedenleri
+            Yayını şu anda engelleyenler
           </p>
           <div className="mt-2 grid gap-2 md:grid-cols-2">
             {data.blockReasons.map((reason) => {
@@ -249,7 +252,7 @@ export function ManagementPublicationGate({
       {data.warningReasons.length > 0 && (
         <div className="mt-4">
           <p className="text-[9px] font-black uppercase tracking-wide text-amber-600">
-            Sunucu uyarıları
+            Yayın öncesi uyarılar
           </p>
           <div className="mt-2 grid gap-2 md:grid-cols-2">
             {data.warningReasons.map((reason) => {
