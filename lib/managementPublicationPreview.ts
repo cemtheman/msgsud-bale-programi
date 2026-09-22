@@ -492,7 +492,7 @@ export async function fetchManagementPublicationPreview(
     sourceMappingSessionCount,
     missingRequirementMappingCount,
   } = resolvePublicationSessionMapping({
-    publicationNumber,
+    publicationNumber: latestPublication?.publication_number ?? null,
     publicationSessions,
     requirementLineage,
     bootstrapEvidence: evidence,
