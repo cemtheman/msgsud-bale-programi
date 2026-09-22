@@ -54,7 +54,7 @@ export function ManagementPublicationPreview({
             M19.1 · Yayın öncesi karşılaştırma
           </p>
           <h3 className="mt-1 text-base font-bold text-slate-900">
-            Mevcut yayın → Bu taslak
+            {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} · Mevcut yayın → Bu taslak
           </h3>
           <p className="mt-1 max-w-[680px] text-[11px] font-medium leading-5 text-slate-500">
             Yerleşmiş taslak dersleri gerçek ders saatlerine açılarak mevcut
@@ -92,7 +92,7 @@ export function ManagementPublicationPreview({
             Bu karşılaştırma henüz tamamlanmamış bir taslağı gösteriyor.
           </p>
           <p className="mt-1 text-[10px] font-medium leading-5 text-amber-800">
-            {health.totalCards - health.placedCount} ders kartı henüz yerleşmediği için
+            {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} kapsamında {health.totalCards - health.placedCount} ders kartı henüz yerleşmediği için
             “yayından çıkacak” sayısı geçici olarak yüksek görünebilir. Bu rakamlar
             final yayın kararı değil, taslağın şu anki halinin mevcut yayına göre farkıdır.
           </p>
