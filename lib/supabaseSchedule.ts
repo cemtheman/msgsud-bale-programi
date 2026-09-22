@@ -42,6 +42,10 @@ interface SessionGroupRow {
   schedule_sessions: SessionRelation;
 }
 
+interface ProjectionMetadataRow {
+  runtime_adjustments_required: boolean;
+}
+
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -83,6 +87,31 @@ function parseClassCode(classCode: ClassCode) {
   const match = classCode.match(/^(\d{1,2})([AB])$/);
   if (!match) throw new Error('Geçersiz sınıf seçimi.');
   return { grade: Number(match[1]), section: match[2] };
+}
+
+async function runtimeAdjustmentsRequired(
+  signal?: AbortSignal,
+): Promise<boolean> {
+  const params = new URLSearchParams({
+    academic_year: `eq.${ACADEMIC_YEAR}`,
+    select: 'runtime_adjustments_required',
+    limit: '1',
+  });
+
+  try {
+    const rows = await request<ProjectionMetadataRow[]>(
+      `schedule_projection_metadata?${params}`,
+      signal,
+    );
+
+    return rows[0]?.runtime_adjustments_required ?? true;
+  } catch (reason) {
+    if (signal?.aborted) throw reason;
+
+    // Deploy-safe fallback: until projection metadata exists (or if it cannot
+    // be read), preserve the current compatibility overlay behavior.
+    return true;
+  }
 }
 
 export async function fetchScheduleForClass(
@@ -131,7 +160,12 @@ export async function fetchScheduleForClass(
     a.start.localeCompare(b.start) || a.end.localeCompare(b.end) || a.target.localeCompare(b.target),
   ));
 
-  return applyScheduleAdjustments({ school: schoolConfig, schedule }, classCode);
+  const source = { school: schoolConfig, schedule };
+  const needsRuntimeAdjustments = await runtimeAdjustmentsRequired(signal);
+
+  return needsRuntimeAdjustments
+    ? applyScheduleAdjustments(source, classCode)
+    : source;
 }
 
 export const scheduleCache = {
