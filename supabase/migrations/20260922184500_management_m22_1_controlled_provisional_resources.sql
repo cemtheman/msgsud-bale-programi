@@ -175,9 +175,7 @@ begin
 
   return new;
 end
-$;
-
-
+$$;
 comment on function public.management_apply_provisional_candidate_semantics() is
   'M22.1 candidate certainty normalizer. Preserves PROVISIONAL_CAPABILITY across delta revalidation while keeping UNKNOWN identity schedulable and hard resource failures blocking.';
 
@@ -770,8 +768,7 @@ begin
 
   return v_redo_transaction_id;
 end
-$;
-
+$$;
 comment on function public.redo_management_undo_transaction(uuid) is
   'M22.1 null-safe LIFO redo. Preserves M9.1 history ordering while allowing exact VALID provisional PLACE/MOVE targets with NULL resource identities.';
 
