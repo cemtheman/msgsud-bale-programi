@@ -126,6 +126,7 @@ declare
   v_invalid_period_count integer;
   v_memberless_requirement_count integer;
   v_inactive_room_count integer;
+  v_existing_public_notes_count integer;
   v_inconsistent_teacher_count integer;
   v_inconsistent_room_count integer;
   v_projected_group_count integer;
@@ -995,6 +996,16 @@ begin
   where card.schedule_revision_id = v_clean_revision_id
     and canonical_room.operational_status <> 'ACTIVE';
 
+  -- M19.6 refuses publication while existing public notes would be dropped,
+  -- because notes are not represented in the management projection.
+  select count(*)
+  into v_existing_public_notes_count
+  from public.schedule_sessions session_row
+  where session_row.academic_year = '2026-2027'
+    and session_row.term = 1
+    and session_row.notes is not null
+    and length(btrim(session_row.notes)) > 0;
+
   select
     count(*) filter (
       where placement.teacher_resolution_status = 'INCONSISTENT'
@@ -1050,15 +1061,17 @@ begin
      or v_invalid_period_count <> 0
      or v_memberless_requirement_count <> 0
      or v_inactive_room_count <> 0
+     or v_existing_public_notes_count <> 0
      or v_inconsistent_teacher_count <> 0
      or v_inconsistent_room_count <> 0 then
     raise exception
-      'M25 publish-readiness blocker: missing summaries %, contradictions %, invalid periods %, memberless %, inactive rooms %, inconsistent teachers %, inconsistent rooms %',
+      'M25 publish-readiness blocker: missing summaries %, contradictions %, invalid periods %, memberless %, inactive rooms %, public notes %, inconsistent teachers %, inconsistent rooms %',
       v_missing_summary_count,
       v_contradiction_count,
       v_invalid_period_count,
       v_memberless_requirement_count,
       v_inactive_room_count,
+      v_existing_public_notes_count,
       v_inconsistent_teacher_count,
       v_inconsistent_room_count;
   end if;
@@ -1162,6 +1175,8 @@ begin
       'invalidPeriodCount', v_invalid_period_count,
       'memberlessRequirementCount', v_memberless_requirement_count,
       'inactiveRoomPlacementCount', v_inactive_room_count,
+      'existingPublicNotesCount', v_existing_public_notes_count,
+      'notesPreservationReady', v_existing_public_notes_count = 0,
       'inconsistentTeacherPlacementCount',
         v_inconsistent_teacher_count,
       'inconsistentRoomPlacementCount',
