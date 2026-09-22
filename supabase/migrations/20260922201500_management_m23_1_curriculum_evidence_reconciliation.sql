@@ -544,7 +544,7 @@ set search_path = pg_catalog, public
 as $$
 declare
   v_base jsonb;
-  v_revision record;
+  v_requirement_set_id uuid;
   v_rule_set_id uuid;
   v_elective_evidence jsonb;
   v_local_exceptions jsonb;
@@ -566,7 +566,7 @@ begin
     revision.requirement_set_id,
     binding.rule_set_id
   into
-    v_revision.requirement_set_id,
+    v_requirement_set_id,
     v_rule_set_id
   from public.schedule_revisions revision
   join public.curriculum_requirement_set_bindings binding
@@ -579,7 +579,7 @@ begin
    )
   where revision.id = p_schedule_revision_id;
 
-  if v_revision.requirement_set_id is null then
+  if v_requirement_set_id is null then
     raise exception
       'M23.1 no active curriculum binding for revision %',
       p_schedule_revision_id;
@@ -628,7 +628,7 @@ begin
   into v_local_exceptions
   from public.curriculum_local_exceptions exception
   where exception.requirement_set_id =
-      v_revision.requirement_set_id
+      v_requirement_set_id
     and exception.program_code = p_program_code;
 
   with active_members as (
@@ -648,7 +648,7 @@ begin
     join public.class_groups class_group
       on class_group.id = member.class_group_id
     where requirement.requirement_set_id =
-        v_revision.requirement_set_id
+        v_requirement_set_id
       and requirement.term_status = 'ACTIVE'
       and class_group.grade between 5 and 8
       and member.target in ('SECTION', 'BALLET')
@@ -656,7 +656,7 @@ begin
         select 1
         from public.instructional_groups ballet_group
         where ballet_group.requirement_set_id =
-            v_revision.requirement_set_id
+            v_requirement_set_id
           and ballet_group.class_group_id =
             class_group.id
           and ballet_group.audience_target = 'BALLET'
