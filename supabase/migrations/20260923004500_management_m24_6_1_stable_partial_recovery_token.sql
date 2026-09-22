@@ -365,7 +365,7 @@ language plpgsql
 volatile
 security definer
 set search_path = pg_catalog, public
-as $
+as $$
 begin
   if session_user <> 'postgres' then
     raise exception
@@ -377,7 +377,7 @@ begin
     p_schedule_revision_id
   );
 end
-$;
+$$;
 
 revoke all
   on function public.management_preview_exact_partial_recovery_v2(uuid)
