@@ -94,6 +94,7 @@ interface CardRow {
   id: string;
   requirement_id: string;
   duration_periods: number;
+  publication_end_time_override: string | null;
 }
 
 interface PlacementRow {
@@ -303,7 +304,7 @@ export async function fetchManagementPublicationPreview(
       accessToken,
     ),
     authedGet<CardRow[]>(
-      `schedule_cards?select=id,requirement_id,duration_periods&schedule_revision_id=eq.${revision.id}`,
+      `schedule_cards?select=id,requirement_id,duration_periods,publication_end_time_override&schedule_revision_id=eq.${revision.id}`,
       accessToken,
     ),
     authedGet<PlacementRow[]>(
@@ -447,7 +448,10 @@ export async function fetchManagementPublicationPreview(
         signature: unitSignature(
           placement.day_of_week,
           period.start,
-          period.end,
+          offset === card.duration_periods - 1
+            && card.publication_end_time_override
+            ? normalizeTime(card.publication_end_time_override)
+            : period.end,
           placement.teacher_id,
           roomId,
         ),
