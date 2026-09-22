@@ -132,6 +132,58 @@ interface Unit {
   signature: string;
 }
 
+export function resolvePublicationSessionMapping({
+  publicationNumber,
+  publicationSessions,
+  requirementLineage,
+  bootstrapEvidence,
+}: {
+  publicationNumber: number | null;
+  publicationSessions: PublicationSessionRow[];
+  requirementLineage: RequirementLineageRow[];
+  bootstrapEvidence: EvidenceRow[];
+}) {
+  if (publicationNumber === null) {
+    return {
+      mappingSource: 'BOOTSTRAP_EVIDENCE' as const,
+      publicationNumber: null,
+      activeMapping: bootstrapEvidence,
+      sourceMappingSessionCount: bootstrapEvidence.length,
+      missingRequirementMappingCount: 0,
+    };
+  }
+
+  const parentToChildRequirement = new Map(
+    requirementLineage.map((row) => [
+      row.parent_requirement_id,
+      row.child_requirement_id,
+    ]),
+  );
+
+  const activeMapping: EvidenceRow[] = publicationSessions.flatMap((row) => {
+    const childRequirementId = parentToChildRequirement.get(
+      row.requirement_id,
+    );
+
+    return childRequirementId
+      ? [{
+        requirement_id: childRequirementId,
+        source_session_id: row.session_id,
+      }]
+      : [];
+  });
+
+  return {
+    mappingSource: 'MANAGED_PUBLICATION' as const,
+    publicationNumber,
+    activeMapping,
+    sourceMappingSessionCount: publicationSessions.length,
+    missingRequirementMappingCount: publicationSessions.filter(
+      (row) => !parentToChildRequirement.has(row.requirement_id),
+    ).length,
+  };
+}
+
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -433,45 +485,23 @@ export async function fetchManagementPublicationPreview(
     }),
   );
 
-  const mappingSource: ManagementPublicationPreviewData['mappingSource'] =
-    latestPublication ? 'MANAGED_PUBLICATION' : 'BOOTSTRAP_EVIDENCE';
-
-  const parentToChildRequirement = new Map(
-    requirementLineage.map((row) => [
-      row.parent_requirement_id,
-      row.child_requirement_id,
-    ]),
-  );
-
-  const activeMapping: EvidenceRow[] = latestPublication
-    ? publicationSessions.flatMap((row) => {
-      const childRequirementId = parentToChildRequirement.get(
-        row.requirement_id,
-      );
-
-      return childRequirementId
-        ? [{
-          requirement_id: childRequirementId,
-          source_session_id: row.session_id,
-        }]
-        : [];
-    })
-    : evidence;
-
-  const sourceMappingSessionCount = latestPublication
-    ? publicationSessions.length
-    : evidence.length;
+  const {
+    mappingSource,
+    publicationNumber,
+    activeMapping,
+    sourceMappingSessionCount,
+    missingRequirementMappingCount,
+  } = resolvePublicationSessionMapping({
+    publicationNumber,
+    publicationSessions,
+    requirementLineage,
+    bootstrapEvidence: evidence,
+  });
 
   const mappingSourceIds = new Set(
     activeMapping.map((row) => row.source_session_id),
   );
   const currentPublicIds = new Set(publicSessions.map((row) => row.id));
-
-  const missingRequirementMappingCount = latestPublication
-    ? publicationSessions.filter(
-      (row) => !parentToChildRequirement.has(row.requirement_id),
-    ).length
-    : 0;
 
   const missingEvidenceSessionCount = (
     activeMapping.filter(
