@@ -120,7 +120,7 @@ where not exists (
   where publication.academic_year = control.academic_year
 );
 
-do $
+do $$
 begin
   if not exists (
     select 1
