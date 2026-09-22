@@ -126,6 +126,8 @@ declare
   v_target_count integer;
   v_target_period_count integer;
   v_pair_conflict_count integer;
+  v_pair_conflicts jsonb := '[]'::jsonb;
+  v_no_source_details jsonb := '[]'::jsonb;
   v_partition_load_mismatch_count integer;
   v_weekly_load_adjustments jsonb := '[]'::jsonb;
 
@@ -587,9 +589,36 @@ begin
 
   -- Every active current card with no source evidence must be one of the five
   -- explicitly modeled effective runtime overlays.
-  select count(*)
-  into v_no_source_card_count
+  select
+    count(*)::integer,
+    coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'cardId', card.id,
+          'requirementId', requirement.id,
+          'subjectName', subject.name,
+          'groupName', instructional_group.name,
+          'blockIndex', card.block_index,
+          'durationPeriods', card.duration_periods
+        )
+        order by
+          subject.name,
+          instructional_group.name,
+          card.block_index,
+          card.id
+      ),
+      '[]'::jsonb
+    )
+  into
+    v_no_source_card_count,
+    v_no_source_details
   from public.schedule_cards card
+  join public.course_requirements requirement
+    on requirement.id = card.requirement_id
+  join public.subjects subject
+    on subject.id = requirement.subject_id
+  join public.instructional_groups instructional_group
+    on instructional_group.id = requirement.instructional_group_id
   where card.schedule_revision_id = v_source_revision_id
     and not exists (
       select 1
@@ -599,8 +628,9 @@ begin
 
   if v_no_source_card_count <> 5 then
     raise exception
-      'M25 expected exactly 5 active no-source runtime cards, found %',
-      v_no_source_card_count;
+      'M25 expected exactly 5 active no-source runtime cards, found %. Details: %',
+      v_no_source_card_count,
+      v_no_source_details;
   end if;
 
   -- 5A Monday V. Kondisyon.
@@ -774,38 +804,107 @@ begin
   end if;
 
   -- Complete effective target set must be internally conflict-free.
-  select count(*)
-  into v_pair_conflict_count
-  from m25_targets left_target
-  join m25_targets right_target
-    on right_target.target_card_id > left_target.target_card_id
-   and right_target.day_of_week = left_target.day_of_week
-   and right_target.start_period
-      <= left_target.start_period + left_target.duration_periods - 1
-   and left_target.start_period
-      <= right_target.start_period + right_target.duration_periods - 1
-  join public.course_requirements left_requirement
-    on left_requirement.id = left_target.requirement_id
-  join public.course_requirements right_requirement
-    on right_requirement.id = right_target.requirement_id
-  where
-    (
-      left_target.teacher_id is not null
-      and left_target.teacher_id = right_target.teacher_id
+  with conflicts as (
+    select
+      left_target.target_card_id as left_card_id,
+      right_target.target_card_id as right_card_id,
+      left_target.day_of_week,
+      left_target.start_period as left_start_period,
+      right_target.start_period as right_start_period,
+      left_subject.name as left_subject,
+      left_group.name as left_group,
+      right_subject.name as right_subject,
+      right_group.name as right_group,
+      array_remove(
+        array[
+          case
+            when left_target.teacher_id is not null
+             and left_target.teacher_id = right_target.teacher_id
+              then 'TEACHER_CONFLICT'
+          end,
+          case
+            when left_target.room_id is not null
+             and left_target.room_id = right_target.room_id
+              then 'ROOM_CONFLICT'
+          end,
+          case
+            when public.management_instructional_groups_conflict(
+              left_requirement.instructional_group_id,
+              right_requirement.instructional_group_id
+            )
+              then 'GROUP_CONFLICT'
+          end
+        ]::text[],
+        null
+      ) as conflict_types
+    from m25_targets left_target
+    join m25_targets right_target
+      on right_target.target_card_id > left_target.target_card_id
+     and right_target.day_of_week = left_target.day_of_week
+     and right_target.start_period
+        <= left_target.start_period + left_target.duration_periods - 1
+     and left_target.start_period
+        <= right_target.start_period + right_target.duration_periods - 1
+    join public.course_requirements left_requirement
+      on left_requirement.id = left_target.requirement_id
+    join public.course_requirements right_requirement
+      on right_requirement.id = right_target.requirement_id
+    join public.subjects left_subject
+      on left_subject.id = left_requirement.subject_id
+    join public.subjects right_subject
+      on right_subject.id = right_requirement.subject_id
+    join public.instructional_groups left_group
+      on left_group.id = left_requirement.instructional_group_id
+    join public.instructional_groups right_group
+      on right_group.id = right_requirement.instructional_group_id
+    where
+      (
+        left_target.teacher_id is not null
+        and left_target.teacher_id = right_target.teacher_id
+      )
+      or (
+        left_target.room_id is not null
+        and left_target.room_id = right_target.room_id
+      )
+      or public.management_instructional_groups_conflict(
+        left_requirement.instructional_group_id,
+        right_requirement.instructional_group_id
+      )
+  )
+  select
+    count(*)::integer,
+    coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'leftCardId', conflict.left_card_id,
+          'rightCardId', conflict.right_card_id,
+          'dayOfWeek', conflict.day_of_week,
+          'leftStartPeriod', conflict.left_start_period,
+          'rightStartPeriod', conflict.right_start_period,
+          'leftSubject', conflict.left_subject,
+          'leftGroup', conflict.left_group,
+          'rightSubject', conflict.right_subject,
+          'rightGroup', conflict.right_group,
+          'conflictTypes', to_jsonb(conflict.conflict_types)
+        )
+        order by
+          conflict.day_of_week,
+          conflict.left_start_period,
+          conflict.left_subject,
+          conflict.right_subject
+      ),
+      '[]'::jsonb
     )
-    or (
-      left_target.room_id is not null
-      and left_target.room_id = right_target.room_id
-    )
-    or public.management_instructional_groups_conflict(
-      left_requirement.instructional_group_id,
-      right_requirement.instructional_group_id
-    );
+  into
+    v_pair_conflict_count,
+    v_pair_conflicts
+  from conflicts conflict;
 
   if v_pair_conflict_count <> 0 then
     raise exception
-      'M25 effective student schedule target set has % pairwise conflicts',
-      v_pair_conflict_count;
+      'M25 effective student schedule target set has % pairwise conflicts. Details: %',
+      v_pair_conflict_count,
+      v_pair_conflicts;
   end if;
 
   -- Bring requirement partition metadata in line with the actual source runs.
