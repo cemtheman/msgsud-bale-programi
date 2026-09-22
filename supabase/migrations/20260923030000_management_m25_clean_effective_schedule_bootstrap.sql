@@ -47,6 +47,8 @@ create table if not exists public.management_clean_effective_bootstrap_runs (
   runtime_adjustment_target_count integer not null,
   active_source_requirement_count integer not null,
   active_source_unit_count integer not null,
+  weekly_load_adjustment_count integer not null,
+  weekly_load_adjustments jsonb not null,
   projected_group_row_count integer not null,
   source_public_session_count integer not null,
   source_public_group_count integer not null,
@@ -64,6 +66,7 @@ create table if not exists public.management_clean_effective_bootstrap_runs (
       and runtime_adjustment_target_count >= 0
       and active_source_requirement_count >= 0
       and active_source_unit_count >= 0
+      and weekly_load_adjustment_count >= 0
       and projected_group_row_count >= 0
       and source_public_session_count >= 0
       and source_public_group_count >= 0
@@ -124,6 +127,7 @@ declare
   v_target_period_count integer;
   v_pair_conflict_count integer;
   v_partition_load_mismatch_count integer;
+  v_weekly_load_adjustments jsonb := '[]'::jsonb;
 
   v_clean_card_count integer;
   v_clean_placement_count integer;
@@ -484,18 +488,51 @@ begin
   from m25_source_runs source_run
   group by source_run.requirement_id;
 
-  select count(*)
-  into v_partition_load_mismatch_count
+  select
+    count(*)::integer,
+    coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'requirementId', requirement.id,
+          'subjectName', subject.name,
+          'groupName', instructional_group.name,
+          'weeklyLoadBefore', requirement.weekly_load,
+          'weeklyLoadAfter', partition_row.source_period_count,
+          'sourcePartition', partition_row.partition_json,
+          'basis', 'EFFECTIVE_PUBLIC_SOURCE'
+        )
+        order by
+          subject.name,
+          instructional_group.name,
+          requirement.id
+      ) filter (
+        where partition_row.source_period_count <> requirement.weekly_load
+      ),
+      '[]'::jsonb
+    )
+  into
+    v_partition_load_mismatch_count,
+    v_weekly_load_adjustments
   from m25_partitions partition_row
   join public.course_requirements requirement
     on requirement.id = partition_row.requirement_id
+  join public.subjects subject
+    on subject.id = requirement.subject_id
+  join public.instructional_groups instructional_group
+    on instructional_group.id = requirement.instructional_group_id
   where partition_row.source_period_count <> requirement.weekly_load;
 
-  if v_partition_load_mismatch_count <> 0 then
-    raise exception
-      'M25 found % active requirements whose public source period total differs from weekly_load',
-      v_partition_load_mismatch_count;
-  end if;
+  -- The effective student schedule is the authoritative baseline for M25.
+  -- If an active requirement's legacy weekly_load disagrees with the exact
+  -- public source evidence, align the management load to that evidence and
+  -- retain a complete audit record above. Curriculum-reference checks remain
+  -- advisory and can still report any official/local composition difference.
+  update public.course_requirements requirement
+  set weekly_load = partition_row.source_period_count::smallint
+  from m25_partitions partition_row
+  where requirement.id = partition_row.requirement_id
+    and requirement.weekly_load is distinct from
+      partition_row.source_period_count::smallint;
 
   create temporary table m25_targets (
     target_card_id uuid primary key,
@@ -846,7 +883,7 @@ begin
     v_source_revision_id,
     jsonb_build_object(
       'phase', 'M25',
-      'engine_version', 'M25-v2',
+      'engine_version', 'M25-v2.1',
       'bootstrap_source', 'EFFECTIVE_STUDENT_SCHEDULE',
       'source_test_card_count', v_source_card_count,
       'clean_card_count', v_target_count,
@@ -1143,7 +1180,7 @@ begin
     coalesce(validation_summary, '{}'::jsonb)
     || jsonb_build_object(
       'm25_clean_effective_bootstrap', 'PASS',
-      'engine_version', 'M25-v2',
+      'engine_version', 'M25-v2.1',
       'source_test_card_count', v_source_card_count,
       'clean_card_count', v_clean_card_count,
       'placement_count', v_clean_placement_count,
@@ -1154,6 +1191,10 @@ begin
         v_active_source_requirement_count,
       'active_source_unit_count',
         v_active_source_unit_count,
+      'weekly_load_adjustment_count',
+        v_partition_load_mismatch_count,
+      'weekly_load_adjustments',
+        v_weekly_load_adjustments,
       'public_source_target_count',
         v_public_source_target_count,
       'runtime_adjustment_target_count', v_overlay_target_count,
@@ -1176,6 +1217,8 @@ begin
     runtime_adjustment_target_count,
     active_source_requirement_count,
     active_source_unit_count,
+    weekly_load_adjustment_count,
+    weekly_load_adjustments,
     projected_group_row_count,
     source_public_session_count,
     source_public_group_count,
@@ -1187,7 +1230,7 @@ begin
     v_requirement_set_id,
     v_source_revision_id,
     v_clean_revision_id,
-    'M25-v2',
+    'M25-v2.1',
     v_source_card_count,
     v_clean_card_count,
     v_clean_placement_count,
@@ -1196,6 +1239,8 @@ begin
     v_overlay_target_count,
     v_active_source_requirement_count,
     v_active_source_unit_count,
+    v_partition_load_mismatch_count,
+    v_weekly_load_adjustments,
     v_projected_group_count,
     v_public_session_count,
     v_public_group_count,
@@ -1205,6 +1250,10 @@ begin
       'allCardsPlaced', v_clean_placement_count = v_clean_card_count,
       'moveHistoryEmpty', v_clean_move_count = 0,
       'testCardPartitionCopied', false,
+      'weeklyLoadAlignedToEffectivePublicSource',
+        v_partition_load_mismatch_count,
+      'weeklyLoadAdjustments',
+        v_weekly_load_adjustments,
       'missingDomainSummaryCount', v_missing_summary_count,
       'contradictionCount', v_contradiction_count,
       'invalidPeriodCount', v_invalid_period_count,
