@@ -147,6 +147,7 @@ declare
   v_existing_public_notes_count integer;
   v_inconsistent_teacher_count integer;
   v_inconsistent_room_count integer;
+  v_inconsistent_placement_details jsonb := '[]'::jsonb;
   v_projected_group_count integer;
   v_unresolved_inherited_count integer;
   v_provisional_placement_count integer;
@@ -338,6 +339,7 @@ begin
 
   drop table if exists pg_temp.m25_active_source_requirements;
   drop table if exists pg_temp.m25_source_units;
+  drop table if exists pg_temp.m25_source_resource_profiles;
   drop table if exists pg_temp.m25_source_runs;
   drop table if exists pg_temp.m25_partitions;
   drop table if exists pg_temp.m25_targets;
@@ -404,6 +406,94 @@ begin
   select count(*)
   into v_active_source_unit_count
   from m25_source_units;
+
+  -- -----------------------------------------------------------------------
+  -- REBUILD SOURCE-BACKED RESOURCE STRATEGY FROM THE EFFECTIVE PUBLIC SOURCE
+  -- -----------------------------------------------------------------------
+  -- The retired test DRAFT is not authoritative for teacher/room strategy.
+  -- Re-derive the same certainty semantics used by the original observed
+  -- bootstrap:
+  --   * no NULL + one identity  -> FIXED
+  --   * no NULL + many          -> ELIGIBLE_POOL
+  --   * any NULL                -> UNKNOWN
+  -- Runtime-only requirements are intentionally excluded and retain their
+  -- explicit M19.3 semantics.
+
+  create temporary table m25_source_resource_profiles
+  on commit drop
+  as
+  select
+    source.requirement_id,
+    case
+      when count(*) filter (where source.teacher_id is null) = 0
+       and count(distinct source.teacher_id)
+             filter (where source.teacher_id is not null) = 1
+        then 'FIXED'
+      when count(*) filter (where source.teacher_id is null) = 0
+       and count(distinct source.teacher_id)
+             filter (where source.teacher_id is not null) > 1
+        then 'ELIGIBLE_POOL'
+      else 'UNKNOWN'
+    end::text as teacher_mode,
+    case
+      when count(*) filter (where source.room_id is null) = 0
+       and count(distinct source.room_id)
+             filter (where source.room_id is not null) = 1
+        then 'FIXED'
+      when count(*) filter (where source.room_id is null) = 0
+       and count(distinct source.room_id)
+             filter (where source.room_id is not null) > 1
+        then 'ELIGIBLE_POOL'
+      else 'UNKNOWN'
+    end::text as resource_mode
+  from m25_source_units source
+  group by source.requirement_id;
+
+  update public.course_requirements requirement
+  set
+    teacher_mode = profile.teacher_mode,
+    resource_mode = profile.resource_mode,
+    required_capability = null
+  from m25_source_resource_profiles profile
+  where requirement.id = profile.requirement_id;
+
+  delete from public.course_requirement_teachers assignment
+  using m25_source_resource_profiles profile
+  where assignment.requirement_id = profile.requirement_id;
+
+  insert into public.course_requirement_teachers (
+    requirement_id,
+    teacher_id,
+    knowledge_status
+  )
+  select distinct
+    source.requirement_id,
+    source.teacher_id,
+    'OBSERVED'
+  from m25_source_units source
+  join m25_source_resource_profiles profile
+    on profile.requirement_id = source.requirement_id
+  where profile.teacher_mode <> 'UNKNOWN'
+    and source.teacher_id is not null;
+
+  delete from public.course_requirement_rooms assignment
+  using m25_source_resource_profiles profile
+  where assignment.requirement_id = profile.requirement_id;
+
+  insert into public.course_requirement_rooms (
+    requirement_id,
+    room_id,
+    knowledge_status
+  )
+  select distinct
+    source.requirement_id,
+    source.room_id,
+    'OBSERVED'
+  from m25_source_units source
+  join m25_source_resource_profiles profile
+    on profile.requirement_id = source.requirement_id
+  where profile.resource_mode <> 'UNKNOWN'
+    and source.room_id is not null;
 
   create temporary table m25_source_runs
   on commit drop
@@ -931,6 +1021,12 @@ begin
     from jsonb_array_elements(v_resource_evidence_downgrades) item
   );
 
+  delete from public.course_requirement_teachers assignment
+  where assignment.requirement_id in (
+    select (item ->> 'publicRequirementId')::uuid
+    from jsonb_array_elements(v_resource_evidence_downgrades) item
+  );
+
   -- Complete effective target set must now be internally conflict-free.
   with conflicts as (
     select
@@ -1110,8 +1206,9 @@ begin
     v_source_revision_id,
     jsonb_build_object(
       'phase', 'M25',
-      'engine_version', 'M25-v2.2',
+      'engine_version', 'M25-v2.3',
       'bootstrap_source', 'EFFECTIVE_STUDENT_SCHEDULE',
+      'source_resource_strategy', 'REBUILT_FROM_EFFECTIVE_PUBLIC_SOURCE',
       'source_test_card_count', v_source_card_count,
       'clean_card_count', v_target_count,
       'public_source_block_count', v_public_source_target_count,
@@ -1302,14 +1399,51 @@ begin
       where placement.teacher_resolution_status <> 'RESOLVED'
          or placement.room_resolution_status <> 'RESOLVED'
          or cardinality(placement.resource_warning_codes) > 0
+    ),
+    coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'cardId', card.id,
+          'requirementId', requirement.id,
+          'subjectName', subject.name,
+          'groupName', instructional_group.name,
+          'dayOfWeek', placement.day_of_week,
+          'startPeriod', placement.start_period,
+          'teacherId', placement.teacher_id,
+          'roomId', placement.room_id,
+          'teacherMode', requirement.teacher_mode,
+          'resourceMode', requirement.resource_mode,
+          'teacherResolutionStatus',
+            placement.teacher_resolution_status,
+          'roomResolutionStatus',
+            placement.room_resolution_status,
+          'warnings', to_jsonb(placement.resource_warning_codes)
+        )
+        order by
+          placement.day_of_week,
+          placement.start_period,
+          subject.name,
+          instructional_group.name
+      ) filter (
+        where placement.teacher_resolution_status = 'INCONSISTENT'
+           or placement.room_resolution_status = 'INCONSISTENT'
+      ),
+      '[]'::jsonb
     )
   into
     v_inconsistent_teacher_count,
     v_inconsistent_room_count,
-    v_provisional_placement_count
+    v_provisional_placement_count,
+    v_inconsistent_placement_details
   from public.placements placement
   join public.schedule_cards card
     on card.id = placement.card_id
+  join public.course_requirements requirement
+    on requirement.id = card.requirement_id
+  join public.subjects subject
+    on subject.id = requirement.subject_id
+  join public.instructional_groups instructional_group
+    on instructional_group.id = requirement.instructional_group_id
   where card.schedule_revision_id = v_clean_revision_id;
 
   -- With zero move history, all unresolved candidate-domain uncertainty is
@@ -1350,7 +1484,7 @@ begin
      or v_inconsistent_teacher_count <> 0
      or v_inconsistent_room_count <> 0 then
     raise exception
-      'M25 publish-readiness blocker: missing summaries %, contradictions %, invalid periods %, memberless %, inactive rooms %, public notes %, inconsistent teachers %, inconsistent rooms %',
+      'M25 publish-readiness blocker: missing summaries %, contradictions %, invalid periods %, memberless %, inactive rooms %, public notes %, inconsistent teachers %, inconsistent rooms %. Details: %',
       v_missing_summary_count,
       v_contradiction_count,
       v_invalid_period_count,
@@ -1358,7 +1492,8 @@ begin
       v_inactive_room_count,
       v_existing_public_notes_count,
       v_inconsistent_teacher_count,
-      v_inconsistent_room_count;
+      v_inconsistent_room_count,
+      v_inconsistent_placement_details;
   end if;
 
   if not coalesce(
@@ -1407,7 +1542,7 @@ begin
     coalesce(validation_summary, '{}'::jsonb)
     || jsonb_build_object(
       'm25_clean_effective_bootstrap', 'PASS',
-      'engine_version', 'M25-v2.2',
+      'engine_version', 'M25-v2.3',
       'source_test_card_count', v_source_card_count,
       'clean_card_count', v_clean_card_count,
       'placement_count', v_clean_placement_count,
@@ -1463,7 +1598,7 @@ begin
     v_requirement_set_id,
     v_source_revision_id,
     v_clean_revision_id,
-    'M25-v2.2',
+    'M25-v2.3',
     v_source_card_count,
     v_clean_card_count,
     v_clean_placement_count,
@@ -1485,6 +1620,7 @@ begin
       'allCardsPlaced', v_clean_placement_count = v_clean_card_count,
       'moveHistoryEmpty', v_clean_move_count = 0,
       'testCardPartitionCopied', false,
+      'sourceResourceStrategyRebuilt', true,
       'weeklyLoadAlignedToEffectivePublicSource',
         v_partition_load_mismatch_count,
       'weeklyLoadAdjustments',
