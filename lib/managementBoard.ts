@@ -55,6 +55,7 @@ export interface ManagementBoardRow {
   classCode?: string;
   audienceScope?: ManagementAudienceScope;
   availableAudiences?: ManagementAudienceScope[];
+  includeSectionCards?: boolean;
 }
 
 export interface ManagementBoardData {
@@ -340,15 +341,20 @@ export function cardBelongsToClassRow(
 
   const scope = row.audienceScope ?? 'ALL';
   if (scope === 'ALL') return true;
-  if (scope === 'SECTION') {
-    return card.audienceTargets.includes('SECTION');
+
+  if (card.audienceTargets.includes(scope)) {
+    return true;
   }
 
-  // Class rows represent the actual student program. Bale and music students
-  // both receive SECTION lessons, while discipline lessons remain isolated to
-  // their own audience row.
-  return card.audienceTargets.includes(scope)
-    || card.audienceTargets.includes('SECTION');
+  // Filtered BALLET / MUSIC views represent the student's complete program,
+  // so their common SECTION lessons are included there. In the combined view
+  // rows stay strict, preventing the same common card from being rendered once
+  // under BALLET and again under MUSIC.
+  return Boolean(
+    row.includeSectionCards
+    && (scope === 'BALLET' || scope === 'MUSIC')
+    && card.audienceTargets.includes('SECTION'),
+  );
 }
 
 export function buildManagementClassRows(
@@ -382,20 +388,21 @@ export function buildManagementClassRows(
     const availableAudiences = observedAudiences.length
       ? observedAudiences
       : ['SECTION' as const];
-    const disciplineAudiences = (['BALLET', 'MUSIC'] as const)
-      .filter((audience) => availableAudiences.includes(audience));
 
-    const scopes: ManagementAudienceScope[] = disciplineAudiences.length > 0
-      ? [...disciplineAudiences]
-      : ['SECTION'];
+    // Combined class view uses one strict row per audience. SECTION is kept as
+    // its own row so common lessons are rendered once instead of being
+    // duplicated under both BALLET and MUSIC.
+    const scopes = (['SECTION', 'BALLET', 'MUSIC'] as const)
+      .filter((audience) => availableAudiences.includes(audience));
 
     return scopes.map((scope) => ({
       id: `${code}::${scope}`,
       label: `${code} · ${audienceSymbol(scope)}`,
-      secondary: Number(row.grade) <= 8 ? 'Ortaokul' : 'Lise',
+      secondary: null,
       classCode: code,
       audienceScope: scope,
       availableAudiences,
+      includeSectionCards: false,
     }));
   });
 }
@@ -441,6 +448,7 @@ export function managementRowsForView(
           label: `${code} · ${audienceSymbol('SECTION')}`,
           classCode: code,
           audienceScope: 'SECTION',
+          includeSectionCards: false,
         }];
       });
     }
@@ -450,7 +458,12 @@ export function managementRowsForView(
     // cardBelongsToClassRow/cardMatchesAudience; sibling audience rows must not
     // leak into the filtered view merely because the class supports the target
     // audience.
-    return stageRows.filter((row) => row.audienceScope === audience);
+    return stageRows
+      .filter((row) => row.audienceScope === audience)
+      .map((row) => ({
+        ...row,
+        includeSectionCards: true,
+      }));
   }
 
   if (view === 'ÖĞRETMENLER') {
