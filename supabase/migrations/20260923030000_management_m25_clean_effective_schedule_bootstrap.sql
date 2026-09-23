@@ -49,6 +49,8 @@ create table if not exists public.management_clean_effective_bootstrap_runs (
   active_source_unit_count integer not null,
   weekly_load_adjustment_count integer not null,
   weekly_load_adjustments jsonb not null,
+  resource_evidence_downgrade_count integer not null,
+  resource_evidence_downgrades jsonb not null,
   projected_group_row_count integer not null,
   source_public_session_count integer not null,
   source_public_group_count integer not null,
@@ -67,6 +69,7 @@ create table if not exists public.management_clean_effective_bootstrap_runs (
       and active_source_requirement_count >= 0
       and active_source_unit_count >= 0
       and weekly_load_adjustment_count >= 0
+      and resource_evidence_downgrade_count >= 0
       and projected_group_row_count >= 0
       and source_public_session_count >= 0
       and source_public_group_count >= 0
@@ -127,6 +130,8 @@ declare
   v_target_period_count integer;
   v_pair_conflict_count integer;
   v_pair_conflicts jsonb := '[]'::jsonb;
+  v_resource_evidence_downgrade_count integer := 0;
+  v_resource_evidence_downgrades jsonb := '[]'::jsonb;
   v_no_source_details jsonb := '[]'::jsonb;
   v_partition_load_mismatch_count integer;
   v_weekly_load_adjustments jsonb := '[]'::jsonb;
@@ -803,7 +808,130 @@ begin
       'M25 target plan contains invalid period/lunch crossing';
   end if;
 
-  -- Complete effective target set must be internally conflict-free.
+  -- -----------------------------------------------------------------------
+  -- AUTHORITATIVE RUNTIME-OVERLAY PRECEDENCE FOR STALE RESOURCE EVIDENCE
+  -- -----------------------------------------------------------------------
+  -- A later explicit runtime overlay can supersede older public resource
+  -- evidence without deleting the older lesson/time itself. The known case is:
+  --   Friday period 8:
+  --     5A K. Bale (runtime overlay, CONFIRMED) -> E. Gemalmaz
+  --     11A+12A Pilates (older public source)   -> E. Gemalmaz
+  --
+  -- Preserve both lessons and both times. Keep the newer explicit 5A teacher
+  -- assignment. Downgrade ONLY the older conflicting Pilates teacher identity
+  -- to UNKNOWN in the clean management draft. No replacement teacher is
+  -- invented. Any additional or differently shaped overlay/public teacher
+  -- conflict remains blocking.
+
+  with precedence_conflicts as (
+    select distinct
+      public_target.target_card_id as public_card_id,
+      public_target.requirement_id as public_requirement_id,
+      public_target.day_of_week,
+      public_target.start_period as public_start_period,
+      public_target.teacher_id as stale_teacher_id,
+      public_subject.name as public_subject,
+      public_group.name as public_group,
+      overlay_target.target_card_id as overlay_card_id,
+      overlay_target.requirement_id as overlay_requirement_id,
+      overlay_target.start_period as overlay_start_period,
+      overlay_subject.name as overlay_subject,
+      overlay_group.name as overlay_group,
+      teacher.name as teacher_name
+    from m25_targets public_target
+    join m25_targets overlay_target
+      on public_target.source_kind = 'PUBLIC_BASELINE'
+     and overlay_target.source_kind = 'RUNTIME_ADJUSTMENT'
+     and overlay_target.day_of_week = public_target.day_of_week
+     and overlay_target.start_period
+        <= public_target.start_period + public_target.duration_periods - 1
+     and public_target.start_period
+        <= overlay_target.start_period + overlay_target.duration_periods - 1
+     and public_target.teacher_id is not null
+     and overlay_target.teacher_id = public_target.teacher_id
+    join public.course_requirements public_requirement
+      on public_requirement.id = public_target.requirement_id
+    join public.subjects public_subject
+      on public_subject.id = public_requirement.subject_id
+    join public.instructional_groups public_group
+      on public_group.id = public_requirement.instructional_group_id
+    join public.course_requirements overlay_requirement
+      on overlay_requirement.id = overlay_target.requirement_id
+    join public.subjects overlay_subject
+      on overlay_subject.id = overlay_requirement.subject_id
+    join public.instructional_groups overlay_group
+      on overlay_group.id = overlay_requirement.instructional_group_id
+    join public.teachers teacher
+      on teacher.id = public_target.teacher_id
+  )
+  select
+    count(*)::integer,
+    coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'basis', 'RUNTIME_OVERLAY_PRECEDENCE',
+          'publicCardId', conflict.public_card_id,
+          'publicRequirementId', conflict.public_requirement_id,
+          'dayOfWeek', conflict.day_of_week,
+          'startPeriod', conflict.public_start_period,
+          'publicSubject', conflict.public_subject,
+          'publicGroup', conflict.public_group,
+          'staleTeacherId', conflict.stale_teacher_id,
+          'staleTeacherName', conflict.teacher_name,
+          'overlayCardId', conflict.overlay_card_id,
+          'overlayRequirementId', conflict.overlay_requirement_id,
+          'overlayStartPeriod', conflict.overlay_start_period,
+          'overlaySubject', conflict.overlay_subject,
+          'overlayGroup', conflict.overlay_group,
+          'resolution', 'PUBLIC_TEACHER_IDENTITY_DOWNGRADED_TO_UNKNOWN'
+        )
+        order by
+          conflict.day_of_week,
+          conflict.public_start_period,
+          conflict.public_subject,
+          conflict.public_group
+      ),
+      '[]'::jsonb
+    )
+  into
+    v_resource_evidence_downgrade_count,
+    v_resource_evidence_downgrades
+  from precedence_conflicts conflict;
+
+  if v_resource_evidence_downgrade_count <> 1
+     or not exists (
+       select 1
+       from jsonb_array_elements(v_resource_evidence_downgrades) item
+       where item ->> 'publicSubject' = 'Pilates'
+         and item ->> 'publicGroup' =
+           'SHARED • 11A BALLET + 12A BALLET'
+         and (item ->> 'dayOfWeek')::integer = 5
+         and (item ->> 'startPeriod')::integer = v_period_1440
+         and item ->> 'overlaySubject' = 'K. Bale'
+         and item ->> 'overlayGroup' =
+           'STANDARD • 5A BALLET • Cuma ek dersi'
+         and item ->> 'staleTeacherName' = 'E. Gemalmaz'
+     ) then
+    raise exception
+      'M25 unexpected runtime/public teacher precedence conflicts: %',
+      v_resource_evidence_downgrades;
+  end if;
+
+  update m25_targets target
+  set teacher_id = null
+  where target.target_card_id in (
+    select (item ->> 'publicCardId')::uuid
+    from jsonb_array_elements(v_resource_evidence_downgrades) item
+  );
+
+  update public.course_requirements requirement
+  set teacher_mode = 'UNKNOWN'
+  where requirement.id in (
+    select (item ->> 'publicRequirementId')::uuid
+    from jsonb_array_elements(v_resource_evidence_downgrades) item
+  );
+
+  -- Complete effective target set must now be internally conflict-free.
   with conflicts as (
     select
       left_target.target_card_id as left_card_id,
@@ -982,7 +1110,7 @@ begin
     v_source_revision_id,
     jsonb_build_object(
       'phase', 'M25',
-      'engine_version', 'M25-v2.1',
+      'engine_version', 'M25-v2.2',
       'bootstrap_source', 'EFFECTIVE_STUDENT_SCHEDULE',
       'source_test_card_count', v_source_card_count,
       'clean_card_count', v_target_count,
@@ -1279,7 +1407,7 @@ begin
     coalesce(validation_summary, '{}'::jsonb)
     || jsonb_build_object(
       'm25_clean_effective_bootstrap', 'PASS',
-      'engine_version', 'M25-v2.1',
+      'engine_version', 'M25-v2.2',
       'source_test_card_count', v_source_card_count,
       'clean_card_count', v_clean_card_count,
       'placement_count', v_clean_placement_count,
@@ -1294,6 +1422,10 @@ begin
         v_partition_load_mismatch_count,
       'weekly_load_adjustments',
         v_weekly_load_adjustments,
+      'resource_evidence_downgrade_count',
+        v_resource_evidence_downgrade_count,
+      'resource_evidence_downgrades',
+        v_resource_evidence_downgrades,
       'public_source_target_count',
         v_public_source_target_count,
       'runtime_adjustment_target_count', v_overlay_target_count,
@@ -1318,6 +1450,8 @@ begin
     active_source_unit_count,
     weekly_load_adjustment_count,
     weekly_load_adjustments,
+    resource_evidence_downgrade_count,
+    resource_evidence_downgrades,
     projected_group_row_count,
     source_public_session_count,
     source_public_group_count,
@@ -1329,7 +1463,7 @@ begin
     v_requirement_set_id,
     v_source_revision_id,
     v_clean_revision_id,
-    'M25-v2.1',
+    'M25-v2.2',
     v_source_card_count,
     v_clean_card_count,
     v_clean_placement_count,
@@ -1340,6 +1474,8 @@ begin
     v_active_source_unit_count,
     v_partition_load_mismatch_count,
     v_weekly_load_adjustments,
+    v_resource_evidence_downgrade_count,
+    v_resource_evidence_downgrades,
     v_projected_group_count,
     v_public_session_count,
     v_public_group_count,
@@ -1353,6 +1489,10 @@ begin
         v_partition_load_mismatch_count,
       'weeklyLoadAdjustments',
         v_weekly_load_adjustments,
+      'resourceEvidenceDowngradeCount',
+        v_resource_evidence_downgrade_count,
+      'resourceEvidenceDowngrades',
+        v_resource_evidence_downgrades,
       'missingDomainSummaryCount', v_missing_summary_count,
       'contradictionCount', v_contradiction_count,
       'invalidPeriodCount', v_invalid_period_count,
