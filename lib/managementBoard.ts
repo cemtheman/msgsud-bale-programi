@@ -54,6 +54,7 @@ export interface ManagementBoardRow {
   secondary: string | null;
   classCode?: string;
   audienceScope?: ManagementAudienceScope;
+  availableAudiences?: ManagementAudienceScope[];
 }
 
 export interface ManagementBoardData {
@@ -335,11 +336,13 @@ export function cardBelongsToClassRow(
 export function buildManagementClassRows(
   classGroups: Array<{ grade: number; section: string }>,
   cards: ManagementBoardCard[],
+  audiencesByClassCode: Record<string, ManagementAudienceScope[]> = {},
 ): ManagementBoardRow[] {
   return classGroups
     .filter((row) => {
       const code = `${row.grade}${row.section}`;
-      return cards.some((card) => card.classCodes.includes(code));
+      return cards.some((card) => card.classCodes.includes(code))
+        || (audiencesByClassCode[code]?.length ?? 0) > 0;
     })
     .map((row) => {
       const code = `${row.grade}${row.section}`;
@@ -349,6 +352,7 @@ export function buildManagementClassRows(
         secondary: Number(row.grade) <= 8 ? 'Ortaokul' : 'Lise',
         classCode: code,
         audienceScope: 'ALL' as const,
+        availableAudiences: audiencesByClassCode[code],
       };
     });
 }
@@ -374,7 +378,8 @@ export function managementRowsForView(
     return stageRows
       .filter((row) => {
         const code = row.classCode ?? row.id;
-        return visibleCards.some((card) => card.classCodes.includes(code));
+        return row.availableAudiences?.includes(audience)
+          || visibleCards.some((card) => card.classCodes.includes(code));
       })
       .map((row) => {
         const code = row.classCode ?? row.id;
@@ -689,7 +694,39 @@ export async function fetchManagementBoard(
       || a.blockIndex - b.blockIndex;
   });
 
-  const classRows = buildManagementClassRows(classGroups, boardCards);
+  const audiencesByClassCode: Record<string, ManagementAudienceScope[]> = {};
+
+  groups.forEach((group) => {
+    if (
+      !group.class_group_id
+      || !['SECTION', 'BALLET', 'MUSIC'].includes(group.group_type)
+      || !group.audience_target
+    ) {
+      return;
+    }
+
+    const classGroup = classById.get(group.class_group_id);
+    if (!classGroup) return;
+
+    const code = classCode(classGroup);
+    const target = group.audience_target as ManagementAudienceScope;
+    const values = audiencesByClassCode[code] ?? [];
+    if (!values.includes(target)) values.push(target);
+    audiencesByClassCode[code] = values;
+  });
+
+  Object.values(audiencesByClassCode).forEach((values) => {
+    values.sort((a, b) => {
+      const order: ManagementAudienceScope[] = ['SECTION', 'BALLET', 'MUSIC'];
+      return order.indexOf(a) - order.indexOf(b);
+    });
+  });
+
+  const classRows = buildManagementClassRows(
+    classGroups,
+    boardCards,
+    audiencesByClassCode,
+  );
 
   const teacherRows: ManagementBoardRow[] = teachers
     .map((row) => ({
