@@ -15,11 +15,13 @@ import { ManagementCoursePlan } from '@/components/management/ManagementCoursePl
 import { ManagementResources } from '@/components/management/ManagementResources';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
+  cardMatchesAudience,
   cardMatchesStage,
   fetchManagementBoard,
   fetchManagementCardCandidates,
   managementRowsForView,
   translateCandidateReason,
+  type ManagementAudienceScope,
   type ManagementBoardData,
   type ManagementCandidateAssessment,
   type ManagementCandidateDetail,
@@ -89,6 +91,17 @@ const DAY_LONG: Record<number, string> = {
 const STAGES: Array<{ id: ManagementStage; label: string }> = [
   { id: 'ORTAOKUL', label: 'Ortaokul' },
   { id: 'LISE', label: 'Lise' },
+];
+
+const AUDIENCE_FILTERS: Array<{
+  id: ManagementAudienceScope;
+  label: string;
+  title: string;
+}> = [
+  { id: 'ALL', label: 'Tümü', title: 'Tüm dersler' },
+  { id: 'SECTION', label: '📚', title: 'Ortak / şube dersleri' },
+  { id: 'BALLET', label: '🩰', title: 'Bale öğrencileri' },
+  { id: 'MUSIC', label: '🎶', title: 'Müzik öğrencileri' },
 ];
 
 const RESOURCE_VIEWS: Array<{
@@ -269,6 +282,8 @@ export default function ManagementPage() {
   const [stage, setStage] = useState<ManagementStage>('ORTAOKUL');
   const [resourceView, setResourceView] =
     useState<ManagementResourceView>('SINIFLAR');
+  const [audienceFilter, setAudienceFilter] =
+    useState<ManagementAudienceScope>('ALL');
 
   const [poolOpen, setPoolOpen] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -373,17 +388,20 @@ export default function ManagementPage() {
   }, [refreshToken, session, status]);
 
   const visibleCards = useMemo(
-    () => board?.cards.filter((card) => cardMatchesStage(card, stage)) ?? [],
-    [board, stage],
+    () => board?.cards.filter(
+      (card) => cardMatchesStage(card, stage)
+        && cardMatchesAudience(card, audienceFilter),
+    ) ?? [],
+    [audienceFilter, board, stage],
   );
 
   const rows = useMemo(
     () => (
       board
-        ? managementRowsForView(board, resourceView, stage)
+        ? managementRowsForView(board, resourceView, stage, audienceFilter)
         : []
     ),
-    [board, resourceView, stage],
+    [audienceFilter, board, resourceView, stage],
   );
 
   const selectedCard = useMemo(
@@ -409,11 +427,17 @@ export default function ManagementPage() {
   };
 
   useEffect(() => {
-    if (selectedCard && !cardMatchesStage(selectedCard, stage)) {
+    if (
+      selectedCard
+      && (
+        !cardMatchesStage(selectedCard, stage)
+        || !cardMatchesAudience(selectedCard, audienceFilter)
+      )
+    ) {
       setSelectedCardId(null);
       setInspectorOpen(false);
     }
-  }, [selectedCard, stage]);
+  }, [audienceFilter, selectedCard, stage]);
 
   useEffect(() => {
     setCommandNotice(null);
@@ -888,6 +912,25 @@ export default function ManagementPage() {
                       ? 'bg-[#A63D48] text-white'
                       : 'text-slate-500 hover:bg-slate-50'
                   }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+  
+            <div className="flex rounded-xl border border-slate-200 bg-white p-1">
+              {AUDIENCE_FILTERS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setAudienceFilter(item.id)}
+                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                    audienceFilter === item.id
+                      ? 'bg-slate-950 text-white shadow-sm'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                  title={item.title}
+                  aria-label={item.title}
                 >
                   {item.label}
                 </button>
