@@ -118,23 +118,27 @@ describe('management class audience rows', () => {
       audienceScope: 'SECTION',
     });
 
-    expect(managementRowsForView(
+    const balletRows = managementRowsForView(
       data,
       'SINIFLAR',
       'ORTAOKUL',
       'BALLET',
-    )[0]).toMatchObject({
+    );
+    expect(balletRows).toHaveLength(1);
+    expect(balletRows[0]).toMatchObject({
       id: '5A::BALLET',
       label: '5A · 🩰',
       audienceScope: 'BALLET',
     });
 
-    expect(managementRowsForView(
+    const musicRows = managementRowsForView(
       data,
       'SINIFLAR',
       'ORTAOKUL',
       'MUSIC',
-    )[0]).toMatchObject({
+    );
+    expect(musicRows).toHaveLength(1);
+    expect(musicRows[0]).toMatchObject({
       id: '5A::MUSIC',
       label: '5A · 🎶',
       audienceScope: 'MUSIC',
