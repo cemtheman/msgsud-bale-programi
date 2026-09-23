@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  cardBelongsToClassRow,
   placementBelongsToRow,
   type ManagementBoardCard,
   type ManagementBoardRow,
@@ -90,7 +91,7 @@ function assessmentMatchesRow(
   view: ManagementResourceView,
 ) {
   if (view === 'SINIFLAR') {
-    return card.classCodes.includes(row.id);
+    return cardBelongsToClassRow(card, row);
   }
 
   if (view === 'ÖĞRETMENLER') {
@@ -119,7 +120,7 @@ function dropTargetForCell({
 }): ManagementDropTarget {
   if (
     view === 'SINIFLAR'
-    && !card.classCodes.includes(row.id)
+    && !cardBelongsToClassRow(card, row)
   ) {
     return {
       cardId: card.id,
