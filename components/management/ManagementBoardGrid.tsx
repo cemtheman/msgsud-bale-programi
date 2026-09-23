@@ -360,8 +360,8 @@ export function ManagementBoardGrid({
       )}
 
       <div className="management-scrollbar h-full overflow-auto">
-        <div className="min-w-[980px]">
-          <div className="grid grid-cols-[160px_repeat(12,minmax(70px,1fr))] border-b border-slate-200 bg-slate-50">
+        <div className="min-w-[948px]">
+          <div className="grid grid-cols-[132px_repeat(12,minmax(68px,1fr))] border-b border-slate-200 bg-slate-50">
             <div className="sticky left-0 z-20 border-r border-slate-200 bg-slate-50 px-4 py-3 text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">
               Kaynak
             </div>
@@ -401,26 +401,40 @@ export function ManagementBoardGrid({
                 const laneCount = packed.length === 0
                   ? 1
                   : Math.max(...packed.map((item) => item.lane)) + 1;
-                const rowHeight = Math.max(54, laneCount * 42 + 12);
+                const compactSectionRow = view === 'SINIFLAR'
+                  && row.audienceScope === 'SECTION'
+                  && row.includeSectionCards === false;
+                const laneStep = compactSectionRow ? 30 : 34;
+                const cardHeight = compactSectionRow ? 26 : 30;
+                const rowHeight = Math.max(
+                  compactSectionRow ? 38 : 44,
+                  laneCount * laneStep + 8,
+                );
+                const rowClassCode = row.classCode ?? row.id.split('::')[0];
+                const previousClassCode = rowIndex > 0
+                  ? (rows[rowIndex - 1].classCode
+                    ?? rows[rowIndex - 1].id.split('::')[0])
+                  : null;
+                const startsClassGroup = rowIndex === 0
+                  || previousClassCode !== rowClassCode;
 
                 return (
                   <div
                     key={row.id}
-                    className={`grid grid-cols-[160px_minmax(880px,1fr)] border-b border-slate-100 last:border-b-0 ${
-                      view === 'SINIFLAR'
-                      && rowIndex > 0
-                      && (rows[rowIndex - 1].classCode ?? rows[rowIndex - 1].id.split('::')[0])
-                        !== (row.classCode ?? row.id.split('::')[0])
-                        ? 'border-t-2 border-t-slate-200'
-                        : ''
-                    }`}
+                    className={`grid grid-cols-[132px_minmax(816px,1fr)] ${
+                      startsClassGroup && rowIndex > 0
+                        ? 'border-t-4 border-t-[#F4F2ED]'
+                        : 'border-t border-t-slate-100'
+                    } last:border-b-0`}
                   >
                     <div
-                      className="sticky left-0 z-10 flex border-r border-slate-200 bg-white px-4 py-3"
+                      className={`sticky left-0 z-10 flex border-r border-slate-200 px-3 ${
+                        compactSectionRow ? 'bg-amber-50/35 py-1.5' : 'bg-white py-2'
+                      }`}
                       style={{ minHeight: rowHeight }}
                     >
                       <div className="min-w-0 self-center">
-                        <p className="truncate text-[11px] font-semibold text-slate-800">
+                        <p className="truncate text-[10px] font-semibold text-slate-800">
                           {row.label}
                         </p>
                         {row.secondary && (
@@ -469,7 +483,7 @@ export function ManagementBoardGrid({
                             }}
                             onDragEnd={onDragEnd}
                             onClick={() => onSelect(card.id)}
-                            className={`absolute overflow-hidden rounded-lg border px-2 py-1.5 text-left shadow-sm transition ${
+                            className={`absolute overflow-hidden rounded-md border px-2 py-1 text-left shadow-sm transition ${
                               canEdit && !card.locked
                                 ? 'cursor-grab active:cursor-grabbing'
                                 : ''
@@ -481,16 +495,16 @@ export function ManagementBoardGrid({
                             style={{
                               left: `calc(${left}% + 3px)`,
                               width: `calc(${width}% - 6px)`,
-                              top: 6 + lane * 42,
-                              height: 36,
+                              top: 4 + lane * laneStep,
+                              height: cardHeight,
                             }}
                             title={`${card.subjectName} · ${card.groupName}`}
                           >
-                            <p className="truncate text-[10px] font-semibold">
+                            <p className="truncate text-[9.5px] font-semibold leading-tight">
                               {card.subjectName}
                             </p>
                             {compactCardGroupName(card) && (
-                              <p className="truncate text-[8px] font-medium opacity-60">
+                              <p className="mt-0.5 truncate text-[7.5px] font-medium leading-tight opacity-55">
                                 {compactCardGroupName(card)}
                               </p>
                             )}
