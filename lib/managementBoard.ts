@@ -445,15 +445,12 @@ export function managementRowsForView(
       });
     }
 
-    return stageRows.filter((row) => (
-      row.audienceScope === audience
-      || (
-        row.availableAudiences?.includes(audience)
-        && visibleCards.some((card) => card.classCodes.includes(
-          row.classCode ?? row.id.split('::')[0],
-        ))
-      )
-    ));
+    // BALLET / MUSIC filters select the corresponding student-program row
+    // only. Common SECTION lessons are already included *inside* that row by
+    // cardBelongsToClassRow/cardMatchesAudience; sibling audience rows must not
+    // leak into the filtered view merely because the class supports the target
+    // audience.
+    return stageRows.filter((row) => row.audienceScope === audience);
   }
 
   if (view === 'ÖĞRETMENLER') {
