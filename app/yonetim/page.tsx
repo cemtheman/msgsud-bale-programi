@@ -285,7 +285,7 @@ export default function ManagementPage() {
   const [audienceFilter, setAudienceFilter] =
     useState<ManagementAudienceScope>('ALL');
 
-  const [poolOpen, setPoolOpen] = useState(true);
+  const [poolOpen, setPoolOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -788,9 +788,9 @@ export default function ManagementPage() {
   const showInspector = inspectorOpen && Boolean(selectedCard);
 
   const workbenchColumns = [
-    poolOpen ? '292px' : null,
+    poolOpen ? '260px' : null,
     'minmax(0, 1fr)',
-    showInspector ? '316px' : null,
+    showInspector ? '300px' : null,
   ]
     .filter(Boolean)
     .join(' ');
@@ -888,7 +888,7 @@ export default function ManagementPage() {
         </div>
 
         {activeSection === 'PROGRAM' && (
-          <div className="flex h-[54px] items-center gap-3 border-t border-slate-100 px-5">
+          <div className="flex h-[50px] items-center gap-2.5 border-t border-slate-100 px-4">
             <button
               type="button"
               onClick={() => setPoolOpen((value) => !value)}
@@ -1088,7 +1088,7 @@ export default function ManagementPage() {
 
       {activeSection === 'PROGRAM' ? (
         <section
-          className="grid min-h-0 flex-1 gap-3 p-3"
+          className="grid min-h-0 flex-1 gap-2.5 p-2.5"
           style={{ gridTemplateColumns: workbenchColumns }}
         >
           {poolOpen && (
