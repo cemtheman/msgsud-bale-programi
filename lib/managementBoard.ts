@@ -341,14 +341,14 @@ export function buildManagementClassRows(
       return [
         {
           id: `${code}::BALLET`,
-          label: `${code} · Bale`,
+          label: `${code} · 🩰`,
           secondary,
           classCode: code,
           audienceScope: 'BALLET' as const,
         },
         {
           id: `${code}::MUSIC`,
-          label: `${code} · Müzik`,
+          label: `${code} · 🎶`,
           secondary,
           classCode: code,
           audienceScope: 'MUSIC' as const,
