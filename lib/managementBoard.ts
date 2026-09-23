@@ -285,9 +285,9 @@ function audienceSymbol(audience: ManagementAudienceScope) {
 
 export function formatInstructionalGroupName(name: string) {
   return name
-    .replace(/\bSECTION\b/g, 'Tüm Sınıf')
-    .replace(/\bBALLET\b/g, 'Bale')
-    .replace(/\bMUSIC\b/g, 'Müzik')
+    .replace(/\bSECTION\b/g, '📚')
+    .replace(/\bBALLET\b/g, '🩰')
+    .replace(/\bMUSIC\b/g, '🎶')
     .replace(/\bSHARED\b/g, 'Ortak')
     .replace(/\bPARALLEL\b/g, 'Paralel')
     .replace(/\bSTANDARD\b/g, 'Standart')
@@ -352,7 +352,9 @@ export function buildManagementClassRows(
         secondary: Number(row.grade) <= 8 ? 'Ortaokul' : 'Lise',
         classCode: code,
         audienceScope: 'ALL' as const,
-        availableAudiences: audiencesByClassCode[code],
+        ...(audiencesByClassCode[code]?.length
+          ? { availableAudiences: audiencesByClassCode[code] }
+          : {}),
       };
     });
 }
