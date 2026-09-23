@@ -148,8 +148,7 @@ begin
   end if;
 
   update public.management_source_schedule_evidence evidence
-  set source_schedule = corrected.source_schedule
-  from lateral (
+  set source_schedule = (
     select jsonb_agg(
       case
         when (unit.value ->> 'p')::integer >= 7 then
@@ -162,10 +161,10 @@ begin
         else unit.value
       end
       order by unit.ordinality
-    ) as source_schedule
+    )
     from jsonb_array_elements(evidence.source_schedule)
       with ordinality as unit(value, ordinality)
-  ) corrected
+  )
   where evidence.requirement_set_id = v_requirement_set_id
     and evidence.source_document =
       '(MÜZİK) A ŞUBESİ DERS PROGRAMI.pdf'
