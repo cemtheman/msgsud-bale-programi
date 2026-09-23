@@ -4,6 +4,7 @@ export type ManagementResourceView = 'SINIFLAR' | 'ÖĞRETMENLER' | 'SALONLAR';
 export type ManagementStage = 'ORTAOKUL' | 'LISE';
 export type ManagementDomainStatus = 'VALID' | 'INVALID' | 'UNRESOLVED';
 export type ManagementCandidateStatus = 'VALID' | 'INVALID' | 'UNRESOLVED';
+export type ManagementAudienceScope = 'ALL' | 'BALLET' | 'MUSIC';
 
 export interface ManagementBoardPlacement {
   dayOfWeek: number;
@@ -27,6 +28,7 @@ export interface ManagementBoardCard {
   groupName: string;
   groupType: string;
   classCodes: string[];
+  audienceTargets: string[];
   weeklyLoad: number;
   teacherMode: string;
   teacherIds: string[];
@@ -50,6 +52,8 @@ export interface ManagementBoardRow {
   id: string;
   label: string;
   secondary: string | null;
+  classCode?: string;
+  audienceScope?: ManagementAudienceScope;
 }
 
 export interface ManagementBoardData {
@@ -108,6 +112,7 @@ interface GroupRow {
   class_group_id: string | null;
   name: string;
   group_type: string;
+  audience_target: string | null;
 }
 
 interface GroupRelationRow {
@@ -302,6 +307,65 @@ export function managementCardStatus(card: ManagementBoardCard) {
   return 'Uygun';
 }
 
+export function cardBelongsToClassRow(
+  card: ManagementBoardCard,
+  row: ManagementBoardRow,
+) {
+  const rowClassCode = row.classCode ?? row.id.split('::')[0];
+  if (!card.classCodes.includes(rowClassCode)) return false;
+
+  const scope = row.audienceScope ?? 'ALL';
+  if (scope === 'ALL') return true;
+
+  return card.audienceTargets.includes(scope)
+    || card.audienceTargets.includes('SECTION');
+}
+
+export function buildManagementClassRows(
+  classGroups: Array<{ grade: number; section: string }>,
+  cards: ManagementBoardCard[],
+): ManagementBoardRow[] {
+  return classGroups.flatMap((row) => {
+    const code = `${row.grade}${row.section}`;
+    const secondary = Number(row.grade) <= 8 ? 'Ortaokul' : 'Lise';
+    const classCards = cards.filter((card) => card.classCodes.includes(code));
+
+    const hasBallet = classCards.some(
+      (card) => card.audienceTargets.includes('BALLET'),
+    );
+    const hasMusic = classCards.some(
+      (card) => card.audienceTargets.includes('MUSIC'),
+    );
+
+    if (hasBallet && hasMusic) {
+      return [
+        {
+          id: `${code}::BALLET`,
+          label: `${code} · Bale`,
+          secondary,
+          classCode: code,
+          audienceScope: 'BALLET' as const,
+        },
+        {
+          id: `${code}::MUSIC`,
+          label: `${code} · Müzik`,
+          secondary,
+          classCode: code,
+          audienceScope: 'MUSIC' as const,
+        },
+      ];
+    }
+
+    return [{
+      id: code,
+      label: code,
+      secondary,
+      classCode: code,
+      audienceScope: 'ALL' as const,
+    }];
+  });
+}
+
 export function managementRowsForView(
   data: ManagementBoardData,
   view: ManagementResourceView,
@@ -311,7 +375,7 @@ export function managementRowsForView(
 
   if (view === 'SINIFLAR') {
     return data.classRows.filter((row) => {
-      const grade = gradeFromClassCode(row.id);
+      const grade = gradeFromClassCode(row.classCode ?? row.id);
       return grade !== null && (stage === 'ORTAOKUL' ? grade <= 8 : grade >= 9);
     });
   }
@@ -341,7 +405,7 @@ export function placementBelongsToRow(
   if (!card.placement) return false;
 
   if (view === 'SINIFLAR') {
-    return card.classCodes.includes(row.id);
+    return cardBelongsToClassRow(card, row);
   }
 
   if (view === 'ÖĞRETMENLER') {
@@ -387,7 +451,7 @@ export async function fetchManagementBoard(
       accessToken,
     ),
     authedGet<GroupRow[]>(
-      `instructional_groups?select=id,class_group_id,name,group_type&requirement_set_id=eq.${revision.requirement_set_id}`,
+      `instructional_groups?select=id,class_group_id,name,group_type,audience_target&requirement_set_id=eq.${revision.requirement_set_id}`,
       accessToken,
     ),
     authedGet<GroupRelationRow[]>(
@@ -504,6 +568,39 @@ export async function fetchManagementBoard(
     return result;
   };
 
+  const audienceTargetsByGroup = new Map<string, string[]>();
+
+  const resolveAudienceTargets = (
+    groupId: string,
+    seen = new Set<string>(),
+  ): string[] => {
+    const cached = audienceTargetsByGroup.get(groupId);
+    if (cached) return cached;
+
+    if (seen.has(groupId)) return [];
+    seen.add(groupId);
+
+    const group = groupById.get(groupId);
+    if (!group) return [];
+
+    if (group.audience_target) {
+      const value = [group.audience_target];
+      audienceTargetsByGroup.set(groupId, value);
+      return value;
+    }
+
+    const values = new Set<string>();
+    (childGroupsByComposite.get(groupId) ?? []).forEach((childId) => {
+      resolveAudienceTargets(childId, new Set(seen)).forEach((target) => {
+        values.add(target);
+      });
+    });
+
+    const result = Array.from(values).sort();
+    audienceTargetsByGroup.set(groupId, result);
+    return result;
+  };
+
   const teacherIdsByRequirement = new Map<string, string[]>();
   requirementTeachers.forEach((row) => {
     const values = teacherIdsByRequirement.get(row.requirement_id) ?? [];
@@ -542,6 +639,7 @@ export async function fetchManagementBoard(
       groupName: formatInstructionalGroupName(group.name),
       groupType: group.group_type,
       classCodes: resolveClassCodes(group.id),
+      audienceTargets: resolveAudienceTargets(group.id),
       weeklyLoad: requirement.weekly_load,
       teacherMode: requirement.teacher_mode,
       teacherIds,
@@ -584,11 +682,7 @@ export async function fetchManagementBoard(
       || a.blockIndex - b.blockIndex;
   });
 
-  const classRows: ManagementBoardRow[] = classGroups.map((row) => ({
-    id: classCode(row),
-    label: classCode(row),
-    secondary: Number(row.grade) <= 8 ? 'Ortaokul' : 'Lise',
-  }));
+  const classRows = buildManagementClassRows(classGroups, boardCards);
 
   const teacherRows: ManagementBoardRow[] = teachers
     .map((row) => ({
