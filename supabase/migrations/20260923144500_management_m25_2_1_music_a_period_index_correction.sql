@@ -139,7 +139,11 @@ begin
       where (unit ->> 'p')::integer >= 7
     );
 
-  if v_shifted_schedule_count <> 10
+  -- 11 schedules contain post-lunch source slots:
+  --   * 10 counterpart schedules (the 10 diagnostic mismatches)
+  --   * 1 explicit schedule (10A MUSIC / Müzik Teorisi)
+  -- Together they contain 30 post-lunch period cells.
+  if v_shifted_schedule_count <> 11
      or v_shifted_period_count <> 30 then
     raise exception
       'M25.2.1 unexpected correction scope: schedules %, periods %',
