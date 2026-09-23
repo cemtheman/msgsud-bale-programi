@@ -69,7 +69,7 @@ function board(cards: ManagementBoardCard[]): ManagementBoardData {
 }
 
 describe('management class audience rows', () => {
-  it('splits a mixed class into ballet then music student-program rows', () => {
+  it('splits the combined class view into one strict row per audience', () => {
     const cards = [
       card('bale', ['BALLET']),
       card('music', ['MUSIC']),
@@ -81,20 +81,31 @@ describe('management class audience rows', () => {
       cards,
     )).toEqual([
       {
+        id: '5A::SECTION',
+        label: '5A · 📚',
+        secondary: null,
+        classCode: '5A',
+        audienceScope: 'SECTION',
+        availableAudiences: ['BALLET', 'MUSIC', 'SECTION'],
+        includeSectionCards: false,
+      },
+      {
         id: '5A::BALLET',
         label: '5A · 🩰',
-        secondary: 'Ortaokul',
+        secondary: null,
         classCode: '5A',
         audienceScope: 'BALLET',
         availableAudiences: ['BALLET', 'MUSIC', 'SECTION'],
+        includeSectionCards: false,
       },
       {
         id: '5A::MUSIC',
         label: '5A · 🎶',
-        secondary: 'Ortaokul',
+        secondary: null,
         classCode: '5A',
         audienceScope: 'MUSIC',
         availableAudiences: ['BALLET', 'MUSIC', 'SECTION'],
+        includeSectionCards: false,
       },
     ]);
   });
@@ -129,6 +140,7 @@ describe('management class audience rows', () => {
       id: '5A::BALLET',
       label: '5A · 🩰',
       audienceScope: 'BALLET',
+      includeSectionCards: true,
     });
 
     const musicRows = managementRowsForView(
@@ -142,6 +154,7 @@ describe('management class audience rows', () => {
       id: '5A::MUSIC',
       label: '5A · 🎶',
       audienceScope: 'MUSIC',
+      includeSectionCards: true,
     });
 
     const sectionRow: ManagementBoardRow = {
@@ -165,12 +178,15 @@ describe('management class audience rows', () => {
     };
 
     expect(cardBelongsToClassRow(cards[2], sectionRow)).toBe(true);
-    expect(cardBelongsToClassRow(cards[2], balletRow)).toBe(true);
-    expect(cardBelongsToClassRow(cards[2], musicRow)).toBe(true);
+    expect(cardBelongsToClassRow(cards[2], balletRow)).toBe(false);
+    expect(cardBelongsToClassRow(cards[2], musicRow)).toBe(false);
     expect(cardBelongsToClassRow(cards[0], balletRow)).toBe(true);
     expect(cardBelongsToClassRow(cards[0], musicRow)).toBe(false);
     expect(cardBelongsToClassRow(cards[1], musicRow)).toBe(true);
     expect(cardBelongsToClassRow(cards[1], balletRow)).toBe(false);
+
+    expect(cardBelongsToClassRow(cards[2], balletRows[0])).toBe(true);
+    expect(cardBelongsToClassRow(cards[2], musicRows[0])).toBe(true);
   });
   it('keeps a source-confirmed audience row even before lesson cards exist', () => {
     const data: ManagementBoardData = {
@@ -191,15 +207,16 @@ describe('management class audience rows', () => {
       {
         id: '12B::BALLET',
         label: '12B · 🩰',
-        secondary: 'Lise',
+        secondary: null,
         classCode: '12B',
         audienceScope: 'BALLET',
         availableAudiences: ['SECTION', 'MUSIC', 'BALLET'],
+        includeSectionCards: true,
       },
     ]);
   });
 
-  it('keeps discipline rows isolated while repeating section lessons', () => {
+  it('renders common lessons once in ALL but repeats them in focused student-program views', () => {
     const cards = [
       card('bale', ['BALLET']),
       card('music', ['MUSIC']),
@@ -214,17 +231,26 @@ describe('management class audience rows', () => {
     );
 
     expect(rows.map((row) => row.audienceScope)).toEqual([
+      'SECTION',
       'BALLET',
       'MUSIC',
     ]);
 
-    expect(cardBelongsToClassRow(cards[0], rows[0])).toBe(true);
-    expect(cardBelongsToClassRow(cards[1], rows[0])).toBe(false);
     expect(cardBelongsToClassRow(cards[2], rows[0])).toBe(true);
+    expect(cardBelongsToClassRow(cards[2], rows[1])).toBe(false);
+    expect(cardBelongsToClassRow(cards[2], rows[2])).toBe(false);
+    expect(cardBelongsToClassRow(cards[0], rows[1])).toBe(true);
+    expect(cardBelongsToClassRow(cards[1], rows[2])).toBe(true);
 
-    expect(cardBelongsToClassRow(cards[0], rows[1])).toBe(false);
-    expect(cardBelongsToClassRow(cards[1], rows[1])).toBe(true);
-    expect(cardBelongsToClassRow(cards[2], rows[1])).toBe(true);
+    const musicRow = managementRowsForView(
+      data,
+      'SINIFLAR',
+      'ORTAOKUL',
+      'MUSIC',
+    )[0];
+    expect(cardBelongsToClassRow(cards[2], musicRow)).toBe(true);
+    expect(cardBelongsToClassRow(cards[1], musicRow)).toBe(true);
+    expect(cardBelongsToClassRow(cards[0], musicRow)).toBe(false);
   });
 
 });
