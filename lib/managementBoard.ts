@@ -4,7 +4,7 @@ export type ManagementResourceView = 'SINIFLAR' | 'ÖĞRETMENLER' | 'SALONLAR';
 export type ManagementStage = 'ORTAOKUL' | 'LISE';
 export type ManagementDomainStatus = 'VALID' | 'INVALID' | 'UNRESOLVED';
 export type ManagementCandidateStatus = 'VALID' | 'INVALID' | 'UNRESOLVED';
-export type ManagementAudienceScope = 'ALL' | 'BALLET' | 'MUSIC';
+export type ManagementAudienceScope = 'ALL' | 'SECTION' | 'BALLET' | 'MUSIC';
 
 export interface ManagementBoardPlacement {
   dayOfWeek: number;
@@ -268,6 +268,20 @@ export function cardMatchesStage(
   });
 }
 
+export function cardMatchesAudience(
+  card: ManagementBoardCard,
+  audience: ManagementAudienceScope,
+) {
+  return audience === 'ALL' || card.audienceTargets.includes(audience);
+}
+
+function audienceSymbol(audience: ManagementAudienceScope) {
+  if (audience === 'SECTION') return '📚';
+  if (audience === 'BALLET') return '🩰';
+  if (audience === 'MUSIC') return '🎶';
+  return '';
+}
+
 export function formatInstructionalGroupName(name: string) {
   return name
     .replace(/\bSECTION\b/g, 'Tüm Sınıf')
@@ -315,69 +329,62 @@ export function cardBelongsToClassRow(
   if (!card.classCodes.includes(rowClassCode)) return false;
 
   const scope = row.audienceScope ?? 'ALL';
-  if (scope === 'ALL') return true;
-
-  return card.audienceTargets.includes(scope)
-    || card.audienceTargets.includes('SECTION');
+  return scope === 'ALL' || card.audienceTargets.includes(scope);
 }
 
 export function buildManagementClassRows(
   classGroups: Array<{ grade: number; section: string }>,
   cards: ManagementBoardCard[],
 ): ManagementBoardRow[] {
-  return classGroups.flatMap<ManagementBoardRow>((row): ManagementBoardRow[] => {
-    const code = `${row.grade}${row.section}`;
-    const secondary = Number(row.grade) <= 8 ? 'Ortaokul' : 'Lise';
-    const classCards = cards.filter((card) => card.classCodes.includes(code));
-
-    const hasBallet = classCards.some(
-      (card) => card.audienceTargets.includes('BALLET'),
-    );
-    const hasMusic = classCards.some(
-      (card) => card.audienceTargets.includes('MUSIC'),
-    );
-
-    if (hasBallet && hasMusic) {
-      return [
-        {
-          id: `${code}::BALLET`,
-          label: `${code} · 🩰`,
-          secondary,
-          classCode: code,
-          audienceScope: 'BALLET' as const,
-        },
-        {
-          id: `${code}::MUSIC`,
-          label: `${code} · 🎶`,
-          secondary,
-          classCode: code,
-          audienceScope: 'MUSIC' as const,
-        },
-      ];
-    }
-
-    return [{
-      id: code,
-      label: code,
-      secondary,
-      classCode: code,
-      audienceScope: 'ALL' as const,
-    }];
-  });
+  return classGroups
+    .filter((row) => {
+      const code = `${row.grade}${row.section}`;
+      return cards.some((card) => card.classCodes.includes(code));
+    })
+    .map((row) => {
+      const code = `${row.grade}${row.section}`;
+      return {
+        id: code,
+        label: code,
+        secondary: Number(row.grade) <= 8 ? 'Ortaokul' : 'Lise',
+        classCode: code,
+        audienceScope: 'ALL' as const,
+      };
+    });
 }
 
 export function managementRowsForView(
   data: ManagementBoardData,
   view: ManagementResourceView,
   stage: ManagementStage,
+  audience: ManagementAudienceScope = 'ALL',
 ) {
-  const visibleCards = data.cards.filter((card) => cardMatchesStage(card, stage));
+  const visibleCards = data.cards.filter(
+    (card) => cardMatchesStage(card, stage) && cardMatchesAudience(card, audience),
+  );
 
   if (view === 'SINIFLAR') {
-    return data.classRows.filter((row) => {
+    const stageRows = data.classRows.filter((row) => {
       const grade = gradeFromClassCode(row.classCode ?? row.id);
       return grade !== null && (stage === 'ORTAOKUL' ? grade <= 8 : grade >= 9);
     });
+
+    if (audience === 'ALL') return stageRows;
+
+    return stageRows
+      .filter((row) => {
+        const code = row.classCode ?? row.id;
+        return visibleCards.some((card) => card.classCodes.includes(code));
+      })
+      .map((row) => {
+        const code = row.classCode ?? row.id;
+        return {
+          ...row,
+          id: `${code}::${audience}`,
+          label: `${code} · ${audienceSymbol(audience)}`,
+          audienceScope: audience,
+        };
+      });
   }
 
   if (view === 'ÖĞRETMENLER') {
