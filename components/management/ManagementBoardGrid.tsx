@@ -44,19 +44,41 @@ export interface ManagementDropTarget {
 }
 
 function cardClass(card: ManagementBoardCard) {
-  if (card.courseCharacter === 'TECHNIQUE') {
+  const hasSection = card.audienceTargets.includes('SECTION');
+  const hasBallet = card.audienceTargets.includes('BALLET');
+  const hasMusic = card.audienceTargets.includes('MUSIC');
+
+  // Audience is the primary visual language of the timetable:
+  // 📚 common lessons = amber, 🩰 ballet = sky, 🎶 music = violet.
+  if (hasMusic && !hasBallet && !hasSection) {
+    return 'border-violet-200 bg-violet-100 text-violet-950';
+  }
+
+  if (hasBallet && !hasMusic && !hasSection) {
     return 'border-sky-200 bg-sky-100 text-sky-950';
   }
 
-  if (card.courseCharacter === 'REPERTOIRE') {
-    return 'border-violet-200 bg-violet-100 text-violet-950';
+  if (hasSection && !hasBallet && !hasMusic) {
+    return 'border-amber-200 bg-amber-100 text-amber-950';
   }
 
   if (card.courseCharacter === 'REHEARSAL') {
     return 'border-rose-200 bg-rose-100 text-rose-950';
   }
 
-  return 'border-amber-200 bg-amber-100 text-amber-950';
+  return 'border-slate-200 bg-slate-100 text-slate-950';
+}
+
+function compactCardGroupName(card: ManagementBoardCard) {
+  const normalizedSubject = card.subjectName.toLocaleLowerCase('tr-TR');
+
+  return card.groupName
+    .split(' · ')
+    .filter((part) => (
+      part.toLocaleLowerCase('tr-TR') !== normalizedSubject
+      && part !== 'Standart'
+    ))
+    .join(' · ');
 }
 
 function packCards(cards: ManagementBoardCard[]) {
@@ -371,7 +393,7 @@ export function ManagementBoardGrid({
             </div>
           ) : (
             <div>
-              {rows.map((row) => {
+              {rows.map((row, rowIndex) => {
                 const rowCards = dayCards.filter((card) =>
                   placementBelongsToRow(card, row, view),
                 );
@@ -384,7 +406,14 @@ export function ManagementBoardGrid({
                 return (
                   <div
                     key={row.id}
-                    className="grid grid-cols-[160px_minmax(880px,1fr)] border-b border-slate-100 last:border-b-0"
+                    className={`grid grid-cols-[160px_minmax(880px,1fr)] border-b border-slate-100 last:border-b-0 ${
+                      view === 'SINIFLAR'
+                      && rowIndex > 0
+                      && (rows[rowIndex - 1].classCode ?? rows[rowIndex - 1].id.split('::')[0])
+                        !== (row.classCode ?? row.id.split('::')[0])
+                        ? 'border-t-2 border-t-slate-200'
+                        : ''
+                    }`}
                   >
                     <div
                       className="sticky left-0 z-10 flex border-r border-slate-200 bg-white px-4 py-3"
@@ -460,9 +489,11 @@ export function ManagementBoardGrid({
                             <p className="truncate text-[10px] font-semibold">
                               {card.subjectName}
                             </p>
-                            <p className="truncate text-[8px] font-medium opacity-65">
-                              {card.groupName}
-                            </p>
+                            {compactCardGroupName(card) && (
+                              <p className="truncate text-[8px] font-medium opacity-60">
+                                {compactCardGroupName(card)}
+                              </p>
+                            )}
                           </button>
                         );
                       })}
