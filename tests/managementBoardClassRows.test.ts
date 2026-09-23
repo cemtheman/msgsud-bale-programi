@@ -157,4 +157,31 @@ describe('management class audience rows', () => {
     expect(cardBelongsToClassRow(cards[0], musicRow)).toBe(false);
     expect(cardBelongsToClassRow(cards[1], musicRow)).toBe(true);
   });
+  it('keeps a source-confirmed audience row even before lesson cards exist', () => {
+    const data: ManagementBoardData = {
+      ...board([]),
+      classRows: buildManagementClassRows(
+        [{ grade: 12, section: 'B' }],
+        [],
+        { '12B': ['SECTION', 'MUSIC', 'BALLET'] },
+      ),
+    };
+
+    expect(managementRowsForView(
+      data,
+      'SINIFLAR',
+      'LISE',
+      'BALLET',
+    )).toEqual([
+      {
+        id: '12B::BALLET',
+        label: '12B · 🩰',
+        secondary: 'Lise',
+        classCode: '12B',
+        audienceScope: 'BALLET',
+        availableAudiences: ['SECTION', 'MUSIC', 'BALLET'],
+      },
+    ]);
+  });
+
 });
