@@ -93,7 +93,7 @@ const STAGES: Array<{ id: ManagementStage; label: string }> = [
   { id: 'LISE', label: 'Lise' },
 ];
 
-// Audience controls are intentionally source-visible so Vercel preview builds\n// include the management UI after data-only reconciliation commits.\nconst AUDIENCE_FILTERS: Array<{
+const AUDIENCE_FILTERS: Array<{
   id: ManagementAudienceScope;
   label: string;
   title: string;
