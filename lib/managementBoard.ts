@@ -325,7 +325,7 @@ export function buildManagementClassRows(
   classGroups: Array<{ grade: number; section: string }>,
   cards: ManagementBoardCard[],
 ): ManagementBoardRow[] {
-  return classGroups.flatMap((row) => {
+  return classGroups.flatMap<ManagementBoardRow>((row): ManagementBoardRow[] => {
     const code = `${row.grade}${row.section}`;
     const secondary = Number(row.grade) <= 8 ? 'Ortaokul' : 'Lise';
     const classCards = cards.filter((card) => card.classCodes.includes(code));
