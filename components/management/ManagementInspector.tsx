@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { ManagementRoomStrategyEditor } from '@/components/management/ManagementRoomStrategyEditor';
 import {
   managementCardStatus,
   translateCandidateReason,
@@ -8,6 +9,12 @@ import {
   type ManagementCandidateAssessment,
   type ManagementCandidateDetail,
 } from '@/lib/managementBoard';
+import type {
+  ManagementCoursePlanOption,
+  ManagementCoursePlanRow,
+  ManagementPlanStage,
+  ManagementRoomStrategy,
+} from '@/lib/managementCoursePlan';
 
 const DAY_LABELS: Record<number, string> = {
   1: 'Pazartesi',
@@ -81,10 +88,17 @@ export function ManagementInspector({
   candidateFocus,
   teacherNamesById,
   roomNamesById,
+  planRow,
+  planStage,
+  teacherOptions,
+  roomOptions,
+  roomCapabilityOptions,
   canEdit,
   commandBusy,
   commandNotice,
   onCandidateAction,
+  onUpdatePlanTeachers,
+  onUpdatePlanRoomStrategy,
   onRemove,
   onClose,
 }: {
@@ -99,10 +113,25 @@ export function ManagementInspector({
   } | null;
   teacherNamesById: Record<string, string>;
   roomNamesById: Record<string, string>;
+  planRow: ManagementCoursePlanRow | null;
+  planStage: ManagementPlanStage;
+  teacherOptions: ManagementCoursePlanOption[];
+  roomOptions: ManagementCoursePlanOption[];
+  roomCapabilityOptions: string[];
   canEdit: boolean;
   commandBusy: boolean;
   commandNotice: { kind: 'success' | 'error' | 'info'; text: string } | null;
   onCandidateAction: (candidate: ManagementCandidateAssessment) => void;
+  onUpdatePlanTeachers: (
+    requirementId: string,
+    teacherIds: string[],
+  ) => Promise<void>;
+  onUpdatePlanRoomStrategy: (
+    requirementId: string,
+    strategy: ManagementRoomStrategy,
+    roomIds: string[],
+    requiredCapability: string | null,
+  ) => Promise<void>;
   onRemove: () => void;
   onClose: () => void;
 }) {
@@ -120,6 +149,11 @@ export function ManagementInspector({
   const [showGeneralCandidates, setShowGeneralCandidates] = useState(false);
   const [placementEditMode, setPlacementEditMode] = useState<'TEACHER' | 'ROOM' | null>(null);
   const [placementChoiceId, setPlacementChoiceId] = useState<string | null>(null);
+  const [planTeacherOpen, setPlanTeacherOpen] = useState(false);
+  const [planRoomOpen, setPlanRoomOpen] = useState(false);
+  const [planTeacherIds, setPlanTeacherIds] = useState<string[]>([]);
+  const [planSaving, setPlanSaving] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
 
   const focusCandidatesForTeacher = useMemo(
     () => (
@@ -216,6 +250,41 @@ export function ManagementInspector({
     placementTeacherCandidates,
   ]);
 
+  const openPlanTeacherEditor = () => {
+    if (!planRow) return;
+    setPlanTeacherIds(planRow.teacherIds);
+    setPlanError(null);
+    setPlanTeacherOpen(true);
+  };
+
+  const togglePlanTeacher = (teacherId: string) => {
+    setPlanTeacherIds((current) => (
+      current.includes(teacherId)
+        ? current.filter((value) => value !== teacherId)
+        : [...current, teacherId]
+    ));
+    setPlanError(null);
+  };
+
+  const savePlanTeachers = async () => {
+    if (!planRow || planSaving || planRow.placedBlockCount > 0) return;
+
+    setPlanSaving(true);
+    setPlanError(null);
+    try {
+      await onUpdatePlanTeachers(planRow.requirementId, planTeacherIds);
+      setPlanTeacherOpen(false);
+    } catch (reason: unknown) {
+      setPlanError(
+        reason instanceof Error
+          ? reason.message
+          : 'Öğretmen tanımı güncellenemedi.',
+      );
+    } finally {
+      setPlanSaving(false);
+    }
+  };
+
   useEffect(() => {
     if (!candidateFocus) {
       setFocusTeacherId(null);
@@ -255,6 +324,9 @@ export function ManagementInspector({
   useEffect(() => {
     setPlacementEditMode(null);
     setPlacementChoiceId(null);
+    setPlanTeacherOpen(false);
+    setPlanRoomOpen(false);
+    setPlanError(null);
   }, [
     card?.id,
     card?.placement?.dayOfWeek,
@@ -397,6 +469,49 @@ export function ManagementInspector({
           }
         />
       </dl>
+
+      {planRow && (
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                Ders planı kaynakları
+              </p>
+              <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">
+                Ders Planı sayfasındaki öğretmen havuzu ve salon seçme yöntemini buradan da düzenleyebilirsiniz.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={openPlanTeacherEditor}
+              disabled={!canEdit || commandBusy}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-35"
+            >
+              Öğretmen tanımı
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPlanError(null);
+                setPlanRoomOpen(true);
+              }}
+              disabled={!canEdit || commandBusy}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-35"
+            >
+              Salon tanımı
+            </button>
+          </div>
+
+          {planRow.placedBlockCount > 0 && (
+            <p className="mt-2 text-[9px] font-medium leading-4 text-amber-700">
+              Bu dersin {planRow.placedBlockCount} bloğu programda. Mevcut kartın öğretmen/salonunu aşağıdaki “Yerleşimi düzenle” bölümünden değiştirebilirsiniz; ders planı havuzunu değiştirmek için tüm blokların havuzda olması gerekir.
+            </p>
+          )}
+        </div>
+      )}
 
       {placement && (
         <div className="mt-4 rounded-2xl bg-blue-50 p-3">
@@ -591,6 +706,113 @@ export function ManagementInspector({
             </div>
           )}
         </div>
+      )}
+
+      {planTeacherOpen && planRow && (
+        <div className="fixed inset-0 z-[94] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-[1px]">
+          <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-[560px] flex-col overflow-hidden rounded-[28px] border border-white/80 bg-white shadow-[0_28px_90px_rgba(15,23,42,0.24)]">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">
+                  Ders Planını Düzenle
+                </p>
+                <h3 className="mt-1 text-lg font-black text-slate-950">
+                  {planRow.subjectName} · {planRow.classCodes.join(', ') || planRow.groupName}
+                </h3>
+                <p className="mt-1 text-[11px] font-medium text-slate-500">
+                  Öğretmen seçimi
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPlanTeacherOpen(false)}
+                disabled={planSaving}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-500"
+              >
+                Kapat
+              </button>
+            </div>
+
+            <div className="management-scrollbar min-h-0 flex-1 overflow-y-auto p-5">
+              <div className={`rounded-2xl border p-3 ${
+                planRow.placedBlockCount > 0
+                  ? 'border-amber-200 bg-amber-50'
+                  : 'border-emerald-200 bg-emerald-50'
+              }`}>
+                <p className={`text-[10px] font-black ${
+                  planRow.placedBlockCount > 0 ? 'text-amber-800' : 'text-emerald-800'
+                }`}>
+                  {planRow.placedBlockCount > 0
+                    ? `${planRow.placedBlockCount} blok şu anda programda yerleşmiş.`
+                    : 'Programda yerleşmiş blok yok.'}
+                </p>
+                <p className="mt-1 text-[10px] font-medium leading-4 text-slate-600">
+                  {planRow.placedBlockCount > 0
+                    ? 'Ders planı öğretmen havuzunu değiştirmek için önce bu dersin tüm bloklarını programdan kaldırın. Mevcut slotta öğretmen değişikliği için kart ayrıntılarındaki “Yerleşimi düzenle” bölümünü kullanın.'
+                    : 'Bir seçim sabit atama, birden fazla seçim seçilebilir havuz oluşturur.'}
+                </p>
+              </div>
+
+              <div className="mt-4 max-h-[320px] space-y-1.5 overflow-y-auto pr-1">
+                {teacherOptions.map((option) => {
+                  const selected = planTeacherIds.includes(option.id);
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => togglePlanTeacher(option.id)}
+                      disabled={planSaving || planRow.placedBlockCount > 0}
+                      className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-[10px] font-bold transition ${
+                        selected
+                          ? 'border-slate-950 bg-slate-950 text-white'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      } disabled:cursor-not-allowed disabled:opacity-45`}
+                    >
+                      <span>{option.name}</span>
+                      <span>{selected ? 'Seçildi' : 'Seç'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {planError && (
+                <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700">
+                  {planError}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-4">
+              <p className="text-[10px] font-medium text-slate-500">
+                {planTeacherIds.length === 0
+                  ? 'Belirsiz'
+                  : planTeacherIds.length === 1
+                    ? 'Sabit atama'
+                    : `${planTeacherIds.length} seçenekli havuz`}
+              </p>
+              <button
+                type="button"
+                onClick={() => void savePlanTeachers()}
+                disabled={planSaving || planRow.placedBlockCount > 0}
+                className="rounded-xl bg-slate-950 px-4 py-2.5 text-[10px] font-black text-white disabled:opacity-35"
+              >
+                {planSaving ? 'Kaydediliyor…' : 'Değişikliği kaydet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {planRoomOpen && planRow && (
+        <ManagementRoomStrategyEditor
+          row={planRow}
+          stage={planStage}
+          roomOptions={roomOptions}
+          capabilityOptions={roomCapabilityOptions}
+          onClose={() => setPlanRoomOpen(false)}
+          onOpenProgram={() => setPlanRoomOpen(false)}
+          onSave={onUpdatePlanRoomStrategy}
+        />
       )}
 
       {commandNotice && (

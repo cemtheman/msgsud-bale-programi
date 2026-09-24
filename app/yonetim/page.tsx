@@ -1565,11 +1565,73 @@ export default function ManagementPage() {
               candidateFocus={candidateFocus}
               teacherNamesById={board?.teacherNamesById ?? {}}
               roomNamesById={board?.roomNamesById ?? {}}
+              planRow={
+                selectedCard
+                  ? coursePlan?.rows.find(
+                    (row) => row.requirementId === selectedCard.requirementId,
+                  ) ?? null
+                  : null
+              }
+              planStage={stage}
+              teacherOptions={coursePlan?.teacherOptions ?? []}
+              roomOptions={coursePlan?.roomOptions ?? []}
+              roomCapabilityOptions={coursePlan?.roomCapabilityOptions ?? []}
               canEdit={access?.canEdit === true}
               commandBusy={commandBusy}
               commandNotice={commandNotice}
               onCandidateAction={(candidate) => {
                 void runSelectedCandidateAction(candidate);
+              }}
+              onUpdatePlanTeachers={async (requirementId, teacherIds) => {
+                if (!session || !access?.canEdit) {
+                  throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+                }
+                setCommandBusy(true);
+                setCommandActivity('Dersin öğretmen tanımı güncelleniyor.');
+                try {
+                  await updateManagementRequirementTeachers(
+                    session.accessToken,
+                    requirementId,
+                    teacherIds,
+                  );
+                  setCommandNotice({
+                    kind: 'success',
+                    text: 'Öğretmen tanımı güncellendi; uygun program yerleri yeniden hesaplandı.',
+                  });
+                  setRefreshToken((value) => value + 1);
+                } finally {
+                  setCommandBusy(false);
+                  setCommandActivity(null);
+                }
+              }}
+              onUpdatePlanRoomStrategy={async (
+                requirementId,
+                strategy,
+                roomIds,
+                requiredCapability,
+              ) => {
+                if (!session || !access?.canEdit) {
+                  throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+                }
+                setCommandBusy(true);
+                setCommandActivity('Dersin salon tanımı güncelleniyor.');
+                try {
+                  const result = await updateManagementRequirementRoomStrategy(
+                    session.accessToken,
+                    requirementId,
+                    strategy,
+                    roomIds,
+                    requiredCapability,
+                  );
+                  setCommandNotice({
+                    kind: 'success',
+                    text: `Salon tanımı güncellendi. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`,
+                  });
+                  setRefreshToken((value) => value + 1);
+                } finally {
+                  setCommandBusy(false);
+                  setCommandActivity(null);
+                }
               }}
               onRemove={requestRemove}
               onClose={() => setInspectorOpen(false)}
