@@ -394,6 +394,57 @@ function groupDropTargetForCell({
   return result('NONE');
 }
 
+function isFootprintAnchorState(state: ManagementDropState) {
+  return state === 'VALID'
+    || state === 'AMBIGUOUS'
+    || state === 'CURRENT';
+}
+
+function resolveFootprintTarget<
+  T extends { startPeriod: number; state: ManagementDropState }
+>(
+  targets: T[],
+  period: number,
+  duration: number,
+) {
+  const own = targets.find((target) => target.startPeriod === period) ?? null;
+
+  if (!own) {
+    return {
+      target: null,
+      continuation: false,
+    };
+  }
+
+  if (isFootprintAnchorState(own.state) || duration <= 1) {
+    return {
+      target: own,
+      continuation: false,
+    };
+  }
+
+  const earliestStart = Math.max(1, period - duration + 1);
+
+  for (let start = period - 1; start >= earliestStart; start -= 1) {
+    const candidate = targets.find((target) => target.startPeriod === start);
+    if (
+      candidate
+      && isFootprintAnchorState(candidate.state)
+      && start + duration - 1 >= period
+    ) {
+      return {
+        target: candidate,
+        continuation: true,
+      };
+    }
+  }
+
+  return {
+    target: own,
+    continuation: false,
+  };
+}
+
 function targetClass(state: ManagementDropState) {
   if (state === 'VALID') {
     return 'border-emerald-400 bg-emerald-100/85 text-emerald-800';
@@ -669,60 +720,97 @@ export function ManagementBoardGrid({
                         );
                       })}
 
-                      {dragCard && (
-                        <div className="absolute inset-0 z-30 grid grid-cols-12">
-                          {PERIODS.map((period) => {
-                            const target = groupDropTargetForCell({
-                              cards: dragCards,
-                              detailsByCardId: dragCandidateDetails,
-                              row,
-                              view,
-                              activeDay,
-                              startPeriod: period.number,
-                              loading: dragLoading,
-                            });
-                            const droppable = target.state !== 'NONE'
-                              && target.state !== 'CURRENT';
+                      {dragCard && (() => {
+                        const duration = Math.max(
+                          1,
+                          ...dragCards.map((card) => card.durationPeriods),
+                        );
+                        const targets = PERIODS.map((period) =>
+                          groupDropTargetForCell({
+                            cards: dragCards,
+                            detailsByCardId: dragCandidateDetails,
+                            row,
+                            view,
+                            activeDay,
+                            startPeriod: period.number,
+                            loading: dragLoading,
+                          }),
+                        );
 
-                            return (
-                              <div
-                                key={period.number}
-                                onDragOver={(event) => {
-                                  if (!droppable) return;
-                                  event.preventDefault();
-                                  event.dataTransfer.dropEffect = 'move';
-                                }}
-                                onDrop={(event) => {
-                                  if (!droppable) return;
-                                  event.preventDefault();
+                        return (
+                          <div className="absolute inset-0 z-30 grid grid-cols-12">
+                            {PERIODS.map((period) => {
+                              const footprint = resolveFootprintTarget(
+                                targets,
+                                period.number,
+                                duration,
+                              );
+                              const target = footprint.target;
 
-                                  if (
-                                    target.state === 'VALID'
-                                    && target.groupCandidates.length === dragCards.length
-                                  ) {
-                                    onDropCandidates(target.groupCandidates);
-                                    return;
+                              if (!target) {
+                                return <div key={period.number} />;
+                              }
+
+                              const droppable = target.state !== 'NONE'
+                                && target.state !== 'CURRENT';
+                              const anchorLabel = targetLabel(target.state);
+                              const label = footprint.continuation
+                                ? ''
+                                : (
+                                  duration > 1
+                                  && isFootprintAnchorState(target.state)
+                                    ? `${anchorLabel} ×${duration}`
+                                    : anchorLabel
+                                );
+
+                              return (
+                                <div
+                                  key={period.number}
+                                  onDragOver={(event) => {
+                                    if (!droppable) return;
+                                    event.preventDefault();
+                                    event.dataTransfer.dropEffect = 'move';
+                                  }}
+                                  onDrop={(event) => {
+                                    if (!droppable) return;
+                                    event.preventDefault();
+
+                                    if (
+                                      target.state === 'VALID'
+                                      && target.groupCandidates.length === dragCards.length
+                                    ) {
+                                      onDropCandidates(target.groupCandidates);
+                                      return;
+                                    }
+
+                                    onDropNeedsAttention(target);
+                                  }}
+                                  className={`m-1 flex min-w-0 items-center justify-center rounded-lg border border-dashed text-center text-[8px] font-bold transition ${
+                                    targetClass(target.state)
+                                  } ${
+                                    footprint.continuation
+                                      ? 'opacity-75'
+                                      : ''
+                                  }`}
+                                  title={
+                                    footprint.continuation
+                                      ? `${targetLabel(target.state)} · ${target.startPeriod}. derste başlayan ${duration} derslik blok`
+                                      : target.state === 'AMBIGUOUS'
+                                        ? 'Uygun · öğretmen/salon seçimi gerekli'
+                                        : duration > 1
+                                          ? `${targetLabel(target.state)} · ${duration} derslik blok`
+                                          : targetLabel(target.state)
                                   }
-
-                                  onDropNeedsAttention(target);
-                                }}
-                                className={`m-1 flex min-w-0 items-center justify-center rounded-lg border border-dashed text-center text-[8px] font-bold transition ${
-                                  targetClass(target.state)
-                                }`}
-                                title={
-                                  target.state === 'AMBIGUOUS'
-                                    ? 'Uygun · öğretmen/salon seçimi gerekli'
-                                    : targetLabel(target.state)
-                                }
-                              >
-                                <span className="truncate px-1">
-                                  {targetLabel(target.state)}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                                >
+                                  <span className="truncate px-1">
+                                    {label}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
