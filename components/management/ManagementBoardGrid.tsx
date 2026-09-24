@@ -363,7 +363,7 @@ export function ManagementBoardGrid({
         <div className="min-w-[948px]">
           <div className="grid grid-cols-[132px_repeat(12,minmax(68px,1fr))] border-b border-slate-200 bg-slate-50">
             <div className="sticky left-0 z-20 border-r border-slate-200 bg-slate-50 px-4 py-3 text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-              Kaynak
+              Sınıf / Alan
             </div>
             {PERIODS.map((period) => (
               <div
@@ -410,13 +410,20 @@ export function ManagementBoardGrid({
                   compactSectionRow ? 38 : 44,
                   laneCount * laneStep + 8,
                 );
-                const rowClassCode = row.classCode ?? row.id.split('::')[0];
-                const previousClassCode = rowIndex > 0
-                  ? (rows[rowIndex - 1].classCode
-                    ?? rows[rowIndex - 1].id.split('::')[0])
+                const rowGroupKey = row.gradeGroup
+                  ?? row.classCode
+                  ?? row.classCodes?.[0]
+                  ?? row.id.split('::')[0];
+                const previousGroupKey = rowIndex > 0
+                  ? (
+                    rows[rowIndex - 1].gradeGroup
+                    ?? rows[rowIndex - 1].classCode
+                    ?? rows[rowIndex - 1].classCodes?.[0]
+                    ?? rows[rowIndex - 1].id.split('::')[0]
+                  )
                   : null;
                 const startsClassGroup = rowIndex === 0
-                  || previousClassCode !== rowClassCode;
+                  || previousGroupKey !== rowGroupKey;
 
                 return (
                   <div
@@ -434,14 +441,19 @@ export function ManagementBoardGrid({
                       style={{ minHeight: rowHeight }}
                     >
                       <div className="min-w-0 self-center">
-                        <p className="truncate text-[10px] font-semibold text-slate-800">
-                          {row.label}
-                        </p>
-                        {row.secondary && (
-                          <p className="mt-0.5 truncate text-[9px] font-medium text-slate-400">
-                            {row.secondary}
+                        {startsClassGroup && row.groupLabel && (
+                          <p className="truncate text-[10px] font-bold text-slate-800">
+                            {row.groupLabel}
                           </p>
                         )}
+                        <p className={`truncate text-[9px] font-semibold ${
+                          startsClassGroup && row.groupLabel
+                            ? 'mt-0.5 text-slate-500'
+                            : 'text-slate-600'
+                        }`}>
+                          {row.label}
+                          {row.secondary ? ` · ${row.secondary}` : ''}
+                        </p>
                       </div>
                     </div>
 
