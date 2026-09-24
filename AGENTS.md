@@ -12,8 +12,8 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `feat/management-m20-placement-recovery` |
-| Son implementation checkpoint | `744333527783f21cf9767f6fb44f7be05b7ddef8` |
-| Commit | `docs: advance M29 checkpoint` |
+| Son implementation checkpoint | `fe902b665975f82692587fe659b2e7975cd539dc` |
+| Commit | `fix: restore M29 inspector build helpers` |
 | Son kullanıcı-doğrulamalı UI checkpoint | `111d151a99cc868bc0212fc03dc0d4287a75696c` |
 | Bir önceki kritik işlevsel checkpoint | `eb9535a421bf57914612f2c95f9be2e7baaffe05` |
 | Kritik düzeltme | Provisional VALID adayların grouped placement içinde kullanılabilmesi |
