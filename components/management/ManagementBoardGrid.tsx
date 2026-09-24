@@ -209,13 +209,19 @@ function dropTargetForCell({
   );
 
   if (isCurrent) {
+    const currentReasonCodes = Array.from(new Set(
+      assessments
+        .filter((assessment) => assessment.status !== 'VALID')
+        .flatMap((assessment) => assessment.reasonCodes),
+    ));
+
     return {
       cardId: card.id,
       dayOfWeek: activeDay,
       startPeriod,
       state: 'CURRENT',
       validCandidates,
-      reasonCodes: [],
+      reasonCodes: currentReasonCodes,
     };
   }
 
@@ -473,6 +479,55 @@ function targetClass(state: ManagementDropState) {
   }
 
   return 'border-transparent bg-transparent text-transparent';
+}
+
+function invalidReasonLabel(reasonCodes: string[]) {
+  const labels: Record<string, string> = {
+    ROOM_CONFLICT: 'Salon',
+    GROUP_CONFLICT: 'Grup',
+    TEACHER_CONFLICT: 'Öğretmen',
+    LUNCH_BREAK_CROSSING: 'Öğle',
+    TIME_OUTSIDE_DAY: 'Saat',
+    ROOM_INACTIVE: 'Salon kapalı',
+  };
+
+  const mapped = Array.from(new Set(
+    reasonCodes.map((code) => labels[code] ?? code),
+  ));
+
+  if (mapped.length === 0) return 'Uygun değil';
+  if (mapped.length === 1) return mapped[0];
+  return `${mapped[0]} +${mapped.length - 1}`;
+}
+
+function targetDisplayLabel(target: ManagementDropTarget) {
+  if (target.state === 'INVALID') {
+    return invalidReasonLabel(target.reasonCodes);
+  }
+
+  if (target.state === 'CURRENT' && target.reasonCodes.length > 0) {
+    return 'Mevcut ⚠';
+  }
+
+  return targetLabel(target.state);
+}
+
+function targetDisplayTitle(target: ManagementDropTarget) {
+  if (target.state === 'INVALID') {
+    return target.reasonCodes.length > 0
+      ? `Uygun değil · ${target.reasonCodes.join(', ')}`
+      : 'Uygun değil';
+  }
+
+  if (target.state === 'CURRENT' && target.reasonCodes.length > 0) {
+    return `Mevcut yerleşim · aday motoru uyarısı: ${target.reasonCodes.join(', ')}`;
+  }
+
+  if (target.state === 'AMBIGUOUS') {
+    return 'Uygun · öğretmen/salon seçimi gerekli';
+  }
+
+  return targetLabel(target.state);
 }
 
 function targetLabel(state: ManagementDropState) {
@@ -753,7 +808,7 @@ export function ManagementBoardGrid({
 
                               const droppable = target.state !== 'NONE'
                                 && target.state !== 'CURRENT';
-                              const anchorLabel = targetLabel(target.state);
+                              const anchorLabel = targetDisplayLabel(target);
                               const label = footprint.continuation
                                 ? ''
                                 : (
@@ -794,12 +849,10 @@ export function ManagementBoardGrid({
                                   }`}
                                   title={
                                     footprint.continuation
-                                      ? `${targetLabel(target.state)} · ${target.startPeriod}. derste başlayan ${duration} derslik blok`
-                                      : target.state === 'AMBIGUOUS'
-                                        ? 'Uygun · öğretmen/salon seçimi gerekli'
-                                        : duration > 1
-                                          ? `${targetLabel(target.state)} · ${duration} derslik blok`
-                                          : targetLabel(target.state)
+                                      ? `${targetDisplayLabel(target)} · ${target.startPeriod}. derste başlayan ${duration} derslik blok`
+                                      : duration > 1
+                                        ? `${targetDisplayTitle(target)} · ${duration} derslik blok`
+                                        : targetDisplayTitle(target)
                                   }
                                 >
                                   <span className="truncate px-1">
