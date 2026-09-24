@@ -496,8 +496,7 @@ function invalidReasonLabel(reasonCodes: string[]) {
   ));
 
   if (mapped.length === 0) return 'Uygun değil';
-  if (mapped.length === 1) return mapped[0];
-  return `${mapped[0]} +${mapped.length - 1}`;
+  return mapped.join(' + ');
 }
 
 function targetDisplayLabel(target: ManagementDropTarget) {
