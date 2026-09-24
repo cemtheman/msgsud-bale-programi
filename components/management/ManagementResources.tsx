@@ -26,6 +26,28 @@ function capabilityLabel(value: string) {
 }
 
 
+function isRetiredSpecialTeacherPlaceholder(
+  row: ManagementTeacherResourceRow,
+) {
+  if (row.activeRequirementCount > 0 || row.placedBlockCount > 0) {
+    return false;
+  }
+
+  const names = [row.name, row.baseName]
+    .map((value) => value.trim().toLocaleLowerCase('tr-TR'));
+
+  return names.some((name) => (
+    (
+      name.startsWith('orkestra')
+      || name.startsWith('doğaçlama')
+    )
+    && (
+      /öğretmeni[\s._-]*\d+$/.test(name)
+      || /ö\.?[\s._-]*\d+$/.test(name)
+    )
+  ));
+}
+
 function teacherState(row: ManagementTeacherResourceRow) {
   if (row.activeRequirementCount === 0 && row.placedBlockCount === 0) {
     return {
@@ -433,15 +455,24 @@ export function ManagementResources({
 
   const normalizedQuery = query.trim().toLocaleLowerCase('tr-TR');
 
+  const visibleTeachers = useMemo(
+    () => (
+      data?.teachers.filter(
+        (row) => !isRetiredSpecialTeacherPlaceholder(row),
+      ) ?? []
+    ),
+    [data?.teachers],
+  );
+
   const filteredTeachers = useMemo(
     () => (
-      data?.teachers.filter((row) => (
+      visibleTeachers.filter((row) => (
         normalizedQuery.length === 0
         || row.name.toLocaleLowerCase('tr-TR').includes(normalizedQuery)
         || row.baseName.toLocaleLowerCase('tr-TR').includes(normalizedQuery)
-      )) ?? []
+      ))
     ),
-    [data?.teachers, normalizedQuery],
+    [normalizedQuery, visibleTeachers],
   );
 
   const filteredRooms = useMemo(
@@ -493,11 +524,11 @@ export function ManagementResources({
     );
   }
 
-  const assignedTeacherCount = data.teachers.filter(
+  const assignedTeacherCount = visibleTeachers.filter(
     (row) => row.activeRequirementCount > 0,
   ).length;
 
-  const usedTeacherCount = data.teachers.filter(
+  const usedTeacherCount = visibleTeachers.filter(
     (row) => row.placedBlockCount > 0,
   ).length;
 
@@ -564,7 +595,7 @@ export function ManagementResources({
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              Öğretmenler · {data.teachers.length}
+              Öğretmenler · {visibleTeachers.length}
             </button>
             <button
               type="button"
