@@ -12,8 +12,8 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `feat/management-m20-placement-recovery` |
-| Son implementation checkpoint | `d42ec7d57ebfaea296fe52a5b65f935d25ae04b3` |
-| Commit | `feat: preview and apply in-place timetable resource changes` |
+| Son implementation checkpoint | `73cdbb4e12b3a5e1cc514afe596a2fa645f1fdb8` |
+| Commit | `fix: harden M29 resource preview migration` |
 | Son kullanıcı-doğrulamalı UI checkpoint | `111d151a99cc868bc0212fc03dc0d4287a75696c` |
 | Bir önceki kritik işlevsel checkpoint | `eb9535a421bf57914612f2c95f9be2e7baaffe05` |
 | Kritik düzeltme | Provisional VALID adayların grouped placement içinde kullanılabilmesi |
@@ -437,3 +437,13 @@ M29 davranışı:
 Not: M29 migration dosyası remote apply öncesi UUID revision aggregate kullanımı açısından yeniden statik kontrol edildi; `min(uuid)` ve belirsiz `unnest` alias kullanımları kaldırıldı.
 
 Durum: GitHub implementation tamamlandı; build ve remote migration apply henüz kullanıcı tarafından doğrulanmadı.
+
+
+### M29 hardening checkpoint
+
+```
+73cdbb4e12b3a5e1cc514afe596a2fa645f1fdb8
+fix: harden M29 resource preview migration
+```
+
+Remote apply öncesi SQL statik kontrolünde UUID revision seçimi için `min(uuid)` ve belirsiz `unnest` alias kullanımı kaldırıldı. M29'un güvenilir implementation checkpoint'i bu SHA'dır.
