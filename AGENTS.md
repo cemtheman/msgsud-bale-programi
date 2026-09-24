@@ -12,8 +12,8 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `feat/management-m20-placement-recovery` |
-| Son implementation checkpoint | `3d95ee6e725e70647c577a30e9385fbf0d571e32` |
-| Commit | `feat: edit lesson resources from timetable cards` |
+| Son implementation checkpoint | `d42ec7d57ebfaea296fe52a5b65f935d25ae04b3` |
+| Commit | `feat: preview and apply in-place timetable resource changes` |
 | Son kullanıcı-doğrulamalı UI checkpoint | `111d151a99cc868bc0212fc03dc0d4287a75696c` |
 | Bir önceki kritik işlevsel checkpoint | `eb9535a421bf57914612f2c95f9be2e7baaffe05` |
 | Kritik düzeltme | Provisional VALID adayların grouped placement içinde kullanılabilmesi |
@@ -155,6 +155,7 @@ M26.8 ile frontend `VALID + isComplete` koşulunu doğru kabul edecek hale getir
 | `20260924233000_management_m27_1_flexible_special_teachers.sql` | Orkestra/Doğaçlama için tek dedicated öğretmen + mevcut BALLET/MUSIC öğretmen havuzu; numaralı sentetik öğretmen üretme/koruma yok |
 | `20260924235500_management_m27_2_special_teacher_canonicalization.sql` | Legacy Orkestra/Doğaçlama numaralı placeholder'larını geniş kalıpla aktif yönetim atamalarından temizle; tek dedicated kaynağı kanonik tut |
 | `20260925001000_management_m28_resource_lifecycle.sql` | Öğretmen/salon kaynak ekleme-silme; öğretmen ACTIVE/INACTIVE yaşam döngüsü; pasif öğretmeni candidate ve yeni atamalardan çıkarma |
+| `20260925010000_management_m29_placement_resource_preview.sql` | Yerleşmiş kartı kaldırmadan öğretmen/salon değişikliği için etki önizleme + güvenli atomik apply; requirement havuzunu gerektiğinde genişletir |
 
 Remote migration durumu için bu tablo tek başına yeterli kaynak değildir; her yeni DB işi öncesi `npx.cmd supabase migration list` ile local/remote eşleşmesi doğrulanmalıdır. Bu oturumdaki runtime davranışı M26.7 diagnostic ve M26.8 provisional grouped placement fonksiyonlarının aktif olduğunu doğruladı.
 
@@ -398,3 +399,41 @@ Browser doğrulama:
 - Yerleşmiş kartta aynı-slot `Yerleşimi düzenle` öğretmen/salon değişiminin çalışmaya devam ettiğini kontrol et.
 
 Durum: GitHub implementasyonu tamamlandı; build ve M28 remote migration apply kullanıcı tarafından doğrulanmalıdır.
+
+
+## 17. M29 — Yerleşmiş kartta öğretmen/salon değişikliği
+
+Kullanıcı, Program sağ panelindeki `Yerleşimi düzenle` butonlarının `Öğretmen değiştir · yok / Salon değiştir · yok` şeklinde default kilitli kaldığını raporladı. Kök neden: UI yalnız mevcut candidate domain içinde aynı slot için alternatif resource arıyordu. Requirement havuzunda olmayan fakat Kaynaklar'da aktif bulunan öğretmen/salon hiç seçenek sayılmıyordu.
+
+Kullanıcı ürün beklentisini yeniden netleştirdi: yerleşmiş kartı kaldırmak zorunlu olmamalı; önce etki hesaplanmalı, güvenliyse aynı slotta resource değişmeli, gerçek çakışma varsa değişiklik kilitlenmeli.
+
+Implementation:
+
+```
+d42ec7d57ebfaea296fe52a5b65f935d25ae04b3
+feat: preview and apply in-place timetable resource changes
+```
+
+Migration:
+
+```
+20260925010000_management_m29_placement_resource_preview.sql
+```
+
+M29 davranışı:
+
+- Program > kart > Yerleşimi düzenle artık yalnız candidate domain alternatiflerini değil, tüm ACTIVE öğretmenleri ve ACTIVE ana salonları seçenek olarak sunar.
+- Kullanıcı kaynak seçtikten sonra `Etkiyi hesapla` çalışır; doğrudan yazma yapılmaz.
+- Öğretmen değişikliğinde seçilen öğretmenin mevcut gün/saat + blok süresinde başka bir dış kartla çakışması kontrol edilir.
+- Salon değişikliğinde aynı slotta salon çakışması, salon ACTIVE durumu ve CAPABILITY stratejisinde required capability + CONFIRMED profile uyumu kontrol edilir.
+- Birleşik görsel kartlarda `selectedCardIds` bundle olarak değerlendirilir; bundle sibling'ları birbirlerine conflict sayılmaz.
+- Seçilen resource requirement havuzunda yoksa safe apply sırasında ilgili `course_requirement_teachers` / `course_requirement_rooms` havuzu genişletilir ve mode FIXED/ELIGIBLE_POOL ile uzlaştırılır.
+- CAPABILITY salon stratejisinde seçilen salon capability kuralını karşılamalıdır; strategy değiştirilmez.
+- Safe apply mevcut M26.8 `management_move_card_bundle` yoluna delegasyon yapar. Böylece gün/saat korunurken teacher/room değişikliği normal MOVE history/undo/redo zincirine girer.
+- Önizleme stale-token korumalıdır; preview sonrası program değişmişse yeniden hesaplama gerekir.
+- Gerçek conflict varsa `canApply=false`; UI blocker dersini ve conflict tipini gösterir.
+- Kartı önce havuza kaldırma zorunluluğu yalnız Ders Planı requirement havuzunu topluca değiştirme işlemlerinde kalır; tek yerleşimin resource değişiminde uygulanmaz.
+
+Not: M29 migration dosyası remote apply öncesi UUID revision aggregate kullanımı açısından yeniden statik kontrol edildi; `min(uuid)` ve belirsiz `unnest` alias kullanımları kaldırıldı.
+
+Durum: GitHub implementation tamamlandı; build ve remote migration apply henüz kullanıcı tarafından doğrulanmadı.

@@ -23,6 +23,7 @@ declare
   v_card_ids uuid[] := coalesce(p_card_ids, array[]::uuid[]);
   v_card_count integer;
   v_revision_id uuid;
+  v_revision_ids uuid[];
   v_revision_count integer;
   v_resource_name text;
   v_resource_active boolean := false;
@@ -46,9 +47,9 @@ begin
     raise exception 'M29 resource id is required';
   end if;
 
-  select count(distinct id)
+  select count(distinct value.card_id)
   into v_card_count
-  from unnest(v_card_ids) id;
+  from unnest(v_card_ids) as value(card_id);
 
   if v_card_count < 1 or v_card_count > 24
      or v_card_count <> cardinality(v_card_ids) then
@@ -57,12 +58,19 @@ begin
 
   select
     count(distinct card.schedule_revision_id),
-    min(card.schedule_revision_id)
+    array_agg(
+      distinct card.schedule_revision_id
+      order by card.schedule_revision_id
+    )
   into
     v_revision_count,
-    v_revision_id
+    v_revision_ids
   from public.schedule_cards card
   where card.id = any(v_card_ids);
+
+  if v_revision_ids is not null then
+    v_revision_id := v_revision_ids[1];
+  end if;
 
   if v_revision_count <> 1
      or (
@@ -477,10 +485,12 @@ begin
   v_pool_expansion_count :=
     coalesce((v_preview ->> 'poolExpansionCount')::integer, 0);
 
-  select min(card.schedule_revision_id)
+  select card.schedule_revision_id
   into v_revision_id
   from public.schedule_cards card
-  where card.id = any(p_card_ids);
+  where card.id = any(p_card_ids)
+  order by card.id
+  limit 1;
 
   if p_resource_type = 'TEACHER' then
     insert into public.course_requirement_teachers (
