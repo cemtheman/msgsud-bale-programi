@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildManagementClassRows,
+  buildManagementRowDisplayCards,
   cardBelongsToClassRow,
   managementRowsForView,
   type ManagementBoardCard,
@@ -202,6 +203,71 @@ describe('management grade-group audience rows', () => {
       'culture-5B',
       'music-shared',
     ]);
+  });
+
+  it('coalesces the same placed common lesson across sibling classes for display only', () => {
+    const turkish5A = {
+      ...card('turkish-5A', ['SECTION'], ['5A']),
+      subjectId: 'subject-turkish',
+      subjectName: 'Türkçe',
+      groupName: 'Türkçe · 5A',
+    };
+    const turkish5B = {
+      ...card('turkish-5B', ['SECTION'], ['5B']),
+      subjectId: 'subject-turkish',
+      subjectName: 'Türkçe',
+      groupName: 'Türkçe · 5B',
+    };
+
+    const displayCards = buildManagementRowDisplayCards(
+      [turkish5A, turkish5B],
+      'SINIFLAR',
+    );
+
+    expect(displayCards).toHaveLength(1);
+    expect(displayCards[0]).toMatchObject({
+      grouped: true,
+      sourceCardIds: ['turkish-5A', 'turkish-5B'],
+      classCodes: ['5A', '5B'],
+    });
+    expect(displayCards[0].card.id).toBe('turkish-5A');
+    expect(turkish5A.classCodes).toEqual(['5A']);
+    expect(turkish5B.classCodes).toEqual(['5B']);
+  });
+
+  it('keeps different slots separate and never aggregates teacher or room views', () => {
+    const turkish5A = {
+      ...card('turkish-5A', ['SECTION'], ['5A']),
+      subjectId: 'subject-turkish',
+      subjectName: 'Türkçe',
+    };
+    const turkish5B = {
+      ...card('turkish-5B', ['SECTION'], ['5B']),
+      subjectId: 'subject-turkish',
+      subjectName: 'Türkçe',
+      placement: {
+        ...card('slot-source', ['SECTION'], ['5B']).placement!,
+        startPeriod: 2,
+      },
+    };
+
+    expect(buildManagementRowDisplayCards(
+      [turkish5A, turkish5B],
+      'SINIFLAR',
+    )).toHaveLength(2);
+
+    const sameSlot5B = {
+      ...turkish5B,
+      placement: {
+        ...turkish5B.placement!,
+        startPeriod: 1,
+      },
+    };
+
+    expect(buildManagementRowDisplayCards(
+      [turkish5A, sameSlot5B],
+      'ÖĞRETMENLER',
+    )).toHaveLength(2);
   });
 
   it('keeps a source-confirmed audience row even before lesson cards exist', () => {

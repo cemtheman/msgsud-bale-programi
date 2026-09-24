@@ -1,9 +1,11 @@
 'use client';
 
 import {
+  buildManagementRowDisplayCards,
   cardBelongsToClassRow,
   placementBelongsToRow,
   type ManagementBoardCard,
+  type ManagementBoardDisplayCard,
   type ManagementBoardRow,
   type ManagementCandidateAssessment,
   type ManagementCandidateDetail,
@@ -81,18 +83,18 @@ function compactCardGroupName(card: ManagementBoardCard) {
     .join(' · ');
 }
 
-function packCards(cards: ManagementBoardCard[]) {
+function packCards(cards: ManagementBoardDisplayCard[]) {
   const laneEnds: number[] = [];
 
   return [...cards]
     .sort((a, b) => {
-      const startA = a.placement?.startPeriod ?? 99;
-      const startB = b.placement?.startPeriod ?? 99;
-      return startA - startB || b.durationPeriods - a.durationPeriods;
+      const startA = a.card.placement?.startPeriod ?? 99;
+      const startB = b.card.placement?.startPeriod ?? 99;
+      return startA - startB || b.card.durationPeriods - a.card.durationPeriods;
     })
-    .map((card) => {
-      const start = card.placement?.startPeriod ?? 1;
-      const end = start + card.durationPeriods - 1;
+    .map((displayCard) => {
+      const start = displayCard.card.placement?.startPeriod ?? 1;
+      const end = start + displayCard.card.durationPeriods - 1;
       let lane = laneEnds.findIndex((laneEnd) => laneEnd < start);
 
       if (lane === -1) {
@@ -102,7 +104,7 @@ function packCards(cards: ManagementBoardCard[]) {
         laneEnds[lane] = end;
       }
 
-      return { card, lane };
+      return { displayCard, lane };
     });
 }
 
@@ -397,7 +399,8 @@ export function ManagementBoardGrid({
                 const rowCards = dayCards.filter((card) =>
                   placementBelongsToRow(card, row, view),
                 );
-                const packed = packCards(rowCards);
+                const displayCards = buildManagementRowDisplayCards(rowCards, view);
+                const packed = packCards(displayCards);
                 const laneCount = packed.length === 0
                   ? 1
                   : Math.max(...packed.map((item) => item.lane)) + 1;
@@ -470,21 +473,30 @@ export function ManagementBoardGrid({
                         ))}
                       </div>
 
-                      {packed.map(({ card, lane }) => {
+                      {packed.map(({ displayCard, lane }) => {
+                        const card = displayCard.card;
                         const placement = card.placement;
                         if (!placement) return null;
 
                         const left = ((placement.startPeriod - 1) / 12) * 100;
                         const width = (card.durationPeriods / 12) * 100;
-                        const selected = card.id === selectedCardId;
+                        const selected = displayCard.sourceCardIds.includes(
+                          selectedCardId ?? '',
+                        );
+                        const draggable = canEdit
+                          && !card.locked
+                          && !displayCard.grouped;
+                        const secondaryLabel = displayCard.grouped
+                          ? displayCard.classCodes.join(' + ')
+                          : compactCardGroupName(card);
 
                         return (
                           <button
-                            key={card.id}
+                            key={displayCard.id}
                             type="button"
-                            draggable={canEdit && !card.locked}
+                            draggable={draggable}
                             onDragStart={(event) => {
-                              if (!canEdit || card.locked) {
+                              if (!draggable) {
                                 event.preventDefault();
                                 return;
                               }
@@ -496,7 +508,7 @@ export function ManagementBoardGrid({
                             onDragEnd={onDragEnd}
                             onClick={() => onSelect(card.id)}
                             className={`absolute overflow-hidden rounded-md border px-2 py-1 text-left shadow-sm transition ${
-                              canEdit && !card.locked
+                              draggable
                                 ? 'cursor-grab active:cursor-grabbing'
                                 : ''
                             } ${cardClass(card)} ${
@@ -510,14 +522,18 @@ export function ManagementBoardGrid({
                               top: 4 + lane * laneStep,
                               height: cardHeight,
                             }}
-                            title={`${card.subjectName} · ${card.groupName}`}
+                            title={
+                              displayCard.grouped
+                                ? `${card.subjectName} · ${displayCard.classCodes.join(' + ')} · ${displayCard.sourceCardIds.length} kayıt`
+                                : `${card.subjectName} · ${card.groupName}`
+                            }
                           >
                             <p className="truncate text-[9.5px] font-semibold leading-tight">
                               {card.subjectName}
                             </p>
-                            {compactCardGroupName(card) && (
+                            {secondaryLabel && (
                               <p className="mt-0.5 truncate text-[7.5px] font-medium leading-tight opacity-55">
-                                {compactCardGroupName(card)}
+                                {secondaryLabel}
                               </p>
                             )}
                           </button>

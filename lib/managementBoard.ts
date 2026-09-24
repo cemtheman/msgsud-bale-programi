@@ -71,6 +71,14 @@ export interface ManagementBoardData {
   roomNamesById: Record<string, string>;
 }
 
+export interface ManagementBoardDisplayCard {
+  id: string;
+  card: ManagementBoardCard;
+  sourceCardIds: string[];
+  classCodes: string[];
+  grouped: boolean;
+}
+
 export interface ManagementCandidateAssessment {
   dayOfWeek: number;
   startPeriod: number;
@@ -333,6 +341,73 @@ export function managementCardStatus(card: ManagementBoardCard) {
   if (card.isForced) return 'Zorunlu';
   if (card.unresolvedCount > 0) return 'Belirsiz';
   return 'Uygun';
+}
+
+export function buildManagementRowDisplayCards(
+  cards: ManagementBoardCard[],
+  view: ManagementResourceView,
+): ManagementBoardDisplayCard[] {
+  const singleCard = (card: ManagementBoardCard): ManagementBoardDisplayCard => ({
+    id: `card:${card.id}`,
+    card,
+    sourceCardIds: [card.id],
+    classCodes: [...card.classCodes],
+    grouped: false,
+  });
+
+  if (view !== 'SINIFLAR') {
+    return cards.map(singleCard);
+  }
+
+  const groups = new Map<string, ManagementBoardDisplayCard>();
+
+  cards.forEach((card) => {
+    if (!card.placement) {
+      groups.set(`card:${card.id}`, singleCard(card));
+      return;
+    }
+
+    const audienceKey = [...card.audienceTargets].sort().join(',');
+    const key = [
+      card.subjectId,
+      card.placement.dayOfWeek,
+      card.placement.startPeriod,
+      card.durationPeriods,
+      audienceKey,
+      card.courseCharacter,
+      card.deliveryMode,
+    ].join('::');
+
+    const existing = groups.get(key);
+
+    if (!existing) {
+      groups.set(key, {
+        id: `group:${key}`,
+        card,
+        sourceCardIds: [card.id],
+        classCodes: [...card.classCodes],
+        grouped: false,
+      });
+      return;
+    }
+
+    existing.sourceCardIds.push(card.id);
+    card.classCodes.forEach((code) => {
+      if (!existing.classCodes.includes(code)) {
+        existing.classCodes.push(code);
+      }
+    });
+    existing.grouped = true;
+  });
+
+  return Array.from(groups.values()).map((displayCard) => ({
+    ...displayCard,
+    sourceCardIds: [...displayCard.sourceCardIds].sort(),
+    classCodes: [...displayCard.classCodes].sort((a, b) =>
+      a.localeCompare(b, 'tr', { numeric: true }),
+    ),
+    grouped: displayCard.sourceCardIds.length > 1,
+  }));
 }
 
 export function cardBelongsToClassRow(
