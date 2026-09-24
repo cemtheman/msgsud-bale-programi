@@ -299,8 +299,6 @@ export function ManagementInspector({
     const actionable = Boolean(
       canEdit
       && candidate.isComplete
-      && candidate.teacherId
-      && candidate.roomId
       && !card.locked
       && !isCurrent
     );

@@ -21,8 +21,8 @@ export interface ManagementBundleCandidateInput {
   cardId: string;
   dayOfWeek: number;
   startPeriod: number;
-  teacherId: string;
-  roomId: string;
+  teacherId: string | null;
+  roomId: string | null;
 }
 
 export interface ManagementSlotBlocker {
@@ -239,8 +239,8 @@ export function placeManagementCard(
     cardId: string;
     dayOfWeek: number;
     startPeriod: number;
-    teacherId: string;
-    roomId: string;
+    teacherId: string | null;
+    roomId: string | null;
   },
 ) {
   return callRpc('management_place_card', accessToken, {
@@ -258,8 +258,8 @@ export function moveManagementCard(
     cardId: string;
     dayOfWeek: number;
     startPeriod: number;
-    teacherId: string;
-    roomId: string;
+    teacherId: string | null;
+    roomId: string | null;
   },
 ) {
   return callRpc('management_move_card', accessToken, {

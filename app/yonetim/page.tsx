@@ -583,8 +583,6 @@ export default function ManagementPage() {
       !session
       || !access?.canEdit
       || !commandCard
-      || !candidate.teacherId
-      || !candidate.roomId
       || commandBusy
     ) {
       return;
@@ -640,7 +638,7 @@ export default function ManagementPage() {
 
     const commands = moves.flatMap(({ cardId, candidate }) => {
       const card = board.cards.find((item) => item.id === cardId);
-      if (!card || !candidate.teacherId || !candidate.roomId) return [];
+      if (!card) return [];
       return [{ card, candidate }];
     });
 
@@ -673,8 +671,8 @@ export default function ManagementPage() {
       cardId: card.id,
       dayOfWeek: candidate.dayOfWeek,
       startPeriod: candidate.startPeriod,
-      teacherId: candidate.teacherId!,
-      roomId: candidate.roomId!,
+      teacherId: candidate.teacherId,
+      roomId: candidate.roomId,
     }));
 
     setCommandBusy(true);
@@ -744,8 +742,6 @@ export default function ManagementPage() {
             && assessment.startPeriod === candidate.startPeriod
             && assessment.status === 'VALID'
             && assessment.isComplete
-            && Boolean(assessment.teacherId)
-            && Boolean(assessment.roomId)
           ));
 
           if (cardId === selectedCardId) {
@@ -825,8 +821,6 @@ export default function ManagementPage() {
             && assessment.startPeriod === target.startPeriod
             && assessment.status === 'VALID'
             && assessment.isComplete
-            && Boolean(assessment.teacherId)
-            && Boolean(assessment.roomId)
             && managementAssessmentMatchesRow(
               card,
               assessment,

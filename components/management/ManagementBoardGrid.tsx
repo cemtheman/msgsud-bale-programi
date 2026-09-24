@@ -186,8 +186,6 @@ function dropTargetForCell({
     (assessment) => (
       assessment.status === 'VALID'
       && assessment.isComplete
-      && Boolean(assessment.teacherId)
-      && Boolean(assessment.roomId)
     ),
   );
 
