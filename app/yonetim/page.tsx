@@ -64,6 +64,7 @@ import {
 } from '@/lib/managementCoursePlan';
 import {
   fetchManagementCommandState,
+  fetchManagementSlotBlockers,
   moveManagementCard,
   moveManagementCardBundle,
   placeManagementCard,
@@ -878,7 +879,7 @@ export default function ManagementPage() {
     }
   };
 
-  const handleDropNeedsAttention = (target: ManagementDropTarget) => {
+  const handleDropNeedsAttention = async (target: ManagementDropTarget) => {
     const targetCardIds = Array.from(new Set(
       target.cardIds?.length ? target.cardIds : [target.cardId],
     ));
@@ -919,12 +920,68 @@ export default function ManagementPage() {
     }
 
     if (target.state === 'INVALID') {
+      if (!session) {
+        setCommandNotice({
+          kind: 'error',
+          text: reason
+            ? `Bu konum uygun değil: ${reason}.`
+            : 'Bu konum kart için uygun değil.',
+        });
+        return;
+      }
+
       setCommandNotice({
-        kind: 'error',
-        text: reason
-          ? `Bu konum uygun değil: ${reason}.`
-          : 'Bu konum kart için uygun değil.',
+        kind: 'info',
+        text: 'Bu konumu engelleyen yerleşimler kontrol ediliyor…',
       });
+
+      try {
+        const blockers = await fetchManagementSlotBlockers(
+          session.accessToken,
+          targetCardIds,
+          target.dayOfWeek,
+          target.startPeriod,
+        );
+
+        if (blockers.length === 0) {
+          setCommandNotice({
+            kind: 'error',
+            text: reason
+              ? `Bu konum uygun değil: ${reason}.`
+              : 'Bu konum kart için uygun değil.',
+          });
+          return;
+        }
+
+        const blockerText = blockers
+          .slice(0, 3)
+          .map((blocker) => {
+            const resource = [
+              blocker.roomName,
+              blocker.teacherName,
+            ].filter(Boolean).join(' · ');
+            const types = blocker.conflictTypes
+              .map((type) => translateCandidateReason(type))
+              .join(' + ');
+
+            return `${blocker.subjectName} / ${blocker.groupName}${resource ? ` · ${resource}` : ''}${types ? ` [${types}]` : ''}`;
+          })
+          .join(' | ');
+
+        setCommandNotice({
+          kind: 'error',
+          text: `Bu konumu engelleyen yerleşim: ${blockerText}${blockers.length > 3 ? ` (+${blockers.length - 3})` : ''}.`,
+        });
+      } catch (diagnosticError: unknown) {
+        setCommandNotice({
+          kind: 'error',
+          text: diagnosticError instanceof Error
+            ? diagnosticError.message
+            : reason
+              ? `Bu konum uygun değil: ${reason}.`
+              : 'Bu konum kart için uygun değil.',
+        });
+      }
     }
   };
 
@@ -1495,7 +1552,7 @@ export default function ManagementPage() {
               }}
               onDropNeedsAttention={(target) => {
                 endDrag();
-                handleDropNeedsAttention(target);
+                void handleDropNeedsAttention(target);
               }}
             />
           </div>

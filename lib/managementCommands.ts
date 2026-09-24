@@ -25,6 +25,18 @@ export interface ManagementBundleCandidateInput {
   roomId: string;
 }
 
+export interface ManagementSlotBlocker {
+  cardId: string;
+  subjectName: string;
+  groupName: string;
+  dayOfWeek: number;
+  startPeriod: number;
+  endPeriod: number;
+  teacherName: string | null;
+  roomName: string | null;
+  conflictTypes: string[];
+}
+
 interface RootTransactionRow {
   id: string;
   action: 'PLACE' | 'MOVE' | 'REMOVE' | 'STRUCTURE';
@@ -169,6 +181,32 @@ async function readRpcError(response: Response, fallback: string) {
   }
 }
 
+async function callJsonRpc<T>(
+  name: string,
+  accessToken: string,
+  payload: Record<string, unknown>,
+): Promise<T> {
+  const { url, key } = getSupabaseConfig();
+
+  const response = await fetch(`${url}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await readRpcError(response, 'Yönetim teşhis verisi alınamadı.'),
+    );
+  }
+
+  return response.json() as Promise<T>;
+}
+
 async function callRpc(
   name: string,
   accessToken: string,
@@ -286,6 +324,23 @@ export function refreshManagementCardGroupCandidates(
   return callRpc('management_refresh_card_group_candidates', accessToken, {
     p_card_ids: cardIds,
   });
+}
+
+export function fetchManagementSlotBlockers(
+  accessToken: string,
+  cardIds: string[],
+  dayOfWeek: number,
+  startPeriod: number,
+) {
+  return callJsonRpc<ManagementSlotBlocker[]>(
+    'management_diagnose_bundle_slot_blockers',
+    accessToken,
+    {
+      p_card_ids: cardIds,
+      p_day_of_week: dayOfWeek,
+      p_start_period: startPeriod,
+    },
+  );
 }
 
 
