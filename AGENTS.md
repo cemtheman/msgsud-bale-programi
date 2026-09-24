@@ -12,8 +12,8 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `feat/management-m20-placement-recovery` |
-| Son implementation checkpoint | `12e0e38f7811cf24dd009051606750dbc273d879` |
-| Commit | `fix: make orchestra and improvisation teacher pools flexible` |
+| Son implementation checkpoint | `35e5b9a7d781e13237c950d6a02d9dbce1f37051` |
+| Commit | `fix: canonicalize orchestra and improvisation resources` |
 | Son kullanıcı-doğrulamalı UI checkpoint | `111d151a99cc868bc0212fc03dc0d4287a75696c` |
 | Bir önceki kritik işlevsel checkpoint | `eb9535a421bf57914612f2c95f9be2e7baaffe05` |
 | Kritik düzeltme | Provisional VALID adayların grouped placement içinde kullanılabilmesi |
@@ -153,6 +153,7 @@ M26.8 ile frontend `VALID + isComplete` koşulunu doğru kabul edecek hale getir
 | `20260924222000_management_m26_8_provisional_bundle_candidates.sql` | Provisional NULL resource identity için grouped exact-match düzeltmesi |
 | `20260924224500_management_m27_teacher_completion.sql` | Eksik draft öğretmenlerini tara; bilinenleri koru; çakışmaya göre `Ders Öğretmeni 1/2/3` kapasitesi oluştur; placement + requirement atamalarını tamamla |
 | `20260924233000_management_m27_1_flexible_special_teachers.sql` | Orkestra/Doğaçlama için tek dedicated öğretmen + mevcut BALLET/MUSIC öğretmen havuzu; numaralı sentetik öğretmen üretme/koruma yok |
+| `20260924235500_management_m27_2_special_teacher_canonicalization.sql` | Legacy Orkestra/Doğaçlama numaralı placeholder'larını geniş kalıpla aktif yönetim atamalarından temizle; tek dedicated kaynağı kanonik tut |
 
 Remote migration durumu için bu tablo tek başına yeterli kaynak değildir; her yeni DB işi öncesi `npx.cmd supabase migration list` ile local/remote eşleşmesi doğrulanmalıdır. Bu oturumdaki runtime davranışı M26.7 diagnostic ve M26.8 provisional grouped placement fonksiyonlarının aktif olduğunu doğruladı.
 
@@ -263,3 +264,32 @@ M27.1 davranışı:
 - Public program count/hash guard ile korunur.
 
 Durum: **GitHub'a commit edildi. Remote Supabase apply henüz bu sohbet içinde doğrulanmadı.** M27 ve M27.1 remote migration listesinde eksikse ikisi birlikte dry-run'da sıralı görünmelidir.
+
+
+## 15. M27.2 — Orkestra / Doğaçlama legacy placeholder temizliği
+
+M27.1 sonrasında kullanıcı Kaynaklar ekranında Orkestra öğretmenini hâlâ dört kişi gördü. Kök neden: Kaynaklar envanteri `teachers` tablosundaki yönetimde artık kullanılmayan eski placeholder satırlarını da gösteriyordu; ayrıca daha eski isim biçimleri yalnız `Öğretmeni 1` regex'iyle yakalanmıyordu.
+
+Implementation commit:
+
+```
+35e5b9a7d781e13237c950d6a02d9dbce1f37051
+fix: canonicalize orchestra and improvisation resources
+```
+
+Migration:
+
+```
+20260924235500_management_m27_2_special_teacher_canonicalization.sql
+```
+
+M27.2:
+- `Orkestra Öğretmeni 1`, `Orkestra Öğretmeni-1`, `Orkestra Ö.-1` benzeri legacy numaralı biçimleri; aynı şekilde Doğaçlama varyasyonlarını yakalar.
+- Bu kimlikleri aktif Orkestra/Doğaçlama requirement öğretmen havuzundan çıkarır.
+- NULL veya legacy özel öğretmen taşıyan aktif draft placement'ları tek dedicated öğretmen + mevcut BALLET/MUSIC öğretmen havuzuna çakışmasız dağıtır.
+- Aktif draft target requirement/placement içinde legacy özel öğretmen kalırsa rollback olur.
+- Fiziksel olarak tamamen referanssız legacy teacher satırlarını siler.
+- Public/audit referansı nedeniyle silinemeyen, fakat yönetimde aktif kullanılmayan legacy özel placeholder satırları Kaynaklar UI'sında artık gösterilmez.
+- Kaynaklar öğretmen sayacı ve aktif/kullanılan öğretmen sayıları da bu görünür yönetim envanterini baz alır.
+
+Durum: GitHub'a commit edildi; remote migration apply kullanıcı tarafından doğrulanmalıdır.
