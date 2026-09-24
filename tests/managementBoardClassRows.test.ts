@@ -5,12 +5,12 @@ import {
   managementRowsForView,
   type ManagementBoardCard,
   type ManagementBoardData,
-  type ManagementBoardRow,
 } from '@/lib/managementBoard';
 
 function card(
   id: string,
   audienceTargets: string[],
+  classCodes: string[] = ['5A'],
 ): ManagementBoardCard {
   return {
     id,
@@ -23,7 +23,7 @@ function card(
     groupId: `group-${id}`,
     groupName: id,
     groupType: 'STANDARD',
-    classCodes: ['5A'],
+    classCodes,
     audienceTargets,
     weeklyLoad: 1,
     teacherMode: 'UNKNOWN',
@@ -53,13 +53,20 @@ function card(
   };
 }
 
-function board(cards: ManagementBoardCard[]): ManagementBoardData {
+function board(
+  cards: ManagementBoardCard[],
+  audiencesByClassCode: Record<string, Array<'SECTION' | 'BALLET' | 'MUSIC'>>,
+): ManagementBoardData {
   return {
     revisionId: 'revision',
     cards,
     classRows: buildManagementClassRows(
-      [{ grade: 5, section: 'A' }],
+      [
+        { grade: 5, section: 'A' },
+        { grade: 5, section: 'B' },
+      ],
       cards,
+      audiencesByClassCode,
     ),
     teacherRows: [],
     roomRows: [],
@@ -68,161 +75,66 @@ function board(cards: ManagementBoardCard[]): ManagementBoardData {
   };
 }
 
-describe('management class audience rows', () => {
-  it('splits the combined class view into one strict row per audience', () => {
-    const cards = [
-      card('bale', ['BALLET']),
-      card('music', ['MUSIC']),
-      card('culture', ['SECTION']),
-    ];
+describe('management grade-group audience rows', () => {
+  const audiences = {
+    '5A': ['SECTION', 'BALLET', 'MUSIC'] as const,
+    '5B': ['SECTION', 'MUSIC'] as const,
+  };
 
+  const cards = [
+    card('culture-5A', ['SECTION'], ['5A']),
+    card('culture-5B', ['SECTION'], ['5B']),
+    card('ballet-5A', ['BALLET'], ['5A']),
+    card('music-shared', ['MUSIC'], ['5A', '5B']),
+  ];
+
+  it('groups A/B classes into one grade block with strict audience subrows', () => {
     expect(buildManagementClassRows(
-      [{ grade: 5, section: 'A' }],
+      [
+        { grade: 5, section: 'A' },
+        { grade: 5, section: 'B' },
+      ],
       cards,
+      audiences,
     )).toEqual([
       {
-        id: '5A::SECTION',
-        label: '5A · 📚',
-        secondary: null,
-        classCode: '5A',
+        id: 'grade-5::SECTION',
+        label: '📚 Ortak',
+        secondary: '5A + 5B',
+        classCodes: ['5A', '5B'],
+        gradeGroup: 5,
+        groupLabel: '5. Sınıflar',
         audienceScope: 'SECTION',
-        availableAudiences: ['BALLET', 'MUSIC', 'SECTION'],
+        availableAudiences: ['SECTION'],
         includeSectionCards: false,
       },
       {
-        id: '5A::BALLET',
-        label: '5A · 🩰',
-        secondary: null,
-        classCode: '5A',
+        id: 'grade-5::BALLET',
+        label: '🩰 Bale',
+        secondary: '5A',
+        classCodes: ['5A'],
+        gradeGroup: 5,
+        groupLabel: '5. Sınıflar',
         audienceScope: 'BALLET',
-        availableAudiences: ['BALLET', 'MUSIC', 'SECTION'],
+        availableAudiences: ['BALLET'],
         includeSectionCards: false,
       },
       {
-        id: '5A::MUSIC',
-        label: '5A · 🎶',
-        secondary: null,
-        classCode: '5A',
+        id: 'grade-5::MUSIC',
+        label: '🎶 Müzik',
+        secondary: '5A + 5B',
+        classCodes: ['5A', '5B'],
+        gradeGroup: 5,
+        groupLabel: '5. Sınıflar',
         audienceScope: 'MUSIC',
-        availableAudiences: ['BALLET', 'MUSIC', 'SECTION'],
+        availableAudiences: ['MUSIC'],
         includeSectionCards: false,
       },
     ]);
   });
 
-  it('creates strict symbolic rows when an audience filter is selected', () => {
-    const cards = [
-      card('bale', ['BALLET']),
-      card('music', ['MUSIC']),
-      card('culture', ['SECTION']),
-    ];
-    const data = board(cards);
-
-    expect(managementRowsForView(
-      data,
-      'SINIFLAR',
-      'ORTAOKUL',
-      'SECTION',
-    )[0]).toMatchObject({
-      id: '5A::SECTION',
-      label: '5A · 📚',
-      audienceScope: 'SECTION',
-    });
-
-    const balletRows = managementRowsForView(
-      data,
-      'SINIFLAR',
-      'ORTAOKUL',
-      'BALLET',
-    );
-    expect(balletRows).toHaveLength(1);
-    expect(balletRows[0]).toMatchObject({
-      id: '5A::BALLET',
-      label: '5A · 🩰',
-      audienceScope: 'BALLET',
-      includeSectionCards: true,
-    });
-
-    const musicRows = managementRowsForView(
-      data,
-      'SINIFLAR',
-      'ORTAOKUL',
-      'MUSIC',
-    );
-    expect(musicRows).toHaveLength(1);
-    expect(musicRows[0]).toMatchObject({
-      id: '5A::MUSIC',
-      label: '5A · 🎶',
-      audienceScope: 'MUSIC',
-      includeSectionCards: true,
-    });
-
-    const sectionRow: ManagementBoardRow = {
-      id: '5A::SECTION',
-      label: '5A · 📚',
-      secondary: 'Ortaokul',
-      classCode: '5A',
-      audienceScope: 'SECTION',
-    };
-    const balletRow: ManagementBoardRow = {
-      ...sectionRow,
-      id: '5A::BALLET',
-      label: '5A · 🩰',
-      audienceScope: 'BALLET',
-    };
-    const musicRow: ManagementBoardRow = {
-      ...sectionRow,
-      id: '5A::MUSIC',
-      label: '5A · 🎶',
-      audienceScope: 'MUSIC',
-    };
-
-    expect(cardBelongsToClassRow(cards[2], sectionRow)).toBe(true);
-    expect(cardBelongsToClassRow(cards[2], balletRow)).toBe(false);
-    expect(cardBelongsToClassRow(cards[2], musicRow)).toBe(false);
-    expect(cardBelongsToClassRow(cards[0], balletRow)).toBe(true);
-    expect(cardBelongsToClassRow(cards[0], musicRow)).toBe(false);
-    expect(cardBelongsToClassRow(cards[1], musicRow)).toBe(true);
-    expect(cardBelongsToClassRow(cards[1], balletRow)).toBe(false);
-
-    expect(cardBelongsToClassRow(cards[2], balletRows[0])).toBe(true);
-    expect(cardBelongsToClassRow(cards[2], musicRows[0])).toBe(true);
-  });
-  it('keeps a source-confirmed audience row even before lesson cards exist', () => {
-    const data: ManagementBoardData = {
-      ...board([]),
-      classRows: buildManagementClassRows(
-        [{ grade: 12, section: 'B' }],
-        [],
-        { '12B': ['SECTION', 'MUSIC', 'BALLET'] },
-      ),
-    };
-
-    expect(managementRowsForView(
-      data,
-      'SINIFLAR',
-      'LISE',
-      'BALLET',
-    )).toEqual([
-      {
-        id: '12B::BALLET',
-        label: '12B · 🩰',
-        secondary: null,
-        classCode: '12B',
-        audienceScope: 'BALLET',
-        availableAudiences: ['SECTION', 'MUSIC', 'BALLET'],
-        includeSectionCards: true,
-      },
-    ]);
-  });
-
-  it('renders common lessons once in ALL but repeats them in focused student-program views', () => {
-    const cards = [
-      card('bale', ['BALLET']),
-      card('music', ['MUSIC']),
-      card('culture', ['SECTION']),
-    ];
-    const data = board(cards);
+  it('renders common, ballet and music cards once in the combined grade block', () => {
+    const data = board(cards, audiences);
     const rows = managementRowsForView(
       data,
       'SINIFLAR',
@@ -236,21 +148,102 @@ describe('management class audience rows', () => {
       'MUSIC',
     ]);
 
-    expect(cardBelongsToClassRow(cards[2], rows[0])).toBe(true);
-    expect(cardBelongsToClassRow(cards[2], rows[1])).toBe(false);
-    expect(cardBelongsToClassRow(cards[2], rows[2])).toBe(false);
-    expect(cardBelongsToClassRow(cards[0], rows[1])).toBe(true);
-    expect(cardBelongsToClassRow(cards[1], rows[2])).toBe(true);
+    expect(cards.filter((item) => cardBelongsToClassRow(item, rows[0]))
+      .map((item) => item.id)).toEqual([
+      'culture-5A',
+      'culture-5B',
+    ]);
+    expect(cards.filter((item) => cardBelongsToClassRow(item, rows[1]))
+      .map((item) => item.id)).toEqual([
+      'ballet-5A',
+    ]);
+    expect(cards.filter((item) => cardBelongsToClassRow(item, rows[2]))
+      .map((item) => item.id)).toEqual([
+      'music-shared',
+    ]);
+  });
 
-    const musicRow = managementRowsForView(
+  it('keeps focused student-program filters complete without sibling rows', () => {
+    const data = board(cards, audiences);
+
+    const balletRows = managementRowsForView(
+      data,
+      'SINIFLAR',
+      'ORTAOKUL',
+      'BALLET',
+    );
+    expect(balletRows).toHaveLength(1);
+    expect(balletRows[0]).toMatchObject({
+      id: 'grade-5::BALLET',
+      secondary: '5A',
+      includeSectionCards: true,
+    });
+    expect(cards.filter((item) => cardBelongsToClassRow(item, balletRows[0]))
+      .map((item) => item.id)).toEqual([
+      'culture-5A',
+      'ballet-5A',
+    ]);
+
+    const musicRows = managementRowsForView(
       data,
       'SINIFLAR',
       'ORTAOKUL',
       'MUSIC',
-    )[0];
-    expect(cardBelongsToClassRow(cards[2], musicRow)).toBe(true);
-    expect(cardBelongsToClassRow(cards[1], musicRow)).toBe(true);
-    expect(cardBelongsToClassRow(cards[0], musicRow)).toBe(false);
+    );
+    expect(musicRows).toHaveLength(1);
+    expect(musicRows[0]).toMatchObject({
+      id: 'grade-5::MUSIC',
+      secondary: '5A + 5B',
+      includeSectionCards: true,
+    });
+    expect(cards.filter((item) => cardBelongsToClassRow(item, musicRows[0]))
+      .map((item) => item.id)).toEqual([
+      'culture-5A',
+      'culture-5B',
+      'music-shared',
+    ]);
   });
 
+  it('keeps a source-confirmed audience row even before lesson cards exist', () => {
+    const classRows = buildManagementClassRows(
+      [
+        { grade: 12, section: 'A' },
+        { grade: 12, section: 'B' },
+      ],
+      [],
+      {
+        '12A': ['SECTION', 'BALLET', 'MUSIC'],
+        '12B': ['SECTION', 'BALLET', 'MUSIC'],
+      },
+    );
+
+    const data: ManagementBoardData = {
+      revisionId: 'revision',
+      cards: [],
+      classRows,
+      teacherRows: [],
+      roomRows: [],
+      teacherNamesById: {},
+      roomNamesById: {},
+    };
+
+    expect(managementRowsForView(
+      data,
+      'SINIFLAR',
+      'LISE',
+      'BALLET',
+    )).toEqual([
+      {
+        id: 'grade-12::BALLET',
+        label: '🩰 Bale',
+        secondary: '12A + 12B',
+        classCodes: ['12A', '12B'],
+        gradeGroup: 12,
+        groupLabel: '12. Sınıflar',
+        audienceScope: 'BALLET',
+        availableAudiences: ['BALLET'],
+        includeSectionCards: true,
+      },
+    ]);
+  });
 });
