@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ManagementBoardGrid,
+  managementAssessmentMatchesRow,
   type ManagementDropTarget,
   type ManagementGroupDropCandidate,
 } from '@/components/management/ManagementBoardGrid';
@@ -16,6 +17,7 @@ import { ManagementCoursePlan } from '@/components/management/ManagementCoursePl
 import { ManagementResources } from '@/components/management/ManagementResources';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
+  buildManagementRowDisplayCards,
   cardMatchesAudience,
   cardMatchesStage,
   fetchManagementBoard,
@@ -72,6 +74,7 @@ import {
   removeManagementCardBundle,
   undoManagement,
   undoManagementBundle,
+  undoManagementCardGroup,
   updateManagementRequirementTeachers,
   type ManagementCommandDescriptor,
   type ManagementCommandState,
@@ -772,10 +775,117 @@ export default function ManagementPage() {
     }
   };
 
-  const handleDropNeedsAttention = (target: ManagementDropTarget) => {
-    setSelectedCardId(target.cardId);
-    setSelectedCardIds([target.cardId]);
+  const resolveDeferredDrop = async (
+    target: ManagementDropTarget,
+  ) => {
+    if (!session || !access?.canEdit || !board || commandBusy) return;
+
+    const cardIds = Array.from(new Set(
+      target.cardIds?.length ? target.cardIds : [target.cardId],
+    ));
+    const row = target.rowId
+      ? rows.find((item) => item.id === target.rowId) ?? null
+      : null;
+
+    if (!row || cardIds.length === 0) {
+      setCommandNotice({
+        kind: 'error',
+        text: 'Bırakma hedefi artık bulunamıyor. Programı yenileyip tekrar deneyin.',
+      });
+      return;
+    }
+
+    setSelectedCardId(cardIds[0]);
+    setSelectedCardIds(cardIds);
     setInspectorOpen(true);
+    setCommandNotice({
+      kind: 'info',
+      text: 'Uygun kaynaklar kontrol ediliyor…',
+    });
+
+    try {
+      const details = await Promise.all(
+        cardIds.map(async (cardId) => ({
+          cardId,
+          detail: await fetchManagementCardCandidates(session.accessToken, cardId),
+        })),
+      );
+
+      const resolved = details.map(({ cardId, detail }) => {
+        const card = board.cards.find((item) => item.id === cardId) ?? null;
+        const validCandidates = card
+          ? detail.assessments.filter((assessment) => (
+            assessment.dayOfWeek === target.dayOfWeek
+            && assessment.startPeriod === target.startPeriod
+            && assessment.status === 'VALID'
+            && assessment.isComplete
+            && Boolean(assessment.teacherId)
+            && Boolean(assessment.roomId)
+            && managementAssessmentMatchesRow(
+              card,
+              assessment,
+              row,
+              resourceView,
+            )
+          ))
+          : [];
+
+        return { cardId, card, validCandidates };
+      });
+
+      if (resolved.some(({ card, validCandidates }) => (
+        !card || validCandidates.length === 0
+      ))) {
+        setCommandNotice({
+          kind: 'error',
+          text: 'Bu saat birleşik dersin tüm sınıfları için uygun değil.',
+        });
+        return;
+      }
+
+      if (resolved.every(({ validCandidates }) => validCandidates.length === 1)) {
+        await runDropCandidates(
+          resolved.map(({ cardId, validCandidates }) => ({
+            cardId,
+            candidate: validCandidates[0],
+          })),
+        );
+        return;
+      }
+
+      const primary = resolved[0];
+      setCandidateFocus({
+        dayOfWeek: target.dayOfWeek,
+        startPeriod: target.startPeriod,
+        candidates: primary.validCandidates,
+      });
+      setCommandNotice({
+        kind: 'info',
+        text: 'Bu saatte birden fazla öğretmen/salon seçeneği var. Ayrıntılardan uygun kaynağı seçin.',
+      });
+    } catch (reason: unknown) {
+      setCommandNotice({
+        kind: 'error',
+        text: reason instanceof Error
+          ? reason.message
+          : 'Bırakma hedefi hazırlanamadı.',
+      });
+    }
+  };
+
+  const handleDropNeedsAttention = (target: ManagementDropTarget) => {
+    const targetCardIds = Array.from(new Set(
+      target.cardIds?.length ? target.cardIds : [target.cardId],
+    ));
+
+    setSelectedCardId(target.cardId);
+    setSelectedCardIds(targetCardIds);
+    setInspectorOpen(true);
+
+    if (target.state === 'LOADING') {
+      void resolveDeferredDrop(target);
+      return;
+    }
 
     if (target.state === 'AMBIGUOUS') {
       setCandidateFocus({
@@ -895,7 +1005,30 @@ export default function ManagementPage() {
       if (descriptor.bundleId) {
         await undoManagementBundle(session.accessToken, descriptor.transactionId);
       } else {
-        await undoManagement(session.accessToken, descriptor.transactionId);
+        const legacyDisplayGroup = (
+          descriptor.action === 'REMOVE'
+          && descriptor.cardId
+          && board
+        )
+          ? buildManagementRowDisplayCards(
+            board.cards.filter((card) => !card.placement),
+            'SINIFLAR',
+          ).find((displayCard) =>
+            displayCard.sourceCardIds.includes(descriptor.cardId!),
+          ) ?? null
+          : null;
+
+        if (
+          legacyDisplayGroup?.grouped
+          && legacyDisplayGroup.sourceCardIds.length > 1
+        ) {
+          await undoManagementCardGroup(
+            session.accessToken,
+            legacyDisplayGroup.sourceCardIds,
+          );
+        } else {
+          await undoManagement(session.accessToken, descriptor.transactionId);
+        }
       }
       setCommandNotice({
         kind: 'success',

@@ -329,6 +329,15 @@ export function undoManagementBundle(
   });
 }
 
+export function undoManagementCardGroup(
+  accessToken: string,
+  cardIds: string[],
+) {
+  return callRpc('management_undo_card_group', accessToken, {
+    p_card_ids: cardIds,
+  });
+}
+
 export function redoManagementBundle(
   accessToken: string,
   undoTransactionId: string,

@@ -38,6 +38,8 @@ export type ManagementDropState =
 
 export interface ManagementDropTarget {
   cardId: string;
+  cardIds?: string[];
+  rowId?: string;
   dayOfWeek: number;
   startPeriod: number;
   state: ManagementDropState;
@@ -113,7 +115,7 @@ function packCards(cards: ManagementBoardDisplayCard[]) {
     });
 }
 
-function assessmentMatchesRow(
+export function managementAssessmentMatchesRow(
   card: ManagementBoardCard,
   assessment: ManagementCandidateAssessment,
   row: ManagementBoardRow,
@@ -176,7 +178,7 @@ function dropTargetForCell({
     (assessment) => (
       assessment.dayOfWeek === activeDay
       && assessment.startPeriod === startPeriod
-      && assessmentMatchesRow(card, assessment, row, view)
+      && managementAssessmentMatchesRow(card, assessment, row, view)
     ),
   );
 
@@ -336,12 +338,17 @@ function groupDropTargetForCell({
   const result = (
     state: ManagementDropState,
     groupCandidates: ManagementGroupDropCandidate[] = [],
+    validCandidates: ManagementCandidateAssessment[] = groupCandidates.map(
+      ({ candidate }) => candidate,
+    ),
   ) => ({
     cardId: primaryCard.id,
+    cardIds: cards.map((card) => card.id),
+    rowId: row.id,
     dayOfWeek: activeDay,
     startPeriod,
     state,
-    validCandidates: groupCandidates.map(({ candidate }) => candidate),
+    validCandidates,
     reasonCodes,
     groupCandidates,
   });
@@ -363,7 +370,11 @@ function groupDropTargetForCell({
   }
 
   if (targets.some(({ target }) => target.state === 'AMBIGUOUS')) {
-    return result('AMBIGUOUS');
+    return result(
+      'AMBIGUOUS',
+      [],
+      targets[0]?.target.validCandidates ?? [],
+    );
   }
 
   if (targets.some(({ target }) => target.state === 'NONE')) {
@@ -669,7 +680,6 @@ export function ManagementBoardGrid({
                               loading: dragLoading,
                             });
                             const droppable = target.state !== 'NONE'
-                              && target.state !== 'LOADING'
                               && target.state !== 'CURRENT';
 
                             return (
