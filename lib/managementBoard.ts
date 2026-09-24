@@ -368,7 +368,7 @@ export function cardBelongsToClassRow(
 export function buildManagementClassRows(
   classGroups: Array<{ grade: number; section: string }>,
   cards: ManagementBoardCard[],
-  audiencesByClassCode: Record<string, ManagementAudienceScope[]> = {},
+  audiencesByClassCode: Readonly<Record<string, readonly ManagementAudienceScope[]>> = {},
 ): ManagementBoardRow[] {
   const audienceOrder: ManagementAudienceScope[] = [
     'SECTION',
