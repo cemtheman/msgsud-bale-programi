@@ -5,6 +5,7 @@ import type {
   ManagementResourceInventoryData,
   ManagementResourceKnowledgeStatus,
   ManagementRoomOperationalStatus,
+  ManagementTeacherOperationalStatus,
   ManagementRoomProfilePreview,
   ManagementRoomResourceRow,
   ManagementRoomStatusPreview,
@@ -49,6 +50,13 @@ function isRetiredSpecialTeacherPlaceholder(
 }
 
 function teacherState(row: ManagementTeacherResourceRow) {
+  if (row.operationalStatus === 'INACTIVE') {
+    return {
+      label: 'Pasif',
+      className: 'bg-slate-200 text-slate-600',
+    };
+  }
+
   if (row.activeRequirementCount === 0 && row.placedBlockCount === 0) {
     return {
       label: 'Kullanım yok',
@@ -101,6 +109,11 @@ export function ManagementResources({
   canEdit,
   onUpdateTeacherName,
   onUpdateRoomName,
+  onCreateTeacher,
+  onCreateRoom,
+  onSetTeacherStatus,
+  onDeleteTeacher,
+  onDeleteRoom,
   onPreviewRoomProfile,
   onApplyRoomProfile,
   onPreviewRoomStatus,
@@ -110,6 +123,14 @@ export function ManagementResources({
   canEdit: boolean;
   onUpdateTeacherName: (teacherId: string, displayName: string) => Promise<void>;
   onUpdateRoomName: (roomId: string, displayName: string) => Promise<void>;
+  onCreateTeacher: (name: string) => Promise<void>;
+  onCreateRoom: (name: string) => Promise<void>;
+  onSetTeacherStatus: (
+    teacherId: string,
+    status: ManagementTeacherOperationalStatus,
+  ) => Promise<void>;
+  onDeleteTeacher: (teacherId: string) => Promise<void>;
+  onDeleteRoom: (roomId: string) => Promise<void>;
   onPreviewRoomProfile: (
     roomId: string,
     capabilities: string[],
@@ -133,6 +154,11 @@ export function ManagementResources({
 }) {
   const [tab, setTab] = useState<ResourceTab>('TEACHERS');
   const [query, setQuery] = useState('');
+  const [showInactiveTeachers, setShowInactiveTeachers] = useState(false);
+  const [createKind, setCreateKind] = useState<'TEACHER' | 'ROOM' | null>(null);
+  const [createName, setCreateName] = useState('');
+  const [resourceActionError, setResourceActionError] = useState<string | null>(null);
+  const [resourceActionBusy, setResourceActionBusy] = useState(false);
   const [editTarget, setEditTarget] = useState<{
     kind: 'TEACHER' | 'ROOM';
     id: string;
@@ -210,6 +236,81 @@ export function ManagementResources({
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const createResource = async () => {
+    if (!createKind || resourceActionBusy) return;
+    const name = createName.trim();
+    if (!name) {
+      setResourceActionError('Kaynak adı boş bırakılamaz.');
+      return;
+    }
+
+    setResourceActionBusy(true);
+    setResourceActionError(null);
+    try {
+      if (createKind === 'TEACHER') {
+        await onCreateTeacher(name);
+      } else {
+        await onCreateRoom(name);
+      }
+      setCreateKind(null);
+      setCreateName('');
+    } catch (reason: unknown) {
+      setResourceActionError(
+        reason instanceof Error ? reason.message : 'Kaynak oluşturulamadı.',
+      );
+    } finally {
+      setResourceActionBusy(false);
+    }
+  };
+
+  const changeTeacherStatus = async (
+    row: ManagementTeacherResourceRow,
+    status: ManagementTeacherOperationalStatus,
+  ) => {
+    if (resourceActionBusy) return;
+    setResourceActionBusy(true);
+    setResourceActionError(null);
+    try {
+      await onSetTeacherStatus(row.id, status);
+    } catch (reason: unknown) {
+      setResourceActionError(
+        reason instanceof Error ? reason.message : 'Öğretmen durumu değiştirilemedi.',
+      );
+    } finally {
+      setResourceActionBusy(false);
+    }
+  };
+
+  const deleteTeacher = async (row: ManagementTeacherResourceRow) => {
+    if (resourceActionBusy) return;
+    setResourceActionBusy(true);
+    setResourceActionError(null);
+    try {
+      await onDeleteTeacher(row.id);
+    } catch (reason: unknown) {
+      setResourceActionError(
+        reason instanceof Error ? reason.message : 'Öğretmen silinemedi.',
+      );
+    } finally {
+      setResourceActionBusy(false);
+    }
+  };
+
+  const deleteRoom = async (row: ManagementRoomResourceRow) => {
+    if (resourceActionBusy) return;
+    setResourceActionBusy(true);
+    setResourceActionError(null);
+    try {
+      await onDeleteRoom(row.id);
+    } catch (reason: unknown) {
+      setResourceActionError(
+        reason instanceof Error ? reason.message : 'Salon silinemedi.',
+      );
+    } finally {
+      setResourceActionBusy(false);
     }
   };
 
@@ -458,10 +559,13 @@ export function ManagementResources({
   const visibleTeachers = useMemo(
     () => (
       data?.teachers.filter(
-        (row) => !isRetiredSpecialTeacherPlaceholder(row),
+        (row) => (
+          !isRetiredSpecialTeacherPlaceholder(row)
+          && (showInactiveTeachers || row.operationalStatus === 'ACTIVE')
+        ),
       ) ?? []
     ),
-    [data?.teachers],
+    [data?.teachers, showInactiveTeachers],
   );
 
   const filteredTeachers = useMemo(
@@ -610,6 +714,30 @@ export function ManagementResources({
             </button>
           </div>
 
+          <div className="ml-auto flex items-center gap-2">
+            {tab === 'TEACHERS' && (
+              <button
+                type="button"
+                onClick={() => setShowInactiveTeachers((value) => !value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
+              >
+                {showInactiveTeachers ? 'Pasifleri gizle' : 'Pasifleri göster'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setCreateKind(tab === 'TEACHERS' ? 'TEACHER' : 'ROOM');
+                setCreateName('');
+                setResourceActionError(null);
+              }}
+              disabled={!canEdit}
+              className="rounded-xl bg-slate-950 px-3 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:opacity-35"
+            >
+              + {tab === 'TEACHERS' ? 'Öğretmen' : 'Salon'}
+            </button>
+          </div>
+
           <input
             type="search"
             value={query}
@@ -629,7 +757,7 @@ export function ManagementResources({
                   Öğretmen kaydı
                 </p>
                 <p className="mt-2 text-2xl font-black text-slate-900">
-                  {data.teachers.length}
+                  {visibleTeachers.length}
                 </p>
               </div>
 
@@ -653,7 +781,7 @@ export function ManagementResources({
             </div>
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(260px,1fr)_120px_140px_120px_92px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="grid grid-cols-[minmax(240px,1fr)_105px_120px_105px_190px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
                 <span>Öğretmen</span>
                 <span className="text-right">Aktif ders</span>
                 <span className="text-right">Programdaki blok</span>
@@ -668,7 +796,7 @@ export function ManagementResources({
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-[minmax(260px,1fr)_120px_140px_120px_92px] items-center border-b border-slate-100 px-4 py-3 last:border-b-0"
+                      className="grid grid-cols-[minmax(240px,1fr)_105px_120px_105px_190px] items-center border-b border-slate-100 px-4 py-3 last:border-b-0"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-[12px] font-bold text-slate-900">
@@ -699,14 +827,41 @@ export function ManagementResources({
                         </span>
                       </div>
 
-                      <div className="text-right">
+                      <div className="flex justify-end gap-1">
                         <button
                           type="button"
                           onClick={() => openEditor('TEACHER', row)}
-                          disabled={!canEdit}
-                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+                          disabled={!canEdit || resourceActionBusy}
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-35"
                         >
-                          Düzenle
+                          Ad
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void changeTeacherStatus(
+                            row,
+                            row.operationalStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
+                          )}
+                          disabled={!canEdit || resourceActionBusy || (
+                            row.operationalStatus === 'ACTIVE'
+                            && row.placedBlockCount > 0
+                          )}
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-35"
+                        >
+                          {row.operationalStatus === 'ACTIVE' ? 'Pasif' : 'Aktif'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteTeacher(row)}
+                          disabled={
+                            !canEdit
+                            || resourceActionBusy
+                            || row.activeRequirementCount > 0
+                            || row.placedBlockCount > 0
+                          }
+                          className="rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-[9px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-30"
+                        >
+                          Sil
                         </button>
                       </div>
                     </div>
@@ -781,7 +936,7 @@ export function ManagementResources({
             )}
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(170px,0.8fr)_90px_125px_minmax(270px,1.45fr)_82px_92px_150px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="grid grid-cols-[minmax(170px,0.8fr)_90px_125px_minmax(250px,1.35fr)_82px_92px_195px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
                 <span>Salon</span>
                 <span>Tür</span>
                 <span>Durum</span>
@@ -796,7 +951,7 @@ export function ManagementResources({
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-[minmax(170px,0.8fr)_90px_125px_minmax(270px,1.45fr)_82px_92px_150px] items-center gap-0 border-b border-slate-100 px-4 py-3 last:border-b-0"
+                      className="grid grid-cols-[minmax(170px,0.8fr)_90px_125px_minmax(250px,1.35fr)_82px_92px_195px] items-center gap-0 border-b border-slate-100 px-4 py-3 last:border-b-0"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-[12px] font-bold text-slate-900">
@@ -883,6 +1038,20 @@ export function ManagementResources({
                         >
                           {row.capabilities.length === 0 ? 'Tanımla' : 'Düzenle'}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteRoom(row)}
+                          disabled={
+                            !canEdit
+                            || resourceActionBusy
+                            || row.activeRequirementCount > 0
+                            || row.placedBlockCount > 0
+                            || row.aliasCount > 0
+                          }
+                          className="rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-[9px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-30"
+                        >
+                          Sil
+                        </button>
                       </div>
                     </div>
                   );
@@ -907,6 +1076,53 @@ export function ManagementResources({
           </p>
         </div>
       </div>
+
+      {resourceActionError && (
+        <div className="fixed bottom-4 right-4 z-[118] max-w-[430px] rounded-2xl border border-rose-200 bg-white px-4 py-3 text-[10px] font-bold text-rose-700 shadow-xl">
+          {resourceActionError}
+        </div>
+      )}
+
+      {createKind && (
+        <div className="fixed inset-0 z-[116] flex items-center justify-center bg-slate-950/30 p-4">
+          <div className="w-full max-w-[460px] rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_30px_100px_rgba(15,23,42,0.25)]">
+            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+              Yeni kaynak
+            </p>
+            <h3 className="mt-1 text-lg font-black text-slate-950">
+              {createKind === 'TEACHER' ? 'Öğretmen ekle' : 'Salon ekle'}
+            </h3>
+            <input
+              autoFocus
+              value={createName}
+              onChange={(event) => setCreateName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void createResource();
+              }}
+              placeholder={createKind === 'TEACHER' ? 'Öğretmen adı' : 'Salon adı'}
+              className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-slate-400 focus:bg-white"
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCreateKind(null)}
+                disabled={resourceActionBusy}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-600"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={() => void createResource()}
+                disabled={resourceActionBusy || !createName.trim()}
+                className="rounded-xl bg-slate-950 px-4 py-2 text-[10px] font-black text-white disabled:opacity-35"
+              >
+                {resourceActionBusy ? 'Ekleniyor…' : 'Ekle'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {statusTarget && (
         <div className="fixed inset-0 z-[114] flex items-center justify-center bg-slate-950/30 p-4">

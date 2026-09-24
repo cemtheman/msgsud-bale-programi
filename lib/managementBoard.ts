@@ -145,6 +145,12 @@ interface NamedRow {
   name: string;
 }
 
+interface TeacherRow {
+  id: string;
+  name: string;
+  operational_status: 'ACTIVE' | 'INACTIVE';
+}
+
 interface TeacherNameOverrideRow {
   teacher_id: string;
   display_name: string;
@@ -329,6 +335,7 @@ export function translateCandidateReason(code: string) {
     TEACHER_CONFLICT: 'Öğretmen aynı saatte başka derste',
     ROOM_CONFLICT: 'Salon aynı saatte kullanımda',
     ROOM_INACTIVE: 'Salon kullanımda değil',
+    TEACHER_INACTIVE: 'Öğretmen aktif görevde değil',
     GROUP_CONFLICT: 'Öğrenci grubu aynı saatte başka derste',
   };
 
@@ -667,8 +674,8 @@ export async function fetchManagementBoard(
       'course_requirement_teachers?select=requirement_id,teacher_id',
       accessToken,
     ),
-    authedGet<NamedRow[]>(
-      'teachers?select=id,name',
+    authedGet<TeacherRow[]>(
+      'teachers?select=id,name,operational_status',
       accessToken,
     ),
     authedGet<RequirementRoomRow[]>(
@@ -913,7 +920,17 @@ export async function fetchManagementBoard(
     audiencesByClassCode,
   );
 
+  const placedTeacherIds = new Set(
+    placements
+      .map((placement) => placement.teacher_id)
+      .filter((value): value is string => Boolean(value)),
+  );
+
   const teacherRows: ManagementBoardRow[] = teachers
+    .filter((row) => (
+      row.operational_status === 'ACTIVE'
+      || placedTeacherIds.has(row.id)
+    ))
     .map((row) => ({
       id: row.id,
       label: teacherById.get(row.id) ?? row.name,

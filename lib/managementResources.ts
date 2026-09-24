@@ -24,11 +24,16 @@ export type ManagementRoomOperationalStatus =
   | 'MAINTENANCE'
   | 'OUT_OF_SERVICE';
 
+export type ManagementTeacherOperationalStatus =
+  | 'ACTIVE'
+  | 'INACTIVE';
+
 export interface ManagementTeacherResourceRow {
   id: string;
   name: string;
   baseName: string;
   nameOverridden: boolean;
+  operationalStatus: ManagementTeacherOperationalStatus;
   activeRequirementCount: number;
   placedBlockCount: number;
 }
@@ -63,6 +68,7 @@ interface RevisionRow {
 interface TeacherRow {
   id: string;
   name: string;
+  operational_status: ManagementTeacherOperationalStatus;
 }
 
 interface RoomRow {
@@ -243,6 +249,26 @@ async function authedRpc<T>(
       throw new Error('Takma ad kayıtlarının bağımsız kullanım durumu yoktur.');
     }
 
+    if (normalized.includes('m28 resource name already exists')) {
+      throw new Error('Bu adla bir kaynak zaten bulunuyor.');
+    }
+
+    if (normalized.includes('m28 teacher is used by active draft placements')) {
+      throw new Error('Öğretmen şu anda haftalık programda kullanılıyor. Önce ilgili kartların öğretmenini değiştirin.');
+    }
+
+    if (normalized.includes('m28 resource is still referenced')) {
+      throw new Error('Bu kaynak geçmiş veya aktif kayıtlar tarafından kullanıldığı için silinemez. Kaynağı pasifleştirin / kullanım dışı bırakın.');
+    }
+
+    if (normalized.includes('m28 canonical room has aliases')) {
+      throw new Error('Bu salonun bağlı takma adları olduğu için silinemez.');
+    }
+
+    if (normalized.includes('m28 invalid teacher operational status')) {
+      throw new Error('Öğretmen durumu geçersiz.');
+    }
+
     throw new Error(message);
   }
 
@@ -272,7 +298,7 @@ export async function fetchManagementResources(
     roomNameOverrides,
   ] = await Promise.all([
     authedGet<TeacherRow[]>(
-      'teachers?select=id,name&order=name.asc',
+      'teachers?select=id,name,operational_status&order=name.asc',
       accessToken,
     ),
     authedGet<RoomRow[]>(
@@ -392,6 +418,7 @@ export async function fetchManagementResources(
       name: overrideName ?? teacher.name,
       baseName: teacher.name,
       nameOverridden: Boolean(overrideName),
+      operationalStatus: teacher.operational_status ?? 'ACTIVE',
       activeRequirementCount:
         activeTeacherRequirements.get(teacher.id)?.size ?? 0,
       placedBlockCount:
@@ -644,5 +671,88 @@ export function applyManagementRoomOperationalStatus(
       p_operational_status: operationalStatus,
       p_expected_state_token: expectedStateToken,
     },
+  );
+}
+
+
+export interface ManagementResourceCreateResult {
+  id: string;
+  name: string;
+  resourceType: 'TEACHER' | 'ROOM';
+  publishedChanged: false;
+}
+
+export interface ManagementResourceDeleteResult {
+  id: string;
+  resourceType: 'TEACHER' | 'ROOM';
+  deleted: boolean;
+  publishedChanged: false;
+}
+
+export interface ManagementTeacherStatusResult {
+  teacherId: string;
+  operationalStatus: ManagementTeacherOperationalStatus;
+  candidateRebuildCardCount: number;
+  publishedChanged: false;
+}
+
+export function createManagementTeacherResource(
+  accessToken: string,
+  name: string,
+) {
+  return authedRpc<ManagementResourceCreateResult>(
+    'management_create_teacher_resource',
+    accessToken,
+    { p_name: name },
+  );
+}
+
+export function createManagementRoomResource(
+  accessToken: string,
+  name: string,
+) {
+  return authedRpc<ManagementResourceCreateResult>(
+    'management_create_room_resource',
+    accessToken,
+    { p_name: name },
+  );
+}
+
+export function setManagementTeacherOperationalStatus(
+  accessToken: string,
+  revisionId: string,
+  teacherId: string,
+  operationalStatus: ManagementTeacherOperationalStatus,
+) {
+  return authedRpc<ManagementTeacherStatusResult>(
+    'management_set_teacher_operational_status',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_teacher_id: teacherId,
+      p_operational_status: operationalStatus,
+    },
+  );
+}
+
+export function deleteManagementTeacherResource(
+  accessToken: string,
+  teacherId: string,
+) {
+  return authedRpc<ManagementResourceDeleteResult>(
+    'management_delete_teacher_resource',
+    accessToken,
+    { p_teacher_id: teacherId },
+  );
+}
+
+export function deleteManagementRoomResource(
+  accessToken: string,
+  roomId: string,
+) {
+  return authedRpc<ManagementResourceDeleteResult>(
+    'management_delete_room_resource',
+    accessToken,
+    { p_room_id: roomId },
   );
 }

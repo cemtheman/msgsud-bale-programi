@@ -159,11 +159,18 @@ interface NamedRow {
   name: string;
 }
 
+interface TeacherOptionRow {
+  id: string;
+  name: string;
+  operational_status: 'ACTIVE' | 'INACTIVE';
+}
+
 interface RoomOptionRow {
   id: string;
   name: string;
   canonical_room_id: string | null;
   capabilities: string[] | null;
+  operational_status: 'ACTIVE' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
 }
 
 interface TeacherNameOverrideRow {
@@ -449,13 +456,13 @@ export async function fetchManagementCoursePlan(
       'course_requirement_teachers?select=requirement_id,teacher_id',
       accessToken,
     ),
-    authedGet<NamedRow[]>('teachers?select=id,name', accessToken),
+    authedGet<TeacherOptionRow[]>('teachers?select=id,name,operational_status', accessToken),
     authedGet<RequirementRoomRow[]>(
       'course_requirement_rooms?select=requirement_id,room_id',
       accessToken,
     ),
     authedGet<RoomOptionRow[]>(
-      'rooms?select=id,name,canonical_room_id,capabilities',
+      'rooms?select=id,name,canonical_room_id,capabilities,operational_status',
       accessToken,
     ),
     authedGet<CardRow[]>(
@@ -617,13 +624,17 @@ export async function fetchManagementCoursePlan(
     requirementSetId: revision.requirement_set_id,
     rows,
     teacherOptions: teachers
+      .filter((teacher) => teacher.operational_status === 'ACTIVE')
       .map((teacher) => ({
         id: teacher.id,
         name: teacherById.get(teacher.id) ?? teacher.name,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
     roomOptions: rooms
-      .filter((room) => room.canonical_room_id === null)
+      .filter((room) => (
+        room.canonical_room_id === null
+        && room.operational_status === 'ACTIVE'
+      ))
       .map((room) => ({
         id: room.id,
         name: roomById.get(room.id) ?? room.name,
