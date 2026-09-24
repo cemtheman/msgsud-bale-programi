@@ -53,6 +53,9 @@ export interface ManagementBoardRow {
   label: string;
   secondary: string | null;
   classCode?: string;
+  classCodes?: string[];
+  gradeGroup?: number;
+  groupLabel?: string;
   audienceScope?: ManagementAudienceScope;
   availableAudiences?: ManagementAudienceScope[];
   includeSectionCards?: boolean;
@@ -336,8 +339,14 @@ export function cardBelongsToClassRow(
   card: ManagementBoardCard,
   row: ManagementBoardRow,
 ) {
-  const rowClassCode = row.classCode ?? row.id.split('::')[0];
-  if (!card.classCodes.includes(rowClassCode)) return false;
+  const fallbackClassCode = row.classCode ?? row.id.split('::')[0];
+  const rowClassCodes = row.classCodes?.length
+    ? row.classCodes
+    : [fallbackClassCode];
+
+  if (!card.classCodes.some((code) => rowClassCodes.includes(code))) {
+    return false;
+  }
 
   const scope = row.audienceScope ?? 'ALL';
   if (scope === 'ALL') return true;
@@ -348,8 +357,7 @@ export function cardBelongsToClassRow(
 
   // Filtered BALLET / MUSIC views represent the student's complete program,
   // so their common SECTION lessons are included there. In the combined view
-  // rows stay strict, preventing the same common card from being rendered once
-  // under BALLET and again under MUSIC.
+  // rows stay strict, preventing common lessons from being repeated.
   return Boolean(
     row.includeSectionCards
     && (scope === 'BALLET' || scope === 'MUSIC')
@@ -362,49 +370,76 @@ export function buildManagementClassRows(
   cards: ManagementBoardCard[],
   audiencesByClassCode: Record<string, ManagementAudienceScope[]> = {},
 ): ManagementBoardRow[] {
-  return classGroups.flatMap<ManagementBoardRow>((row) => {
-    const code = `${row.grade}${row.section}`;
-    const observedAudiences = audiencesByClassCode[code]?.length
-      ? audiencesByClassCode[code]
-      : Array.from(new Set(
-        cards
-          .filter((card) => card.classCodes.includes(code))
-          .flatMap((card) => card.audienceTargets)
-          .filter(
-            (target): target is ManagementAudienceScope =>
-              target === 'SECTION'
-              || target === 'BALLET'
-              || target === 'MUSIC',
-          ),
-      ));
+  const audienceOrder: ManagementAudienceScope[] = [
+    'SECTION',
+    'BALLET',
+    'MUSIC',
+  ];
 
-    if (
-      !cards.some((card) => card.classCodes.includes(code))
-      && observedAudiences.length === 0
-    ) {
-      return [];
+  const classCodesByGrade = new Map<number, string[]>();
+  classGroups.forEach((row) => {
+    const code = `${row.grade}${row.section}`;
+    const values = classCodesByGrade.get(row.grade) ?? [];
+    values.push(code);
+    classCodesByGrade.set(row.grade, values);
+  });
+
+  const availableAudiencesForClass = (code: string) => {
+    if (audiencesByClassCode[code]?.length) {
+      return audiencesByClassCode[code];
     }
 
-    const availableAudiences = observedAudiences.length
-      ? observedAudiences
-      : ['SECTION' as const];
+    return Array.from(new Set(
+      cards
+        .filter((card) => card.classCodes.includes(code))
+        .flatMap((card) => card.audienceTargets)
+        .filter(
+          (target): target is ManagementAudienceScope =>
+            target === 'SECTION'
+            || target === 'BALLET'
+            || target === 'MUSIC',
+        ),
+    ));
+  };
 
-    // Combined class view uses one strict row per audience. SECTION is kept as
-    // its own row so common lessons are rendered once instead of being
-    // duplicated under both BALLET and MUSIC.
-    const scopes = (['SECTION', 'BALLET', 'MUSIC'] as const)
-      .filter((audience) => availableAudiences.includes(audience));
+  return Array.from(classCodesByGrade.entries())
+    .sort(([gradeA], [gradeB]) => gradeA - gradeB)
+    .flatMap<ManagementBoardRow>(([grade, rawCodes]) => {
+      const codes = [...rawCodes].sort((a, b) =>
+        a.localeCompare(b, 'tr', { numeric: true }),
+      );
 
-    return scopes.map((scope) => ({
-      id: `${code}::${scope}`,
-      label: `${code} · ${audienceSymbol(scope)}`,
-      secondary: null,
-      classCode: code,
-      audienceScope: scope,
-      availableAudiences,
-      includeSectionCards: false,
-    }));
-  });
+      const activeCodes = codes.filter((code) => (
+        cards.some((card) => card.classCodes.includes(code))
+        || availableAudiencesForClass(code).length > 0
+      ));
+
+      if (activeCodes.length === 0) return [];
+
+      return audienceOrder.flatMap<ManagementBoardRow>((scope) => {
+        const participantCodes = activeCodes.filter((code) =>
+          availableAudiencesForClass(code).includes(scope),
+        );
+
+        if (participantCodes.length === 0) return [];
+
+        return [{
+          id: `grade-${grade}::${scope}`,
+          label: scope === 'SECTION'
+            ? '📚 Ortak'
+            : scope === 'BALLET'
+              ? '🩰 Bale'
+              : '🎶 Müzik',
+          secondary: participantCodes.join(' + '),
+          classCodes: participantCodes,
+          gradeGroup: grade,
+          groupLabel: `${grade}. Sınıflar`,
+          audienceScope: scope,
+          availableAudiences: [scope],
+          includeSectionCards: false,
+        }];
+      });
+    });
 }
 
 export function managementRowsForView(
@@ -419,7 +454,8 @@ export function managementRowsForView(
 
   if (view === 'SINIFLAR') {
     const stageRows = data.classRows.filter((row) => {
-      const grade = gradeFromClassCode(row.classCode ?? row.id);
+      const grade = row.gradeGroup
+        ?? gradeFromClassCode(row.classCode ?? row.classCodes?.[0] ?? row.id);
       return grade !== null && (stage === 'ORTAOKUL' ? grade <= 8 : grade >= 9);
     });
 
@@ -429,25 +465,15 @@ export function managementRowsForView(
       const seen = new Set<string>();
 
       return stageRows.flatMap<ManagementBoardRow>((row) => {
-        const code = row.classCode ?? row.id.split('::')[0];
-        if (seen.has(code)) return [];
+        const gradeKey = String(
+          row.gradeGroup
+          ?? gradeFromClassCode(row.classCode ?? row.classCodes?.[0] ?? row.id),
+        );
+        if (seen.has(gradeKey) || row.audienceScope !== 'SECTION') return [];
 
-        const hasSection = row.availableAudiences?.includes('SECTION')
-          || visibleCards.some(
-            (card) =>
-              card.classCodes.includes(code)
-              && card.audienceTargets.includes('SECTION'),
-          );
-
-        if (!hasSection) return [];
-        seen.add(code);
-
+        seen.add(gradeKey);
         return [{
           ...row,
-          id: `${code}::SECTION`,
-          label: `${code} · ${audienceSymbol('SECTION')}`,
-          classCode: code,
-          audienceScope: 'SECTION',
           includeSectionCards: false,
         }];
       });
