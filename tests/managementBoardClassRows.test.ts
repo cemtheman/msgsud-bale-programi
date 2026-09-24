@@ -55,7 +55,7 @@ function card(
 
 function board(
   cards: ManagementBoardCard[],
-  audiencesByClassCode: Record<string, Array<'SECTION' | 'BALLET' | 'MUSIC'>>,
+  audiencesByClassCode: Readonly<Record<string, readonly ('SECTION' | 'BALLET' | 'MUSIC')[]>>,
 ): ManagementBoardData {
   return {
     revisionId: 'revision',
