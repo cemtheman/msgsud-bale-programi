@@ -279,6 +279,15 @@ export function removeManagementCardBundle(
   });
 }
 
+export function refreshManagementCardGroupCandidates(
+  accessToken: string,
+  cardIds: string[],
+) {
+  return callRpc('management_refresh_card_group_candidates', accessToken, {
+    p_card_ids: cardIds,
+  });
+}
+
 
 export function updateManagementRequirementTeachers(
   accessToken: string,

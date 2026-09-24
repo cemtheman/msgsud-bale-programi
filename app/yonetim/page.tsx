@@ -72,6 +72,7 @@ import {
   redoManagementBundle,
   removeManagementCard,
   removeManagementCardBundle,
+  refreshManagementCardGroupCandidates,
   undoManagement,
   undoManagementBundle,
   undoManagementCardGroup,
@@ -531,12 +532,16 @@ export default function ManagementPage() {
     setSelectedCardIds(ids);
     setCommandNotice(null);
 
-    void Promise.all(
-      ids.map(async (id) => [
-        id,
-        await fetchManagementCardCandidates(session.accessToken, id),
-      ] as const),
+    void refreshManagementCardGroupCandidates(
+      session.accessToken,
+      ids,
     )
+      .then(() => Promise.all(
+        ids.map(async (id) => [
+          id,
+          await fetchManagementCardCandidates(session.accessToken, id),
+        ] as const),
+      ))
       .then((entries) => {
         if (dragSequenceRef.current !== sequence) return;
         setDragCandidateDetails(Object.fromEntries(entries));
