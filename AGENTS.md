@@ -12,8 +12,9 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `feat/management-m20-placement-recovery` |
-| Son doğrulanmış implementation checkpoint | `111d151a99cc868bc0212fc03dc0d4287a75696c` |
-| Commit | `fix: keep sticky timetable labels above scrolled cards` |
+| Son implementation checkpoint | `49f44ae7afede41b9d70230bb87a0850e7dc85dd` |
+| Commit | `feat: complete missing draft teacher resources` |
+| Son kullanıcı-doğrulamalı UI checkpoint | `111d151a99cc868bc0212fc03dc0d4287a75696c` |
 | Bir önceki kritik işlevsel checkpoint | `eb9535a421bf57914612f2c95f9be2e7baaffe05` |
 | Kritik düzeltme | Provisional VALID adayların grouped placement içinde kullanılabilmesi |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
@@ -150,6 +151,7 @@ M26.8 ile frontend `VALID + isComplete` koşulunu doğru kabul edecek hale getir
 | `20260924210500_management_m26_6_bundle_candidate_domain.sql` | Bundle-aware candidate occupancy |
 | `20260924214500_management_m26_7_slot_blocker_diagnostic.sql` | Read-only actual blocker diagnostic |
 | `20260924222000_management_m26_8_provisional_bundle_candidates.sql` | Provisional NULL resource identity için grouped exact-match düzeltmesi |
+| `20260924224500_management_m27_teacher_completion.sql` | Eksik draft öğretmenlerini tara; bilinenleri koru; çakışmaya göre `Ders Öğretmeni 1/2/3` kapasitesi oluştur; placement + requirement atamalarını tamamla |
 
 Remote migration durumu için bu tablo tek başına yeterli kaynak değildir; her yeni DB işi öncesi `npx.cmd supabase migration list` ile local/remote eşleşmesi doğrulanmalıdır. Bu oturumdaki runtime davranışı M26.7 diagnostic ve M26.8 provisional grouped placement fonksiyonlarının aktif olduğunu doğruladı.
 
@@ -176,3 +178,49 @@ docs: update management session checkpoint
 ```
 
 Yeni implementation commitleri bu dosyada kayda alınmadan oturum kapatılmamalıdır.
+
+
+## 13. M27 — Eksik öğretmenlerin yönetim modeline aktarılması
+
+Kullanıcı, aktif öğrenci/öğretmen görünümünde daha önce kullanılan eksik-öğretmen türetme yaklaşımının Yönetim/Kaynaklar tarafına da aktarılmasını istedi. Kaynaklar sayfasında yeni öğretmen oluşturma UI'sı olmadığı için çözüm migration tabanlıdır.
+
+Implementation commit:
+
+```
+49f44ae7afede41b9d70230bb87a0850e7dc85dd
+feat: complete missing draft teacher resources
+```
+
+Migration:
+
+```
+20260924224500_management_m27_teacher_completion.sql
+```
+
+M27 kuralları:
+
+- Mevcut/gerçek öğretmen kimlikleri değiştirilmez.
+- Aktif 2026–2027 / 1. dönem DRAFT çizelgesindeki bütün aktif requirement, card ve placement kayıtları taranır.
+- Öğretmeni NULL olan yerleşimler önce requirement üzerinde zaten tanımlı ve o blokta gerçekten müsait bir öğretmenle tamamlanmaya çalışılır.
+- Uygun bilinen öğretmen yoksa ders kimliğine göre sanal öğretmen kapasitesi oluşturulur.
+- Tek kapasite yeterliyse ad: `Matematik Öğretmeni` gibi.
+- Aynı öğretmen kimliği aynı anda birden fazla ayrı blokta gerekli oluyorsa: `Matematik Öğretmeni 1`, `Matematik Öğretmeni 2`, ... şeklinde interval-coloring ile yeterli kapasite oluşturulur.
+- `Müzik Tarihi`, `Müzik Teorisi`, `Koro` ortak `Müzik Öğretmeni` kimliğini kullanır.
+- `Türk D. ve Edb.` varyasyonları `Türk Dili ve Edebiyatı Öğretmeni` olarak kanonikleştirilir.
+- Din Kültürü varyasyonları `Din Kültürü Öğretmeni` olarak kanonikleştirilir.
+- `Kulüp`, `Sahne`, `Birlikte Uygulama / B. Uygulama` için otomatik öğretmen üretilmez.
+- Yeni öğretmenler `teachers` tablosuna eklenir; ilgili `placements.teacher_id` değerleri doldurulur; `course_requirement_teachers` eşleştirmeleri tamamlanır; `teacher_mode` FIXED/ELIGIBLE_POOL olarak gerçek atama sayısına göre güncellenir.
+- Yeni atamalardan sonra ilgili card candidate domain'i yeniden hesaplanır.
+- Migration, yeni tamamlanan kartların hiçbirinde teacher double-booking oluşmasına izin vermez; oluşursa transaction rollback olur.
+- Public `schedule_sessions` ve `session_groups` değiştirilmez; public count/hash guard migration sonunda doğrulanır.
+- Aktif revision `validation_summary` içine M27 audit sayıları ve üretilen öğretmen adları yazılır.
+
+Durum: **GitHub'a commit edildi, remote Supabase apply henüz kullanıcı tarafından doğrulanmadı.** Uygulamadan önce standart akış:
+
+```powershell
+git pull --ff-only
+npx.cmd supabase migration list
+npx.cmd supabase db push --dry-run
+```
+
+Dry-run yalnızca M27'yi gösteriyorsa `npx.cmd supabase db push`. Ardından Kaynaklar/Öğretmenler sayfası ve Program/Öğretmenler görünümü kontrol edilmelidir.
