@@ -12,8 +12,8 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `feat/management-m20-placement-recovery` |
-| Son implementation checkpoint | `fe902b665975f82692587fe659b2e7975cd539dc` |
-| Commit | `fix: restore M29 inspector build helpers` |
+| Son implementation checkpoint | `02c57433dce9fe47abc9781b08977e3bb05f86a6` |
+| Commit | `docs: record M29 build repair checkpoint` |
 | Son kullanıcı-doğrulamalı UI checkpoint | `111d151a99cc868bc0212fc03dc0d4287a75696c` |
 | Bir önceki kritik işlevsel checkpoint | `eb9535a421bf57914612f2c95f9be2e7baaffe05` |
 | Kritik düzeltme | Provisional VALID adayların grouped placement içinde kullanılabilmesi |
@@ -482,3 +482,84 @@ Kullanıcı M29 migration apply ve local build PASS sonrasında production aray�
 - Supabase migration global remote DB'ye uygulanmış olsa da production frontend main'den servis edildiği için UI değişmemişti.
 
 Karar: feature branch, çatışmasız fast-forward ile `main` branch'ine promote edilecek. Force push yapılmayacak. Böylece mevcut production URL M20–M29 yönetim geliştirmelerini ve M29 kaynak-change UI'sını servis edecek.
+
+
+## 18. 25 Eylül 2026 oturum kapanış checkpoint'i — Mac'e geçiş
+
+### Repo / deploy / migration durumu
+
+Oturum sonunda:
+
+- `main` ve `feat/management-m20-placement-recovery` aynı production-promoted ağaca getirildi.
+- Promotion öncesi production root cause kaydı:
+  `bb41cb535b4bdbf2b9a458d36b56e80d28c01eb0`
+  `docs: record M29 production promotion root cause`
+- Vercel bu `main` için SUCCESS verdi.
+- Kullanıcı local Windows checkout'ta `npm.cmd run build` çalıştırdı ve build **PASS**:
+  - webpack compile PASS
+  - TypeScript PASS
+  - static generation PASS
+- `20260925010000_management_m29_placement_resource_preview.sql` dry-run'da tek pending migration olarak doğrulandı ve remote Supabase'e başarıyla uygulandı.
+- M28 daha önce remote'da uygulanmış durumdaydı.
+- M29 UI production'da görünür hale geldi: tüm aktif öğretmen/salon seçenekleri ve `Etkiyi hesapla` akışı görüntülendi.
+
+### Açık blocker — M29 preview RPC SQL hatası
+
+Production UI artık doğru ekrana geldi ancak hem öğretmen hem salon için `Etkiyi hesapla` çağrısı şu PostgreSQL hatasıyla sonuçlanıyor:
+
+```
+column occupied.card_id does not exist
+```
+
+Kök neden repo'da doğrulandı. Dosya:
+
+```
+supabase/migrations/20260925010000_management_m29_placement_resource_preview.sql
+```
+
+İki conflict CTE'sinde aynı hata var:
+
+```sql
+occupied.card_id as blocking_card_id
+```
+
+Ancak `occupied` alias'ı:
+
+```sql
+join public.schedule_cards occupied
+  on occupied.id = occupied_placement.card_id
+```
+
+olduğu için `schedule_cards` tablosunda `card_id` yoktur. Doğru ifade:
+
+```sql
+occupied.id as blocking_card_id
+```
+
+Hata iki yerde bulunur:
+- teacher conflict CTE
+- room conflict CTE
+
+**Önemli:** M29 migration artık remote'da uygulanmıştır. Bu nedenle sabah uygulanmış `20260925010000` dosyasını geriye dönük değiştirmek yeterli/uygun değildir. Yeni bir **M29.1** migration oluşturup `management_preview_placement_resource_change` fonksiyonunu düzeltilmiş gövdeyle replace etmek gerekir.
+
+### Sabah ilk iş
+
+Mac local repo kurulduktan ve build doğrulandıktan sonra:
+
+1. Yeni M29.1 migration oluştur.
+2. M29 preview fonksiyonundaki iki `occupied.card_id` ifadesini `occupied.id` yap.
+3. `npm run build` PASS.
+4. `npx supabase migration list`.
+5. `npx supabase db push --dry-run` yalnız M29.1 göstermeli.
+6. Apply.
+7. Production'da:
+   - V. Kondisyon gibi salonu Belirsiz olan yerleşmiş bir kartta salon seç → Etkiyi hesapla.
+   - Yerleşmiş kartta yeni öğretmen seç → Etkiyi hesapla.
+   - güvenli seçimde apply açılmalı;
+   - gerçek conflict seçiminde blocker ders görünmeli.
+8. Safe apply sonrası undo/redo kontrolü.
+9. `AGENTS.md` checkpoint güncelle.
+
+### Mac çalışma ortamı
+
+Ayrıntılı Mac başlangıç akışı `docs/MAC_CONTINUATION.md` içindedir. Yeni oturumda önce `AGENTS.md`, sonra bu dosya okunmalıdır.
