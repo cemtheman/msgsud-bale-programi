@@ -12,8 +12,8 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `feat/management-m20-placement-recovery` |
-| Son implementation checkpoint | `35e5b9a7d781e13237c950d6a02d9dbce1f37051` |
-| Commit | `fix: canonicalize orchestra and improvisation resources` |
+| Son implementation checkpoint | `3d95ee6e725e70647c577a30e9385fbf0d571e32` |
+| Commit | `feat: edit lesson resources from timetable cards` |
 | Son kullanıcı-doğrulamalı UI checkpoint | `111d151a99cc868bc0212fc03dc0d4287a75696c` |
 | Bir önceki kritik işlevsel checkpoint | `eb9535a421bf57914612f2c95f9be2e7baaffe05` |
 | Kritik düzeltme | Provisional VALID adayların grouped placement içinde kullanılabilmesi |
@@ -154,6 +154,7 @@ M26.8 ile frontend `VALID + isComplete` koşulunu doğru kabul edecek hale getir
 | `20260924224500_management_m27_teacher_completion.sql` | Eksik draft öğretmenlerini tara; bilinenleri koru; çakışmaya göre `Ders Öğretmeni 1/2/3` kapasitesi oluştur; placement + requirement atamalarını tamamla |
 | `20260924233000_management_m27_1_flexible_special_teachers.sql` | Orkestra/Doğaçlama için tek dedicated öğretmen + mevcut BALLET/MUSIC öğretmen havuzu; numaralı sentetik öğretmen üretme/koruma yok |
 | `20260924235500_management_m27_2_special_teacher_canonicalization.sql` | Legacy Orkestra/Doğaçlama numaralı placeholder'larını geniş kalıpla aktif yönetim atamalarından temizle; tek dedicated kaynağı kanonik tut |
+| `20260925001000_management_m28_resource_lifecycle.sql` | Öğretmen/salon kaynak ekleme-silme; öğretmen ACTIVE/INACTIVE yaşam döngüsü; pasif öğretmeni candidate ve yeni atamalardan çıkarma |
 
 Remote migration durumu için bu tablo tek başına yeterli kaynak değildir; her yeni DB işi öncesi `npx.cmd supabase migration list` ile local/remote eşleşmesi doğrulanmalıdır. Bu oturumdaki runtime davranışı M26.7 diagnostic ve M26.8 provisional grouped placement fonksiyonlarının aktif olduğunu doğruladı.
 
@@ -311,3 +312,89 @@ Düzeltme: uygulanmamış M27.2 migration içindeki `delete from public.teachers
 bloğu kaldırıldı. Legacy Orkestra/Doğaçlama placeholder kimlikleri DB'de
 historical/derived referans güvenliği için kalabilir; aktif yönetim atamalarından
 çıkarılır ve Kaynaklar UI'sında aktif/kullanılan olmadıklarında gizlenir.
+
+
+## 16. M28 — Kaynak yaşam döngüsü + haftalık kart kaynak editörü
+
+Kullanıcı iki ürün eksikliği tanımladı:
+
+1. Kaynaklar ekranında öğretmen ve salon ekleyip çıkarabilmek; öğretmen okuldan ayrıldığında gizleyip/pasifleştirip geri döndüğünde yeniden aktif edebilmek.
+2. Haftalık çizelgede bir karta tıklanınca Ders Planı sayfasındaki öğretmen ve salon tanımlarını aynı sağ panelden düzenleyebilmek.
+
+### M28 — kaynak yaşam döngüsü
+
+Implementation commit:
+
+```
+b46f1d0d41c8cad15d87ac5696b798be7d172c5b
+feat: manage teacher and room resource lifecycle
+```
+
+Migration:
+
+```
+20260925001000_management_m28_resource_lifecycle.sql
+```
+
+Kurallar:
+
+- `teachers.operational_status`: `ACTIVE | INACTIVE`.
+- INACTIVE öğretmen tarihsel kimliğiyle DB'de kalır; yeni Ders Planı öğretmen seçeneklerinde gösterilmez.
+- INACTIVE öğretmen candidate assessment'larında `TEACHER_INACTIVE` ile INVALID olur.
+- Öğretmen pasifleştirme, aktif draft'ta öğretmenin yerleşmiş kartı varsa bloklanır; önce kartın öğretmeni değiştirilmeli veya kart kaldırılmalıdır.
+- Öğretmen yeniden ACTIVE yapılınca ilgili requirement kartlarının candidate domain'i yeniden hesaplanır.
+- Kaynaklar UI'sında pasif öğretmenler varsayılan olarak gizlidir; `Pasifleri göster` ile açılır ve yeniden aktif edilebilir.
+- `+ Öğretmen` ve `+ Salon` ile yeni kaynak oluşturulur.
+- Fiziksel silme yalnız gerçekten kullanılmamış/referanssız kaynakta mümkündür; geçmiş/aktif referans varsa kullanıcıya pasifleştirme/kullanım dışı bırakma yönü verilir.
+- Salonlar mevcut `ACTIVE / MAINTENANCE / OUT_OF_SERVICE` yaşam döngüsünü korur.
+- Ders Planı öğretmen seçenekleri yalnız ACTIVE öğretmenleri; salon seçenekleri yalnız ACTIVE ana salonları gösterir.
+- Program/Öğretmenler satırları ACTIVE öğretmenleri gösterir; halen yerleşmiş bir INACTIVE öğretmen varsa teşhis için satır görünür kalır.
+
+### Haftalık çizelge kartından kaynak düzenleme
+
+Implementation commit:
+
+```
+3d95ee6e725e70647c577a30e9385fbf0d571e32
+feat: edit lesson resources from timetable cards
+```
+
+Davranış:
+
+- Program çizelgesinde bir kart seçildiğinde sağ Ayrıntılar panelinde `Ders planı kaynakları` bölümü vardır.
+- `Öğretmen tanımı`, Ders Planı'ndaki aynı FIXED / ELIGIBLE_POOL öğretmen havuzunu düzenler.
+- `Salon tanımı`, aynı `ManagementRoomStrategyEditor` bileşenini kullanır: SPECIFIC / CAPABILITY / UNKNOWN.
+- Kart/requirement henüz yerleşmemişse plan kaynakları doğrudan güncellenebilir.
+- Requirement'ın yerleşmiş blokları varsa Ders Planı sözleşmesi korunur: plan havuzu/stratejisi değiştirilmez. Mevcut kartın aynı slotta öğretmen veya salon değişikliği için zaten var olan `Yerleşimi düzenle` candidate akışı kullanılır.
+- Böylece Program ve Ders Planı ayrı veri modelleri üretmez; aynı RPC'ler ve aynı güvenlik kısıtları kullanılır.
+
+### Doğrulama
+
+Remote apply öncesi:
+
+```powershell
+git pull --ff-only
+git rev-parse HEAD
+npm.cmd run build
+npx.cmd supabase migration list
+npx.cmd supabase db push --dry-run
+```
+
+Beklenen HEAD:
+
+```
+3d95ee6e725e70647c577a30e9385fbf0d571e32
+```
+
+M28 remote'da eksikse dry-run'da `20260925001000_management_m28_resource_lifecycle.sql` görünmelidir.
+
+Browser doğrulama:
+- Kaynaklar > Öğretmenler: yeni öğretmen ekle; pasifleştir; varsayılan listeden kaybolduğunu; Pasifleri göster ile geldiğini; tekrar aktifleştirilebildiğini kontrol et.
+- Kullanılmamış test öğretmenini sil.
+- Yeni salon ekle; kullanılmamışken sil.
+- Kullanılan kaynağın fiziksel silinmesinin engellendiğini kontrol et.
+- Ders Planı editörlerinde pasif öğretmenin seçeneklerde olmadığını kontrol et.
+- Program: kart seç > Ders planı kaynakları > Öğretmen tanımı / Salon tanımı.
+- Yerleşmiş kartta aynı-slot `Yerleşimi düzenle` öğretmen/salon değişiminin çalışmaya devam ettiğini kontrol et.
+
+Durum: GitHub implementasyonu tamamlandı; build ve M28 remote migration apply kullanıcı tarafından doğrulanmalıdır.
