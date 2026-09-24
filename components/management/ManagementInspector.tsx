@@ -215,6 +215,17 @@ export function ManagementInspector({
   const [placementResourceApplying, setPlacementResourceApplying] =
     useState(false);
 
+  const activeCardIds = useMemo(
+    () => (
+      cardIds.length > 0
+        ? cardIds
+        : card
+          ? [card.id]
+          : []
+    ),
+    [card, cardIds],
+  );
+
   const placementResourceOptions = useMemo(() => {
     const placement = card?.placement;
     if (!placement || !placementEditMode) return [];
@@ -235,10 +246,46 @@ export function ManagementInspector({
     teacherOptions,
   ]);
 
+  const openPlanTeacherEditor = () => {
+    if (!planRow) return;
+    setPlanTeacherIds(planRow.teacherIds);
+    setPlanError(null);
+    setPlanTeacherOpen(true);
+  };
+
+  const togglePlanTeacher = (teacherId: string) => {
+    setPlanTeacherIds((current) => (
+      current.includes(teacherId)
+        ? current.filter((value) => value !== teacherId)
+        : [...current, teacherId]
+    ));
+    setPlanError(null);
+  };
+
+  const savePlanTeachers = async () => {
+    if (!planRow || planSaving || planRow.placedBlockCount > 0) return;
+
+    setPlanSaving(true);
+    setPlanError(null);
+    try {
+      await onUpdatePlanTeachers(planRow.requirementId, planTeacherIds);
+      setPlanTeacherOpen(false);
+    } catch (reason: unknown) {
+      setPlanError(
+        reason instanceof Error
+          ? reason.message
+          : 'Öğretmen tanımı güncellenemedi.',
+      );
+    } finally {
+      setPlanSaving(false);
+    }
+  };
+
   const previewPlacementResource = async () => {
     if (
       !placementEditMode
       || !placementChoiceId
+      || activeCardIds.length === 0
       || placementResourcePreviewing
       || placementResourceApplying
     ) {
@@ -252,7 +299,7 @@ export function ManagementInspector({
     try {
       setPlacementResourcePreview(
         await onPreviewPlacementResource(
-          cardIds.length > 0 ? cardIds : [card.id],
+          activeCardIds,
           placementEditMode,
           placementChoiceId,
         ),
@@ -273,6 +320,7 @@ export function ManagementInspector({
       !placementEditMode
       || !placementChoiceId
       || !placementResourcePreview?.canApply
+      || activeCardIds.length === 0
       || placementResourceApplying
       || placementResourcePreviewing
     ) {
@@ -284,7 +332,7 @@ export function ManagementInspector({
 
     try {
       await onApplyPlacementResource(
-        cardIds.length > 0 ? cardIds : [card.id],
+        activeCardIds,
         placementEditMode,
         placementChoiceId,
         placementResourcePreview.stateToken,

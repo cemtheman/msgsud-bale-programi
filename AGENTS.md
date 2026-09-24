@@ -12,8 +12,8 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `feat/management-m20-placement-recovery` |
-| Son implementation checkpoint | `73cdbb4e12b3a5e1cc514afe596a2fa645f1fdb8` |
-| Commit | `fix: harden M29 resource preview migration` |
+| Son implementation checkpoint | `744333527783f21cf9767f6fb44f7be05b7ddef8` |
+| Commit | `docs: advance M29 checkpoint` |
 | Son kullanıcı-doğrulamalı UI checkpoint | `111d151a99cc868bc0212fc03dc0d4287a75696c` |
 | Bir önceki kritik işlevsel checkpoint | `eb9535a421bf57914612f2c95f9be2e7baaffe05` |
 | Kritik düzeltme | Provisional VALID adayların grouped placement içinde kullanılabilmesi |
@@ -447,3 +447,24 @@ fix: harden M29 resource preview migration
 ```
 
 Remote apply öncesi SQL statik kontrolünde UUID revision seçimi için `min(uuid)` ve belirsiz `unnest` alias kullanımı kaldırıldı. M29'un güvenilir implementation checkpoint'i bu SHA'dır.
+
+
+### M29 first build failure — TypeScript correction
+
+İlk kullanıcı doğrulamasında `npm.cmd run build` M29 migration uygulanmadan önce TypeScript aşamasında durdu:
+
+```
+ManagementInspector.tsx(255,43): TS18047 card is possibly null
+ManagementInspector.tsx(287,41): TS18047 card is possibly null
+ManagementInspector.tsx(509,24): openPlanTeacherEditor not found
+ManagementInspector.tsx(831,38): togglePlanTeacher not found
+ManagementInspector.tsx(863,37): savePlanTeachers not found
+```
+
+Kök neden: M29, eski candidate-only placement memo bloğunu değiştirirken aynı aralıkta bulunan Ders Planı öğretmen editörü helper fonksiyonlarını da yanlışlıkla kaldırdı. Ayrıca preview/apply callback'leri component'in `!card` early-return guard'ından önce tanımlandığı için `card.id` nullability hatası oluştu.
+
+Düzeltme:
+- `openPlanTeacherEditor`, `togglePlanTeacher`, `savePlanTeachers` geri getirildi.
+- Null-safe `activeCardIds` memo eklendi; preview/apply yalnız bu liste boş değilse çalışır.
+- M29 remote migration **henüz uygulanmadı**; migration listesinde `20260925010000` local-only olarak kaldı.
+- Yeni build PASS alınmadan `db push` yapılmamalıdır.
