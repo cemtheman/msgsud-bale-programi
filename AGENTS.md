@@ -563,3 +563,21 @@ Mac local repo kurulduktan ve build doğrulandıktan sonra:
 ### Mac çalışma ortamı
 
 Ayrıntılı Mac başlangıç akışı `docs/MAC_CONTINUATION.md` içindedir. Yeni oturumda önce `AGENTS.md`, sonra bu dosya okunmalıdır.
+
+
+### Windows PowerShell / Supabase CLI local environment note
+
+- Windows PowerShell execution policy may block `npm.ps1` with `PSSecurityException`.
+- On Windows, use the already-established executable form:
+  ```powershell
+  npm.cmd ci
+  npm.cmd run build
+  npx.cmd supabase migration list
+  ```
+- Do **not** loosen PowerShell execution policy just for this project.
+- Supabase CLI creates `supabase/.temp/` local link/cache state. This directory is now ignored by Git and must not be committed.
+- If `cat AGENTS.md` renders Turkish text as mojibake in Windows PowerShell, the repo file is still UTF-8; display it with:
+  ```powershell
+  Get-Content -Encoding UTF8 AGENTS.md
+  ```
+  macOS Terminal should render the UTF-8 file normally.
