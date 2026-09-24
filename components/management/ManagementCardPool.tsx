@@ -33,25 +33,6 @@ function matchesQueue(card: ManagementBoardCard, filter: QueueFilter) {
   return true;
 }
 
-function suppressNativeDragPreview(dataTransfer: DataTransfer) {
-  const preview = document.createElement('div');
-  preview.setAttribute('aria-hidden', 'true');
-  preview.style.position = 'fixed';
-  preview.style.left = '-9999px';
-  preview.style.top = '-9999px';
-  preview.style.width = '1px';
-  preview.style.height = '1px';
-  preview.style.opacity = '0';
-  preview.style.pointerEvents = 'none';
-
-  document.body.appendChild(preview);
-  dataTransfer.setDragImage(preview, 0, 0);
-
-  requestAnimationFrame(() => {
-    preview.remove();
-  });
-}
-
 function statusClass(card: ManagementBoardCard) {
   if (card.isContradiction) return 'bg-rose-100 text-rose-700';
   if (card.isForced) return 'bg-emerald-100 text-emerald-700';
@@ -306,7 +287,6 @@ export function ManagementCardPool({
 
                     event.dataTransfer.effectAllowed = 'move';
                     event.dataTransfer.setData('text/plain', card.id);
-                    suppressNativeDragPreview(event.dataTransfer);
                     onDragStart(card.id, displayCard.sourceCardIds);
                   }}
                   onDragEnd={onDragEnd}
