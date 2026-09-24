@@ -45,6 +45,11 @@ export interface ManagementDropTarget {
   reasonCodes: string[];
 }
 
+export interface ManagementGroupDropCandidate {
+  cardId: string;
+  candidate: ManagementCandidateAssessment;
+}
+
 function cardClass(card: ManagementBoardCard) {
   const hasSection = card.audienceTargets.includes('SECTION');
   const hasBallet = card.audienceTargets.includes('BALLET');
@@ -278,6 +283,106 @@ function dropTargetForCell({
   };
 }
 
+function groupDropTargetForCell({
+  cards,
+  detailsByCardId,
+  row,
+  view,
+  activeDay,
+  startPeriod,
+  loading,
+}: {
+  cards: ManagementBoardCard[];
+  detailsByCardId: Record<string, ManagementCandidateDetail>;
+  row: ManagementBoardRow;
+  view: ManagementResourceView;
+  activeDay: number;
+  startPeriod: number;
+  loading: boolean;
+}): ManagementDropTarget & {
+  groupCandidates: ManagementGroupDropCandidate[];
+} {
+  const primaryCard = cards[0];
+
+  if (!primaryCard) {
+    return {
+      cardId: '',
+      dayOfWeek: activeDay,
+      startPeriod,
+      state: 'NONE',
+      validCandidates: [],
+      reasonCodes: [],
+      groupCandidates: [],
+    };
+  }
+
+  const targets = cards.map((card) => ({
+    card,
+    target: dropTargetForCell({
+      card,
+      detail: detailsByCardId[card.id] ?? null,
+      row,
+      view,
+      activeDay,
+      startPeriod,
+      loading,
+    }),
+  }));
+
+  const reasonCodes = Array.from(new Set(
+    targets.flatMap(({ target }) => target.reasonCodes),
+  ));
+
+  const result = (
+    state: ManagementDropState,
+    groupCandidates: ManagementGroupDropCandidate[] = [],
+  ) => ({
+    cardId: primaryCard.id,
+    dayOfWeek: activeDay,
+    startPeriod,
+    state,
+    validCandidates: groupCandidates.map(({ candidate }) => candidate),
+    reasonCodes,
+    groupCandidates,
+  });
+
+  if (loading || targets.some(({ target }) => target.state === 'LOADING')) {
+    return result('LOADING');
+  }
+
+  if (targets.every(({ target }) => target.state === 'CURRENT')) {
+    return result('CURRENT');
+  }
+
+  if (targets.some(({ target }) => target.state === 'INVALID')) {
+    return result('INVALID');
+  }
+
+  if (targets.some(({ target }) => target.state === 'UNRESOLVED')) {
+    return result('UNRESOLVED');
+  }
+
+  if (targets.some(({ target }) => target.state === 'AMBIGUOUS')) {
+    return result('AMBIGUOUS');
+  }
+
+  if (targets.some(({ target }) => target.state === 'NONE')) {
+    return result('NONE');
+  }
+
+  const groupCandidates = targets.flatMap(({ card, target }) => (
+    target.state === 'VALID' && target.validCandidates.length === 1
+      ? [{ cardId: card.id, candidate: target.validCandidates[0] }]
+      : []
+  ));
+
+  if (groupCandidates.length === cards.length) {
+    return result('VALID', groupCandidates);
+  }
+
+  return result('NONE');
+}
+
 function targetClass(state: ManagementDropState) {
   if (state === 'VALID') {
     return 'border-emerald-400 bg-emerald-100/85 text-emerald-800';
@@ -325,11 +430,12 @@ export function ManagementBoardGrid({
   onSelect,
   canEdit,
   dragCard,
-  dragCandidateDetail,
+  dragCardIds,
+  dragCandidateDetails,
   dragLoading,
   onDragStart,
   onDragEnd,
-  onDropCandidate,
+  onDropCandidates,
   onDropNeedsAttention,
 }: {
   rows: ManagementBoardRow[];
@@ -340,16 +446,21 @@ export function ManagementBoardGrid({
   onSelect: (cardId: string) => void;
   canEdit: boolean;
   dragCard: ManagementBoardCard | null;
-  dragCandidateDetail: ManagementCandidateDetail | null;
+  dragCardIds: string[];
+  dragCandidateDetails: Record<string, ManagementCandidateDetail>;
   dragLoading: boolean;
-  onDragStart: (cardId: string) => void;
+  onDragStart: (cardId: string, sourceCardIds?: string[]) => void;
   onDragEnd: () => void;
-  onDropCandidate: (candidate: ManagementCandidateAssessment) => void;
+  onDropCandidates: (candidates: ManagementGroupDropCandidate[]) => void;
   onDropNeedsAttention: (target: ManagementDropTarget) => void;
 }) {
   const dayCards = cards.filter(
     (card) => card.placement?.dayOfWeek === activeDay,
   );
+
+  const dragCards = dragCardIds
+    .map((cardId) => cards.find((card) => card.id === cardId))
+    .filter((card): card is ManagementBoardCard => Boolean(card));
 
   return (
     <section className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -357,7 +468,9 @@ export function ManagementBoardGrid({
         <div className="pointer-events-none absolute left-3 top-3 z-40 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-slate-600 shadow-sm backdrop-blur">
           {dragLoading
             ? `${dragCard.subjectName} için uygun yerler hazırlanıyor…`
-            : `${dragCard.subjectName} · başlangıç saatleri işaretlendi`}
+            : dragCardIds.length > 1
+              ? `${dragCard.subjectName} · ${dragCardIds.length} kayıt birlikte taşınacak`
+              : `${dragCard.subjectName} · başlangıç saatleri işaretlendi`}
         </div>
       )}
 
@@ -407,10 +520,10 @@ export function ManagementBoardGrid({
                 const compactSectionRow = view === 'SINIFLAR'
                   && row.audienceScope === 'SECTION'
                   && row.includeSectionCards === false;
-                const laneStep = compactSectionRow ? 30 : 34;
-                const cardHeight = compactSectionRow ? 26 : 30;
+                const laneStep = 34;
+                const cardHeight = 30;
                 const rowHeight = Math.max(
-                  compactSectionRow ? 38 : 44,
+                  44,
                   laneCount * laneStep + 8,
                 );
                 const rowGroupKey = row.gradeGroup
@@ -439,7 +552,7 @@ export function ManagementBoardGrid({
                   >
                     <div
                       className={`sticky left-0 z-10 flex border-r border-slate-200 px-3 ${
-                        compactSectionRow ? 'bg-amber-50/35 py-1.5' : 'bg-white py-2'
+                        compactSectionRow ? 'bg-amber-50/35 py-2' : 'bg-white py-2'
                       }`}
                       style={{ minHeight: rowHeight }}
                     >
@@ -483,9 +596,12 @@ export function ManagementBoardGrid({
                         const selected = displayCard.sourceCardIds.includes(
                           selectedCardId ?? '',
                         );
+                        const sourceCards = displayCard.sourceCardIds
+                          .map((cardId) => cards.find((item) => item.id === cardId))
+                          .filter((item): item is ManagementBoardCard => Boolean(item));
                         const draggable = canEdit
-                          && !card.locked
-                          && !displayCard.grouped;
+                          && sourceCards.length === displayCard.sourceCardIds.length
+                          && sourceCards.every((item) => !item.locked);
                         const secondaryLabel = displayCard.grouped
                           ? displayCard.classCodes.join(' + ')
                           : compactCardGroupName(card);
@@ -503,7 +619,7 @@ export function ManagementBoardGrid({
 
                               event.dataTransfer.effectAllowed = 'move';
                               event.dataTransfer.setData('text/plain', card.id);
-                              onDragStart(card.id);
+                              onDragStart(card.id, displayCard.sourceCardIds);
                             }}
                             onDragEnd={onDragEnd}
                             onClick={() => onSelect(card.id)}
@@ -543,9 +659,9 @@ export function ManagementBoardGrid({
                       {dragCard && (
                         <div className="absolute inset-0 z-30 grid grid-cols-12">
                           {PERIODS.map((period) => {
-                            const target = dropTargetForCell({
-                              card: dragCard,
-                              detail: dragCandidateDetail,
+                            const target = groupDropTargetForCell({
+                              cards: dragCards,
+                              detailsByCardId: dragCandidateDetails,
                               row,
                               view,
                               activeDay,
@@ -570,9 +686,9 @@ export function ManagementBoardGrid({
 
                                   if (
                                     target.state === 'VALID'
-                                    && target.validCandidates.length === 1
+                                    && target.groupCandidates.length === dragCards.length
                                   ) {
-                                    onDropCandidate(target.validCandidates[0]);
+                                    onDropCandidates(target.groupCandidates);
                                     return;
                                   }
 

@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ManagementBoardGrid,
   type ManagementDropTarget,
+  type ManagementGroupDropCandidate,
 } from '@/components/management/ManagementBoardGrid';
 import { ManagementCardPool } from '@/components/management/ManagementCardPool';
 import { ManagementInspector } from '@/components/management/ManagementInspector';
@@ -299,9 +300,9 @@ export default function ManagementPage() {
     candidates: ManagementCandidateAssessment[];
   } | null>(null);
 
-  const [dragCardId, setDragCardId] = useState<string | null>(null);
-  const [dragCandidateDetail, setDragCandidateDetail] =
-    useState<ManagementCandidateDetail | null>(null);
+  const [dragCardIds, setDragCardIds] = useState<string[]>([]);
+  const [dragCandidateDetails, setDragCandidateDetails] =
+    useState<Record<string, ManagementCandidateDetail>>({});
   const [dragLoading, setDragLoading] = useState(false);
   const dragSequenceRef = useRef(0);
 
@@ -410,8 +411,8 @@ export default function ManagementPage() {
   );
 
   const dragCard = useMemo(
-    () => board?.cards.find((card) => card.id === dragCardId) ?? null,
-    [board, dragCardId],
+    () => board?.cards.find((card) => card.id === dragCardIds[0]) ?? null,
+    [board, dragCardIds],
   );
 
 
@@ -478,27 +479,36 @@ export default function ManagementPage() {
   }, [refreshToken, selectedCardId, session, status]);
 
 
-  const beginDrag = (cardId: string) => {
+  const beginDrag = (cardId: string, sourceCardIds?: string[]) => {
     if (!session || !access?.canEdit || status !== 'ready') return;
 
+    const ids = Array.from(new Set(
+      sourceCardIds?.length ? sourceCardIds : [cardId],
+    ));
     const sequence = dragSequenceRef.current + 1;
     dragSequenceRef.current = sequence;
 
-    setDragCardId(cardId);
-    setDragCandidateDetail(null);
+    setDragCardIds(ids);
+    setDragCandidateDetails({});
     setDragLoading(true);
     setCandidateFocus(null);
     setSelectedCardId(cardId);
     setCommandNotice(null);
 
-    void fetchManagementCardCandidates(session.accessToken, cardId)
-      .then((detail) => {
+    void Promise.all(
+      ids.map(async (id) => [
+        id,
+        await fetchManagementCardCandidates(session.accessToken, id),
+      ] as const),
+    )
+      .then((entries) => {
         if (dragSequenceRef.current !== sequence) return;
-        setDragCandidateDetail(detail);
+        setDragCandidateDetails(Object.fromEntries(entries));
       })
       .catch((reason: unknown) => {
         if (dragSequenceRef.current !== sequence) return;
-        setDragCandidateDetail(null);
+        setDragCardIds([]);
+        setDragCandidateDetails({});
         setCommandNotice({
           kind: 'error',
           text: reason instanceof Error
@@ -516,8 +526,8 @@ export default function ManagementPage() {
 
   const endDrag = () => {
     dragSequenceRef.current += 1;
-    setDragCardId(null);
-    setDragCandidateDetail(null);
+    setDragCardIds([]);
+    setDragCandidateDetails({});
     setDragLoading(false);
   };
 
@@ -573,6 +583,86 @@ export default function ManagementPage() {
           ? reason.message
           : 'İşlem tamamlanamadı.',
       });
+    } finally {
+      setCommandBusy(false);
+      setCommandActivity(null);
+    }
+  };
+
+  const runDropCandidates = async (
+    moves: ManagementGroupDropCandidate[],
+  ) => {
+    if (!session || !access?.canEdit || !board || commandBusy || moves.length === 0) {
+      return;
+    }
+
+    const commands = moves.flatMap(({ cardId, candidate }) => {
+      const card = board.cards.find((item) => item.id === cardId);
+      if (!card || !candidate.teacherId || !candidate.roomId) return [];
+      return [{ card, candidate }];
+    });
+
+    if (commands.length !== moves.length) {
+      setCommandNotice({
+        kind: 'error',
+        text: 'Birleşik kartın tüm kayıtları için geçerli taşıma adayı bulunamadı.',
+      });
+      return;
+    }
+
+    if (commands.length === 1) {
+      await runCandidateCommand(commands[0].candidate, commands[0].card);
+      return;
+    }
+
+    setCommandBusy(true);
+    setCommandActivity(
+      `${commands[0].card.subjectName} · ${commands.length} kayıt birlikte taşınıyor.`,
+    );
+    setCommandNotice(null);
+
+    const completedTransactionIds: string[] = [];
+
+    try {
+      for (const { card, candidate } of commands) {
+        const transactionId = await moveManagementCard(session.accessToken, {
+          cardId: card.id,
+          dayOfWeek: candidate.dayOfWeek,
+          startPeriod: candidate.startPeriod,
+          teacherId: candidate.teacherId!,
+          roomId: candidate.roomId!,
+        });
+        completedTransactionIds.push(transactionId);
+      }
+
+      setCandidateFocus(null);
+      setActiveDay(commands[0].candidate.dayOfWeek);
+      setCommandNotice({
+        kind: 'success',
+        text: `${commands[0].card.subjectName} · ${commands.length} kayıt birlikte taşındı.`,
+      });
+      setRefreshToken((value) => value + 1);
+    } catch (reason: unknown) {
+      let rollbackFailed = false;
+
+      for (const transactionId of [...completedTransactionIds].reverse()) {
+        try {
+          await undoManagement(session.accessToken, transactionId);
+        } catch {
+          rollbackFailed = true;
+          break;
+        }
+      }
+
+      setCommandNotice({
+        kind: 'error',
+        text: rollbackFailed
+          ? 'Birleşik taşıma tamamlanamadı ve kısmi hareketin tamamı geri alınamadı. Programı yenileyip kayıtları kontrol edin.'
+          : reason instanceof Error
+            ? `${reason.message} Yapılan kısmi hareketler geri alındı.`
+            : 'Birleşik taşıma tamamlanamadı. Yapılan kısmi hareketler geri alındı.',
+      });
+      setRefreshToken((value) => value + 1);
     } finally {
       setCommandBusy(false);
       setCommandActivity(null);
@@ -1129,16 +1219,14 @@ export default function ManagementPage() {
               onSelect={selectCard}
               canEdit={access?.canEdit === true}
               dragCard={dragCard}
-              dragCandidateDetail={dragCandidateDetail}
+              dragCardIds={dragCardIds}
+              dragCandidateDetails={dragCandidateDetails}
               dragLoading={dragLoading}
               onDragStart={beginDrag}
               onDragEnd={endDrag}
-              onDropCandidate={(candidate) => {
-                const card = dragCard;
+              onDropCandidates={(moves) => {
                 endDrag();
-                if (card) {
-                  void runCandidateCommand(candidate, card);
-                }
+                void runDropCandidates(moves);
               }}
               onDropNeedsAttention={(target) => {
                 endDrag();
