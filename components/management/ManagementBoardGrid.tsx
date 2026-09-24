@@ -52,6 +52,25 @@ export interface ManagementGroupDropCandidate {
   candidate: ManagementCandidateAssessment;
 }
 
+function suppressNativeDragPreview(dataTransfer: DataTransfer) {
+  const preview = document.createElement('div');
+  preview.setAttribute('aria-hidden', 'true');
+  preview.style.position = 'fixed';
+  preview.style.left = '-9999px';
+  preview.style.top = '-9999px';
+  preview.style.width = '1px';
+  preview.style.height = '1px';
+  preview.style.opacity = '0';
+  preview.style.pointerEvents = 'none';
+
+  document.body.appendChild(preview);
+  dataTransfer.setDragImage(preview, 0, 0);
+
+  requestAnimationFrame(() => {
+    preview.remove();
+  });
+}
+
 function cardClass(card: ManagementBoardCard) {
   const hasSection = card.audienceTargets.includes('SECTION');
   const hasBallet = card.audienceTargets.includes('BALLET');
@@ -630,6 +649,7 @@ export function ManagementBoardGrid({
 
                               event.dataTransfer.effectAllowed = 'move';
                               event.dataTransfer.setData('text/plain', card.id);
+                              suppressNativeDragPreview(event.dataTransfer);
                               onDragStart(card.id, displayCard.sourceCardIds);
                             }}
                             onDragEnd={onDragEnd}
