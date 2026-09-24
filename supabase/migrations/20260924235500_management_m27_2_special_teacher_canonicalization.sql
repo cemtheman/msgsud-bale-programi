@@ -384,37 +384,17 @@ begin
 end
 $$;
 
--- Remove rows only when absolutely unreferenced. Rows retained solely by
--- historical/public/audit references are intentionally left in the database;
--- the Resources UI suppresses them as retired management placeholders.
-delete from public.teachers teacher
-using m272_legacy_teachers legacy
-where teacher.id = legacy.teacher_id
-  and not exists (
-    select 1
-    from public.course_requirement_teachers assignment
-    where assignment.teacher_id = teacher.id
-  )
-  and not exists (
-    select 1
-    from public.placements placement
-    where placement.teacher_id = teacher.id
-  )
-  and not exists (
-    select 1
-    from public.schedule_sessions session_row
-    where session_row.teacher_id = teacher.id
-  )
-  and not exists (
-    select 1
-    from public.management_teacher_name_overrides name_override
-    where name_override.teacher_id = teacher.id
-  )
-  and not exists (
-    select 1
-    from public.management_resource_reconciliations reconciliation
-    where reconciliation.teacher_id = teacher.id
-  );
+-- Do NOT physically delete legacy teacher rows here.
+--
+-- Candidate-domain rows (schedule_card_candidate_assessments) and historical
+-- scheduling/audit data may still hold foreign-key references to these teacher
+-- identities even after active DRAFT requirement/placement references are
+-- removed. Physical deletion is unnecessary for the product invariant and can
+-- fail the whole migration with FK violations.
+--
+-- Active management references were already removed/reassigned above. The
+-- Resources UI suppresses legacy numbered Orkestra/Doğaçlama placeholders once
+-- their activeRequirementCount and placedBlockCount are both zero.
 
 do $$
 declare

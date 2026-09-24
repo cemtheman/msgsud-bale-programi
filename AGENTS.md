@@ -293,3 +293,21 @@ M27.2:
 - Kaynaklar öğretmen sayacı ve aktif/kullanılan öğretmen sayıları da bu görünür yönetim envanterini baz alır.
 
 Durum: GitHub'a commit edildi; remote migration apply kullanıcı tarafından doğrulanmalıdır.
+
+
+### M27.2 failed-apply correction
+
+İlk M27.2 apply denemesi şu FK ile rollback oldu:
+
+```
+schedule_card_candidate_assessments_teacher_id_fkey
+```
+
+Sebep: aktif requirement/placement referansları temizlenmiş olsa bile derived
+`schedule_card_candidate_assessments` satırları legacy teacher id'lerini
+tutabiliyor. Fiziksel teacher silmek ürün gereksinimi için gerekli değildir.
+
+Düzeltme: uygulanmamış M27.2 migration içindeki `delete from public.teachers`
+bloğu kaldırıldı. Legacy Orkestra/Doğaçlama placeholder kimlikleri DB'de
+historical/derived referans güvenliği için kalabilir; aktif yönetim atamalarından
+çıkarılır ve Kaynaklar UI'sında aktif/kullanılan olmadıklarında gizlenir.
