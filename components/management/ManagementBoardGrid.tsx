@@ -593,7 +593,7 @@ export function ManagementBoardGrid({
       <div className="management-scrollbar h-full overflow-auto">
         <div className="min-w-[948px]">
           <div className="grid grid-cols-[132px_repeat(12,minmax(68px,1fr))] border-b border-slate-200 bg-slate-50">
-            <div className="sticky left-0 z-20 border-r border-slate-200 bg-slate-50 px-4 py-3 text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+            <div className="sticky left-0 z-[60] border-r border-slate-200 bg-slate-50 px-4 py-3 text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400 shadow-[2px_0_4px_-3px_rgba(15,23,42,0.35)]">
               Sınıf / Alan
             </div>
             {PERIODS.map((period) => (
@@ -667,8 +667,8 @@ export function ManagementBoardGrid({
                     } last:border-b-0`}
                   >
                     <div
-                      className={`sticky left-0 z-10 flex border-r border-slate-200 px-3 ${
-                        compactSectionRow ? 'bg-amber-50/35 py-2' : 'bg-white py-2'
+                      className={`sticky left-0 z-50 flex border-r border-slate-200 px-3 shadow-[2px_0_4px_-3px_rgba(15,23,42,0.35)] ${
+                        compactSectionRow ? 'bg-amber-50 py-2' : 'bg-white py-2'
                       }`}
                       style={{ minHeight: rowHeight }}
                     >
