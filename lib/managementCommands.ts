@@ -6,12 +6,23 @@ export interface ManagementCommandDescriptor {
   transactionId: string;
   action: ManagementRootAction;
   cardId: string | null;
+  cardIds: string[];
   autoCount: number;
+  bundleId: string | null;
+  bundleSize: number;
 }
 
 export interface ManagementCommandState {
   undo: ManagementCommandDescriptor | null;
   redo: ManagementCommandDescriptor | null;
+}
+
+export interface ManagementBundleCandidateInput {
+  cardId: string;
+  dayOfWeek: number;
+  startPeriod: number;
+  teacherId: string;
+  roomId: string;
 }
 
 interface RootTransactionRow {
@@ -231,6 +242,43 @@ export function removeManagementCard(
   });
 }
 
+function bundleItemsPayload(items: ManagementBundleCandidateInput[]) {
+  return items.map((item) => ({
+    card_id: item.cardId,
+    day_of_week: item.dayOfWeek,
+    start_period: item.startPeriod,
+    teacher_id: item.teacherId,
+    room_id: item.roomId,
+  }));
+}
+
+export function placeManagementCardBundle(
+  accessToken: string,
+  items: ManagementBundleCandidateInput[],
+) {
+  return callRpc('management_place_card_bundle', accessToken, {
+    p_items: bundleItemsPayload(items),
+  });
+}
+
+export function moveManagementCardBundle(
+  accessToken: string,
+  items: ManagementBundleCandidateInput[],
+) {
+  return callRpc('management_move_card_bundle', accessToken, {
+    p_items: bundleItemsPayload(items),
+  });
+}
+
+export function removeManagementCardBundle(
+  accessToken: string,
+  cardIds: string[],
+) {
+  return callRpc('management_remove_card_bundle', accessToken, {
+    p_card_ids: cardIds,
+  });
+}
+
 
 export function updateManagementRequirementTeachers(
   accessToken: string,
@@ -268,6 +316,24 @@ export function redoManagement(
   undoTransactionId: string,
 ) {
   return callRpc('management_redo', accessToken, {
+    p_undo_transaction_id: undoTransactionId,
+  });
+}
+
+export function undoManagementBundle(
+  accessToken: string,
+  rootTransactionId: string,
+) {
+  return callRpc('management_undo_bundle', accessToken, {
+    p_root_transaction_id: rootTransactionId,
+  });
+}
+
+export function redoManagementBundle(
+  accessToken: string,
+  undoTransactionId: string,
+) {
+  return callRpc('management_redo_bundle', accessToken, {
     p_undo_transaction_id: undoTransactionId,
   });
 }
@@ -361,14 +427,28 @@ export async function fetchManagementCommandState(
   const rowById = new Map(rows.map((row) => [row.id, row]));
 
   const undoCardIdValue = undoRow?.payload?.card_id;
+  const undoBundleIdValue = undoRow?.payload?.bundle_id;
+  const undoBundleCardIdsValue = undoRow?.payload?.bundle_card_ids;
+  const undoCardIds = Array.isArray(undoBundleCardIdsValue)
+    ? undoBundleCardIdsValue.filter(
+      (value): value is string => typeof value === 'string',
+    )
+    : typeof undoCardIdValue === 'string'
+      ? [undoCardIdValue]
+      : [];
   const undo = undoRow
     ? {
       transactionId: undoRow.id,
       action: undoRow.action as ManagementRootAction,
       cardId: typeof undoCardIdValue === 'string'
         ? undoCardIdValue
-        : null,
+        : undoCardIds[0] ?? null,
+      cardIds: undoCardIds,
       autoCount: Number(undoRow.payload?.propagation_auto_count ?? 0) || 0,
+      bundleId: typeof undoBundleIdValue === 'string'
+        ? undoBundleIdValue
+        : null,
+      bundleSize: Number(undoRow.payload?.bundle_size ?? (undoCardIds.length || 1)) || 1,
     }
     : null;
 
@@ -394,11 +474,32 @@ export async function fetchManagementCommandState(
       : null;
 
     if (originalAction && ['PLACE', 'MOVE', 'REMOVE'].includes(originalAction)) {
+      const redoBundleIdValue = redoRow.payload?.bundle_id;
+      const redoBundleCardIdsValue =
+        redoRow.payload?.bundle_card_ids
+        ?? originalRoot?.payload?.bundle_card_ids;
+      const redoCardIds = Array.isArray(redoBundleCardIdsValue)
+        ? redoBundleCardIdsValue.filter(
+          (value): value is string => typeof value === 'string',
+        )
+        : originalCardId
+          ? [originalCardId]
+          : [];
+
       redo = {
         transactionId: redoRow.id,
         action: originalAction,
-        cardId: originalCardId,
+        cardId: originalCardId ?? redoCardIds[0] ?? null,
+        cardIds: redoCardIds,
         autoCount: Number(originalRoot?.payload?.propagation_auto_count ?? 0) || 0,
+        bundleId: typeof redoBundleIdValue === 'string'
+          ? redoBundleIdValue
+          : null,
+        bundleSize: Number(
+          redoRow.payload?.bundle_size
+          ?? originalRoot?.payload?.bundle_size
+          ?? (redoCardIds.length || 1),
+        ) || 1,
       };
     }
   }

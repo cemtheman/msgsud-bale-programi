@@ -362,27 +362,37 @@ export function buildManagementRowDisplayCards(
   const groups = new Map<string, ManagementBoardDisplayCard>();
 
   cards.forEach((card) => {
-    if (!card.placement) {
-      groups.set(`card:${card.id}`, singleCard(card));
-      return;
-    }
-
     const audienceKey = [...card.audienceTargets].sort().join(',');
+    const gradeKey = Array.from(new Set(
+      card.classCodes
+        .map((code) => gradeFromClassCode(code))
+        .filter((grade): grade is number => grade !== null),
+    ))
+      .sort((a, b) => a - b)
+      .join(',');
+    const placementKey = card.placement
+      ? `placed:${card.placement.dayOfWeek}:${card.placement.startPeriod}`
+      : `pool:${card.blockIndex}`;
     const key = [
       card.subjectId,
-      card.placement.dayOfWeek,
-      card.placement.startPeriod,
+      gradeKey,
+      placementKey,
       card.durationPeriods,
       audienceKey,
+      card.groupType,
       card.courseCharacter,
       card.deliveryMode,
     ].join('::');
 
     const existing = groups.get(key);
+    const overlapsExistingClass = existing?.classCodes.some((code) =>
+      card.classCodes.includes(code),
+    ) ?? false;
 
-    if (!existing) {
-      groups.set(key, {
-        id: `group:${key}`,
+    if (!existing || overlapsExistingClass) {
+      const uniqueKey = existing ? `${key}::card:${card.id}` : key;
+      groups.set(uniqueKey, {
+        id: `group:${uniqueKey}`,
         card,
         sourceCardIds: [card.id],
         classCodes: [...card.classCodes],

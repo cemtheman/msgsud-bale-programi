@@ -443,7 +443,7 @@ export function ManagementBoardGrid({
   view: ManagementResourceView;
   activeDay: number;
   selectedCardId: string | null;
-  onSelect: (cardId: string) => void;
+  onSelect: (cardId: string, sourceCardIds?: string[]) => void;
   canEdit: boolean;
   dragCard: ManagementBoardCard | null;
   dragCardIds: string[];
@@ -622,7 +622,7 @@ export function ManagementBoardGrid({
                               onDragStart(card.id, displayCard.sourceCardIds);
                             }}
                             onDragEnd={onDragEnd}
-                            onClick={() => onSelect(card.id)}
+                            onClick={() => onSelect(card.id, displayCard.sourceCardIds)}
                             className={`absolute overflow-hidden rounded-md border px-2 py-1 text-left shadow-sm transition ${
                               draggable
                                 ? 'cursor-grab active:cursor-grabbing'

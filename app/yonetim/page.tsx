@@ -63,10 +63,15 @@ import {
 import {
   fetchManagementCommandState,
   moveManagementCard,
+  moveManagementCardBundle,
   placeManagementCard,
+  placeManagementCardBundle,
   redoManagement,
+  redoManagementBundle,
   removeManagementCard,
+  removeManagementCardBundle,
   undoManagement,
+  undoManagementBundle,
   updateManagementRequirementTeachers,
   type ManagementCommandDescriptor,
   type ManagementCommandState,
@@ -147,9 +152,16 @@ function commandContextLabel(
     return `Program ${actionNoun(descriptor.action)}`;
   }
 
-  const audience = card.classCodes.length > 0
-    ? card.classCodes.join(', ')
-    : card.groupName;
+  const bundleCards = descriptor.cardIds
+    .map((cardId) => board?.cards.find((item) => item.id === cardId) ?? null)
+    .filter((item): item is ManagementBoardData['cards'][number] => Boolean(item));
+  const bundleAudience = Array.from(new Set(
+    bundleCards.flatMap((item) => item.classCodes),
+  ))
+    .sort((a, b) => a.localeCompare(b, 'tr', { numeric: true }))
+    .join(' + ');
+  const audience = bundleAudience
+    || (card.classCodes.length > 0 ? card.classCodes.join(', ') : card.groupName);
 
   return `${audience} ${card.subjectName} ${actionNoun(descriptor.action)}`;
 }
@@ -290,6 +302,7 @@ export default function ManagementPage() {
   const [inspectorOpen, setInspectorOpen] = useState(false);
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [candidateDetail, setCandidateDetail] =
     useState<ManagementCandidateDetail | null>(null);
   const [candidateLoading, setCandidateLoading] = useState(false);
@@ -409,6 +422,20 @@ export default function ManagementPage() {
     () => board?.cards.find((card) => card.id === selectedCardId) ?? null,
     [board, selectedCardId],
   );
+  const selectedCards = useMemo(
+    () => selectedCardIds
+      .map((cardId) => board?.cards.find((card) => card.id === cardId) ?? null)
+      .filter((card): card is ManagementBoardData['cards'][number] => Boolean(card)),
+    [board, selectedCardIds],
+  );
+  const selectedClassLabel = useMemo(
+    () => Array.from(new Set(
+      selectedCards.flatMap((card) => card.classCodes),
+    ))
+      .sort((a, b) => a.localeCompare(b, 'tr', { numeric: true }))
+      .join(' + '),
+    [selectedCards],
+  );
 
   const dragCard = useMemo(
     () => board?.cards.find((card) => card.id === dragCardIds[0]) ?? null,
@@ -421,9 +448,13 @@ export default function ManagementPage() {
     [board, overview, stage],
   );
 
-  const selectCard = (cardId: string) => {
+  const selectCard = (cardId: string, sourceCardIds?: string[]) => {
+    const ids = Array.from(new Set(
+      sourceCardIds?.length ? sourceCardIds : [cardId],
+    ));
     setCandidateFocus(null);
     setSelectedCardId(cardId);
+    setSelectedCardIds(ids);
     setInspectorOpen(true);
   };
 
@@ -436,6 +467,7 @@ export default function ManagementPage() {
       )
     ) {
       setSelectedCardId(null);
+      setSelectedCardIds([]);
       setInspectorOpen(false);
     }
   }, [audienceFilter, selectedCard, stage]);
@@ -493,6 +525,7 @@ export default function ManagementPage() {
     setDragLoading(true);
     setCandidateFocus(null);
     setSelectedCardId(cardId);
+    setSelectedCardIds(ids);
     setCommandNotice(null);
 
     void Promise.all(
@@ -605,7 +638,7 @@ export default function ManagementPage() {
     if (commands.length !== moves.length) {
       setCommandNotice({
         kind: 'error',
-        text: 'Birleşik kartın tüm kayıtları için geçerli taşıma adayı bulunamadı.',
+        text: 'Birleşik dersin tüm kayıtları için geçerli hedef bulunamadı.',
       });
       return;
     }
@@ -615,62 +648,133 @@ export default function ManagementPage() {
       return;
     }
 
+    const placementStates = commands.map(({ card }) => Boolean(card.placement));
+    const allPlaced = placementStates.every(Boolean);
+    const allUnplaced = placementStates.every((placed) => !placed);
+
+    if (!allPlaced && !allUnplaced) {
+      setCommandNotice({
+        kind: 'error',
+        text: 'Birleşik dersin kayıtları aynı yerleşim durumunda değil. Programı yenileyip tekrar deneyin.',
+      });
+      return;
+    }
+
+    const bundleItems = commands.map(({ card, candidate }) => ({
+      cardId: card.id,
+      dayOfWeek: candidate.dayOfWeek,
+      startPeriod: candidate.startPeriod,
+      teacherId: candidate.teacherId!,
+      roomId: candidate.roomId!,
+    }));
+
     setCommandBusy(true);
     setCommandActivity(
-      `${commands[0].card.subjectName} · ${commands.length} kayıt birlikte taşınıyor.`,
+      allPlaced
+        ? `${commands[0].card.subjectName} · ${commands.length} kayıt birlikte taşınıyor.`
+        : `${commands[0].card.subjectName} · ${commands.length} kayıt birlikte yerleştiriliyor.`,
     );
     setCommandNotice(null);
 
-    const completedTransactionIds: string[] = [];
-
     try {
-      for (const { card, candidate } of commands) {
-        const transactionId = await moveManagementCard(session.accessToken, {
-          cardId: card.id,
-          dayOfWeek: candidate.dayOfWeek,
-          startPeriod: candidate.startPeriod,
-          teacherId: candidate.teacherId!,
-          roomId: candidate.roomId!,
-        });
-        completedTransactionIds.push(transactionId);
+      if (allPlaced) {
+        await moveManagementCardBundle(session.accessToken, bundleItems);
+      } else {
+        await placeManagementCardBundle(session.accessToken, bundleItems);
       }
 
       setCandidateFocus(null);
       setActiveDay(commands[0].candidate.dayOfWeek);
       setCommandNotice({
         kind: 'success',
-        text: `${commands[0].card.subjectName} · ${commands.length} kayıt birlikte taşındı.`,
+        text: allPlaced
+          ? `${commands[0].card.subjectName} · ${commands.length} kayıt birlikte taşındı.`
+          : `${commands[0].card.subjectName} · ${commands.length} kayıt birlikte yerleştirildi.`,
       });
       setRefreshToken((value) => value + 1);
     } catch (reason: unknown) {
-      let rollbackFailed = false;
-
-      for (const transactionId of [...completedTransactionIds].reverse()) {
-        try {
-          await undoManagement(session.accessToken, transactionId);
-        } catch {
-          rollbackFailed = true;
-          break;
-        }
-      }
-
       setCommandNotice({
         kind: 'error',
-        text: rollbackFailed
-          ? 'Birleşik taşıma tamamlanamadı ve kısmi hareketin tamamı geri alınamadı. Programı yenileyip kayıtları kontrol edin.'
-          : reason instanceof Error
-            ? `${reason.message} Yapılan kısmi hareketler geri alındı.`
-            : 'Birleşik taşıma tamamlanamadı. Yapılan kısmi hareketler geri alındı.',
+        text: reason instanceof Error
+          ? reason.message
+          : 'Birleşik ders işlemi tamamlanamadı.',
       });
-      setRefreshToken((value) => value + 1);
     } finally {
       setCommandBusy(false);
       setCommandActivity(null);
     }
   };
 
+  const runSelectedCandidateAction = async (
+    candidate: ManagementCandidateAssessment,
+  ) => {
+    if (
+      !session
+      || !access?.canEdit
+      || !board
+      || selectedCardIds.length <= 1
+    ) {
+      await runCandidateCommand(candidate);
+      return;
+    }
+
+    setCommandNotice(null);
+
+    try {
+      const details = await Promise.all(
+        selectedCardIds.map(async (cardId) => ({
+          cardId,
+          detail: await fetchManagementCardCandidates(session.accessToken, cardId),
+        })),
+      );
+
+      const moves: ManagementGroupDropCandidate[] = details.flatMap(
+        ({ cardId, detail }) => {
+          const validAtSlot = detail.assessments.filter((assessment) => (
+            assessment.dayOfWeek === candidate.dayOfWeek
+            && assessment.startPeriod === candidate.startPeriod
+            && assessment.status === 'VALID'
+            && assessment.isComplete
+            && Boolean(assessment.teacherId)
+            && Boolean(assessment.roomId)
+          ));
+
+          if (cardId === selectedCardId) {
+            const exact = validAtSlot.find((assessment) => (
+              assessment.teacherId === candidate.teacherId
+              && assessment.roomId === candidate.roomId
+            ));
+            return exact ? [{ cardId, candidate: exact }] : [];
+          }
+
+          return validAtSlot.length === 1
+            ? [{ cardId, candidate: validAtSlot[0] }]
+            : [];
+        },
+      );
+
+      if (moves.length !== selectedCardIds.length) {
+        setCommandNotice({
+          kind: 'error',
+          text: 'Bu saat, birleşik dersin tüm sınıfları için tek ve kesin bir hedef oluşturmuyor. Uygun hedefi program üzerinde sürükle-bırak ile seçin.',
+        });
+        return;
+      }
+
+      await runDropCandidates(moves);
+    } catch (reason: unknown) {
+      setCommandNotice({
+        kind: 'error',
+        text: reason instanceof Error
+          ? reason.message
+          : 'Birleşik ders için uygun hedefler hazırlanamadı.',
+      });
+    }
+  };
+
   const handleDropNeedsAttention = (target: ManagementDropTarget) => {
     setSelectedCardId(target.cardId);
+    setSelectedCardIds([target.cardId]);
     setInspectorOpen(true);
 
     if (target.state === 'AMBIGUOUS') {
@@ -712,7 +816,8 @@ export default function ManagementPage() {
   const requestRemove = () => {
     if (
       !access?.canEdit
-      || !selectedCard?.placement
+      || selectedCards.length === 0
+      || !selectedCards.every((card) => Boolean(card.placement))
       || commandBusy
     ) {
       return;
@@ -725,24 +830,38 @@ export default function ManagementPage() {
     if (
       !session
       || !access?.canEdit
-      || !selectedCard?.placement
+      || selectedCards.length === 0
+      || !selectedCards.every((card) => Boolean(card.placement))
       || commandBusy
     ) {
       return;
     }
 
-    const cardBeingRemoved = selectedCard;
+    const cardsBeingRemoved = [...selectedCards];
+    const primaryCard = cardsBeingRemoved[0];
 
     setRemoveConfirmOpen(false);
     setCommandBusy(true);
-    setCommandActivity(`${cardBeingRemoved.subjectName} programdan kaldırılıyor.`);
+    setCommandActivity(
+      cardsBeingRemoved.length > 1
+        ? `${primaryCard.subjectName} · ${cardsBeingRemoved.length} kayıt programdan kaldırılıyor.`
+        : `${primaryCard.subjectName} programdan kaldırılıyor.`,
+    );
     setCommandNotice(null);
 
     try {
-      await removeManagementCard(session.accessToken, cardBeingRemoved.id);
+      if (cardsBeingRemoved.length > 1) {
+        await removeManagementCardBundle(
+          session.accessToken,
+          cardsBeingRemoved.map((card) => card.id),
+        );
+      } else {
+        await removeManagementCard(session.accessToken, primaryCard.id);
+      }
+
       setCommandNotice({
         kind: 'success',
-        text: `${cardBeingRemoved.classCodes.join(', ') || cardBeingRemoved.groupName} ${cardBeingRemoved.subjectName} programdan kaldırıldı ve havuza geri döndü.`,
+        text: `${selectedClassLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan kaldırıldı ve havuza geri döndü.`,
       });
       setRefreshToken((value) => value + 1);
     } catch (reason: unknown) {
@@ -773,7 +892,11 @@ export default function ManagementPage() {
     setCommandNotice(null);
 
     try {
-      await undoManagement(session.accessToken, descriptor.transactionId);
+      if (descriptor.bundleId) {
+        await undoManagementBundle(session.accessToken, descriptor.transactionId);
+      } else {
+        await undoManagement(session.accessToken, descriptor.transactionId);
+      }
       setCommandNotice({
         kind: 'success',
         text: completedCommandMessage(descriptor, board, 'undo'),
@@ -809,7 +932,11 @@ export default function ManagementPage() {
     setCommandNotice(null);
 
     try {
-      await redoManagement(session.accessToken, descriptor.transactionId);
+      if (descriptor.bundleId) {
+        await redoManagementBundle(session.accessToken, descriptor.transactionId);
+      } else {
+        await redoManagement(session.accessToken, descriptor.transactionId);
+      }
       setCommandNotice({
         kind: 'success',
         text: completedCommandMessage(descriptor, board, 'redo'),
@@ -1248,7 +1375,7 @@ export default function ManagementPage() {
               commandBusy={commandBusy}
               commandNotice={commandNotice}
               onCandidateAction={(candidate) => {
-                void runCandidateCommand(candidate);
+                void runSelectedCandidateAction(candidate);
               }}
               onRemove={requestRemove}
               onClose={() => setInspectorOpen(false)}
@@ -1269,6 +1396,7 @@ export default function ManagementPage() {
 
             if (card) {
               setSelectedCardId(card.id);
+              setSelectedCardIds([card.id]);
               setInspectorOpen(true);
               setCandidateFocus(null);
               if (card.placement) {
@@ -1534,10 +1662,10 @@ export default function ManagementPage() {
         />
       )}
 
-      {removeConfirmOpen && selectedCard?.placement && (
+      {removeConfirmOpen && selectedCard?.placement && selectedCards.length > 0 && (
         <ManagementConfirmOverlay
           title="Programdan kaldırılsın mı?"
-          detail={`${selectedCard.classCodes.join(', ') || selectedCard.groupName} ${selectedCard.subjectName} mevcut yerleşiminden kaldırılacak ve ders havuzuna geri dönecek.`}
+          detail={`${selectedClassLabel || selectedCard.groupName} ${selectedCard.subjectName} ${selectedCards.length > 1 ? `(${selectedCards.length} kayıt)` : ''} mevcut yerleşiminden kaldırılacak ve ders havuzuna geri dönecek.`}
           confirmLabel="Kaldır"
           busy={commandBusy}
           onConfirm={() => {

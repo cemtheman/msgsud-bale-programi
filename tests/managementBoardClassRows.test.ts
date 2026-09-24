@@ -270,6 +270,57 @@ describe('management grade-group audience rows', () => {
     )).toHaveLength(2);
   });
 
+  it('coalesces equivalent unplaced sibling-class cards in the pool', () => {
+    const turkish5A = {
+      ...card('pool-turkish-5A', ['SECTION'], ['5A']),
+      subjectId: 'subject-turkish',
+      subjectName: 'Türkçe',
+      blockIndex: 2,
+      placement: null,
+    };
+    const turkish5B = {
+      ...card('pool-turkish-5B', ['SECTION'], ['5B']),
+      subjectId: 'subject-turkish',
+      subjectName: 'Türkçe',
+      blockIndex: 2,
+      placement: null,
+    };
+
+    const displayCards = buildManagementRowDisplayCards(
+      [turkish5A, turkish5B],
+      'SINIFLAR',
+    );
+
+    expect(displayCards).toHaveLength(1);
+    expect(displayCards[0]).toMatchObject({
+      grouped: true,
+      sourceCardIds: ['pool-turkish-5A', 'pool-turkish-5B'],
+      classCodes: ['5A', '5B'],
+    });
+  });
+
+  it('does not collapse two distinct cards belonging to the same class', () => {
+    const first = {
+      ...card('same-class-1', ['SECTION'], ['5A']),
+      subjectId: 'subject-turkish',
+      subjectName: 'Türkçe',
+      blockIndex: 1,
+      placement: null,
+    };
+    const second = {
+      ...card('same-class-2', ['SECTION'], ['5A']),
+      subjectId: 'subject-turkish',
+      subjectName: 'Türkçe',
+      blockIndex: 1,
+      placement: null,
+    };
+
+    expect(buildManagementRowDisplayCards(
+      [first, second],
+      'SINIFLAR',
+    )).toHaveLength(2);
+  });
+
   it('keeps a source-confirmed audience row even before lesson cards exist', () => {
     const classRows = buildManagementClassRows(
       [

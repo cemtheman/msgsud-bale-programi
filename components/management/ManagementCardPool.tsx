@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
+  buildManagementRowDisplayCards,
   managementCardStatus,
   type ManagementBoardCard,
+  type ManagementBoardDisplayCard,
 } from '@/lib/managementBoard';
 
 type QueueFilter =
@@ -51,12 +53,14 @@ export function ManagementCardPool({
   cards: ManagementBoardCard[];
   totalUnplaced: number;
   selectedCardId: string | null;
-  onSelect: (cardId: string) => void;
+  onSelect: (cardId: string, sourceCardIds?: string[]) => void;
   onClose: () => void;
   canEdit: boolean;
-  onDragStart: (cardId: string) => void;
+  onDragStart: (cardId: string, sourceCardIds?: string[]) => void;
   onDragEnd: () => void;
 }) {
+  void totalUnplaced;
+
   const [query, setQuery] = useState('');
   const [queueFilter, setQueueFilter] =
     useState<QueueFilter>('ÇALIŞILABİLİR');
@@ -66,16 +70,44 @@ export function ManagementCardPool({
     () => cards.filter((card) => !card.placement),
     [cards],
   );
+  const cardById = useMemo(
+    () => new Map(cards.map((card) => [card.id, card])),
+    [cards],
+  );
+  const displayCards = useMemo(
+    () => buildManagementRowDisplayCards(unplacedCards, 'SINIFLAR'),
+    [unplacedCards],
+  );
+
+  const sourceCardsForDisplay = (displayCard: ManagementBoardDisplayCard) =>
+    displayCard.sourceCardIds
+      .map((cardId) => cardById.get(cardId))
+      .filter((card): card is ManagementBoardCard => Boolean(card));
+
+  const displayMatchesQueue = (
+    displayCard: ManagementBoardDisplayCard,
+    filter: QueueFilter,
+  ) => {
+    const sourceCards = sourceCardsForDisplay(displayCard);
+    if (sourceCards.length === 0) return false;
+
+    if (filter === 'ÇALIŞILABİLİR') {
+      return sourceCards.every((card) => matchesQueue(card, filter));
+    }
+
+    if (filter === 'TÜMÜ') return true;
+    return sourceCards.some((card) => matchesQueue(card, filter));
+  };
 
   const classOptions = useMemo(() => {
     const values = new Set<string>();
-    unplacedCards.forEach((card) => {
-      card.classCodes.forEach((code) => values.add(code));
+    displayCards.forEach((displayCard) => {
+      displayCard.classCodes.forEach((code) => values.add(code));
     });
     return Array.from(values).sort((a, b) =>
       a.localeCompare(b, 'tr', { numeric: true }),
     );
-  }, [unplacedCards]);
+  }, [displayCards]);
 
   useEffect(() => {
     if (
@@ -90,51 +122,60 @@ export function ManagementCardPool({
     return Object.fromEntries(
       QUEUE_FILTERS.map((filter) => [
         filter.id,
-        unplacedCards.filter((card) => matchesQueue(card, filter.id)).length,
+        displayCards.filter((displayCard) =>
+          displayMatchesQueue(displayCard, filter.id),
+        ).length,
       ]),
     ) as Record<QueueFilter, number>;
-  }, [unplacedCards]);
+  }, [displayCards]);
 
   const filteredCards = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('tr-TR');
 
-    return unplacedCards
-      .filter((card) => matchesQueue(card, queueFilter))
-      .filter((card) => (
+    return displayCards
+      .filter((displayCard) => displayMatchesQueue(displayCard, queueFilter))
+      .filter((displayCard) => (
         classFilter === 'TÜMÜ'
-        || card.classCodes.includes(classFilter)
+        || displayCard.classCodes.includes(classFilter)
       ))
-      .filter((card) => {
+      .filter((displayCard) => {
         if (!normalized) return true;
 
-        return [
-          card.subjectName,
-          card.groupName,
-          card.classCodes.join(' '),
-          card.teacherNames.join(' '),
-          card.roomNames.join(' '),
-        ]
+        const sourceCards = sourceCardsForDisplay(displayCard);
+        return sourceCards
+          .flatMap((card) => [
+            card.subjectName,
+            card.groupName,
+            card.classCodes.join(' '),
+            card.teacherNames.join(' '),
+            card.roomNames.join(' '),
+          ])
           .join(' ')
           .toLocaleLowerCase('tr-TR')
           .includes(normalized);
       })
       .sort((a, b) => {
-        if (a.isForced !== b.isForced) return a.isForced ? -1 : 1;
+        const cardA = a.card;
+        const cardB = b.card;
 
-        const aTightness = a.validCount > 0 ? a.validCount : 9999;
-        const bTightness = b.validCount > 0 ? b.validCount : 9999;
+        if (cardA.isForced !== cardB.isForced) {
+          return cardA.isForced ? -1 : 1;
+        }
+
+        const aTightness = cardA.validCount > 0 ? cardA.validCount : 9999;
+        const bTightness = cardB.validCount > 0 ? cardB.validCount : 9999;
 
         return aTightness - bTightness
-          || a.unresolvedCount - b.unresolvedCount
+          || cardA.unresolvedCount - cardB.unresolvedCount
           || (a.classCodes[0] ?? 'ZZ').localeCompare(
             b.classCodes[0] ?? 'ZZ',
             'tr',
             { numeric: true },
           )
-          || a.subjectName.localeCompare(b.subjectName, 'tr')
-          || a.blockIndex - b.blockIndex;
+          || cardA.subjectName.localeCompare(cardB.subjectName, 'tr')
+          || cardA.blockIndex - cardB.blockIndex;
       });
-  }, [classFilter, query, queueFilter, unplacedCards]);
+  }, [classFilter, displayCards, query, queueFilter]);
 
   return (
     <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -149,7 +190,7 @@ export function ManagementCardPool({
                 Çalışma kuyruğu
               </h2>
               <span className="text-[10px] font-semibold text-slate-400">
-                {unplacedCards.length} / {totalUnplaced} yerleşmemiş
+                {displayCards.length} kart · {unplacedCards.length} kayıt
               </span>
             </div>
           </div>
@@ -205,7 +246,7 @@ export function ManagementCardPool({
 
         <div className="mt-2 flex items-center justify-between text-[9px] font-medium text-slate-400">
           <span>
-            {filteredCards.length} kart gösteriliyor
+            {filteredCards.length} ders kartı gösteriliyor
           </span>
           {queueFilter === 'ÇALIŞILABİLİR' && (
             <span>{canEdit ? 'Sürükleyip programa bırakabilirsiniz' : 'En az seçeneği olan önce'}</span>
@@ -220,31 +261,38 @@ export function ManagementCardPool({
           </div>
         ) : (
           <div className="space-y-1.5">
-            {filteredCards.map((card) => {
-              const selected = card.id === selectedCardId;
-              const classLabel = card.classCodes.length > 0
-                ? card.classCodes.join(', ')
+            {filteredCards.map((displayCard) => {
+              const card = displayCard.card;
+              const sourceCards = sourceCardsForDisplay(displayCard);
+              const selected = displayCard.sourceCardIds.includes(
+                selectedCardId ?? '',
+              );
+              const classLabel = displayCard.classCodes.length > 0
+                ? displayCard.classCodes.join(' + ')
                 : 'Ortak grup';
+              const draggable = canEdit
+                && sourceCards.length === displayCard.sourceCardIds.length
+                && sourceCards.every((item) => !item.locked);
 
               return (
                 <button
-                  key={card.id}
+                  key={displayCard.id}
                   type="button"
-                  draggable={canEdit && !card.locked}
+                  draggable={draggable}
                   onDragStart={(event) => {
-                    if (!canEdit || card.locked) {
+                    if (!draggable) {
                       event.preventDefault();
                       return;
                     }
 
                     event.dataTransfer.effectAllowed = 'move';
                     event.dataTransfer.setData('text/plain', card.id);
-                    onDragStart(card.id);
+                    onDragStart(card.id, displayCard.sourceCardIds);
                   }}
                   onDragEnd={onDragEnd}
-                  onClick={() => onSelect(card.id)}
+                  onClick={() => onSelect(card.id, displayCard.sourceCardIds)}
                   className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${
-                    canEdit && !card.locked ? 'cursor-grab active:cursor-grabbing' : ''
+                    draggable ? 'cursor-grab active:cursor-grabbing' : ''
                   } ${
                     selected
                       ? 'border-slate-950 bg-slate-950 text-white shadow-sm'
@@ -269,7 +317,9 @@ export function ManagementCardPool({
                       <p className={`mt-1 truncate text-[10px] font-medium ${
                         selected ? 'text-slate-300' : 'text-slate-500'
                       }`}>
-                        {card.groupName}
+                        {displayCard.grouped
+                          ? `${displayCard.sourceCardIds.length} kayıt birlikte yerleşir`
+                          : card.groupName}
                       </p>
                     </div>
 
@@ -297,11 +347,15 @@ export function ManagementCardPool({
                     <span className="truncate">
                       {card.teacherNames[0] ?? 'Öğretmen belirsiz'}
                     </span>
-                    {card.validCount > 0 && (
+                    {displayCard.grouped ? (
+                      <span className="shrink-0">
+                        {displayCard.classCodes.join(' + ')}
+                      </span>
+                    ) : card.validCount > 0 ? (
                       <span className="shrink-0">
                         {card.validCount} uygun yer
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </button>
               );
