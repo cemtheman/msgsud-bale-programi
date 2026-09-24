@@ -468,3 +468,17 @@ Düzeltme:
 - Null-safe `activeCardIds` memo eklendi; preview/apply yalnız bu liste boş değilse çalışır.
 - M29 remote migration **henüz uygulanmadı**; migration listesinde `20260925010000` local-only olarak kaldı.
 - Yeni build PASS alınmadan `db push` yapılmamalıdır.
+
+
+### M29 production görünmeme kök nedeni — branch promotion
+
+Kullanıcı M29 migration apply ve local build PASS sonrasında production arayüzünde hiçbir değişiklik görmedi. GitHub karşılaştırması root cause'u doğruladı:
+
+- feature branch HEAD: `02c57433dce9fe47abc9781b08977e3bb05f86a6`
+- main HEAD: `fc2d546c6e619a23c94a533bae77f424fe2756ef`
+- feature branch main'in 226 commit önünde, 0 commit gerisindeydi.
+- main'deki `ManagementInspector.tsx` hâlâ eski `Öğretmen değiştir · yok / Salon değiştir · yok` kodunu içeriyordu.
+- feature branch'te eski `· yok` metni yok; M29 `Etkiyi hesapla` UI'sı mevcut.
+- Supabase migration global remote DB'ye uygulanmış olsa da production frontend main'den servis edildiği için UI değişmemişti.
+
+Karar: feature branch, çatışmasız fast-forward ile `main` branch'ine promote edilecek. Force push yapılmayacak. Böylece mevcut production URL M20–M29 yönetim geliştirmelerini ve M29 kaynak-change UI'sını servis edecek.
