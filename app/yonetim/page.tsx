@@ -74,6 +74,8 @@ import {
   moveManagementCardBundle,
   placeManagementCard,
   placeManagementCardBundle,
+  previewManagementPlacementResourceChange,
+  applyManagementPlacementResourceChange,
   redoManagement,
   redoManagementBundle,
   removeManagementCard,
@@ -1559,6 +1561,7 @@ export default function ManagementPage() {
           {showInspector && (
             <ManagementInspector
               card={selectedCard}
+              cardIds={selectedCardIds}
               candidateDetail={candidateDetail}
               candidateLoading={candidateLoading}
               candidateError={candidateError}
@@ -1581,6 +1584,58 @@ export default function ManagementPage() {
               commandNotice={commandNotice}
               onCandidateAction={(candidate) => {
                 void runSelectedCandidateAction(candidate);
+              }}
+              onPreviewPlacementResource={async (
+                cardIds,
+                resourceType,
+                resourceId,
+              ) => {
+                if (!session || !access?.canEdit) {
+                  throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+                }
+                return previewManagementPlacementResourceChange(
+                  session.accessToken,
+                  cardIds,
+                  resourceType,
+                  resourceId,
+                );
+              }}
+              onApplyPlacementResource={async (
+                cardIds,
+                resourceType,
+                resourceId,
+                expectedStateToken,
+              ) => {
+                if (!session || !access?.canEdit) {
+                  throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+                }
+
+                setCommandBusy(true);
+                setCommandActivity(
+                  resourceType === 'TEACHER'
+                    ? 'Öğretmen değişikliğinin güvenli uygulaması yapılıyor.'
+                    : 'Salon değişikliğinin güvenli uygulaması yapılıyor.',
+                );
+
+                try {
+                  const result = await applyManagementPlacementResourceChange(
+                    session.accessToken,
+                    cardIds,
+                    resourceType,
+                    resourceId,
+                    expectedStateToken,
+                  );
+                  setCommandNotice({
+                    kind: 'success',
+                    text: resourceType === 'TEACHER'
+                      ? `Öğretmen “${result.resourceName}” olarak değiştirildi. ${result.affectedCardCount} kart güncellendi.`
+                      : `Salon “${result.resourceName}” olarak değiştirildi. ${result.affectedCardCount} kart güncellendi.`,
+                  });
+                  setRefreshToken((value) => value + 1);
+                } finally {
+                  setCommandBusy(false);
+                  setCommandActivity(null);
+                }
               }}
               onUpdatePlanTeachers={async (requirementId, teacherIds) => {
                 if (!session || !access?.canEdit) {

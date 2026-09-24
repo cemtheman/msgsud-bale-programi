@@ -25,6 +25,44 @@ export interface ManagementBundleCandidateInput {
   roomId: string | null;
 }
 
+export type ManagementPlacementResourceType = 'TEACHER' | 'ROOM';
+
+export interface ManagementPlacementResourceConflict {
+  cardId: string;
+  blockingCardId: string;
+  subjectName: string;
+  groupName: string;
+  dayOfWeek: number;
+  startPeriod: number;
+  conflictType: 'TEACHER_CONFLICT' | 'ROOM_CONFLICT';
+}
+
+export interface ManagementPlacementResourcePreview {
+  cardIds: string[];
+  resourceType: ManagementPlacementResourceType;
+  resourceId: string;
+  resourceName: string;
+  hasChanges: boolean;
+  canApply: boolean;
+  blockReasons: string[];
+  conflicts: ManagementPlacementResourceConflict[];
+  affectedCardCount: number;
+  affectedRequirementCount: number;
+  poolExpansionCount: number;
+  stateToken: string;
+}
+
+export interface ManagementPlacementResourceApplyResult {
+  applied: boolean;
+  resourceType: ManagementPlacementResourceType;
+  resourceId: string;
+  resourceName: string;
+  affectedCardCount: number;
+  poolExpansionCount: number;
+  transactionId: string;
+  publishedChanged: false;
+}
+
 export interface ManagementSlotBlocker {
   cardId: string;
   subjectName: string;
@@ -163,6 +201,26 @@ function translateCommandError(message: string, fallback: string) {
     || normalized.includes('room selection contains an unknown room')
   ) {
     return 'Seçilen öğretmen veya salon artık kullanılamıyor. Veriyi yenileyip tekrar deneyin.';
+  }
+
+  if (normalized.includes('m29 preview is stale')) {
+    return 'Program veya kaynak bilgileri önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.';
+  }
+
+  if (normalized.includes('m29 resource change is blocked')) {
+    return 'Bu öğretmen/salon değişikliği mevcut programda çakışma oluşturuyor. Etki ayrıntılarını kontrol edin.';
+  }
+
+  if (normalized.includes('m29 selected teacher is inactive')) {
+    return 'Seçilen öğretmen aktif görevde değil.';
+  }
+
+  if (normalized.includes('m29 selected room is inactive')) {
+    return 'Seçilen salon şu anda kullanılamıyor.';
+  }
+
+  if (normalized.includes('m29 room does not satisfy required capability')) {
+    return 'Seçilen salon bu ders için gerekli salon özelliğini karşılamıyor.';
   }
 
   if (normalized.includes('draft')) {
@@ -324,6 +382,42 @@ export function refreshManagementCardGroupCandidates(
   return callRpc('management_refresh_card_group_candidates', accessToken, {
     p_card_ids: cardIds,
   });
+}
+
+export function previewManagementPlacementResourceChange(
+  accessToken: string,
+  cardIds: string[],
+  resourceType: ManagementPlacementResourceType,
+  resourceId: string,
+) {
+  return callJsonRpc<ManagementPlacementResourcePreview>(
+    'management_preview_placement_resource_change',
+    accessToken,
+    {
+      p_card_ids: cardIds,
+      p_resource_type: resourceType,
+      p_resource_id: resourceId,
+    },
+  );
+}
+
+export function applyManagementPlacementResourceChange(
+  accessToken: string,
+  cardIds: string[],
+  resourceType: ManagementPlacementResourceType,
+  resourceId: string,
+  expectedStateToken: string,
+) {
+  return callJsonRpc<ManagementPlacementResourceApplyResult>(
+    'management_apply_placement_resource_change',
+    accessToken,
+    {
+      p_card_ids: cardIds,
+      p_resource_type: resourceType,
+      p_resource_id: resourceId,
+      p_expected_state_token: expectedStateToken,
+    },
+  );
 }
 
 export function fetchManagementSlotBlockers(
