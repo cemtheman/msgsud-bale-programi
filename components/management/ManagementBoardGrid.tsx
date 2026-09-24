@@ -400,7 +400,9 @@ function targetClass(state: ManagementDropState) {
   }
 
   if (state === 'AMBIGUOUS') {
-    return 'border-blue-400 bg-blue-100/85 text-blue-800';
+    // The time slot is valid; only teacher/room selection remains.
+    // Keep all placeable time slots in the same green visual language.
+    return 'border-emerald-400 bg-emerald-100/85 text-emerald-800';
   }
 
   if (state === 'UNRESOLVED') {
@@ -424,7 +426,7 @@ function targetClass(state: ManagementDropState) {
 
 function targetLabel(state: ManagementDropState) {
   if (state === 'VALID') return 'Bırak';
-  if (state === 'AMBIGUOUS') return 'Seçim';
+  if (state === 'AMBIGUOUS') return 'Uygun';
   if (state === 'UNRESOLVED') return 'Belirsiz';
   if (state === 'INVALID') return 'Uygun değil';
   if (state === 'CURRENT') return 'Mevcut';
@@ -707,7 +709,11 @@ export function ManagementBoardGrid({
                                 className={`m-1 flex min-w-0 items-center justify-center rounded-lg border border-dashed text-center text-[8px] font-bold transition ${
                                   targetClass(target.state)
                                 }`}
-                                title={targetLabel(target.state)}
+                                title={
+                                  target.state === 'AMBIGUOUS'
+                                    ? 'Uygun · öğretmen/salon seçimi gerekli'
+                                    : targetLabel(target.state)
+                                }
                               >
                                 <span className="truncate px-1">
                                   {targetLabel(target.state)}
