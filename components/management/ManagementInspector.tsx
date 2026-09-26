@@ -512,81 +512,16 @@ export function ManagementInspector({
           label="Haftalık"
           value={`${card.weeklyLoad} ders saati`}
         />
-        <MetaRow
-          label="Ders türü"
-          value={courseCharacterLabel(card.courseCharacter)}
-        />
-        <MetaRow
-          label="İşleyiş"
-          value={deliveryModeLabel(card.deliveryMode)}
-        />
-        <MetaRow
-          label="Öğretmen"
-          value={
-            card.teacherNames.length > 0
-              ? `${card.teacherNames.join(', ')} · ${assignmentModeLabel(card.teacherMode)}`
-              : 'Belirsiz'
-          }
-        />
-        <MetaRow
-          label="Salon"
-          value={
-            card.roomNames.length > 0
-              ? `${card.roomNames.join(', ')} · ${assignmentModeLabel(card.resourceMode)}`
-              : 'Belirsiz'
-          }
-        />
       </dl>
 
-      {planRow && (
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                Ders planı kaynakları
-              </p>
-              <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">
-                Ders Planı sayfasındaki öğretmen havuzu ve salon seçme yöntemini buradan da düzenleyebilirsiniz.
-              </p>
-            </div>
-          </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={openPlanTeacherEditor}
-              disabled={!canEdit || commandBusy}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-35"
-            >
-              Öğretmen tanımı
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPlanError(null);
-                setPlanRoomOpen(true);
-              }}
-              disabled={!canEdit || commandBusy}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-35"
-            >
-              Salon tanımı
-            </button>
-          </div>
-
-          {planRow.placedBlockCount > 0 && (
-            <p className="mt-2 text-[9px] font-medium leading-4 text-amber-700">
-              Bu dersin {planRow.placedBlockCount} bloğu programda. Mevcut kartın öğretmen/salonunu aşağıdaki “Yerleşimi düzenle” bölümünden değiştirebilirsiniz; ders planı havuzunu değiştirmek için tüm blokların havuzda olması gerekir.
-            </p>
-          )}
-        </div>
-      )}
 
       {placement && (
         <div className="mt-4 rounded-2xl bg-blue-50 p-3">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-wide text-blue-700">
-                Mevcut yerleşim
+                Yerleşim
               </p>
               <p className="mt-1 text-xs font-black text-blue-950">
                 {DAY_LABELS[placement.dayOfWeek]} · {placement.startPeriod}. ders
@@ -1128,7 +1063,7 @@ export function ManagementInspector({
                   </p>
                   <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">
                     {placement
-                      ? 'Mevcut yerleşimi değiştirmek için kartı çizelgede sürükleyin. İsterseniz ayrıntılı aday listesini de açabilirsiniz.'
+                      ? 'Yerleşimi değiştirmek için kartı çizelgede sürükleyin. İsterseniz ayrıntılı aday listesini de açabilirsiniz.'
                       : 'Kartı çizelgeye sürüklemek en hızlı yöntemdir. Ayrıntılı aday listesi isteğe bağlıdır.'}
                   </p>
                 </div>

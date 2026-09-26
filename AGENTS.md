@@ -581,3 +581,106 @@ Ayrıntılı Mac başlangıç akışı `docs/MAC_CONTINUATION.md` içindedir. Ye
   Get-Content -Encoding UTF8 AGENTS.md
   ```
   macOS Terminal should render the UTF-8 file normally.
+
+## 19. 26 Eylül 2026 — Mac devamı / M29.1–M29.5 placement resource override
+
+Mac ortamında çalışma `feat/management-m20-placement-recovery` branch'inde
+`109352176b488bbac68a17ec42538e8152b84253` checkpoint'inden devam etti.
+
+### M29.1 — preview SQL düzeltmesi
+
+Production preview RPC hatası:
+
+`column occupied.card_id does not exist`
+
+Yeni migration:
+
+`20260926113000_management_m29_1_resource_preview_card_id_fix.sql`
+
+İki conflict CTE'de:
+
+`occupied.card_id` → `occupied.id`
+
+olarak düzeltildi.
+
+### M29.2–M29.3 — timeout teşhisi
+
+Öğretmen değişikliğinde ilk uygulamaların PostgreSQL statement timeout'a
+düştüğü görüldü.
+
+M29.2'de gereksiz pre-move bundle refresh kaldırıldı ancak problem çözülmedi.
+
+M29.3'te generic `management_move_card_bundle` zinciri daraltıldı. Testler,
+asıl problemin öğretmen değişikliğinin ders planı öğretmen havuzunu
+genişletmesi ve candidate-domain hesaplarının büyümesi olduğunu gösterdi.
+
+### M29.4 — placement resource override
+
+Yeni migration:
+
+`20260926124500_management_m29_4_placement_resource_override.sql`
+
+Mimari karar:
+
+- Yerleşimde öğretmen/salon değiştirmek, ders planı kaynak havuzunu değiştirmez.
+- `course_requirement_teachers` ve `course_requirement_rooms` otomatik genişletilmez.
+- `teacher_mode` / `resource_mode` değiştirilmez.
+- Öğretmen/salon değişikliği yalnız mevcut placement üzerinde override'dır.
+- Gün ve saat korunur.
+- Preview aktiflik ve gerçek slot conflict kontrolünü sürdürür.
+- MOVE history kaydı korunur.
+- Geri Al çalışır.
+
+Bu ayrım, yerleşim kaynağı ile ders planı kaynak tanımını birbirinden ayıran
+yeni kalıcı sözleşmedir.
+
+### M29.5 — override redo
+
+Yeni migration:
+
+`20260926130000_management_m29_5_override_redo.sql`
+
+M29.4 placement override işlemlerinde Yinele, eski candidate-domain exact
+candidate şartına takılıyordu. Override öğretmeni bilinçli olarak ders planı
+havuzuna eklenmediği için bu davranış yanlıştı.
+
+M29.5 ile override redo:
+
+- candidate havuz üyeliğine bağlı değildir,
+- resource override olduğunu transaction metadata'sından tanır,
+- güvenliği yeniden doğrular,
+- Geri Al / Yinele zincirini korur.
+
+Browser acceptance'ta Yinele çalıştığı doğrulandı.
+
+### Yönetim Ayrıntılar paneli sadeleştirmesi
+
+`ManagementInspector.tsx` sadeleştirildi.
+
+Ana ayrıntı görünümünden kaldırılanlar:
+
+- plan seviyesindeki Öğretmen satırı,
+- plan seviyesindeki Salon satırı,
+- Ders türü,
+- İşleyiş,
+- `Ders Planı Kaynakları` kutusu,
+- buradaki Öğretmen tanımı / Salon tanımı kısayolları.
+
+Ayrıntılar ekranındaki öğretmen ve salon için görünür tek gerçek kaynak artık
+`Yerleşim` kartındaki gerçek placement bilgisidir.
+
+Bu değişiklik, örneğin üstte "Matematik Öğretmeni 2 · Sabit" görünürken gerçek
+yerleşimde başka öğretmen bulunması şeklindeki UI tutarsızlığını kaldırır.
+
+### Doğrulama
+
+Mac üzerinde:
+
+- `npm run build` PASS
+- Next.js compile PASS
+- TypeScript PASS
+- static generation PASS
+
+M29.1–M29.5 migration zinciri local repo'ya dahil edilmelidir.
+Frontend sadeleştirmesi henüz bu checkpoint commit'i ile production'a
+promote edilecektir.
