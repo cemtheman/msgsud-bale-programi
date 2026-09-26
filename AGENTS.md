@@ -684,3 +684,40 @@ Mac üzerinde:
 M29.1–M29.5 migration zinciri local repo'ya dahil edilmelidir.
 Frontend sadeleştirmesi henüz bu checkpoint commit'i ile production'a
 promote edilecektir.
+
+## 20. 26 Eylül 2026 — M29 kapanış checkpoint
+
+M29.1–M29.5 zinciri production/browser acceptance sonrası tamamlandı.
+
+Kabul edilen davranış:
+
+- Yerleşimde öğretmen/salon değişikliği yalnız gerçek `placement` kaydını override eder.
+- Ders planı öğretmen/salon havuzları bu işlem sırasında genişletilmez.
+- Öğretmen/salon override işlemi ilk denemede uygulanır; önceki candidate-domain timeout yolu kritik transaction'dan çıkarılmıştır.
+- Geri Al ve Yinele çalışır.
+- Yinele, M29 resource override işlemlerinde eski exact candidate/havuz üyeliği şartına bağlı değildir; güvenlik preview ile yeniden doğrulanır.
+- Ayrıntılar panelinde plan seviyesindeki öğretmen/salon bilgileri ve `Ders Planı Kaynakları` kutusu kaldırılmıştır.
+- Ayrıntılar panelinde öğretmen/salon için kullanıcıya gösterilen tek güncel kaynak gerçek `Yerleşim` bilgisidir.
+- Production kullanıcı kabulünde akış "çözüldü" olarak onaylandı.
+
+Doğrulanmış kod checkpoint'i:
+
+```
+ff2654c3dfbe354f2535a88d6b187a5bdf1ec8be
+fix: stabilize placement resource overrides
+```
+
+Bu commit hem `main` hem `feat/management-m20-placement-recovery` branch'ine production promotion olarak taşındı.
+
+Yeni oturum başlangıcı:
+
+1. `git fetch origin`
+2. `git switch main`
+3. `git pull --ff-only`
+4. `git status --short` ile CLEAN doğrula.
+5. Önce `AGENTS.md` ve `docs/MAC_CONTINUATION.md` oku.
+6. M29'u yeniden açma/yeniden keşfetme; yalnız yeni bir regression kanıtı varsa geri dön.
+7. Yönetim modülünün sonraki iş paketinden devam et.
+
+Not: 26 Eylül testleri sırasında eski M29.1–M29.3 davranışları bazı derslerin öğretmen havuzuna yanlış/deneysel kayıtlar eklemiş olabilir. Yeni oturumda Ders Planı / Öğretmen havuzu verileri üzerinde çalışma yapılacaksa önce veri teşhisi yap; körlemesine silme yapma.
+
