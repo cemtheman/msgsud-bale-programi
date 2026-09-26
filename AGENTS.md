@@ -764,3 +764,40 @@ Kullanıcıyla sıradaki çalışma sırası şu şekilde kararlaştırıldı:
 Bir sonraki implementation adımı **öğretmen havuzu read-only veri teşhisidir**.
 
 Bu teşhis tamamlanmadan otomatik yerleştirme motorunda yeni veri-mutating davranış eklenmemelidir.
+
+
+## 22. 26 Eylül 2026 — M30 öğretmen havuzu read-only teşhis başlangıcı
+
+M29.2 ve M29.3 migration gövdeleri yeniden incelendi. Her iki geçici uygulama yolu da seçilen öğretmeni doğrudan `course_requirement_teachers` içine `on conflict do nothing` ile ekliyor ve ardından ilgili requirement'ın `teacher_mode` değerini havuz büyüklüğüne göre yeniden hesaplıyordu. M29.4 ile bu mimari terk edildi; placement resource override artık requirement havuzunu değiştirmiyor.
+
+Bu nedenle 26 Eylül testleri sırasında eklenmiş bazı öğretmen-havuz ilişkilerinin kalıcı test yan ürünü olma ihtimali doğrulandı.
+
+Read-only diagnostic eklendi:
+
+```
+docs/diagnostics/M30_TEACHER_POOL_AUDIT.sql
+```
+
+Checkpoint:
+
+```
+167d4390fbd8fbd6b1712b99724a48de644cd5c5
+diagnostic: add read-only M30 teacher pool audit
+```
+
+Teşhis yaklaşımı:
+
+- `course_requirement_teachers.created_at` üzerinden 26 Eylül İstanbul-local test penceresini işaretler.
+- Aktif DRAFT requirement set içindeki öğretmen-havuz ilişkilerini inceler.
+- Aynı requirement için öğretmenin mevcut placement kullanım sayısını hesaplar.
+- Atama oluşturulma zamanı çevresindeki MOVE transaction geçmişinde aynı öğretmene hareket izi arar.
+- Satırları yalnız teşhis amacıyla:
+  - `LIKELY_M29_TEST_ARTIFACT`
+  - `REVIEW_M29_INSERT_CURRENTLY_USED`
+  - `REVIEW_26SEP_INSERT_NO_MOVE_MATCH`
+  sınıflarına ayırır.
+- 26 Eylül eklemeleri nedeniyle `teacher_mode` değerinin ELIGIBLE_POOL'a genişlemiş olabileceği requirement'ları ayrıca listeler.
+
+**Güvenlik kuralı:** M30 çıktısı görülmeden hiçbir `course_requirement_teachers` satırı silinmeyecek, `teacher_mode` değiştirilmeyecek ve temizlik migration'ı yazılmayacak.
+
+Sıradaki adım: M30 SQL'i production Supabase SQL Editor'da çalıştır, üç result set'i kaydet ve yalnız gerçek test yan ürünü olduğu kanıtlanan kayıtlar için minimum M30.1 cleanup tasarla.
