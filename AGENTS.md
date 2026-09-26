@@ -11,12 +11,12 @@
 |---|---|
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
-| Aktif branch | `feat/management-m20-placement-recovery` |
-| Son implementation checkpoint | `02c57433dce9fe47abc9781b08977e3bb05f86a6` |
-| Commit | `docs: record M29 build repair checkpoint` |
-| Son kullanıcı-doğrulamalı UI checkpoint | `111d151a99cc868bc0212fc03dc0d4287a75696c` |
-| Bir önceki kritik işlevsel checkpoint | `eb9535a421bf57914612f2c95f9be2e7baaffe05` |
-| Kritik düzeltme | Provisional VALID adayların grouped placement içinde kullanılabilmesi |
+| Aktif branch | `main` |
+| Son doğrulanmış implementation checkpoint | `ff2654c3dfbe354f2535a88d6b187a5bdf1ec8be` |
+| Implementation commit | `fix: stabilize placement resource overrides` |
+| Production/documentation HEAD (26 Eylül başlangıcı) | `48cfbe8b8ea55c586b8c9f94974ac6fdcc6bb2c2` |
+| Son kullanıcı kabulü | M29.1–M29.5 placement resource override tamamlandı; Geri Al/Yinele doğrulandı |
+| Sıradaki iş paketi | Öğretmen havuzu read-only veri teşhisi |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -721,3 +721,46 @@ Yeni oturum başlangıcı:
 
 Not: 26 Eylül testleri sırasında eski M29.1–M29.3 davranışları bazı derslerin öğretmen havuzuna yanlış/deneysel kayıtlar eklemiş olabilir. Yeni oturumda Ders Planı / Öğretmen havuzu verileri üzerinde çalışma yapılacaksa önce veri teşhisi yap; körlemesine silme yapma.
 
+
+
+## 21. 26 Eylül 2026 — M29 sonrası yol haritası kararı
+
+Yeni oturumda `main` remote HEAD'i `48cfbe8b8ea55c586b8c9f94974ac6fdcc6bb2c2` olarak doğrulandı ve working tree CLEAN görüldü.
+
+M29 kapalı kabul edilir. Yeni bir regression kanıtı olmadıkça M29.1–M29.5 yeniden açılmayacak.
+
+Kullanıcıyla sıradaki çalışma sırası şu şekilde kararlaştırıldı:
+
+1. **Öğretmen havuzu veri teşhisi**
+   - M29.1–M29.3 testleri sırasında `course_requirement_teachers` içine eklenmiş olabilecek deneysel/yanlış kayıtları önce read-only olarak tespit et.
+   - Gerçek Ders Planı kuralı ile test yan ürününü ayır.
+   - Körlemesine DELETE veya düzeltme migration'ı yazma.
+   - Temizlik gerekiyorsa teşhis sonucuna dayanarak yeni, denetlenebilir bir migration/işlem tasarla.
+
+2. **Otomatik / yarı otomatik yerleştirme**
+   - Mevcut candidate/conflict altyapısını kullan.
+   - “Solitaire” yaklaşımı: en az seçeneği olan / en kısıtlı kartları önce değerlendir; güvenli yerleşimleri öner veya uygula, belirsiz/çatışmalı olanları kullanıcı kararına bırak.
+   - Grouped/atomic kart ve provisional resource invariantlarını koru.
+
+3. **Müfredat / zorunlu ders saat denetimi**
+   - TTKB/M23 curriculum compliance altyapısını yönetim uyarılarına dönüştür.
+   - Sınıf/program bazında eksik/fazla zorunlu ders saatlerini görünür kıl.
+
+4. **Dönem yaşam döngüsü**
+   - 2026–2027 1. dönem → arşivleme.
+   - 2. dönem oluşturma.
+   - Eski dönemden şablon/kopya üretme.
+   - DRAFT / PUBLISHED / ARCHIVED durumlarını kullanıcı açısından sadeleştirme.
+
+5. **Yönetim Programı son UX turu**
+   - Bilgi yoğunluğu, kompaktlık, sağ panel ve gereksiz kontrolleri gözden geçir.
+   - Mevcut kategori renkleri, grouped kartlar, sticky sütun ve placement edit davranışları korunur.
+
+6. **Yayın akışı**
+   - Yönetim çizelgesinden öğrenci/öğretmen tarafındaki gerçek programa kontrollü publish akışını netleştir.
+
+### İlk uygulanacak iş
+
+Bir sonraki implementation adımı **öğretmen havuzu read-only veri teşhisidir**.
+
+Bu teşhis tamamlanmadan otomatik yerleştirme motorunda yeni veri-mutating davranış eklenmemelidir.
