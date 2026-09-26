@@ -878,3 +878,38 @@ diagnostic: add read-only M30.2 room pool audit
 ```
 
 Güvenlik: çıktı görülmeden salon havuzu, `resource_mode`, placement veya room kaydı değiştirilmeyecek.
+
+
+### M30.2 cleanup — hedefli Türkçe salon havuzu temizliği
+
+Read-only production teşhisi:
+
+- 5A Türkçe baseline salon: `B1 105A`, 5 placement kullanımı.
+- 5B Türkçe baseline salon: `B1 105B`, 6 placement kullanımı.
+- `A 101`, her iki requirement havuzuna 26 Eylül 09:01 UTC'de eklendi ve mevcut placement kullanımı 0.
+- Her iki requirement bu test havuzu genişlemesi nedeniyle `resource_mode = ELIGIBLE_POOL` durumundaydı.
+
+Yeni migration:
+
+```
+20260926211500_management_m30_2_room_pool_cleanup.sql
+```
+
+Implementation commit:
+
+```
+4a8ee3cf0a9947b192911e85efc0a4626e2db31b
+fix: clean M29 room pool test artifacts
+```
+
+M30.2:
+
+- apply öncesi iki requirement salon havuzunun tam olarak teşhiste görülen iki salonu içerdiğini guard eder;
+- `A 101` hedef Türkçe placement'larında kullanılıyorsa abort eder;
+- yalnız iki `A 101` requirement-room ilişkisini siler;
+- 5A/5B Türkçe için `resource_mode = FIXED`, `required_capability = NULL` yapar;
+- placement'lara dokunmaz;
+- yalnız ilgili aktif draft kartların candidate domain'ini yeniler;
+- public program session/group count + hash guard'ları ile yayımlanmış programı korur.
+
+Durum: **GitHub'a commit edildi; remote apply henüz yapılmadı.**
