@@ -801,3 +801,52 @@ Teşhis yaklaşımı:
 **Güvenlik kuralı:** M30 çıktısı görülmeden hiçbir `course_requirement_teachers` satırı silinmeyecek, `teacher_mode` değiştirilmeyecek ve temizlik migration'ı yazılmayacak.
 
 Sıradaki adım: M30 SQL'i production Supabase SQL Editor'da çalıştır, üç result set'i kaydet ve yalnız gerçek test yan ürünü olduğu kanıtlanan kayıtlar için minimum M30.1 cleanup tasarla.
+
+
+### M30.1 — hedefli Türkçe öğretmen havuzu temizliği
+
+Read-only üretim teşhisiyle aşağıdaki test zinciri doğrulandı:
+
+- 5A Türkçe test öncesi baseline: `Türkçe Öğretmeni 2`.
+- 5B Türkçe test öncesi baseline: `Türkçe Öğretmeni 1`.
+- M29.2/M29.3 testleri sırasında her iki Türkçe requirement havuzuna `A. Küçüküçerler`, `Armoni Öğretmeni` ve karşı şubenin Türkçe öğretmeni eklendi.
+- Test/undo-redo zinciri sonunda 5A placement `Türkçe Öğretmeni 1` üzerinde kalmıştı; 5B doğru baseline `Türkçe Öğretmeni 1` üzerindeydi.
+
+Yeni migration:
+
+```
+20260926204000_management_m30_1_teacher_pool_cleanup.sql
+```
+
+Implementation commit:
+
+```
+b4cddc90b427a5aff76207829037eda5699587cb
+fix: clean M29 teacher pool test artifacts
+```
+
+M30.1:
+
+- apply öncesi iki requirement havuzunun tam olarak teşhiste görülen dört öğretmenden oluştuğunu guard eder;
+- 5A/5B hedef placement öğretmenlerini guard eder;
+- 5A test placement'ını `Türkçe Öğretmeni 2` baseline'ına audit MOVE transaction ile geri döndürür;
+- 5A havuzunda yalnız `Türkçe Öğretmeni 2`, 5B havuzunda yalnız `Türkçe Öğretmeni 1` bırakır;
+- iki requirement için `teacher_mode = FIXED` yapar;
+- yalnız ilgili aktif draft kartların candidate domain'ini yeniler;
+- public session/group count + hash guard'ları ile yayımlanmış programın değişmediğini doğrular;
+- beklenmedik mevcut durum varsa transaction rollback olur.
+
+Durum: **GitHub'a commit edildi; remote Supabase apply henüz yapılmadı.**
+
+Apply akışı:
+
+```bash
+git pull --ff-only
+npm run build
+npx supabase migration list
+npx supabase db push --dry-run
+```
+
+Dry-run yalnız `20260926204000_management_m30_1_teacher_pool_cleanup.sql` gösterirse `npx supabase db push`.
+
+Apply sonrası M30 audit yeniden çalıştırılmalı; iki Türkçe requirement için 26 Eylül şüpheli havuz kaydı kalmaması ve 5A/5B `teacher_mode = FIXED` olması beklenir.
