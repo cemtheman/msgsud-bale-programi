@@ -1,10 +1,10 @@
 # MSGSÜ Ders Programı — Mac Devam Handoff
 
-Tarih: 25 Eylül 2026
+Tarih: 26 Eylül 2026
 
-Bu dosya, Windows makinedeki oturumdan sonra Mac'te sıfırdan yerel checkout oluşturarak aynı çalışmaya devam etmek içindir.
+Bu dosya yeni sohbet oturumunda projeyi yeniden keşfetmeden kaldığımız yerden devam etmek içindir.
 
-## 1. Güvenilir remote durum
+## 1. Güvenilir durum
 
 Repository:
 
@@ -12,215 +12,142 @@ Repository:
 https://github.com/cemtheman/msgsud-bale-programi.git
 ```
 
-Ana geliştirme branch'i:
+Production branch:
 
 ```
-feat/management-m20-placement-recovery
+main
 ```
 
-Oturum kapanırken `main` ve bu feature branch aynı commit ağacındadır. Production promotion yapılmıştır.
-
-Son production-promoted remote checkpoint:
+M29 implementation production checkpoint:
 
 ```
-bb41cb535b4bdbf2b9a458d36b56e80d28c01eb0
-docs: record M29 production promotion root cause
+ff2654c3dfbe354f2535a88d6b187a5bdf1ec8be
+fix: stabilize placement resource overrides
 ```
 
-Bu handoff dokümantasyon commit'i eklendikten sonra branch HEAD daha ileri bir docs SHA olacaktır. Mac'te **hard-code edilmiş eski SHA'ya reset atma**; önce remote HEAD'i çek ve `AGENTS.md` içindeki en son checkpoint'i oku.
+Bu checkpoint hem `main` hem `feat/management-m20-placement-recovery` üzerine promote edildi.
 
-## 2. Mac'te repo oluşturma
+26 Eylül kapanışında ayrıca dokümantasyon günlüğü güncellendi; bu nedenle yeni oturumda **hard-code edilmiş SHA'ya reset atma**. Önce remote HEAD'i çek.
 
-Terminal:
+## 2. Yeni oturum başlangıcı
+
+Mac Terminal:
 
 ```bash
-cd ~
-git clone https://github.com/cemtheman/msgsud-bale-programi.git
-cd msgsud-bale-programi
-
+cd ~/msgsud-bale-programi
 git fetch origin
-git switch feat/management-m20-placement-recovery
+git switch main
 git pull --ff-only
-
 git rev-parse HEAD
 git status --short
 ```
 
 Beklenti:
 
-- branch: `feat/management-m20-placement-recovery`
+- branch: `main`
 - working tree: CLEAN
-- HEAD: remote feature branch'in güncel HEAD'i
+- HEAD: remote `main` güncel HEAD'i
 
-Ardından ilk okunacak dosyalar:
+Ardından mutlaka:
 
 ```bash
 cat AGENTS.md
 cat docs/MAC_CONTINUATION.md
 ```
 
-## 3. Node bağımlılıkları
+## 3. Son tamamlanan iş — M29.1–M29.5
 
-Repo `package-lock.json` içerir. Temiz kurulum:
+M29 resource edit akışı tamamlandı ve production/browser acceptance geçti.
+
+Kalıcı mimari karar:
+
+- Yerleşimde öğretmen/salon değişikliği, ders planı kaynak havuzunu değiştirmez.
+- `course_requirement_teachers` ve `course_requirement_rooms` otomatik genişletilmez.
+- `teacher_mode` / `resource_mode` placement override yüzünden değiştirilmez.
+- Gün/saat aynı kalırken yalnız placement teacher/room kaynağı değiştirilebilir.
+- Preview aktiflik, slot conflict ve gerekli güvenlik kontrollerini yapar.
+- MOVE history korunur.
+- Geri Al / Yinele çalışır.
+- Override redo candidate havuz üyeliğine bağlı değildir.
+- Ayrıntılar panelinde plan öğretmeni/salonu ile gerçek placement aynı anda gösterilmez.
+- Kullanıcıya gösterilen öğretmen/salon için tek güncel kaynak gerçek `Yerleşim` kartıdır.
+- `Ders Planı Kaynakları` kutusu ayrıntılar ekranından kaldırıldı.
+
+Migrations:
+
+```
+20260926113000_management_m29_1_resource_preview_card_id_fix.sql
+20260926121500_management_m29_2_remove_redundant_pre_move_refresh.sql
+20260926123000_management_m29_3_direct_resource_bundle_apply.sql
+20260926124500_management_m29_4_placement_resource_override.sql
+20260926130000_management_m29_5_override_redo.sql
+```
+
+M29.1–M29.5 uygulanmış migration'lardır. **Geriye dönük düzenleme yapma.** Yeni DB davranışı gerekiyorsa yeni timestamp'li migration yaz.
+
+## 4. Acceptance sonucu
+
+Production'da doğrulananlar:
+
+- Öğretmen değişikliği çalışıyor.
+- Salon değişikliği çalışıyor.
+- Öğretmen havuzunda bulunmayan öğretmene placement override yapılabiliyor.
+- Önceki statement timeout problemi kritik apply akışından kaldırıldı.
+- Geri Al çalışıyor.
+- Yinele çalışıyor.
+- Ayrıntılar panelindeki eski plan/placement öğretmen tutarsızlığı kaldırıldı.
+- Kullanıcı M29 akışını "çözdük" diyerek kabul etti.
+
+M29'u yeni oturumda yeniden açma; yalnız yeni bir regression kanıtı varsa geri dön.
+
+## 5. Bilinen takip konusu
+
+M29.1–M29.3 testleri sırasında eski davranış bazı derslerin `course_requirement_teachers` havuzuna deneysel/yanlış öğretmenler eklemiş olabilir.
+
+Özellikle Ders Planı / Öğretmen havuzu konusu yeniden ele alınırsa:
+
+1. Önce mevcut veriyi teşhis et.
+2. Hangi kayıtların gerçekten ders planı kuralı, hangilerinin M29 test yan ürünü olduğunu ayır.
+3. Körlemesine DELETE yapma.
+4. Temizlik gerekiyorsa yeni, denetlenebilir migration / yönetim işlemi tasarla.
+
+Öğretmen havuzu ekranının ürün anlamı ayrıca yeniden değerlendirilebilir; placement override ile aynı kavram değildir.
+
+## 6. Çalışma yöntemi
+
+Kalıcı çalışma sözleşmesi:
+
+- Önce mevcut remote HEAD ve çalışma ağacını doğrula.
+- Proje tarihçesini baştan keşfetme; önce `AGENTS.md` oku.
+- Focused diagnostic → minimum düzeltme.
+- Applied migration geriye dönük değiştirilmez.
+- DB değişikliğinde:
+  - `npm run build`
+  - `npx supabase migration list`
+  - `npx supabase db push --dry-run`
+  - yalnız beklenen migration varsa `npx supabase db push`
+- Force push yapma.
+- Production promotion öncesi remote branch HEAD'i yeniden doğrula.
+- Oturum sonunda `AGENTS.md` ve bu handoff dosyasını güncelle.
+- Terminal komutlarında sade fenced code kullan; code fence içine metadata/id ekleme.
+
+## 7. Node / build
+
+Temiz kurulum gerekiyorsa:
 
 ```bash
 npm ci
 npm run build
 ```
 
-Build PASS olmadan migration veya yeni implementation yapma.
+26 Eylül son doğrulamasında:
 
-Projede:
-- Next.js 16.3.4
-- React 19.2.8
-- TypeScript 5
-- Vitest 4
+- Next.js 16.3.4 build PASS
+- TypeScript PASS
+- static generation PASS
 
-kullanılıyor.
+## 8. Sonraki oturum
 
-Gerekirse test:
+Yeni oturumun görevi M29'u tekrar düzeltmek değil.
 
-```bash
-npm test
-```
-
-## 4. Supabase CLI bağlantısı
-
-Supabase CLI global kurulmak zorunda değil; repo boyunca `npx supabase ...` kullanılabilir.
-
-Yeni Mac'te login:
-
-```bash
-npx supabase login
-```
-
-Bağlı proje bilgisi local checkout ile gelmiyorsa:
-
-```bash
-npx supabase projects list
-npx supabase link --project-ref <DOGRU_PROJECT_REF>
-```
-
-Project ref veya access token gibi sırları bu dosyaya/commit'e yazma.
-
-Bağlandıktan sonra:
-
-```bash
-npx supabase migration list
-```
-
-25 Eylül oturum kapanışında remote DB, M29 dahil şu migration'a kadar uygulanmıştı:
-
-```
-20260925010000_management_m29_placement_resource_preview.sql
-```
-
-Dolayısıyla sabah yeni düzeltme **M29.1 olarak yeni timestamp'li migration** olmalı. Uygulanmış M29 dosyasını geçmişe dönük değiştirme.
-
-## 5. Environment dosyaları
-
-`.env*` dosyalarında gerçek servis anahtarları bulunabilir. Bunları sohbet/handoff dokümanına kopyalama.
-
-Clone sonrası uygulama environment eksikse mevcut güvenli kaynaktan/Vercel project settings'ten yeniden oluştur. Secret değerleri Git history'ye ekleme.
-
-## 6. Sabah çözülmesi gereken ilk blocker
-
-Production M29 UI artık görünür ve yerleşmiş kartta:
-
-- tüm aktif öğretmenler,
-- tüm aktif ana salonlar,
-- `Etkiyi hesapla`
-
-akışı mevcut.
-
-Ancak preview RPC şu hatayı veriyor:
-
-```
-column occupied.card_id does not exist
-```
-
-Kök neden:
-
-```
-supabase/migrations/20260925010000_management_m29_placement_resource_preview.sql
-```
-
-içinde teacher ve room conflict CTE'lerinde:
-
-```sql
-occupied.card_id as blocking_card_id
-```
-
-yazılmış. `occupied` bir `public.schedule_cards` alias'ıdır ve PK alanı `id`dir.
-
-Doğru ifade:
-
-```sql
-occupied.id as blocking_card_id
-```
-
-### Doğru çalışma planı
-
-Yeni migration örneği:
-
-```
-supabase/migrations/<NEW_TIMESTAMP>_management_m29_1_resource_preview_card_id_fix.sql
-```
-
-Bu migration `public.management_preview_placement_resource_change(uuid[], text, uuid)` fonksiyonunu M29'daki gövdesiyle yeniden oluşturmalı; yalnız iki `occupied.card_id` referansı `occupied.id` olmalı. Fonksiyon grant/comment sözleşmesini koru.
-
-Sonra:
-
-```bash
-npm run build
-npx supabase migration list
-npx supabase db push --dry-run
-```
-
-Dry-run yalnız yeni M29.1 migration'ı gösteriyorsa:
-
-```bash
-npx supabase db push
-```
-
-## 7. M29.1 browser acceptance
-
-Production'da sırayla:
-
-1. Program > yerleşmiş bir kart seç.
-2. `Öğretmen değiştir` > başka ACTIVE öğretmen seç > `Etkiyi hesapla`.
-3. Çakışmasızsa yeşil safe preview ve `Değişikliği uygula`.
-4. Gerçek conflict yaratacak öğretmen seç; blocker ders görünmeli ve apply kapalı kalmalı.
-5. V. Kondisyon gibi salonu Belirsiz bir kart seç.
-6. `Salon değiştir` > ACTIVE salon seç > `Etkiyi hesapla`.
-7. Güvenliyse apply.
-8. Kart aynı gün/saatte kalmalı; yalnız resource değişmeli.
-9. Birleşik `5A + 5B` kartta bundle atomik davranışını kontrol et.
-10. Geri Al / Yinele çalışmalı.
-
-## 8. Çalışma yöntemi
-
-Bu repo için kalıcı sözleşme:
-
-- Kullanıcı patch uygulamaz.
-- Asistan GitHub üzerinden dosyayı inceler/değiştirir/commit/push eder.
-- Remote mutation öncesi branch HEAD tekrar doğrulanır.
-- Force push yapılmaz.
-- DB davranışı değişiyorsa yeni migration yazılır; uygulanmış migration geriye dönük değiştirilmez.
-- Önce focused diagnostic, sonra minimum düzeltme.
-- Build PASS olmadan DB apply yapılmaz.
-- Migration için önce `migration list`, sonra `db push --dry-run`, yalnız beklenen migration varsa apply.
-- Oturum sonunda `AGENTS.md` güncellenir.
-- Yeni oturumda proje tarihçesi baştan keşfedilmez; önce `AGENTS.md` okunur.
-
-## 9. Son doğrulanmış kullanıcı durumları
-
-- Grouped common card restore problemi çözülmüş durumda.
-- Provisional NULL teacher candidate semantiği M26.8 ile düzeltilmiş durumda.
-- Kaynaklar ekranında öğretmen/salon lifecycle M28 ile remote'da mevcut.
-- Orkestra/Doğaçlama özel öğretmen kuralı ve legacy UI cleanup uygulanmış durumda.
-- M29 migration remote'a uygulanmış durumda.
-- M29 frontend production'a promote edilmiş durumda.
-- Açık blocker yalnız M29 preview SQL'deki `occupied.card_id` kolon hatasıdır.
-
-Bu blocker çözülüp acceptance tamamlandıktan sonra yönetim iş planında kaldığımız aşamadan devam et.
+Önce kullanıcıyla yönetim modülünde sıradaki ürün/UX iş paketini belirle ve mevcut `main` üzerinden devam et. Öğretmen havuzu konusu açılırsa yukarıdaki veri-teşhis notunu uygula.
