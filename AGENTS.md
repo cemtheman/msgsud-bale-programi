@@ -850,3 +850,31 @@ npx supabase db push --dry-run
 Dry-run yalnız `20260926204000_management_m30_1_teacher_pool_cleanup.sql` gösterirse `npx supabase db push`.
 
 Apply sonrası M30 audit yeniden çalıştırılmalı; iki Türkçe requirement için 26 Eylül şüpheli havuz kaydı kalmaması ve 5A/5B `teacher_mode = FIXED` olması beklenir.
+
+
+### M30.2 — salon havuzu read-only teşhisi
+
+M30.1 production apply sonrası doğrulandı:
+
+- M30 teacher-pool audit şüpheli kayıt listesi boş.
+- 5A Türkçe: `FIXED` / `Türkçe Öğretmeni 2` / 3 placement.
+- 5B Türkçe: `FIXED` / `Türkçe Öğretmeni 1` / 3 placement.
+
+Öğretmen havuzu temizliği **PASS** kabul edildi.
+
+M29.2/M29.3 geçici apply yolu yalnız öğretmen değil, `course_requirement_rooms` havuzunu da genişletebildiği için eski oturum kapanmadan önce aynı yan etkinin salon tarafı read-only olarak kontrol edilecek.
+
+Diagnostic:
+
+```
+docs/diagnostics/M30_2_ROOM_POOL_AUDIT.sql
+```
+
+Checkpoint:
+
+```
+82466dc31df3031a14ba8143814175e441479cf9
+diagnostic: add read-only M30.2 room pool audit
+```
+
+Güvenlik: çıktı görülmeden salon havuzu, `resource_mode`, placement veya room kaydı değiştirilmeyecek.
