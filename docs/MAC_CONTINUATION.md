@@ -146,8 +146,30 @@ npm run build
 - TypeScript PASS
 - static generation PASS
 
-## 8. Sonraki oturum
+## 8. Sonraki oturum — karar verilmiş yol haritası
 
-Yeni oturumun görevi M29'u tekrar düzeltmek değil.
+Yeni oturumun görevi M29'u tekrar düzeltmek değil. M29 ancak yeni bir regression kanıtı varsa yeniden açılır.
 
-Önce kullanıcıyla yönetim modülünde sıradaki ürün/UX iş paketini belirle ve mevcut `main` üzerinden devam et. Öğretmen havuzu konusu açılırsa yukarıdaki veri-teşhis notunu uygula.
+Kullanıcıyla sıradaki çalışma sırası kararlaştırıldı:
+
+1. **Öğretmen havuzu read-only veri teşhisi**
+   - M29.1–M29.3 test yan ürünü olabilecek `course_requirement_teachers` kayıtlarını tespit et.
+   - Gerçek Ders Planı kuralı ile deneysel kaydı ayır.
+   - Körlemesine silme yapma; önce kanıt üret.
+2. **Otomatik / yarı otomatik yerleştirme**
+   - Mevcut candidate/conflict altyapısını kullan.
+   - En kısıtlı kartları önce ele alan “solitaire” yaklaşımını geliştir.
+3. **Müfredat / zorunlu ders saat denetimi**
+   - M23 curriculum compliance altyapısını yönetim uyarılarına dönüştür.
+4. **Dönem yaşam döngüsü**
+   - 1. dönem arşivleme, 2. dönem oluşturma, şablon/kopya ve DRAFT/PUBLISHED/ARCHIVED akışı.
+5. **Yönetim Programı son UX turu**
+   - Kompaktlık, bilgi yoğunluğu ve sağ panel sadeleştirmesi.
+6. **Yayın akışı**
+   - Yönetim çizelgesinden gerçek öğrenci/öğretmen programına kontrollü publish.
+
+### Şimdi başlanacak iş
+
+İlk implementation paketi **öğretmen havuzu read-only veri teşhisidir**.
+
+Bu teşhis tamamlanmadan otomatik yerleştirme için yeni veri-mutating davranış ekleme.
