@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.3 — requirement-level teacher continuity migration doğrulaması; ardından seçenek etkisi |
+| Sıradaki iş paketi | M32.3A — solver-ready teacher assignment policy foundation production doğrulaması; ardından Course Plan policy UI |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1524,3 +1524,73 @@ a2512f1e1b06fc507a7a4991e22c68cd5449457f feat: lock course blocks to one teacher
 ```
 
 Durum: **migration dry-run / production push / gerçek multi-block ders regresyon testi bekleniyor.**
+
+
+## 34. 28 Eylül 2026 — M32.3 yeniden tasarım: teacher assignment policy
+
+İlk M32.3 yaklaşımı bütün requirement'larda “tek öğretmen” sürekliliğini hard constraint yapmaya çalıştı. Production push guard'ı aktif taslakta 14 requirement'ın birden fazla resolved teacher kullandığını gösterdi. Read-only diagnostic ile 10A/10B Matematik gerçek continuity ihlali olarak; Bale ve Solfej gibi dersler ise blok bazında öğretmen esnekliğinin meşru örnekleri olarak ayrıştı.
+
+Kullanıcı Solfej'in müzik bölümünde Bale gibi esnek olduğunu açıkça belirtti.
+
+Dış araştırma:
+- FET official mode teacher allocation yapmaz; exact teacher activity'nin girdisidir. Teacher allocation ayrı bir planning problemidir.
+- aSc aynı öğretmeni koruma gibi ilişkileri ayrı constraint olarak destekler.
+- UniTime feasibility → optimize → suggestions → human assign/commit akışı kullanır.
+- Timefold hard/soft constraint scoring ayrımını açıkça modeller.
+- Bilsa öğretmen yükü, sınıf zaman kısıtları ve merkezi/e-Okul entegrasyonunu ayrı katmanlar olarak sunar.
+
+Mimari karar:
+- `teacher_mode` korunur ve yalnız “kimler uygun?” sorusunu yanıtlar:
+  `FIXED | ELIGIBLE_POOL | UNKNOWN`.
+- Yeni politika “seçim hangi kapsamda yapılır?” ve “bloklar arası süreklilik ne kadar güçlü?” sorularını ayırır:
+  - `teacher_assignment_scope = REQUIREMENT | BLOCK | UNSPECIFIED`
+  - `teacher_continuity = REQUIRED | PREFERRED | NONE`
+- Hedef kombinasyonlar:
+  - REQUIREMENT + REQUIRED → Matematik/Türkçe vb. tek öğretmen
+  - BLOCK + NONE → Bale/Solfej gibi bağımsız blok öğretmenleri
+  - BLOCK + PREFERRED → farklı öğretmene izin ver, solver sürekliliği tercih et
+  - UNSPECIFIED + NONE → legacy/manual-compatible; full-auto readiness warning
+
+Detaylı ADR:
+```
+docs/TEACHER_ASSIGNMENT_POLICY_AND_SOLVER_DESIGN.md
+```
+
+M32.3 migration önceki hard-lock tasarımından **davranış değiştirmeyen policy foundation** haline getirildi:
+```
+20260928223000_management_m32_3_requirement_teacher_continuity.sql
+```
+
+Yeni migration:
+- placement değiştirmez
+- candidate rebuild etmez
+- hard teacher trigger kurmaz
+- iki yeni course_requirements policy kolonu ekler
+- yüksek güvenli backfill:
+  - BALLET group → BLOCK + NONE
+  - Solfej → BLOCK + NONE
+  - SECTION + ACADEMIC → REQUIREMENT + REQUIRED
+  - kalan FIXED → REQUIREMENT + REQUIRED
+  - diğer belirsiz pool'lar → UNSPECIFIED + NONE
+- `management_diagnose_teacher_assignment_policy(uuid)` read-only audit RPC ekler:
+  - REQUIRED continuity violations
+  - UNSPECIFIED multi-block pools
+  - flexible multi-teacher requirements
+  - fullAutoReady
+
+Implementation:
+```
+7ea3ed11e657b82be287df3a5cea78df5f21e04f docs: design solver-ready teacher assignment policy
+118531d3f264866c7cd69e4b018acd0c3c3847fc refactor: replace teacher lock with policy foundation
+```
+
+Sonraki güvenli sıra:
+1. M32.3A production dry-run/push.
+2. Audit çıktısını al.
+3. Course Plan'da teacher policy editor.
+4. Mevcut UNSPECIFIED requirement'ları sınıflandır.
+5. 10A/10B Matematik continuity ihlallerini açık kullanıcı kararıyla reconcile et.
+6. Candidate engine'i policy-aware yap.
+7. Placement-resource override'ı scope-aware yap.
+8. Assistant option impact / soft penalty metrics.
+9. Full-auto solver readiness ve immutable snapshot solver prototipi.
