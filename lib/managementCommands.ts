@@ -212,7 +212,7 @@ function translateCommandError(message: string, fallback: string) {
   }
 
   if (normalized.includes('m29 selected teacher is inactive')) {
-    return 'Seçilen öğretmen aktif görevde değil.';
+    return 'Seçilen öğretmen atamaya kapalı.';
   }
 
   if (normalized.includes('m29 selected room is inactive')) {
