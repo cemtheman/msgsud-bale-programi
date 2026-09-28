@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.2 — stale-board fix local test/build/browser regresyon doğrulaması |
+| Sıradaki iş paketi | M32.3 — seçenek etkisi / ileri bakışlı yerleştirme desteği |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1372,3 +1372,50 @@ e89e3c336b5bfa0860a25425470a3c5cfb0aaaf2 fix: prevent stale assistant reanalysis
 ```
 
 Durum: **local focused test + build + aynı Uygula → Yeniden hesapla browser regresyon testi bekleniyor.**
+
+
+## 31. 28 Eylül 2026 — M32.2 kullanıcı kabulü
+
+M32.2 kısıt öncelikli Yerleştirme Asistanı ve stale-board yarış koşulu düzeltmesi gerçek browser regresyon testiyle doğrulandı.
+
+Kullanıcı doğrulama akışı:
+
+1. Havuzda Matematik `5A + 5B`, Türkçe `5A + 5B`, V. Kondisyon `5A` bırakıldı.
+2. Asistan adayları güncelledi ve dersleri ortak uygun saat sayısına göre sıraladı.
+3. Matematik için ilk seçenek `Uygula` ile yerleştirildi.
+4. Program refresh döngüsü tamamlandı.
+5. `Yeniden hesapla` sonrası Matematik artık havuz / Asistan listesine geri girmedi.
+
+Durum: **M32.2 PASS / kullanıcı kabulü.**
+
+Kabul edilen M32 davranışı:
+
+- Tek seçenek yoksa Asistan durmaz.
+- Dersleri en az ortak uygun saatten en çoğa sıralar.
+- Doğrudan uygulanabilir gün/saatleri listeler.
+- Kaynak seçimi belirsizse otomatik karar vermez.
+- Bir placement sonrası kalan analiz stale olur.
+- Refresh tamamlanmadan yeniden hesaplama açılamaz.
+- Her analiz taze server board snapshot'ıyla başlar.
+- Yerleşmiş kart queue'ya tekrar girmez.
+
+Son doğrulanmış implementation zinciri:
+
+```
+e89e3c336b5bfa0860a25425470a3c5cfb0aaaf2 fix: prevent stale assistant reanalysis after placement
+45c9ec0da7701c8e3c6076d14fecb915ca01280c polish: show assistant refresh state
+520c3e7ca6069ecb806201c821945ae20929fc67 test: exclude placed cards from assistant queue
+ee2735e430deaf795552d2aef0a46429a64a0679 fix: guard fresh assistant board snapshot
+72d0aa6685ce8abddd812d8a6e6a04dee1d74c8b fix: match placement test fixture type
+```
+
+### Sonraki yön — M32.3
+
+Amaç: Asistan yalnız mevcut seçenek sayısını göstermesin; bir seçeneğin uygulanmasının diğer havuz derslerinin esnekliğini ne kadar azaltacağını da önceden değerlendirsin.
+
+İlk prensip:
+- kullanıcı adına otomatik karar yok;
+- “en iyi seçenek” hükmü yok;
+- seçenek etkisi açıklanabilir metriklerle gösterilecek;
+- örn. `bu seçimden sonra 2 dersin uygun saat sayısı azalır`;
+- mevcut candidate / conflict altyapısı yeniden kullanılacak.
