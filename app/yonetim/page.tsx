@@ -17,6 +17,7 @@ import { ManagementCoursePlan } from '@/components/management/ManagementCoursePl
 import { ManagementResources } from '@/components/management/ManagementResources';
 import { ManagementHelpCenter } from '@/components/management/ManagementHelpCenter';
 import { ManagementQuickTour } from '@/components/management/ManagementQuickTour';
+import { ManagementPlacementAssistant } from '@/components/management/ManagementPlacementAssistant';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   buildManagementRowDisplayCards,
@@ -61,6 +62,11 @@ import {
   fetchManagementPublicationPreview,
   type ManagementPublicationPreviewData,
 } from '@/lib/managementPublicationPreview';
+import {
+  buildManagementPlacementAssistantGroups,
+  buildSafeManagementPlacementSuggestion,
+  type ManagementPlacementAssistantSuggestion,
+} from '@/lib/managementPlacementAssistant';
 import {
   applyManagementRequirementStructure,
   fetchManagementCoursePlan,
@@ -319,6 +325,15 @@ export default function ManagementPage() {
   const [tourStep, setTourStep] = useState(0);
   const [tourChecked, setTourChecked] = useState(false);
 
+  const [placementAssistantOpen, setPlacementAssistantOpen] = useState(false);
+  const [placementAssistantSuggestions, setPlacementAssistantSuggestions] =
+    useState<ManagementPlacementAssistantSuggestion[]>([]);
+  const [placementAssistantReviewCount, setPlacementAssistantReviewCount] = useState(0);
+  const [placementAssistantLoading, setPlacementAssistantLoading] = useState(false);
+  const [placementAssistantAnalyzed, setPlacementAssistantAnalyzed] = useState(false);
+  const [placementAssistantStale, setPlacementAssistantStale] = useState(false);
+  const [placementAssistantError, setPlacementAssistantError] = useState<string | null>(null);
+
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [candidateDetail, setCandidateDetail] =
@@ -444,6 +459,19 @@ export default function ManagementPage() {
     [audienceFilter, board, stage],
   );
 
+  const placementAssistantGroups = useMemo(
+    () => buildManagementPlacementAssistantGroups(visibleCards),
+    [visibleCards],
+  );
+
+  useEffect(() => {
+    setPlacementAssistantSuggestions([]);
+    setPlacementAssistantReviewCount(0);
+    setPlacementAssistantAnalyzed(false);
+    setPlacementAssistantStale(false);
+    setPlacementAssistantError(null);
+  }, [audienceFilter, stage]);
+
   const rows = useMemo(
     () => (
       board
@@ -545,6 +573,76 @@ export default function ManagementPage() {
     };
   }, [refreshToken, selectedCardId, session, status]);
 
+
+  const analyzePlacementAssistant = async () => {
+    if (
+      !session
+      || !board
+      || !access?.canEdit
+      || status !== 'ready'
+      || placementAssistantLoading
+      || commandBusy
+    ) {
+      return;
+    }
+
+    const singleOptionGroups = placementAssistantGroups.filter(
+      (group) => group.status === 'SINGLE_OPTION',
+    );
+
+    setPlacementAssistantLoading(true);
+    setPlacementAssistantError(null);
+    setPlacementAssistantSuggestions([]);
+    setPlacementAssistantReviewCount(0);
+    setPlacementAssistantStale(false);
+
+    try {
+      const nextSuggestions: ManagementPlacementAssistantSuggestion[] = [];
+      let reviewCount = 0;
+
+      // Deliberately sequential: candidate refresh can be expensive and the
+      // assistant should not fan out dozens of concurrent database rebuilds.
+      for (const group of singleOptionGroups) {
+        await refreshManagementCardGroupCandidates(
+          session.accessToken,
+          group.cardIds,
+        );
+
+        const entries = await Promise.all(
+          group.cardIds.map(async (cardId) => [
+            cardId,
+            await fetchManagementCardCandidates(session.accessToken, cardId),
+          ] as const),
+        );
+
+        const suggestion = buildSafeManagementPlacementSuggestion(
+          group,
+          Object.fromEntries(entries),
+          board.teacherNamesById,
+          board.roomNamesById,
+        );
+
+        if (suggestion) {
+          nextSuggestions.push(suggestion);
+        } else {
+          reviewCount += 1;
+        }
+      }
+
+      setPlacementAssistantSuggestions(nextSuggestions);
+      setPlacementAssistantReviewCount(reviewCount);
+      setPlacementAssistantAnalyzed(true);
+    } catch (reason: unknown) {
+      setPlacementAssistantError(
+        reason instanceof Error
+          ? reason.message
+          : 'Yerleştirme önerileri hazırlanamadı.',
+      );
+      setPlacementAssistantAnalyzed(false);
+    } finally {
+      setPlacementAssistantLoading(false);
+    }
+  };
 
   const beginDrag = (cardId: string, sourceCardIds?: string[]) => {
     if (!session || !access?.canEdit || status !== 'ready') return;
@@ -740,6 +838,26 @@ export default function ManagementPage() {
       setCommandBusy(false);
       setCommandActivity(null);
     }
+  };
+
+  const applyPlacementAssistantSuggestion = async (
+    suggestion: ManagementPlacementAssistantSuggestion,
+  ) => {
+    if (
+      placementAssistantStale
+      || placementAssistantLoading
+      || commandBusy
+      || !access?.canEdit
+    ) {
+      return;
+    }
+
+    await runDropCandidates(suggestion.moves);
+
+    // Even if the command is rejected because the world changed, the old
+    // analysis must never be reused. A fresh pass is required either way.
+    setPlacementAssistantSuggestions([]);
+    setPlacementAssistantStale(true);
   };
 
   const runSelectedCandidateAction = async (
@@ -1458,6 +1576,16 @@ export default function ManagementPage() {
               <span>{overview?.activeMoveCount ?? 0} işlem</span>
             </div>
   
+            <button
+              type="button"
+              onClick={() => setPlacementAssistantOpen(true)}
+              disabled={dataLoading || commandBusy}
+              className="rounded-xl border border-[#A63D48]/25 bg-white px-3 py-2 text-[10px] font-black text-[#A63D48] transition hover:border-[#A63D48]/45 hover:bg-[#A63D48]/5 disabled:cursor-not-allowed disabled:opacity-35"
+              title="Tek seçenekli dersler için güvenli yerleşim önerileri"
+            >
+              ✦ Asistan
+            </button>
+
             {selectedCard && !showInspector && (
               <button
                 type="button"
@@ -2090,6 +2218,27 @@ export default function ManagementPage() {
           publicationGate={publicationGate}
         />
       )}
+
+      <ManagementPlacementAssistant
+        open={placementAssistantOpen}
+        scopeLabel={`${stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} · ${AUDIENCE_FILTERS.find((item) => item.id === audienceFilter)?.title ?? 'Tüm dersler'}`}
+        groups={placementAssistantGroups}
+        suggestions={placementAssistantSuggestions}
+        reviewCount={placementAssistantReviewCount}
+        loading={placementAssistantLoading}
+        analyzed={placementAssistantAnalyzed}
+        stale={placementAssistantStale}
+        error={placementAssistantError}
+        canEdit={access?.canEdit === true}
+        commandBusy={commandBusy}
+        onAnalyze={() => {
+          void analyzePlacementAssistant();
+        }}
+        onApply={(suggestion) => {
+          void applyPlacementAssistantSuggestion(suggestion);
+        }}
+        onClose={() => setPlacementAssistantOpen(false)}
+      />
 
       <ManagementHelpCenter
         open={helpOpen}
