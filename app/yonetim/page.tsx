@@ -64,8 +64,11 @@ import {
 } from '@/lib/managementPublicationPreview';
 import {
   buildManagementPlacementAssistantGroups,
-  buildSafeManagementPlacementSuggestion,
-  type ManagementPlacementAssistantSuggestion,
+  buildManagementPlacementAssistantPlan,
+  sortManagementPlacementAssistantPlans,
+  type ManagementPlacementAssistantGroup,
+  type ManagementPlacementAssistantOption,
+  type ManagementPlacementAssistantPlan,
 } from '@/lib/managementPlacementAssistant';
 import {
   applyManagementRequirementStructure,
@@ -326,9 +329,8 @@ export default function ManagementPage() {
   const [tourChecked, setTourChecked] = useState(false);
 
   const [placementAssistantOpen, setPlacementAssistantOpen] = useState(false);
-  const [placementAssistantSuggestions, setPlacementAssistantSuggestions] =
-    useState<ManagementPlacementAssistantSuggestion[]>([]);
-  const [placementAssistantReviewCount, setPlacementAssistantReviewCount] = useState(0);
+  const [placementAssistantPlans, setPlacementAssistantPlans] =
+    useState<ManagementPlacementAssistantPlan[]>([]);
   const [placementAssistantLoading, setPlacementAssistantLoading] = useState(false);
   const [placementAssistantAnalyzed, setPlacementAssistantAnalyzed] = useState(false);
   const [placementAssistantStale, setPlacementAssistantStale] = useState(false);
@@ -465,8 +467,7 @@ export default function ManagementPage() {
   );
 
   useEffect(() => {
-    setPlacementAssistantSuggestions([]);
-    setPlacementAssistantReviewCount(0);
+    setPlacementAssistantPlans([]);
     setPlacementAssistantAnalyzed(false);
     setPlacementAssistantStale(false);
     setPlacementAssistantError(null);
@@ -475,8 +476,7 @@ export default function ManagementPage() {
   useEffect(() => {
     if (refreshToken === 0) return;
 
-    setPlacementAssistantSuggestions([]);
-    setPlacementAssistantReviewCount(0);
+    setPlacementAssistantPlans([]);
     setPlacementAssistantAnalyzed(false);
     setPlacementAssistantStale(true);
     setPlacementAssistantError(null);
@@ -596,23 +596,24 @@ export default function ManagementPage() {
       return;
     }
 
-    const singleOptionGroups = placementAssistantGroups.filter(
-      (group) => group.status === 'SINGLE_OPTION',
+    const analyzableGroups = placementAssistantGroups.filter(
+      (group) => (
+        group.status === 'SINGLE_OPTION'
+        || group.status === 'CHOICES'
+      ),
     );
 
     setPlacementAssistantLoading(true);
     setPlacementAssistantError(null);
-    setPlacementAssistantSuggestions([]);
-    setPlacementAssistantReviewCount(0);
+    setPlacementAssistantPlans([]);
     setPlacementAssistantStale(false);
 
     try {
-      const nextSuggestions: ManagementPlacementAssistantSuggestion[] = [];
-      let reviewCount = 0;
+      const nextPlans: ManagementPlacementAssistantPlan[] = [];
 
-      // Deliberately sequential: candidate refresh can be expensive and the
-      // assistant should not fan out dozens of concurrent database rebuilds.
-      for (const group of singleOptionGroups) {
+      // Deliberately sequential: each refresh can be expensive and later
+      // M32 phases may add many more pool cards. Avoid a database fan-out.
+      for (const group of analyzableGroups) {
         await refreshManagementCardGroupCandidates(
           session.accessToken,
           group.cardIds,
@@ -625,28 +626,25 @@ export default function ManagementPage() {
           ] as const),
         );
 
-        const suggestion = buildSafeManagementPlacementSuggestion(
-          group,
-          Object.fromEntries(entries),
-          board.teacherNamesById,
-          board.roomNamesById,
+        nextPlans.push(
+          buildManagementPlacementAssistantPlan(
+            group,
+            Object.fromEntries(entries),
+            board.teacherNamesById,
+            board.roomNamesById,
+          ),
         );
-
-        if (suggestion) {
-          nextSuggestions.push(suggestion);
-        } else {
-          reviewCount += 1;
-        }
       }
 
-      setPlacementAssistantSuggestions(nextSuggestions);
-      setPlacementAssistantReviewCount(reviewCount);
+      setPlacementAssistantPlans(
+        sortManagementPlacementAssistantPlans(nextPlans),
+      );
       setPlacementAssistantAnalyzed(true);
     } catch (reason: unknown) {
       setPlacementAssistantError(
         reason instanceof Error
           ? reason.message
-          : 'Yerleştirme önerileri hazırlanamadı.',
+          : 'Yerleştirme seçenekleri hazırlanamadı.',
       );
       setPlacementAssistantAnalyzed(false);
     } finally {
@@ -850,8 +848,8 @@ export default function ManagementPage() {
     }
   };
 
-  const applyPlacementAssistantSuggestion = async (
-    suggestion: ManagementPlacementAssistantSuggestion,
+  const applyPlacementAssistantOption = async (
+    option: ManagementPlacementAssistantOption,
   ) => {
     if (
       placementAssistantStale
@@ -862,12 +860,26 @@ export default function ManagementPage() {
       return;
     }
 
-    await runDropCandidates(suggestion.moves);
+    await runDropCandidates(option.moves);
 
-    // Even if the command is rejected because the world changed, the old
-    // analysis must never be reused. A fresh pass is required either way.
-    setPlacementAssistantSuggestions([]);
+    // Any attempted placement can change candidate availability. Never reuse
+    // the previous ordering or its options after an apply attempt.
+    setPlacementAssistantPlans([]);
     setPlacementAssistantStale(true);
+  };
+
+  const inspectPlacementAssistantGroup = (
+    group: ManagementPlacementAssistantGroup,
+  ) => {
+    const primaryCardId = group.cardIds[0];
+    if (!primaryCardId) return;
+
+    setPlacementAssistantOpen(false);
+    setPoolOpen(true);
+    setSelectedCardId(primaryCardId);
+    setSelectedCardIds(group.cardIds);
+    setCandidateFocus(null);
+    setInspectorOpen(true);
   };
 
   const runSelectedCandidateAction = async (
@@ -2233,8 +2245,7 @@ export default function ManagementPage() {
         open={placementAssistantOpen}
         scopeLabel={`${stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} · ${AUDIENCE_FILTERS.find((item) => item.id === audienceFilter)?.title ?? 'Tüm dersler'}`}
         groups={placementAssistantGroups}
-        suggestions={placementAssistantSuggestions}
-        reviewCount={placementAssistantReviewCount}
+        plans={placementAssistantPlans}
         loading={placementAssistantLoading}
         analyzed={placementAssistantAnalyzed}
         stale={placementAssistantStale}
@@ -2244,9 +2255,10 @@ export default function ManagementPage() {
         onAnalyze={() => {
           void analyzePlacementAssistant();
         }}
-        onApply={(suggestion) => {
-          void applyPlacementAssistantSuggestion(suggestion);
+        onApply={(_group, option) => {
+          void applyPlacementAssistantOption(option);
         }}
+        onInspect={inspectPlacementAssistantGroup}
         onClose={() => setPlacementAssistantOpen(false)}
       />
 
