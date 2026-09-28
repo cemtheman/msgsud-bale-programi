@@ -16,6 +16,7 @@ import { ManagementProgramStatus } from '@/components/management/ManagementProgr
 import { ManagementCoursePlan } from '@/components/management/ManagementCoursePlan';
 import { ManagementResources } from '@/components/management/ManagementResources';
 import { ManagementHelpCenter } from '@/components/management/ManagementHelpCenter';
+import { ManagementQuickTour } from '@/components/management/ManagementQuickTour';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   buildManagementRowDisplayCards,
@@ -314,6 +315,9 @@ export default function ManagementPage() {
   const [poolOpen, setPoolOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const [tourChecked, setTourChecked] = useState(false);
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
@@ -344,6 +348,23 @@ export default function ManagementPage() {
     kind: 'success' | 'error' | 'info';
     text: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (status !== 'ready' || !session || tourChecked) return;
+
+    setTourChecked(true);
+
+    try {
+      if (window.localStorage.getItem('msgsud-management-tour-v1') !== 'done') {
+        setActiveSection('PROGRAM');
+        setPoolOpen(true);
+        setTourStep(0);
+        setTourOpen(true);
+      }
+    } catch {
+      // Local storage is optional; the tour can still be started from Help.
+    }
+  }, [session, status, tourChecked]);
 
   useEffect(() => {
     if (status !== 'ready' || !session) {
@@ -1202,6 +1223,23 @@ export default function ManagementPage() {
   const visibleUnplacedCount = visibleCards.length - visiblePlacedCount;
   const showInspector = inspectorOpen && Boolean(selectedCard);
 
+  const startQuickTour = () => {
+    setHelpOpen(false);
+    setActiveSection('PROGRAM');
+    setPoolOpen(true);
+    setTourStep(0);
+    setTourOpen(true);
+  };
+
+  const dismissQuickTour = () => {
+    setTourOpen(false);
+    try {
+      window.localStorage.setItem('msgsud-management-tour-v1', 'done');
+    } catch {
+      // Local storage may be unavailable in restricted browser contexts.
+    }
+  };
+
   const workbenchColumns = [
     poolOpen ? '260px' : null,
     'minmax(0, 1fr)',
@@ -2038,6 +2076,15 @@ export default function ManagementPage() {
         activeSection={activeSection}
         onClose={() => setHelpOpen(false)}
         onNavigate={(section) => setActiveSection(section)}
+        onStartTour={startQuickTour}
+      />
+
+      <ManagementQuickTour
+        open={tourOpen}
+        step={tourStep}
+        onStepChange={setTourStep}
+        onClose={dismissQuickTour}
+        onFinish={dismissQuickTour}
       />
 
       {removeConfirmOpen && selectedCard?.placement && selectedCards.length > 0 && (
