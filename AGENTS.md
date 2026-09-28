@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.1 — güvenli Yerleştirme Asistanı local test/build/browser doğrulaması |
+| Sıradaki iş paketi | M32.2 — kısıt öncelikli yarı otomatik yerleştirme local test/build/browser doğrulaması |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1259,3 +1259,81 @@ polish: align teacher command wording
 ```
 
 Durum: **local focused test + build + browser doğrulaması bekleniyor.**
+
+
+## 29. 28 Eylül 2026 — M32.2 kısıt öncelikli yarı otomatik akış
+
+Kullanıcı gerçek browser testi için Program'dan üç görsel ders kartını kaldırdı:
+
+- Matematik `5A + 5B` → 2 underlying kayıt
+- Türkçe `5A + 5B` → 2 underlying kayıt
+- V. Kondisyon `5A` → 1 underlying kayıt
+
+Bu nedenle havuz doğru biçimde **3 kart · 5 kayıt** gösterdi.
+
+M32.1 ilk sürümünde üç kartın da birden fazla uygun yeri olduğu için:
+
+- Tek seçenek: 0
+- Seçim gerekiyor: 3
+
+görüldü ve `Önerileri hazırla` devre dışı kaldı.
+
+Bu runtime testi M32.1'in güvenli fakat fazla temkinli olduğunu gösterdi. M32.2 hemen açıldı.
+
+### M32.2 kabul edilen yön
+
+Asistan artık yalnız zorunlu / tek seçenekli derslere bakmaz.
+
+`SINGLE_OPTION` ve `CHOICES` derslerin tamamı için:
+
+1. grouped source card candidate'ları yeniden hesaplanır;
+2. her source card'ın geçerli zaman slotları çıkarılır;
+3. yalnız tüm grouped kayıtlar için ortak olan gün/saatler tutulur;
+4. dersler **ortak uygun saat sayısı artan sırada** gösterilir;
+5. böylece “en kısıtlı ders önce” solitaire yaklaşımı uygulanır;
+6. ortak slotta her source card için tek öğretmen/salon kombinasyonu varsa slot doğrudan `Uygula` edilebilir;
+7. aynı saatte birden fazla kaynak kombinasyonu varsa asistan kaynak seçmez ve `Ayrıntılarda incele` akışına bırakır.
+
+Bu sıralama “en iyi saat” iddiası değildir; nesnel olarak **daha az esnek dersi önce ele alma** kuralıdır.
+
+### UI değişimi
+
+Başlık:
+
+```
+En kısıtlı dersten başlayın
+```
+
+Analiz CTA:
+
+```
+Seçenekleri hazırla
+```
+
+Analiz sonrası her ders için:
+
+- sıra numarası,
+- ortak uygun saat sayısı,
+- doğrudan uygulanabilir saat sayısı,
+- kaynak seçimi gerektiren saat sayısı,
+- ilk 5 doğrudan seçenek,
+- gerekirse diğer seçenekleri açma,
+- `Uygula`,
+- `Ayrıntılarda incele`
+
+gösterilir.
+
+Bir seçenek uygulandıktan sonra kalan analiz stale olur; yeniden hesaplama zorunludur.
+
+Yeni DB write yolu veya migration yoktur.
+
+İlgili implementation zinciri:
+
+```
+e2c7d8eba27865e098bc4d52be1839e17e77db20 feat: rank placement choices by constraint
+2f2e545502f3fbeb0efd52ca205e121a3f6ded98 feat: guide ambiguous placements by constraint
+c34bbe8af851228c20ad6daf503595ae2ac8baf0 feat: rank and expose placement choices
+1c2744f022382e2209c83a5f9e4e9ffffe3d4642 test: cover constraint-ranked placement choices
+```
+
+Durum: **local focused test + build + aynı 3 kartlık browser senaryosu bekleniyor.**
