@@ -190,6 +190,7 @@ export function buildManagementPlacementAssistantPlan(
       return {
         group,
         commonSlotCount: 0,
+        slots: [],
         exactOptions: [],
         resourceChoiceSlotCount: 0,
       };
@@ -200,6 +201,7 @@ export function buildManagementPlacementAssistantPlan(
       return {
         group,
         commonSlotCount: 0,
+        slots: [],
         exactOptions: [],
         resourceChoiceSlotCount: 0,
       };
