@@ -11,6 +11,14 @@ const MANAGEMENT_ROOM_CAPABILITY_IDS = [
 export type ManagementPlanStage = 'ORTAOKUL' | 'LISE';
 export type ManagementPlanTermStatus = 'ACTIVE' | 'INACTIVE' | 'UNKNOWN';
 export type ManagementRoomStrategy = 'SPECIFIC' | 'CAPABILITY' | 'UNKNOWN';
+export type ManagementTeacherAssignmentScope =
+  | 'REQUIREMENT'
+  | 'BLOCK'
+  | 'UNSPECIFIED';
+export type ManagementTeacherContinuity =
+  | 'REQUIRED'
+  | 'PREFERRED'
+  | 'NONE';
 
 export interface ManagementCoursePlanRow {
   requirementId: string;
@@ -29,6 +37,8 @@ export interface ManagementCoursePlanRow {
   termStatus: ManagementPlanTermStatus;
   knowledgeStatus: string;
   teacherMode: string;
+  teacherAssignmentScope: ManagementTeacherAssignmentScope;
+  teacherContinuity: ManagementTeacherContinuity;
   teacherIds: string[];
   teacherNames: string[];
   resourceMode: string;
@@ -131,6 +141,8 @@ interface RequirementRow {
   term_status: ManagementPlanTermStatus;
   knowledge_status: string;
   teacher_mode: string;
+  teacher_assignment_scope: ManagementTeacherAssignmentScope;
+  teacher_continuity: ManagementTeacherContinuity;
   resource_mode: string;
   required_capability: string | null;
 }
@@ -260,6 +272,18 @@ function translateStructurePreviewError(message: string) {
 
   if (normalized.includes('active requirement must have positive weekly load')) {
     return 'Aktif bir dersin haftalık ders saati sıfırdan büyük olmalı.';
+  }
+
+  if (normalized.includes('teacher policy preview is stale')) {
+    return 'Öğretmen kuralı önizlemeden sonra güncelliğini kaybetti. Etkiyi yeniden hesaplayın.';
+  }
+
+  if (normalized.includes('teacher policy apply blocked')) {
+    return 'Bu öğretmen kuralı mevcut yerleşimlerle çelişiyor. Önizlemedeki blokları kontrol edin.';
+  }
+
+  if (normalized.includes('invalid teacher policy combination')) {
+    return 'Öğretmen kuralı kombinasyonu geçersiz.';
   }
 
   if (normalized.includes('preview is stale')) {
@@ -436,7 +460,7 @@ export async function fetchManagementCoursePlan(
     roomNameOverrides,
   ] = await Promise.all([
     authedGet<RequirementRow[]>(
-      `course_requirements?select=id,subject_id,instructional_group_id,weekly_load,preferred_partition,allowed_partitions,min_distinct_days,max_blocks_per_day,max_consecutive_periods,course_character,delivery_mode,term_status,knowledge_status,teacher_mode,resource_mode,required_capability&requirement_set_id=eq.${revision.requirement_set_id}`,
+      `course_requirements?select=id,subject_id,instructional_group_id,weekly_load,preferred_partition,allowed_partitions,min_distinct_days,max_blocks_per_day,max_consecutive_periods,course_character,delivery_mode,term_status,knowledge_status,teacher_mode,teacher_assignment_scope,teacher_continuity,resource_mode,required_capability&requirement_set_id=eq.${revision.requirement_set_id}`,
       accessToken,
     ),
     authedGet<GroupRow[]>(
@@ -600,6 +624,8 @@ export async function fetchManagementCoursePlan(
       termStatus: requirement.term_status,
       knowledgeStatus: requirement.knowledge_status,
       teacherMode: requirement.teacher_mode,
+      teacherAssignmentScope: requirement.teacher_assignment_scope,
+      teacherContinuity: requirement.teacher_continuity,
       teacherIds,
       teacherNames: teacherIds.map((id) => teacherById.get(id) ?? 'Bilinmeyen öğretmen'),
       resourceMode: requirement.resource_mode,
@@ -719,6 +745,84 @@ export function updateManagementRequirementRoomStrategy(
       p_strategy: strategy,
       p_room_ids: roomIds,
       p_required_capability: requiredCapability,
+    },
+  );
+}
+
+
+export interface ManagementTeacherPolicyPlacedBlock {
+  cardId: string;
+  blockIndex: number;
+  durationPeriods: number;
+  dayOfWeek: number;
+  startPeriod: number;
+  teacherId: string | null;
+  teacherName: string | null;
+  roomId: string | null;
+}
+
+export interface ManagementTeacherPolicyPreview {
+  requirementId: string;
+  revisionId: string;
+  subjectName: string;
+  groupName: string;
+  currentScope: ManagementTeacherAssignmentScope;
+  currentContinuity: ManagementTeacherContinuity;
+  proposedScope: ManagementTeacherAssignmentScope;
+  proposedContinuity: ManagementTeacherContinuity;
+  placedBlockCount: number;
+  distinctResolvedTeacherCount: number;
+  placedBlocks: ManagementTeacherPolicyPlacedBlock[];
+  canApply: boolean;
+  blockReasons: string[];
+  stateToken: string;
+  candidateEnforcementActive: false;
+  previewOnly: true;
+}
+
+export interface ManagementTeacherPolicyApplyResult {
+  applied: true;
+  requirementId: string;
+  teacherAssignmentScope: ManagementTeacherAssignmentScope;
+  teacherContinuity: ManagementTeacherContinuity;
+  placedBlockCount: number;
+  distinctResolvedTeacherCount: number;
+  candidateEnforcementActive: false;
+  publishedChanged: false;
+}
+
+export function previewManagementRequirementTeacherPolicy(
+  accessToken: string,
+  requirementId: string,
+  teacherAssignmentScope: ManagementTeacherAssignmentScope,
+  teacherContinuity: ManagementTeacherContinuity,
+) {
+  return authedRpc<ManagementTeacherPolicyPreview>(
+    'management_preview_requirement_teacher_policy',
+    accessToken,
+    {
+      p_requirement_id: requirementId,
+      p_teacher_assignment_scope: teacherAssignmentScope,
+      p_teacher_continuity: teacherContinuity,
+    },
+  );
+}
+
+export function applyManagementRequirementTeacherPolicy(
+  accessToken: string,
+  requirementId: string,
+  teacherAssignmentScope: ManagementTeacherAssignmentScope,
+  teacherContinuity: ManagementTeacherContinuity,
+  expectedStateToken: string,
+) {
+  return authedRpc<ManagementTeacherPolicyApplyResult>(
+    'management_apply_requirement_teacher_policy',
+    accessToken,
+    {
+      p_requirement_id: requirementId,
+      p_teacher_assignment_scope: teacherAssignmentScope,
+      p_teacher_continuity: teacherContinuity,
+      p_expected_state_token: expectedStateToken,
     },
   );
 }
