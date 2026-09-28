@@ -221,7 +221,7 @@ export function ManagementPublicationGate({
             {data.blockReasons.map((reason) => {
               const meta = BLOCK_META[reason] ?? {
                 title: reason,
-                detail: 'Sunucu bu durumu yayın engeli olarak işaretledi.',
+                detail: 'Bu durum yayınlamayı şu anda engelliyor.',
               };
 
               return (
@@ -258,7 +258,7 @@ export function ManagementPublicationGate({
             {data.warningReasons.map((reason) => {
               const meta = WARNING_META[reason] ?? {
                 title: reason,
-                detail: 'Sunucu bu durumu yayın öncesi uyarı olarak işaretledi.',
+                detail: 'Bu durumu yayınlamadan önce gözden geçirmeniz önerilir.',
               };
 
               return (
