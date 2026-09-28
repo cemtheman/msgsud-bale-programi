@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.3 — seçenek etkisi / ileri bakışlı yerleştirme desteği |
+| Sıradaki iş paketi | M32.2.1 — late-stage PLACE timeout migration production doğrulaması; ardından M32.3 |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1419,3 +1419,50 @@ Amaç: Asistan yalnız mevcut seçenek sayısını göstermesin; bir seçeneğin
 - seçenek etkisi açıklanabilir metriklerle gösterilecek;
 - örn. `bu seçimden sonra 2 dersin uygun saat sayısı azalır`;
 - mevcut candidate / conflict altyapısı yeniden kullanılacak.
+
+
+## 32. 28 Eylül 2026 — M32.2.1 late-stage PLACE timeout
+
+M32.2 browser testinde, program 155/159 yerleşmiş durumdayken havuzdaki Solfej `5A + 5B` / `×3 ders` kartı için doğrudan uygulanabilir bir seçenek seçildiğinde normal `management_place_card` RPC'si statement timeout verdi.
+
+Ekran kanıtı:
+- işlem öncesi Asistan Solfej için 7 ortak uygun saat, 1 doğrudan uygulanabilir saat gösterdi;
+- `Uygula` sonrası hata toast'ı: `İşlem beklenenden uzun sürdü ve zaman aşımına uğradı`;
+- yerleşim sayısı 155 ve havuz 4 olarak kaldı; işlem commit edilmedi.
+
+İlk varsayım bundle timeout idi; havuz sayısı / kart yapısı yeniden okununca Solfej'in tek gerçek kart ve `×3` değerinin duration olduğu görüldü. Sorun normal single PLACE yolundadır.
+
+### Kök neden
+
+M15 `refresh_management_candidate_domain_delta` fonksiyonu her occupancy değişiminden sonra:
+- değişen grup,
+- öğretmen,
+- salon
+ile ilişkili olabilecek kartları ararken **zaten yerleşmiş kartları da** impacted set'e dahil ediyordu.
+
+Program sonlarına gelindiğinde havuzda yalnız birkaç kart kalmasına rağmen 150+ yerleşmiş kartın candidate satırları gereksiz yere yeniden değerlendirilebiliyordu. Forced/contradiction seçimi yalnız yerleşmemiş kartları kullandığı için bu bakım canlı mutation yolunda gerekli değildir. Yerleşmiş bir kart daha sonra taşınacaksa hedef candidate zaten canlı doğrulanır / grup refresh'i çalışır.
+
+### M32.2.1 migration
+
+Yeni migration:
+
+```
+20260928212500_management_m32_2_1_late_stage_place_performance.sql
+```
+
+Değişiklik:
+- `refresh_management_candidate_domain_delta` impacted kart setine
+  `not exists (select 1 from placements where card_id = card.id)`
+  filtresi eklendi.
+- Gün/saat overlap, öğretmen, salon ve instructional-group conflict kuralları değişmedi.
+- exact target validation, forced propagation, undo/redo ve publication sözleşmesi değişmedi.
+- frontend değişikliği yok.
+
+Commit:
+
+```
+fa98b7e2a1f2e3919d5653edb37c645ce589cd70
+perf: skip placed cards in delta refresh
+```
+
+Durum: **migration local dry-run + production push + aynı Solfej Uygula regresyon testi bekleniyor.**
