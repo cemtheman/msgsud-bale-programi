@@ -119,8 +119,8 @@ export function ManagementQuickTour({
   }, [current.target, open, step]);
 
   const cardStyle = useMemo(() => {
-    const viewportWidth = typeof window === 'undefined' ? 1440 : viewportWidth;
-    const viewportHeight = typeof window === 'undefined' ? 900 : viewportHeight;
+    const viewportWidth = typeof window === 'undefined' ? 1440 : window.innerWidth;
+    const viewportHeight = typeof window === 'undefined' ? 900 : window.innerHeight;
     const width = Math.min(520, Math.max(320, viewportWidth - 32));
     const margin = 22;
 
