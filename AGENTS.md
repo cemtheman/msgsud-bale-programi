@@ -16,7 +16,7 @@
 | Implementation commit | `fix: clean M29 room pool test artifacts` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M30.1 öğretmen havuzu ve M30.2 salon havuzu temizliği production'da PASS; M29 test artıkları temizlendi |
-| Sıradaki iş paketi | M31 UX Guidance & Polish — önce M31.1 ekran açıklamaları + Yardım merkezi |
+| Sıradaki iş paketi | M31.3 — 5 adımlık hızlı tur |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1034,3 +1034,58 @@ Gerekçe: yönetim sistemi işlevsel ve güçlü hale geldi ancak kullanıcıdan
 ### Sonraki sıra
 
 Önce M31.1 uygulanıp browser/build doğrulaması yapılacak. Ardından M31.2–M31.4 tamamlanacak. Bunlar kapandıktan sonra otomatik / yarı otomatik yerleştirme paketi M32 olarak başlatılacak.
+
+
+## 25. 28 Eylül 2026 — M31.1 / M31.2 UX polish acceptance
+
+M31.1 Yardım Merkezi ve M31.2 bağlamsal yardım polish'i production/browser görüntüsü üzerinden kullanıcı tarafından kabul edildi.
+
+### Kabul edilen davranış
+
+- Üst yönetim navigasyonunda kalıcı `? Yardım` girişi bulunur.
+- Yardım merkezi sağ drawer olarak açılır; çalışma alanı görünür kalır.
+- Drawer aktif bölüme göre Program / Ders Planı / Kaynaklar / Program Durumu açıklamasını değiştirir.
+- Dört ana bölüm kartları navigasyon görevi görür.
+- Bölüm kartına basıldığında ana çalışma alanı ilgili bölüme geçer; yardım drawer'ı **açık kalır** ve siyah “Bu bölümdesiniz” kartı yeni bölüme taşınır.
+- Yardım merkezi kompaktlaştırıldı; kavramlar açılır/kapanır detaylarla katmanlandı.
+- Ders Havuzu / Yerleştirilecek dersler için bağlamsal bilgi eklendi.
+- Havuz dili insanileştirildi:
+  - Çalışma kuyruğu → Yerleştirilecek dersler
+  - Çalışılabilir → Yerleştirilebilir
+  - Zorunlu → Tek seçenek
+  - Belirsiz → Bilgi eksik
+  - Çelişki → Sorunlu
+- Sağ Ayrıntılar panelinde:
+  - Aday alanı → Yerleşim seçenekleri
+  - Geçersiz → Uygun değil
+  - Neden değil? → Neden uygun değil?
+  - Uygun / Bilgi eksik / Uygun değil semantiği bağlamsal açıklamayla verilir.
+  - Neden sayılarının toplamının “Uygun değil” sayısını aşabileceği, bir seçeneğin birden fazla nedenle elenebilmesiyle açıklanır.
+- Yerleşimde öğretmen/salon değişikliğinin yalnız mevcut placement'ı etkilediği ve Ders Planı havuzunu değiştirmediği açıkça yazılır.
+- Havuz boş durum metinleri kullanıcı eylemini açıklayacak biçimde iyileştirildi.
+
+### İlgili commitler
+
+```
+66b076ab07c3c7e19f0ad2c1879df7a454daa741 feat: add management help center
+9a4a81eca1f73f697484ce02d107eb753c01478b feat: wire management guidance into workbench
+ad01260b609c3e55b472fd990d1f818fc6108950 polish: refine management help hierarchy
+53aca81a088887195e6625f4ab3cebb30cec7511 polish: make help center actionable
+7be6e3d8f88cea87d0696c2d0ab9bc02c9be0a8f polish: explain management work queue
+e88e6662c9fdf5e136ac662fb4dec806cb3c0535 polish: add contextual placement guidance
+d69a92309cff3a697f5165c8737e531fbb61a446 polish: humanize management pool language
+5026cf36e98d9c5d0c17a5f3ea3a3fe2a140b9ff polish: clarify placement option language
+3bb285a9cf9bb9a558c02913fed0b25455ed0717 polish: keep help open while navigating sections
+```
+
+Durum: **M31.1 ve M31.2 kabul edildi.**
+
+### Sıradaki adım
+
+M31.3 — en fazla 5 adımlık hızlı tur.
+
+Hedef:
+- yeni kullanıcıyı çalışma alanında kısa sürede yönlendirmek;
+- turu zorunlu veya uzun hale getirmemek;
+- Yardım Merkezi'nden tekrar başlatılabilir yapmak;
+- tur sırasında hiçbir program verisini değiştirmemek.
