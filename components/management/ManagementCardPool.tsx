@@ -179,7 +179,10 @@ export function ManagementCardPool({
   }, [classFilter, displayCards, query, queueFilter]);
 
   return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <aside
+      data-tour-target="pool"
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+    >
       <div className="border-b border-slate-100 px-3.5 py-3">
         <div className="flex items-start justify-between gap-3">
           <div>
