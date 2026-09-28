@@ -16,7 +16,7 @@
 | Implementation commit | `fix: clean M29 room pool test artifacts` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M30.1 öğretmen havuzu ve M30.2 salon havuzu temizliği production'da PASS; M29 test artıkları temizlendi |
-| Sıradaki iş paketi | Otomatik / yarı otomatik yerleştirme — solitaire yaklaşımı |
+| Sıradaki iş paketi | M31 UX Guidance & Polish — önce M31.1 ekran açıklamaları + Yardım merkezi |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -989,3 +989,48 @@ Başlangıç ilkeleri:
 - Veri-mutating otomasyon başlamadan önce read-only öneri/planlama katmanı tercih edilecek.
 
 Yeni oturumda `main` esas alınacak; eski `feat/management-m20-placement-recovery` branch'i çalışma branch'i olarak kullanılmayacak.
+
+
+## 24. 28 Eylül 2026 — M31 UX Guidance & Polish başlangıcı
+
+M30 veri temizliği kapanışı sonrası otomatik / yarı otomatik yerleştirmeye geçmeden önce ürünün yönetim UX'inde bir polish ara fazı açılmasına karar verildi.
+
+Gerekçe: yönetim sistemi işlevsel ve güçlü hale geldi ancak kullanıcıdan fazla domain bilgisi bekliyor. Yeni otomasyon katmanı eklenmeden önce mevcut Program / Ders Planı / Kaynaklar / Program Durumu akışlarının kendi kendini açıklaması ve bağlamsal yardım sunması gerekiyor.
+
+### M31 kapsamı
+
+1. **M31.1 — ekran açıklamaları + Yardım merkezi**
+   - Üst yönetim navigasyonunda kalıcı ama sade bir `? Yardım` girişi.
+   - Çalışma alanından çıkarmayan sağ drawer yardım merkezi.
+   - Aktif bölüme göre kısa “bu ekran ne işe yarar?” açıklaması.
+   - Program, Ders Planı, Kaynaklar ve Program Durumu için temel iş akışları.
+   - Ders Havuzu, Yerleşim, Belirsiz, ortak kart, Geri Al/Yinele gibi kavramların insan diliyle açıklanması.
+   - Veri modeli / Supabase davranışı değişmeyecek; frontend-only polish.
+
+2. **M31.2 — bağlamsal bilgi ve “Neden?”**
+   - Karmaşık kavramlarda sınırlı `ⓘ` açıklamaları.
+   - Geçersiz/uygun olmayan yerleşimlerde mevcut reason-code ve blocker altyapısını kullanıcı diliyle görünür kılma.
+   - Her yere tooltip eklenmeyecek; görsel gürültüden kaçınılacak.
+
+3. **M31.3 — kısa hızlı tur**
+   - İlk kullanım için en fazla 5 adımlık tur.
+   - Ders Havuzu, Program Alanı, uygunluk renkleri, Ayrıntılar, Geri Al/Yinele.
+   - Yardım merkezinden yeniden başlatılabilir.
+
+4. **M31.4 — terminoloji / boş durum / mikro metin polish**
+   - Teknik iç terimleri kullanıcı dilinden uzak tutma.
+   - Boş ekranları eylem odaklı açıklamalarla değiştirme.
+   - Kritik işlemlerde kısa kapsam açıklamaları.
+
+### UX ilkeleri
+
+- Yardım sistemi ikinci bir karmaşa katmanı yaratmamalı.
+- Üç seviye kullanılacak: ekranda kısa açıklama, gerektiğinde bağlamsal bilgi, kapsamlı detay için Yardım drawer'ı.
+- Teknik terimler (`candidate`, `requirement`, `resource_mode`, `provisional`, `revision`) mümkün olduğunca son kullanıcı UI'sına sızmamalı.
+- M29.4 ayrımı kullanıcıya açık anlatılmalı: yerleşimde öğretmen/salon değiştirmek yalnız o yerleşimi değiştirir; Ders Planı kaynak havuzunu değiştirmez.
+- M31 sırasında mevcut grouped/atomic davranış, provisional resource semantiği, undo/redo ve publication altyapısı korunacak.
+- M31.1 için migration yoktur.
+
+### Sonraki sıra
+
+Önce M31.1 uygulanıp browser/build doğrulaması yapılacak. Ardından M31.2–M31.4 tamamlanacak. Bunlar kapandıktan sonra otomatik / yarı otomatik yerleştirme paketi M32 olarak başlatılacak.
