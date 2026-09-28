@@ -593,6 +593,10 @@ export function ManagementCoursePlan({
   ).size;
   const missingTeacherCount = stageRows.filter(rowHasMissingTeacher).length;
   const missingRoomCount = stageRows.filter(rowHasMissingRoom).length;
+  const unspecifiedTeacherPolicyCount = stageRows.filter((row) => (
+    row.termStatus === 'ACTIVE'
+    && row.teacherAssignmentScope === 'UNSPECIFIED'
+  )).length;
 
   return (
     <section className="management-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
@@ -643,7 +647,7 @@ export function ManagementCoursePlan({
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-4 gap-3">
+          <div className="mt-5 grid grid-cols-5 gap-3">
             <div className="rounded-2xl bg-slate-950 p-4 text-white">
               <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
                 Ders
@@ -681,6 +685,39 @@ export function ManagementCoursePlan({
               <p className="mt-2 text-2xl font-black text-amber-900">{missingRoomCount}</p>
               <p className="mt-1 text-[10px] font-medium text-amber-700">
                 aktif ders tanımı
+              </p>
+            </div>
+
+            <div className={
+              unspecifiedTeacherPolicyCount > 0
+                ? 'rounded-2xl border border-amber-200 bg-amber-50 p-4'
+                : 'rounded-2xl border border-emerald-200 bg-emerald-50 p-4'
+            }>
+              <p className={
+                'text-[9px] font-black uppercase tracking-wide '
+                + (unspecifiedTeacherPolicyCount > 0
+                  ? 'text-amber-700'
+                  : 'text-emerald-700')
+              }>
+                Öğretmen kuralı
+              </p>
+              <p className={
+                'mt-2 text-2xl font-black '
+                + (unspecifiedTeacherPolicyCount > 0
+                  ? 'text-amber-900'
+                  : 'text-emerald-900')
+              }>
+                {unspecifiedTeacherPolicyCount}
+              </p>
+              <p className={
+                'mt-1 text-[10px] font-medium '
+                + (unspecifiedTeacherPolicyCount > 0
+                  ? 'text-amber-700'
+                  : 'text-emerald-700')
+              }>
+                {unspecifiedTeacherPolicyCount > 0
+                  ? 'netleştirilecek aktif ders'
+                  : 'belirsiz kural yok'}
               </p>
             </div>
           </div>
