@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.3A — solver-ready teacher assignment policy foundation production doğrulaması; ardından Course Plan policy UI |
+| Sıradaki iş paketi | M32.3.1 — Matematik/Orkestra policy sınıflandırması production doğrulaması; ardından kalan UNSPECIFIED audit ve Course Plan policy UI |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1595,3 +1595,61 @@ Sonraki güvenli sıra:
 7. Placement-resource override'ı scope-aware yap.
 8. Assistant option impact / soft penalty metrics.
 9. Full-auto solver readiness ve immutable snapshot solver prototipi.
+
+
+## 35. 28 Eylül 2026 — M32.3A production PASS ve ilk policy audit
+
+M32.3A policy foundation production'a başarıyla uygulandı. Read-only audit gerçek aktif taslakta şu sonucu verdi:
+
+- requirements: 193
+- REQUIREMENT scoped: 117
+- BLOCK scoped: 54
+- UNSPECIFIED: 22
+- fullAutoReady: false
+- requiredContinuityViolations: 0
+- unspecifiedMultiBlockPools: 6
+  - 10A SECTION / Matematik
+  - 10B SECTION / Matematik
+  - 9A+9B MUSIC / ORKESTRA
+  - 10A+10B MUSIC / ORKESTRA
+  - 11A+11B MUSIC / ORKESTRA
+  - 12A+12B MUSIC / ORKESTRA
+- flexibleMultiTeacherRequirements: 12
+  - Ballet/Doğaçlama/Pilates esnek örnekleri
+  - 5/6/7. sınıf Solfej örnekleri
+
+Bu sonuç yeni modelin doğru ayrım yaptığını doğruladı:
+- Ballet + Solfej farklı bloklarda farklı öğretmen kullanabildiği için ihlal sayılmıyor.
+- Matematik henüz UNSPECIFIED kaldığı için continuity violation olarak görünmüyor; policy atanması gerekiyor.
+- Orkestra daha önceki ürün kararı gereği geniş esnek öğretmen havuzuna sahip ve blok bazında esnek olmalı.
+
+M32.3.1 eklendi:
+
+```
+20260928223500_management_m32_3_1_teacher_policy_classification.sql
+```
+
+Davranış:
+- SECTION Matematik → `REQUIREMENT + REQUIRED`
+- ORKESTRA → `BLOCK + NONE`
+- placement/candidate/public projection değiştirmez
+
+Commit:
+```
+116bfa6d68063726c73a9a51f5726ac58cb30e82 feat: classify mathematics and orchestra teacher policy
+```
+
+Kalan tüm UNSPECIFIED requirement'ları görmek için read-only SQL:
+```
+docs/sql/m32_3_1_all_unspecified_teacher_policies.sql
+```
+
+Commit:
+```
+f42e01067d279dd1fd93318e74f8f728bd2afb09 docs: add unspecified teacher policy diagnostic
+```
+
+M32.3.1 production apply sonrası beklenen önemli değişiklik:
+- unspecifiedMultiBlockPools → 0
+- requiredContinuityViolations → 2 (10A ve 10B Matematik), çünkü mevcut placement'larda iki farklı resolved Matematik öğretmeni kullanılıyor.
+- Bu iki ihlal otomatik düzeltilmeyecek; reconciliation kullanıcıya açıklanarak yapılacak.
