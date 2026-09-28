@@ -119,26 +119,28 @@ export function ManagementQuickTour({
   }, [current.target, open, step]);
 
   const cardStyle = useMemo(() => {
-    const width = Math.min(520, Math.max(320, window.innerWidth - 32));
+    const viewportWidth = typeof window === 'undefined' ? 1440 : viewportWidth;
+    const viewportHeight = typeof window === 'undefined' ? 900 : viewportHeight;
+    const width = Math.min(520, Math.max(320, viewportWidth - 32));
     const margin = 22;
 
     if (!spotlight) {
       return {
-        left: Math.max(16, (window.innerWidth - width) / 2),
+        left: Math.max(16, (viewportWidth - width) / 2),
         bottom: 24,
         width,
       };
     }
 
-    const rightSpace = window.innerWidth - (spotlight.left + spotlight.width);
+    const rightSpace = viewportWidth - (spotlight.left + spotlight.width);
     const leftSpace = spotlight.left;
-    const belowSpace = window.innerHeight - (spotlight.top + spotlight.height);
+    const belowSpace = viewportHeight - (spotlight.top + spotlight.height);
     const aboveSpace = spotlight.top;
 
     if (rightSpace >= width + margin) {
       return {
         left: spotlight.left + spotlight.width + margin,
-        top: Math.max(20, Math.min(spotlight.top, window.innerHeight - 360)),
+        top: Math.max(20, Math.min(spotlight.top, viewportHeight - 360)),
         width,
       };
     }
@@ -146,7 +148,7 @@ export function ManagementQuickTour({
     if (leftSpace >= width + margin) {
       return {
         left: spotlight.left - width - margin,
-        top: Math.max(20, Math.min(spotlight.top, window.innerHeight - 360)),
+        top: Math.max(20, Math.min(spotlight.top, viewportHeight - 360)),
         width,
       };
     }
@@ -155,7 +157,7 @@ export function ManagementQuickTour({
       return {
         left: Math.max(16, Math.min(
           spotlight.left + spotlight.width / 2 - width / 2,
-          window.innerWidth - width - 16,
+          viewportWidth - width - 16,
         )),
         top: spotlight.top + spotlight.height + margin,
         width,
@@ -166,15 +168,15 @@ export function ManagementQuickTour({
       return {
         left: Math.max(16, Math.min(
           spotlight.left + spotlight.width / 2 - width / 2,
-          window.innerWidth - width - 16,
+          viewportWidth - width - 16,
         )),
-        bottom: window.innerHeight - spotlight.top + margin,
+        bottom: viewportHeight - spotlight.top + margin,
         width,
       };
     }
 
     return {
-      left: Math.max(16, (window.innerWidth - width) / 2),
+      left: Math.max(16, (viewportWidth - width) / 2),
       bottom: 24,
       width,
     };
