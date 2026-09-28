@@ -12,11 +12,11 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `ff2654c3dfbe354f2535a88d6b187a5bdf1ec8be` |
-| Implementation commit | `fix: stabilize placement resource overrides` |
-| Production/documentation HEAD (26 Eylül başlangıcı) | `48cfbe8b8ea55c586b8c9f94974ac6fdcc6bb2c2` |
-| Son kullanıcı kabulü | M29.1–M29.5 placement resource override tamamlandı; Geri Al/Yinele doğrulandı |
-| Sıradaki iş paketi | Öğretmen havuzu read-only veri teşhisi |
+| Son doğrulanmış implementation checkpoint | `4a8ee3cf0a9947b192911e85efc0a4626e2db31b` |
+| Implementation commit | `fix: clean M29 room pool test artifacts` |
+| Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
+| Son kullanıcı kabulü | M30.1 öğretmen havuzu ve M30.2 salon havuzu temizliği production'da PASS; M29 test artıkları temizlendi |
+| Sıradaki iş paketi | Otomatik / yarı otomatik yerleştirme — solitaire yaklaşımı |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -42,7 +42,7 @@ Yeni oturumda ilk iş bu dosya okunur. Ardından aşağıdaki durum doğrulanır
 ```powershell
 cd C:\Users\chodo\msgsud-bale-programi
 git fetch origin
-git switch feat/management-m20-placement-recovery
+git switch main
 git pull --ff-only
 git rev-parse HEAD
 git status --short
@@ -912,4 +912,80 @@ M30.2:
 - yalnız ilgili aktif draft kartların candidate domain'ini yeniler;
 - public program session/group count + hash guard'ları ile yayımlanmış programı korur.
 
-Durum: **GitHub'a commit edildi; remote apply henüz yapılmadı.**
+Durum: **Production Supabase'e uygulandı ve post-apply audit PASS.**
+
+
+## 23. 28 Eylül 2026 — M30 veri temizliği kapanış checkpoint'i
+
+Muğla işyeri ortamında yerel Windows oturumunda Git mevcut, Node/npm/npx yok ve yönetici yetkisi bulunmuyor. Sistem ayarlarına veya kurumsal Windows kurulumuna müdahale edilmedi; çalışma GitHub Codespaces üzerinden `main` branch'inde sürdürüldü.
+
+### M30.2 production apply
+
+Önce remote migration listesi kontrol edildi. `20260926211500` yalnız local tarafta pending görünüyordu.
+
+Dry-run:
+
+```
+Would push these migrations:
+ • 20260926211500_management_m30_2_room_pool_cleanup.sql
+```
+
+Dry-run tam olarak beklenen tek migration'ı gösterdi. Ardından:
+
+```
+npx supabase db push
+```
+
+ile migration production Supabase'e başarıyla uygulandı.
+
+Migration:
+
+```
+20260926211500_management_m30_2_room_pool_cleanup.sql
+```
+
+Implementation checkpoint:
+
+```
+4a8ee3cf0a9947b192911e85efc0a4626e2db31b
+fix: clean M29 room pool test artifacts
+```
+
+### Post-apply doğrulama
+
+`docs/diagnostics/M30_2_ROOM_POOL_AUDIT.sql` production Supabase SQL Editor'da yeniden çalıştırıldı.
+
+Sonuç:
+
+```
+Success. No rows returned
+```
+
+Bu sonuç 26 Eylül M29 test zincirinden kalan şüpheli salon-havuzu ilişkilerinin artık audit tarafından bulunmadığını doğruladı. M30.2 **PASS** kabul edildi.
+
+M30 kapanış durumu:
+
+- M30.1 öğretmen havuzu temizliği: **PASS**
+- M30.2 salon havuzu temizliği: **PASS**
+- M29.2/M29.3 geçici havuz genişletme yan etkileri için bilinen test artıkları temizlendi.
+- M29 placement resource override mimarisi kapalı ve kabul edilmiş durumda.
+- M29/M30 yeniden açılmayacak; yalnız yeni bir regression veya yeni teşhis kanıtı varsa geri dönülecek.
+
+### Sonraki iş paketi
+
+Bir sonraki implementation aşaması:
+
+**Otomatik / yarı otomatik yerleştirme — solitaire yaklaşımı**
+
+Başlangıç ilkeleri:
+
+- Mevcut candidate/conflict altyapısı yeniden kullanılacak.
+- En az geçerli seçeneği olan / en kısıtlı kartlar önce değerlendirilecek.
+- Açıkça güvenli yerleşimler önerilebilir veya kullanıcı kontrollü uygulanabilir.
+- Belirsiz/çatışmalı durumlar otomatik zorlanmayacak.
+- Grouped/atomic kart invariantları korunacak.
+- M22 provisional resource semantiği korunacak: `UNKNOWN != ABSENT != UNAVAILABLE`.
+- Mevcut placement resource override davranışı ve undo/redo zinciri bozulmayacak.
+- Veri-mutating otomasyon başlamadan önce read-only öneri/planlama katmanı tercih edilecek.
+
+Yeni oturumda `main` esas alınacak; eski `feat/management-m20-placement-recovery` branch'i çalışma branch'i olarak kullanılmayacak.
