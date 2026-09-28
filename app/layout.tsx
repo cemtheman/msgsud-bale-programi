@@ -3,12 +3,12 @@ import './globals.css';
 import { PullToRefresh } from '@/components/PullToRefresh';
 
 export const metadata: Metadata = {
-  title: 'MSGSÜ Ders Programı',
-  description: 'MSGSÜ 2026–2027 çok sınıflı ders programı',
+  title: 'Partisyon · MSGSÜ İstanbul Devlet Konservatuvarı',
+  description: 'MSGSÜ İstanbul Devlet Konservatuvarı ders programı ve kaynak yönetimi',
   appleWebApp: { 
     capable: true, 
     statusBarStyle: 'default', 
-    title: 'Ders Programı'
+    title: 'Partisyon'
   },
   icons: { 
     icon: '/icon.svg', 
