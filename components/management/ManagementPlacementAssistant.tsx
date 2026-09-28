@@ -5,6 +5,7 @@ import type {
   ManagementPlacementAssistantGroup,
   ManagementPlacementAssistantOption,
   ManagementPlacementAssistantPlan,
+  ManagementPlacementAssistantSlot,
 } from '@/lib/managementPlacementAssistant';
 
 const DAY_LABELS: Record<number, string> = {
@@ -52,7 +53,10 @@ export function ManagementPlacementAssistant({
     group: ManagementPlacementAssistantGroup,
     option: ManagementPlacementAssistantOption,
   ) => void;
-  onInspect: (group: ManagementPlacementAssistantGroup) => void;
+  onInspect: (
+    group: ManagementPlacementAssistantGroup,
+    slot?: ManagementPlacementAssistantSlot,
+  ) => void;
   onClose: () => void;
 }) {
   const [expandedPlanIds, setExpandedPlanIds] = useState<string[]>([]);
@@ -221,12 +225,12 @@ export function ManagementPlacementAssistant({
                   <div className="mt-3 space-y-3">
                     {plans.map((plan, index) => {
                       const expanded = expandedPlanIds.includes(plan.group.id);
-                      const visibleOptions = expanded
-                        ? plan.exactOptions
-                        : plan.exactOptions.slice(0, 5);
-                      const hiddenOptionCount = Math.max(
+                      const visibleSlots = expanded
+                        ? plan.slots
+                        : plan.slots.slice(0, 5);
+                      const hiddenSlotCount = Math.max(
                         0,
-                        plan.exactOptions.length - visibleOptions.length,
+                        plan.slots.length - visibleSlots.length,
                       );
                       const directlyForced = (
                         plan.commonSlotCount === 1
@@ -283,38 +287,65 @@ export function ManagementPlacementAssistant({
                                   Güncel kontrolde bu birleşik ders için ortak uygun saat bulunamadı.
                                   Ayrıntıları incelemek gerekiyor.
                                 </div>
-                              ) : plan.exactOptions.length > 0 ? (
+                              ) : (
                                 <div className="mt-3 space-y-2">
-                                  {visibleOptions.map((option) => (
-                                    <div
-                                      key={option.id}
-                                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"
-                                    >
-                                      <div className="min-w-0">
-                                        <p className="text-[10px] font-black text-slate-900">
-                                          {DAY_LABELS[option.dayOfWeek] ?? String(option.dayOfWeek) + '. gün'}
-                                          {' · '}
-                                          {option.startPeriod}. ders
-                                        </p>
-                                        <p className="mt-0.5 truncate text-[8px] font-semibold text-slate-500">
-                                          {option.teacherLabels.join(' · ')}
-                                          {' · '}
-                                          {option.roomLabels.join(' · ')}
-                                        </p>
-                                      </div>
+                                  {visibleSlots.map((slot) => {
+                                    const option = slot.exactOption;
 
-                                      <button
-                                        type="button"
-                                        onClick={() => onApply(plan.group, option)}
-                                        disabled={!canEdit || commandBusy}
-                                        className="shrink-0 rounded-lg bg-emerald-800 px-3 py-2 text-[9px] font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-35"
+                                    return (
+                                      <div
+                                        key={slot.id}
+                                        className={
+                                          option
+                                            ? 'flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5'
+                                            : 'flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2.5'
+                                        }
                                       >
-                                        Uygula
-                                      </button>
-                                    </div>
-                                  ))}
+                                        <div className="min-w-0">
+                                          <p className="text-[10px] font-black text-slate-900">
+                                            {DAY_LABELS[slot.dayOfWeek] ?? String(slot.dayOfWeek) + '. gün'}
+                                            {' · '}
+                                            {slot.startPeriod}. ders
+                                          </p>
 
-                                  {plan.exactOptions.length > 5 && (
+                                          {option ? (
+                                            <p className="mt-0.5 truncate text-[8px] font-semibold text-slate-500">
+                                              {option.teacherLabels.join(' · ')}
+                                              {' · '}
+                                              {option.roomLabels.join(' · ')}
+                                            </p>
+                                          ) : (
+                                            <p className="mt-0.5 text-[8px] font-semibold text-amber-700">
+                                              {slot.primaryCandidates.length > 1
+                                                ? String(slot.primaryCandidates.length) + ' öğretmen / salon seçeneği'
+                                                : 'Kaynak seçimi gerekiyor'}
+                                            </p>
+                                          )}
+                                        </div>
+
+                                        {option ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => onApply(plan.group, option)}
+                                            disabled={!canEdit || commandBusy}
+                                            className="shrink-0 rounded-lg bg-emerald-800 px-3 py-2 text-[9px] font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-35"
+                                          >
+                                            Uygula
+                                          </button>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => onInspect(plan.group, slot)}
+                                            className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-2 text-[9px] font-black text-amber-800 transition hover:bg-amber-100"
+                                          >
+                                            Kaynak seç
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+
+                                  {plan.slots.length > 5 && (
                                     <button
                                       type="button"
                                       onClick={() => setExpandedPlanIds((current) => (
@@ -326,18 +357,13 @@ export function ManagementPlacementAssistant({
                                     >
                                       {expanded
                                         ? 'Daha az göster'
-                                        : String(hiddenOptionCount) + ' seçenek daha göster'}
+                                        : String(hiddenSlotCount) + ' seçenek daha göster'}
                                     </button>
                                   )}
                                 </div>
-                              ) : (
-                                <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2.5 text-[10px] font-semibold leading-5 text-amber-800">
-                                  Uygun saat var; ancak öğretmen veya salon seçimi hâlâ gerekiyor.
-                                  Asistan sizin yerinize kaynak seçmez.
-                                </div>
                               )}
 
-                              {(plan.resourceChoiceSlotCount > 0 || plan.commonSlotCount === 0) && (
+                              {plan.commonSlotCount === 0 && (
                                 <button
                                   type="button"
                                   onClick={() => onInspect(plan.group)}
