@@ -2,9 +2,9 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'MSGSÜ Ders Programı',
-    short_name: 'Ders Programı',
-    description: 'MSGSÜ 2026–2027 çok sınıflı ders programı',
+    name: 'Partisyon · MSGSÜ İstanbul Devlet Konservatuvarı',
+    short_name: 'Partisyon',
+    description: 'MSGSÜ İstanbul Devlet Konservatuvarı ders programı ve kaynak yönetimi',
     start_url: '/',
     display: 'standalone',
     orientation: 'portrait',
