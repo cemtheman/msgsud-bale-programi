@@ -15,6 +15,7 @@ import { ManagementConfirmOverlay } from '@/components/management/ManagementConf
 import { ManagementProgramStatus } from '@/components/management/ManagementProgramStatus';
 import { ManagementCoursePlan } from '@/components/management/ManagementCoursePlan';
 import { ManagementResources } from '@/components/management/ManagementResources';
+import { ManagementHelpCenter } from '@/components/management/ManagementHelpCenter';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   buildManagementRowDisplayCards,
@@ -130,6 +131,13 @@ const RESOURCE_VIEWS: Array<{
   { id: 'ÖĞRETMENLER', label: 'Öğretmenler' },
   { id: 'SALONLAR', label: 'Salonlar' },
 ];
+
+const SECTION_DESCRIPTIONS: Record<'PROGRAM' | 'PLAN' | 'RESOURCES' | 'STATUS', string> = {
+  PROGRAM: 'Dersleri havuzdan haftalık programa yerleştirin.',
+  PLAN: 'Derslerin blok yapısını ve kullanılabilecek öğretmen / salon kurallarını tanımlayın.',
+  RESOURCES: 'Öğretmenleri, salonları ve kullanılabilirlik durumlarını yönetin.',
+  STATUS: 'Taslağın eksiklerini ve yayın öncesi kontrollerini gözden geçirin.',
+};
 
 function roleLabel(role: string | null | undefined) {
   if (role === 'ADMIN') return 'Yönetici';
@@ -312,6 +320,7 @@ export default function ManagementPage() {
 
   const [poolOpen, setPoolOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
@@ -1269,6 +1278,10 @@ export default function ManagementPage() {
             </nav>
           </div>
 
+          <p className="hidden max-w-[430px] truncate text-[10px] font-medium text-slate-400 2xl:block">
+            {SECTION_DESCRIPTIONS[activeSection]}
+          </p>
+
           <div className="ml-auto flex items-center gap-2">
             <span className="hidden max-w-[210px] truncate text-[10px] font-medium text-slate-400 xl:block">
               {session?.email}
@@ -1282,6 +1295,14 @@ export default function ManagementPage() {
                 Düzenleme açık
               </span>
             )}
+            <button
+              type="button"
+              onClick={() => setHelpOpen(true)}
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+              aria-label="Yönetim yardım merkezini aç"
+            >
+              ? Yardım
+            </button>
             <button
               type="button"
               onClick={() => setRefreshToken((value) => value + 1)}
@@ -2022,6 +2043,12 @@ export default function ManagementPage() {
           publicationGate={publicationGate}
         />
       )}
+
+      <ManagementHelpCenter
+        open={helpOpen}
+        activeSection={activeSection}
+        onClose={() => setHelpOpen(false)}
+      />
 
       {removeConfirmOpen && selectedCard?.placement && selectedCards.length > 0 && (
         <ManagementConfirmOverlay
