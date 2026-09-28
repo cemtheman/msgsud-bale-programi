@@ -116,11 +116,13 @@ export function ManagementHelpCenter({
   activeSection,
   onClose,
   onNavigate,
+  onStartTour,
 }: {
   open: boolean;
   activeSection: ManagementSection;
   onClose: () => void;
   onNavigate: (section: ManagementSection) => void;
+  onStartTour: () => void;
 }) {
   const [showAllTerms, setShowAllTerms] = useState(false);
   const [expandedTerm, setExpandedTerm] = useState<string | null>(null);
@@ -190,6 +192,25 @@ export function ManagementHelpCenter({
               ))}
             </div>
           </section>
+
+          <button
+            type="button"
+            onClick={onStartTour}
+            className="mt-3 flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50"
+          >
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.12em] text-[#A63D48]">
+                Hızlı başlangıç
+              </p>
+              <p className="mt-1 text-[11px] font-black text-slate-900">
+                5 adımda yönetim turu
+              </p>
+              <p className="mt-1 text-[9px] font-medium leading-4 text-slate-500">
+                Ders Havuzu, program, uygunluk, ayrıntılar ve Geri Al / Yinele.
+              </p>
+            </div>
+            <span className="ml-4 text-lg font-black text-slate-300">→</span>
+          </button>
 
           <section className="mt-4">
             <div className="flex items-end justify-between gap-3 px-1">
