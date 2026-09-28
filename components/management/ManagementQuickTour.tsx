@@ -57,6 +57,7 @@ function TourDemoOverlay({
 }) {
   if (!spotlight) return null;
 
+  const viewportHeight = typeof window === 'undefined' ? 900 : window.innerHeight;
   const inset = 14;
   const left = spotlight.left + inset;
   const top = spotlight.top + inset;
@@ -177,7 +178,7 @@ function TourDemoOverlay({
         className="pointer-events-none fixed z-[112] rounded-xl border border-[#A63D48]/30 bg-white/96 px-3 py-2 shadow-lg"
         style={{
           left: Math.max(12, spotlight.left - 8),
-          top: Math.min(window.innerHeight - 84, spotlight.top + spotlight.height + 12),
+          top: Math.min(viewportHeight - 84, spotlight.top + spotlight.height + 12),
           width: Math.min(280, Math.max(180, spotlight.width + 40)),
         }}
       >
