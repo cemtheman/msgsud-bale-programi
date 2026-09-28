@@ -579,7 +579,10 @@ export function ManagementBoardGrid({
     .filter((card): card is ManagementBoardCard => Boolean(card));
 
   return (
-    <section className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section
+      data-tour-target="board"
+      className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+    >
       {dragCard && (
         <div className="pointer-events-none absolute left-3 top-3 z-40 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-slate-600 shadow-sm backdrop-blur">
           {dragLoading
