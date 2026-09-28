@@ -1000,24 +1000,25 @@ export function ManagementInspector({
       <div className="mt-4">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-            Uygun yerler
+            Yerleşim seçenekleri
           </p>
           <button
             type="button"
             onClick={() => setCandidateHelpOpen((value) => !value)}
             className="flex h-5 items-center gap-1 rounded-full border border-slate-200 bg-white px-2 text-[9px] font-black text-slate-400 transition hover:border-slate-300 hover:text-slate-700"
-            aria-label="Uygun yer sayıları hakkında bilgi"
+            aria-label="Yerleşim seçenekleri hakkında bilgi"
+            title="Bu sayılar neyi gösteriyor?"
           >
-            i <span>{candidateHelpOpen ? 'Gizle' : 'Ne demek?'}</span>
+            i
           </button>
         </div>
 
         {candidateHelpOpen && (
           <div className="mt-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-[9px] font-medium leading-4 text-blue-800">
-            <strong>Uygun</strong>, dersin doğrudan yerleşebileceği başlangıçları gösterir.
-            <strong> Belirsiz</strong>, zamanın mümkün olabildiği ancak öğretmen veya salon gibi bir bilginin
-            henüz kesinleşmediği durumları gösterir. <strong>Geçersiz</strong> ise sınıf, öğretmen,
-            salon veya zaman kuralı nedeniyle kullanılamayan başlangıçlardır.
+            <strong>Uygun</strong>, dersin doğrudan yerleşebileceği seçenekleri gösterir.
+            <strong> Bilgi eksik</strong>, zamanın mümkün olabildiği ancak öğretmen veya salon gibi bir bilginin
+            henüz kesinleşmediği durumları gösterir. <strong>Uygun değil</strong> ise sınıf, öğretmen,
+            salon veya zaman kuralı nedeniyle kullanılamayan seçeneklerdir.
           </div>
         )}
 
@@ -1027,11 +1028,11 @@ export function ManagementInspector({
             <p className="mt-1 text-lg font-black text-emerald-950">{card.validCount}</p>
           </div>
           <div className="rounded-xl bg-amber-50 p-2.5">
-            <p className="text-[9px] font-black uppercase text-amber-700">Belirsiz</p>
+            <p className="text-[9px] font-black uppercase text-amber-700">Bilgi eksik</p>
             <p className="mt-1 text-lg font-black text-amber-950">{card.unresolvedCount}</p>
           </div>
           <div className="rounded-xl bg-slate-100 p-2.5">
-            <p className="text-[9px] font-black uppercase text-slate-500">Geçersiz</p>
+            <p className="text-[9px] font-black uppercase text-slate-500">Uygun değil</p>
             <p className="mt-1 text-lg font-black text-slate-900">{card.invalidCount}</p>
           </div>
         </div>
@@ -1057,7 +1058,8 @@ export function ManagementInspector({
             </p>
 
             <p className="mt-1 text-[9px] font-medium leading-4 text-slate-400">
-              Kullanılamayan saatlerin en sık nedenleri aşağıda özetlenir.
+              Kullanılamayan seçeneklerin en sık nedenleri aşağıda özetlenir. Bir seçenek birden
+              fazla nedenle elenebildiği için aşağıdaki sayıların toplamı “Uygun değil” sayısını aşabilir.
             </p>
 
             {candidateDetail.reasonCounts.length === 0 ? (
