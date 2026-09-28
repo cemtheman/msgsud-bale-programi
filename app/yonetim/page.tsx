@@ -1231,6 +1231,23 @@ export default function ManagementPage() {
     setTourOpen(true);
   };
 
+  const changeTourStep = (nextStep: number) => {
+    setActiveSection('PROGRAM');
+
+    if (nextStep === 0) {
+      setPoolOpen(true);
+    }
+
+    if (nextStep === 3 && !showInspector) {
+      const tourCard = visibleCards.find((card) => Boolean(card.placement)) ?? null;
+      if (tourCard) {
+        selectCard(tourCard.id);
+      }
+    }
+
+    setTourStep(nextStep);
+  };
+
   const dismissQuickTour = () => {
     setTourOpen(false);
     try {
@@ -1452,7 +1469,7 @@ export default function ManagementPage() {
             )}
   
             {access?.canEdit ? (
-              <div className="flex items-center gap-1.5">
+              <div data-tour-target="history-actions" className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => void runUndo()}
@@ -1565,7 +1582,10 @@ export default function ManagementPage() {
             />
           )}
   
-          <div className="flex min-h-0 min-w-0 flex-col">
+          <div
+            data-tour-target="program-area"
+            className="flex min-h-0 min-w-0 flex-col"
+          >
             <div className="mb-2 flex h-8 shrink-0 items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">
@@ -2082,7 +2102,7 @@ export default function ManagementPage() {
       <ManagementQuickTour
         open={tourOpen}
         step={tourStep}
-        onStepChange={setTourStep}
+        onStepChange={changeTourStep}
         onClose={dismissQuickTour}
         onFinish={dismissQuickTour}
       />
