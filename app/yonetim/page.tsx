@@ -72,8 +72,10 @@ import {
 } from '@/lib/managementPlacementAssistant';
 import {
   applyManagementRequirementStructure,
+  applyManagementRequirementTeacherPolicy,
   fetchManagementCoursePlan,
   previewManagementRequirementStructure,
+  previewManagementRequirementTeacherPolicy,
   updateManagementRequirementRoomStrategy,
   type ManagementCoursePlanData,
   type ManagementPlanStage,
@@ -1991,6 +1993,53 @@ export default function ManagementPage() {
                 requirementId,
                 teacherIds,
               );
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onUpdateTeacherPolicyPreview={async (
+            requirementId,
+            scope,
+            continuity,
+          ) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            return previewManagementRequirementTeacherPolicy(
+              session.accessToken,
+              requirementId,
+              scope,
+              continuity,
+            );
+          }}
+          onUpdateTeacherPolicy={async (
+            requirementId,
+            scope,
+            continuity,
+            expectedStateToken,
+          ) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Öğretmen kuralı güvenli biçimde güncelleniyor.');
+
+            try {
+              await applyManagementRequirementTeacherPolicy(
+                session.accessToken,
+                requirementId,
+                scope,
+                continuity,
+                expectedStateToken,
+              );
+              setCommandNotice({
+                kind: 'success',
+                text: 'Öğretmen kuralı kaydedildi. Mevcut yerleşimler değiştirilmedi.',
+              });
               setRefreshToken((value) => value + 1);
             } finally {
               setCommandBusy(false);
