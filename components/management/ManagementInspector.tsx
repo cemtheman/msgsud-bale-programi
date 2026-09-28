@@ -166,6 +166,7 @@ export function ManagementInspector({
   const [focusTeacherId, setFocusTeacherId] = useState<string | null>(null);
   const [focusRoomId, setFocusRoomId] = useState<string | null>(null);
   const [showGeneralCandidates, setShowGeneralCandidates] = useState(false);
+  const [candidateHelpOpen, setCandidateHelpOpen] = useState(false);
   const [placementEditMode, setPlacementEditMode] = useState<'TEACHER' | 'ROOM' | null>(null);
   const [placementChoiceId, setPlacementChoiceId] = useState<string | null>(null);
   const [planTeacherOpen, setPlanTeacherOpen] = useState(false);
@@ -378,6 +379,7 @@ export function ManagementInspector({
 
   useEffect(() => {
     setShowGeneralCandidates(false);
+    setCandidateHelpOpen(false);
   }, [
     card?.id,
     card?.placement?.dayOfWeek,
@@ -553,6 +555,9 @@ export function ManagementInspector({
           </p>
           <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">
             Gün veya saati değiştirmek için kartı çizelgede sürükleyin. Öğretmen veya salonu değiştirmek için kaynağı seçin; sistem mevcut slot üzerindeki etkisini ve çakışmaları önce hesaplar.
+          </p>
+          <p className="mt-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-[9px] font-semibold leading-4 text-blue-800">
+            Bu işlem yalnızca bu mevcut yerleşimi değiştirir. Ders Planı’ndaki öğretmen veya salon havuzu değişmez.
           </p>
 
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -993,9 +998,29 @@ export function ManagementInspector({
       )}
 
       <div className="mt-4">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-          Aday alanı
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+            Uygun yerler
+          </p>
+          <button
+            type="button"
+            onClick={() => setCandidateHelpOpen((value) => !value)}
+            className="flex h-5 items-center gap-1 rounded-full border border-slate-200 bg-white px-2 text-[9px] font-black text-slate-400 transition hover:border-slate-300 hover:text-slate-700"
+            aria-label="Uygun yer sayıları hakkında bilgi"
+          >
+            i <span>{candidateHelpOpen ? 'Gizle' : 'Ne demek?'}</span>
+          </button>
+        </div>
+
+        {candidateHelpOpen && (
+          <div className="mt-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-[9px] font-medium leading-4 text-blue-800">
+            <strong>Uygun</strong>, dersin doğrudan yerleşebileceği başlangıçları gösterir.
+            <strong> Belirsiz</strong>, zamanın mümkün olabildiği ancak öğretmen veya salon gibi bir bilginin
+            henüz kesinleşmediği durumları gösterir. <strong>Geçersiz</strong> ise sınıf, öğretmen,
+            salon veya zaman kuralı nedeniyle kullanılamayan başlangıçlardır.
+          </div>
+        )}
+
         <div className="mt-2 grid grid-cols-3 gap-2">
           <div className="rounded-xl bg-emerald-50 p-2.5">
             <p className="text-[9px] font-black uppercase text-emerald-700">Uygun</p>
@@ -1028,7 +1053,11 @@ export function ManagementInspector({
         <>
           <div className="mt-4">
             <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-              Neden değil?
+              Neden uygun değil?
+            </p>
+
+            <p className="mt-1 text-[9px] font-medium leading-4 text-slate-400">
+              Kullanılamayan saatlerin en sık nedenleri aşağıda özetlenir.
             </p>
 
             {candidateDetail.reasonCounts.length === 0 ? (
