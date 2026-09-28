@@ -48,10 +48,10 @@ const SECTION_GUIDES: Record<
     summary:
       'Öğretmenlerin ve salonların adlarını, kullanılabilirlik durumlarını ve salon özelliklerini buradan yönetirsiniz. Kaynak değişiklikleri uygun yer hesaplarını etkileyebilir.',
     detail:
-      'Kaynaklar ekranı “kim ve nerede ders verebilir?” sorusunun temel verisini tutar. Bir öğretmeni pasif yapmak veya bir salonu kullanım dışına almak, o kaynağa bağlı uygun yerleri etkileyebilir. Salon özellikleri de belirli derslerin hangi mekânlarda çalışabileceğini belirler.',
+      'Kaynaklar ekranı “kim ve nerede ders verebilir?” sorusunun temel verisini tutar. Bir öğretmeni atamaya kapatmak veya bir salonu kullanım dışına almak, o kaynağa bağlı uygun yerleri etkileyebilir. Salon özellikleri de belirli derslerin hangi mekânlarda çalışabileceğini belirler.',
     steps: [
       'Öğretmen veya salon listesinden kaynağı seçin.',
-      'Ad, aktiflik veya salon özelliği gibi gerekli alanı değiştirin.',
+      'Ad, atama durumu veya salon özelliği gibi gerekli alanı değiştirin.',
       'Etkisi olan işlemlerde önizlemeyi kontrol edin.',
       'Kullanımda olan kaynakları silmek yerine durumunu yönetmeyi tercih edin.',
     ],
@@ -89,7 +89,7 @@ const GLOSSARY = [
     term: 'Bilgi eksik',
     text: 'Bir hata anlamına gelmez. Öğretmen veya salon gibi bir bilgi henüz kesinleşmemiş olabilir.',
     detail:
-      'Belirsiz bir kaynak “yok” veya “uygun değil” demek değildir. Sistem o ders için geçerli bir yer bulabiliyorsa ders programa alınabilir; kesin kaynak seçimi daha sonra tamamlanabilir.',
+      'Bilgi eksik görünen bir kaynak “yok” veya “uygun değil” demek değildir. Sistem o ders için geçerli bir yer bulabiliyorsa ders programa alınabilir; kesin kaynak seçimi daha sonra tamamlanabilir.',
   },
   {
     term: 'Ortak kart',
@@ -137,7 +137,7 @@ export function ManagementHelpCenter({
   };
 
   return (
-    <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true" aria-label="Yönetim yardım merkezi">
+    <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true" aria-label="Partisyon yardım merkezi">
       <button
         type="button"
         className="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]"
@@ -152,7 +152,7 @@ export function ManagementHelpCenter({
               Yardım Merkezi
             </p>
             <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950">
-              Yönetim nasıl çalışır?
+              Partisyon nasıl çalışır?
             </h2>
           </div>
           <button
@@ -203,7 +203,7 @@ export function ManagementHelpCenter({
                 Hızlı başlangıç
               </p>
               <p className="mt-1 text-[11px] font-black text-slate-900">
-                5 adımda yönetim turu
+                5 adımda Partisyon turu
               </p>
               <p className="mt-1 text-[9px] font-medium leading-4 text-slate-500">
                 Ders Havuzu, program, uygunluk, ayrıntılar ve Geri Al / Yinele.
