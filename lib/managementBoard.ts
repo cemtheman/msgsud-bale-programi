@@ -335,7 +335,7 @@ export function translateCandidateReason(code: string) {
     TEACHER_CONFLICT: 'Öğretmen aynı saatte başka derste',
     ROOM_CONFLICT: 'Salon aynı saatte kullanımda',
     ROOM_INACTIVE: 'Salon kullanımda değil',
-    TEACHER_INACTIVE: 'Öğretmen aktif görevde değil',
+    TEACHER_INACTIVE: 'Öğretmen atamaya kapalı',
     GROUP_CONFLICT: 'Öğrenci grubu aynı saatte başka derste',
   };
 
