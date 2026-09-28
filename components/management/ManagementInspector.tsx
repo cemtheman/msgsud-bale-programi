@@ -30,7 +30,7 @@ const DAY_LABELS: Record<number, string> = {
 
 function assignmentModeLabel(value: string) {
   if (value === 'FIXED') return 'Sabit';
-  if (value === 'ELIGIBLE_POOL') return 'Seçilebilir havuz';
+  if (value === 'ELIGIBLE_POOL') return 'Birden fazla seçenek';
   if (value === 'CAPABILITY') return 'Özelliğe göre';
   return 'Belirsiz';
 }
