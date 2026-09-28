@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import type {
   ManagementPlacementAssistantGroup,
-  ManagementPlacementAssistantSuggestion,
+  ManagementPlacementAssistantOption,
+  ManagementPlacementAssistantPlan,
 } from '@/lib/managementPlacementAssistant';
 
 const DAY_LABELS: Record<number, string> = {
@@ -21,8 +23,7 @@ export function ManagementPlacementAssistant({
   open,
   scopeLabel,
   groups,
-  suggestions,
-  reviewCount,
+  plans,
   loading,
   analyzed,
   stale,
@@ -31,13 +32,13 @@ export function ManagementPlacementAssistant({
   commandBusy,
   onAnalyze,
   onApply,
+  onInspect,
   onClose,
 }: {
   open: boolean;
   scopeLabel: string;
   groups: ManagementPlacementAssistantGroup[];
-  suggestions: ManagementPlacementAssistantSuggestion[];
-  reviewCount: number;
+  plans: ManagementPlacementAssistantPlan[];
   loading: boolean;
   analyzed: boolean;
   stale: boolean;
@@ -45,9 +46,15 @@ export function ManagementPlacementAssistant({
   canEdit: boolean;
   commandBusy: boolean;
   onAnalyze: () => void;
-  onApply: (suggestion: ManagementPlacementAssistantSuggestion) => void;
+  onApply: (
+    group: ManagementPlacementAssistantGroup,
+    option: ManagementPlacementAssistantOption,
+  ) => void;
+  onInspect: (group: ManagementPlacementAssistantGroup) => void;
   onClose: () => void;
 }) {
+  const [expandedPlanIds, setExpandedPlanIds] = useState<string[]>([]);
+
   if (!open) return null;
 
   const singleOptionCount = groups.filter(
@@ -62,6 +69,7 @@ export function ManagementPlacementAssistant({
   const problemCount = groups.filter(
     (group) => group.status === 'PROBLEM',
   ).length;
+  const analyzableCount = singleOptionCount + choiceCount;
 
   return (
     <div
@@ -70,18 +78,18 @@ export function ManagementPlacementAssistant({
       aria-modal="true"
       aria-label="Yerleştirme Asistanı"
     >
-      <section className="flex max-h-[calc(100vh-2.5rem)] w-full max-w-[820px] flex-col overflow-hidden rounded-[28px] border border-white/80 bg-[#FCFBF8] shadow-[0_30px_100px_rgba(15,23,42,0.24)]">
+      <section className="flex max-h-[calc(100vh-2.5rem)] w-full max-w-[900px] flex-col overflow-hidden rounded-[28px] border border-white/80 bg-[#FCFBF8] shadow-[0_30px_100px_rgba(15,23,42,0.24)]">
         <header className="flex items-start justify-between gap-5 border-b border-slate-200 bg-white px-6 py-5">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#A63D48]">
               Partisyon · Yerleştirme Asistanı
             </p>
             <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-950">
-              Önce kesin olanları yerleştirin
+              En kısıtlı dersten başlayın
             </h2>
-            <p className="mt-2 max-w-[610px] text-[11px] font-medium leading-5 text-slate-500">
-              {scopeLabel}. Asistan yalnız tek ve kesin seçeneği doğrulanabilen dersleri önerir.
-              Birden fazla olasılık veya eksik bilgi varsa kararı size bırakır.
+            <p className="mt-2 max-w-[660px] text-[11px] font-medium leading-5 text-slate-500">
+              {scopeLabel}. Asistan havuzdaki derslerin güncel uygun saatlerini karşılaştırır ve
+              daha az seçeneği olan dersi önce gösterir. Saat seçimi size aittir.
             </p>
           </div>
 
@@ -104,7 +112,7 @@ export function ManagementPlacementAssistant({
                 {singleOptionCount}
               </p>
               <p className="mt-1 text-[9px] font-semibold leading-4 text-emerald-700">
-                önce doğrulanacak
+                karar gerektirmeyebilir
               </p>
             </div>
 
@@ -116,7 +124,7 @@ export function ManagementPlacementAssistant({
                 {choiceCount}
               </p>
               <p className="mt-1 text-[9px] font-semibold leading-4 text-blue-700">
-                birden fazla uygun yol
+                seçenekler karşılaştırılacak
               </p>
             </div>
 
@@ -159,24 +167,24 @@ export function ManagementPlacementAssistant({
               <div className="mt-4 flex items-center justify-between gap-4 rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
                 <div>
                   <p className="text-[10px] font-black text-slate-900">
-                    Güvenli önerileri doğrula
+                    Güncel seçenekleri hesapla
                   </p>
                   <p className="mt-1 text-[10px] font-medium leading-5 text-slate-500">
-                    Yalnız “Tek seçenek” görünen derslerin gün, saat, öğretmen ve salon bilgisi
-                    güncel aday alanından yeniden kontrol edilir. Bu kontrol düzenleme yetkisi gerektirir.
+                    Yerleştirilebilir derslerin aday alanı yeniden hesaplanır. Sonuçlar
+                    en az ortak uygun saatten en çoğa doğru sıralanır.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={onAnalyze}
-                  disabled={!canEdit || loading || commandBusy || singleOptionCount === 0}
+                  disabled={!canEdit || loading || commandBusy || analyzableCount === 0}
                   className="shrink-0 rounded-xl bg-slate-950 px-4 py-2.5 text-[10px] font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {loading
-                    ? 'Kontrol ediliyor…'
+                    ? 'Hesaplanıyor…'
                     : analyzed || stale
-                      ? 'Yeniden kontrol et'
-                      : 'Önerileri hazırla'}
+                      ? 'Yeniden hesapla'
+                      : 'Seçenekleri hazırla'}
                 </button>
               </div>
 
@@ -188,81 +196,158 @@ export function ManagementPlacementAssistant({
 
               {stale && (
                 <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-[10px] font-semibold leading-5 text-blue-800">
-                  Program değişti. Kalan öneriler uygulanmadan önce yeniden kontrol edilmeli.
+                  Program değişti. Önce seçenekleri yeniden hesaplayın.
                 </div>
               )}
 
               {analyzed && !loading && !stale && (
                 <div className="mt-4">
-                  <div className="flex items-end justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                        Doğrulanmış öneriler
-                      </p>
-                      <p className="mt-1 text-sm font-black text-slate-900">
-                        {suggestions.length} ders güvenle önerilebiliyor
-                      </p>
-                    </div>
-                    {reviewCount > 0 && (
-                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[9px] font-black text-amber-700">
-                        {reviewCount} tek seçenek yeniden inceleme istiyor
-                      </span>
-                    )}
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                      Yerleştirme sırası
+                    </p>
+                    <p className="mt-1 text-sm font-black text-slate-900">
+                      {plans.length} ders güncel aday alanıyla karşılaştırıldı
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium leading-5 text-slate-500">
+                      Üstteki dersler daha az ortak uygun saate sahip olduğu için önce ele alınır.
+                    </p>
                   </div>
 
-                  {suggestions.length > 0 ? (
-                    <div className="mt-3 space-y-2">
-                      {suggestions.map((suggestion) => (
-                        <div
-                          key={suggestion.id}
-                          className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm"
+                  <div className="mt-3 space-y-3">
+                    {plans.map((plan, index) => {
+                      const expanded = expandedPlanIds.includes(plan.group.id);
+                      const visibleOptions = expanded
+                        ? plan.exactOptions
+                        : plan.exactOptions.slice(0, 5);
+                      const hiddenOptionCount = Math.max(
+                        0,
+                        plan.exactOptions.length - visibleOptions.length,
+                      );
+                      const directlyForced = (
+                        plan.commonSlotCount === 1
+                        && plan.exactOptions.length === 1
+                        && plan.resourceChoiceSlotCount === 0
+                      );
+
+                      return (
+                        <article
+                          key={plan.group.id}
+                          className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm"
                         >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
+                          <div className="flex items-start gap-3">
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[10px] font-black text-white">
+                              {index + 1}
+                            </span>
+
+                            <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-[12px] font-black text-slate-950">
-                                  {suggestion.subjectName}
+                                <p className="text-[13px] font-black text-slate-950">
+                                  {plan.group.subjectName}
                                 </p>
                                 <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black text-slate-600">
-                                  {classLabel(suggestion.classCodes)}
+                                  {classLabel(plan.group.classCodes)}
                                 </span>
-                                {suggestion.durationPeriods > 1 && (
+                                {plan.group.durationPeriods > 1 && (
                                   <span className="rounded-full bg-blue-50 px-2 py-1 text-[9px] font-black text-blue-700">
-                                    ×{suggestion.durationPeriods} ders
+                                    ×{plan.group.durationPeriods} ders
+                                  </span>
+                                )}
+                                {directlyForced && (
+                                  <span className="rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-black text-emerald-700">
+                                    Tek kesin seçenek
                                   </span>
                                 )}
                               </div>
 
-                              <p className="mt-2 text-[11px] font-black text-emerald-800">
-                                {DAY_LABELS[suggestion.dayOfWeek] ?? String(suggestion.dayOfWeek) + '. gün'}
-                                {' · '}
-                                {suggestion.startPeriod}. ders
-                              </p>
-                              <p className="mt-1 text-[9px] font-semibold leading-4 text-slate-500">
-                                {suggestion.teacherLabels.join(' · ')}
-                                {' · '}
-                                {suggestion.roomLabels.join(' · ')}
-                              </p>
-                            </div>
+                              <div className="mt-2 flex flex-wrap gap-2 text-[9px] font-bold">
+                                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">
+                                  {plan.commonSlotCount} ortak uygun saat
+                                </span>
+                                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                                  {plan.exactOptions.length} doğrudan uygulanabilir
+                                </span>
+                                {plan.resourceChoiceSlotCount > 0 && (
+                                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                                    {plan.resourceChoiceSlotCount} saatte kaynak seçimi gerekir
+                                  </span>
+                                )}
+                              </div>
 
-                            <button
-                              type="button"
-                              onClick={() => onApply(suggestion)}
-                              disabled={!canEdit || commandBusy}
-                              className="shrink-0 rounded-xl bg-emerald-800 px-4 py-2.5 text-[10px] font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-35"
-                            >
-                              Bu öneriyi uygula
-                            </button>
+                              {plan.commonSlotCount === 0 ? (
+                                <div className="mt-3 rounded-xl bg-rose-50 px-3 py-2.5 text-[10px] font-semibold leading-5 text-rose-700">
+                                  Güncel kontrolde bu birleşik ders için ortak uygun saat bulunamadı.
+                                  Ayrıntıları incelemek gerekiyor.
+                                </div>
+                              ) : plan.exactOptions.length > 0 ? (
+                                <div className="mt-3 space-y-2">
+                                  {visibleOptions.map((option) => (
+                                    <div
+                                      key={option.id}
+                                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"
+                                    >
+                                      <div className="min-w-0">
+                                        <p className="text-[10px] font-black text-slate-900">
+                                          {DAY_LABELS[option.dayOfWeek] ?? String(option.dayOfWeek) + '. gün'}
+                                          {' · '}
+                                          {option.startPeriod}. ders
+                                        </p>
+                                        <p className="mt-0.5 truncate text-[8px] font-semibold text-slate-500">
+                                          {option.teacherLabels.join(' · ')}
+                                          {' · '}
+                                          {option.roomLabels.join(' · ')}
+                                        </p>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => onApply(plan.group, option)}
+                                        disabled={!canEdit || commandBusy}
+                                        className="shrink-0 rounded-lg bg-emerald-800 px-3 py-2 text-[9px] font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-35"
+                                      >
+                                        Uygula
+                                      </button>
+                                    </div>
+                                  ))}
+
+                                  {plan.exactOptions.length > 5 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setExpandedPlanIds((current) => (
+                                        current.includes(plan.group.id)
+                                          ? current.filter((id) => id !== plan.group.id)
+                                          : [...current, plan.group.id]
+                                      ))}
+                                      className="text-[9px] font-black text-[#A63D48] hover:underline"
+                                    >
+                                      {expanded
+                                        ? 'Daha az göster'
+                                        : String(hiddenOptionCount) + ' seçenek daha göster'}
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2.5 text-[10px] font-semibold leading-5 text-amber-800">
+                                  Uygun saat var; ancak öğretmen veya salon seçimi hâlâ gerekiyor.
+                                  Asistan sizin yerinize kaynak seçmez.
+                                </div>
+                              )}
+
+                              {(plan.resourceChoiceSlotCount > 0 || plan.commonSlotCount === 0) && (
+                                <button
+                                  type="button"
+                                  onClick={() => onInspect(plan.group)}
+                                  className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-black text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                                >
+                                  Ayrıntılarda incele
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-3 rounded-2xl bg-slate-50 p-4 text-center text-[11px] font-semibold leading-5 text-slate-500">
-                      Tek seçenek olarak görünen derslerin hiçbiri şu anda tam ve kesin bir
-                      otomatik öneriye dönüşmedi. Kararsız kaynakları kullanıcı seçimiyle çözmek gerekiyor.
-                    </div>
-                  )}
+                        </article>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </>
@@ -273,8 +358,8 @@ export function ManagementPlacementAssistant({
               Güvenlik kuralı
             </p>
             <p className="mt-1 text-[10px] font-semibold leading-5 text-slate-600">
-              Asistan kendi başına programı değiştirmez. Bir öneri uygulandığında program durumu
-              değişebileceği için kalan öneriler otomatik olarak geçersiz sayılır ve yeniden kontrol edilir.
+              Asistan sıralama ve seçenek sunar; sizin yerinize karar vermez. Bir seçenek
+              uygulandığında kalan sonuçlar geçersiz sayılır ve yeni programa göre tekrar hesaplanır.
             </p>
           </div>
         </div>
