@@ -24,7 +24,7 @@ begin;
 -- Refuse to declare the invariant on top of an already contradictory
 -- ACTIVE draft. Historical/archived revisions are evidence, not the working
 -- state, and must not block installation of the new rule.
-do $
+do $$
 declare
   v_revision_id uuid;
   v_conflict_count integer;
@@ -64,7 +64,7 @@ begin
       v_conflict_count;
   end if;
 end
-$;
+$$;
 
 
 -- -------------------------------------------------------------------------
@@ -155,7 +155,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = pg_catalog, public
-as $
+as $$
 declare
   v_requirement_id uuid;
   v_revision_id uuid;
@@ -215,7 +215,7 @@ begin
 
   return new;
 end
-$;
+$$;
 
 drop trigger if exists
   zy_management_requirement_teacher_candidate_lock_trigger
