@@ -1582,6 +1582,7 @@ Implementation:
 ```
 7ea3ed11e657b82be287df3a5cea78df5f21e04f docs: design solver-ready teacher assignment policy
 118531d3f264866c7cd69e4b018acd0c3c3847fc refactor: replace teacher lock with policy foundation
+116d0bff2b8a1b7599f76e0e7a123375e339e384 docs: add teacher policy audit helper
 ```
 
 Sonraki güvenli sıra:
