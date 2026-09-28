@@ -140,6 +140,10 @@ function translateCommandError(message: string, fallback: string) {
     return 'Bu aday henüz belirsiz olduğu için işlem yapılamıyor.';
   }
 
+  if (normalized.includes('requirement teacher continuity requires teacher')) {
+    return 'Bu dersin diğer bloklarında farklı bir öğretmen kullanılıyor. Aynı şubenin aynı dersi tüm bloklarda aynı öğretmenle yürütülmeli.';
+  }
+
   if (normalized.includes('already placed')) {
     return 'Bu kart zaten programa yerleştirilmiş.';
   }
