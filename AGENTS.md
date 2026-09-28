@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.2 — kısıt öncelikli yarı otomatik yerleştirme local test/build/browser doğrulaması |
+| Sıradaki iş paketi | M32.2 — stale-board fix local test/build/browser regresyon doğrulaması |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1337,3 +1337,38 @@ c34bbe8af851228c20ad6daf503595ae2ac8baf0 feat: rank and expose placement choices
 ```
 
 Durum: **local focused test + build + aynı 3 kartlık browser senaryosu bekleniyor.**
+
+
+## 30. 28 Eylül 2026 — M32.2 stale-board yarış koşulu düzeltmesi
+
+Gerçek browser testinde şu hata yakalandı:
+
+1. Matematik `5A + 5B` için Asistan'daki ilk seçenek `Uygula` ile başarıyla yerleştirildi.
+2. Yerleşim DB tarafında doğru oluştu.
+3. Kullanıcı hemen `Yeniden hesapla` dedi.
+4. Ana workbench board refresh'i henüz tamamlanmadığı için Asistan eski React board snapshot'ını kullandı.
+5. Matematik hâlâ havuzdaymış gibi yeniden plan listesine girdi.
+
+Screenshot'ta bu yarış koşulu soldaki havuzun hâlâ `3` göstermesiyle doğrulandı.
+
+### Fix
+
+İki katmanlı koruma eklendi:
+
+- Bir Asistan seçeneği uygulandıktan sonra normal workbench refresh döngüsü `dataLoading: false → true → false` tamamlanana kadar `Yeniden hesapla` kapalı tutulur.
+- Bu sırada CTA `Program güncelleniyor…` gösterir.
+- Asistan analizi her başlatıldığında mevcut client board'a güvenmez; önce `fetchManagementBoard` ile **taze server board snapshot'ı** alır.
+- Havuz grupları bu taze board'dan yeniden oluşturulur.
+- Böylece yerleşmiş kart, UI refresh gecikse bile yeni analize tekrar giremez.
+- `runCandidateCommand` ve `runDropCandidates` success/failure döndürür; refresh bekleme kilidi yalnız başarılı placement sonrasında tutulur.
+- Regression testi: yerleşmiş kartın placement assistant queue'ya hiç girmediği doğrulanır.
+
+İlgili commitler:
+
+```
+e89e3c336b5bfa0860a25425470a3c5cfb0aaaf2 fix: prevent stale assistant reanalysis after placement
+45c9ec0da7701c8e3c6076d14fecb915ca01280c polish: show assistant refresh state
+520c3e7ca6069ecb806201c821945ae20929fc67 test: exclude placed cards from assistant queue
+```
+
+Durum: **local focused test + build + aynı Uygula → Yeniden hesapla browser regresyon testi bekleniyor.**
