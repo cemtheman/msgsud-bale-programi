@@ -132,7 +132,6 @@ export function ManagementHelpCenter({
 
   const navigate = (section: ManagementSection) => {
     onNavigate(section);
-    onClose();
   };
 
   return (
