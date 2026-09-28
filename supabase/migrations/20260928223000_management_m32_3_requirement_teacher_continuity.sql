@@ -21,34 +21,50 @@
 
 begin;
 
--- Refuse to declare the invariant on top of an already contradictory draft.
-do $$
+-- Refuse to declare the invariant on top of an already contradictory
+-- ACTIVE draft. Historical/archived revisions are evidence, not the working
+-- state, and must not block installation of the new rule.
+do $
 declare
+  v_revision_id uuid;
   v_conflict_count integer;
 begin
+  select revision.id
+  into v_revision_id
+  from public.schedule_revisions revision
+  join public.requirement_sets requirement_set
+    on requirement_set.id = revision.requirement_set_id
+  where revision.status = 'DRAFT'
+    and requirement_set.status = 'DRAFT'
+    and requirement_set.academic_year = '2026-2027'
+    and requirement_set.term = 1
+  order by revision.created_at desc
+  limit 1;
+
+  if v_revision_id is null then
+    raise exception 'M32.3 active draft revision not found';
+  end if;
+
   select count(*)
   into v_conflict_count
   from (
-    select
-      card.schedule_revision_id,
-      card.requirement_id
+    select card.requirement_id
     from public.placements placement
     join public.schedule_cards card
       on card.id = placement.card_id
-    where placement.teacher_id is not null
-    group by
-      card.schedule_revision_id,
-      card.requirement_id
+    where card.schedule_revision_id = v_revision_id
+      and placement.teacher_id is not null
+    group by card.requirement_id
     having count(distinct placement.teacher_id) > 1
   ) conflict;
 
   if v_conflict_count > 0 then
     raise exception
-      'M32.3 existing teacher-continuity conflicts found in % requirement(s)',
+      'M32.3 active-draft teacher-continuity conflicts found in % requirement(s)',
       v_conflict_count;
   end if;
 end
-$$;
+$;
 
 
 -- -------------------------------------------------------------------------
