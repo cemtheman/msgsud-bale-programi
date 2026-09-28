@@ -73,6 +73,26 @@ function detail(
 }
 
 describe('management placement assistant', () => {
+  it('never includes a card that is already placed', () => {
+    const groups = buildManagementPlacementAssistantGroups([
+      card('placed', '5A', {
+        placement: {
+          id: 'placement-1',
+          dayOfWeek: 1,
+          startPeriod: 3,
+          teacherId: 'teacher',
+          roomId: 'room',
+          teacherName: 'Öğretmen',
+          roomName: 'Salon',
+        },
+      }),
+      card('open', '5B'),
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].cardIds).toEqual(['open']);
+  });
+
   it('classifies a forced unplaced card as a single-option group', () => {
     const groups = buildManagementPlacementAssistantGroups([
       card('a', '5A'),
