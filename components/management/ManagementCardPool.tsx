@@ -65,6 +65,7 @@ export function ManagementCardPool({
   const [queueFilter, setQueueFilter] =
     useState<QueueFilter>('ÇALIŞILABİLİR');
   const [classFilter, setClassFilter] = useState('TÜMÜ');
+  const [poolHelpOpen, setPoolHelpOpen] = useState(false);
 
   const unplacedCards = useMemo(
     () => cards.filter((card) => !card.placement),
@@ -185,10 +186,19 @@ export function ManagementCardPool({
             <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
               Ders Havuzu
             </p>
-            <div className="mt-0.5 flex items-baseline gap-2">
+            <div className="mt-0.5 flex items-center gap-2">
               <h2 className="text-base font-bold text-slate-900">
                 Çalışma kuyruğu
               </h2>
+              <button
+                type="button"
+                onClick={() => setPoolHelpOpen((value) => !value)}
+                className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] font-black text-slate-400 transition hover:border-slate-300 hover:text-slate-700"
+                aria-label="Çalışma kuyruğu hakkında bilgi"
+                title="Çalışma kuyruğu nedir?"
+              >
+                i
+              </button>
               <span className="text-[10px] font-semibold text-slate-400">
                 {displayCards.length} kart · {unplacedCards.length} kayıt
               </span>
@@ -204,6 +214,14 @@ export function ManagementCardPool({
             ‹
           </button>
         </div>
+
+        {poolHelpOpen && (
+          <div className="mt-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-[9px] font-medium leading-4 text-blue-800">
+            Burada yalnız henüz programa yerleşmemiş dersler bulunur. Filtreler, kartları
+            yerleştirme durumuna göre ayırır; “Çalışılabilir” kartların en az bir uygun yeri vardır.
+            Bir karta tıklarsanız neden uygun veya uygun olmadığını Ayrıntılar panelinde görebilirsiniz.
+          </div>
+        )}
 
         <div className="mt-3 flex flex-wrap gap-1.5">
           {QUEUE_FILTERS.map((filter) => (
