@@ -85,7 +85,7 @@ export function ManagementPublicationGate({
     return (
       <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
         <p className="text-sm font-semibold text-slate-400">
-          Sunucu yayın güvenliği hazırlanıyor…
+          Yayın kontrolü hazırlanıyor…
         </p>
       </div>
     );
@@ -107,10 +107,10 @@ export function ManagementPublicationGate({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-            M19.4 · Sunucu yayın güvenliği
+            Yayın öncesi güvenlik kontrolü
           </p>
           <h3 className="mt-1 text-base font-bold text-slate-900">
-            Tüm program için yayın kapısı
+            Tüm program için son kontrol
           </h3>
           <p className="mt-1 max-w-[720px] text-[11px] font-medium leading-5 text-slate-500">
             Bu kontrol bütün taslağı birlikte değerlendirir. Yalnız seçili Ortaokul
@@ -127,7 +127,7 @@ export function ManagementPublicationGate({
             ? 'border-rose-200 bg-rose-50 text-rose-700'
             : 'border-emerald-200 bg-emerald-50 text-emerald-700',
         ].join(' ')}>
-          {blocked ? 'Yayın kapalı' : 'Sunucu kontrolleri geçti'}
+          {blocked ? 'Yayın şu anda kapalı' : 'Yayın kontrolleri tamam'}
         </span>
       </div>
 
@@ -146,7 +146,7 @@ export function ManagementPublicationGate({
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
           <p className="text-[8px] font-black uppercase tracking-wide text-slate-400">
-            Yayın projeksiyonu
+            Yayınlanacak oturum
           </p>
           <p className="mt-1 text-lg font-black text-slate-900">
             {data.projectedSessionCount}
@@ -158,13 +158,13 @@ export function ManagementPublicationGate({
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
           <p className="text-[8px] font-black uppercase tracking-wide text-slate-400">
-            Katılımcı satırı
+            Sınıf / grup eşleşmesi
           </p>
           <p className="mt-1 text-lg font-black text-slate-900">
             {data.projectedGroupCount}
           </p>
           <p className="text-[8px] font-medium text-slate-500">
-            session-group
+            grup kaydı
           </p>
         </div>
 
@@ -178,7 +178,7 @@ export function ManagementPublicationGate({
             'text-[8px] font-black uppercase tracking-wide',
             data.baseline.healthy ? 'text-emerald-600' : 'text-rose-600',
           ].join(' ')}>
-            Yayın dayanağı
+            Mevcut yayınla tutarlılık
           </p>
           <p className={[
             'mt-1 text-lg font-black',
@@ -200,15 +200,15 @@ export function ManagementPublicationGate({
             ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
             : 'border-rose-200 bg-rose-50 text-rose-700',
         ].join(' ')}>
-          Runtime düzeltmeleri: {data.runtimeAdjustmentsReconciled ? 'uzlaştırıldı' : 'bekliyor'}
+          Son program değişiklikleri: {data.runtimeAdjustmentsReconciled ? 'işlendi' : 'bekliyor'}
         </span>
 
         <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-bold text-slate-600">
-          Baseline: {data.baseline.source}
+          Karşılaştırma kaynağı: mevcut yayın
         </span>
 
         <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-bold text-slate-600">
-          Revision v{data.revisionVersion}
+          Taslak sürümü v{data.revisionVersion}
         </span>
       </div>
 
@@ -298,15 +298,15 @@ export function ManagementPublicationGate({
             data.canCurrentUserPublish ? 'text-emerald-900' : 'text-amber-900',
           ].join(' ')}>
             {data.canCurrentUserPublish
-              ? 'Sunucu ve yönetici yetkisi yayın için hazır.'
-              : 'Sunucu kontrolleri geçti; yayın işlemi için ADMIN yetkisi gerekir.'}
+              ? 'Program kontrolleri ve yayın yetkisi hazır.'
+              : 'Program kontrolleri tamam; yayın işlemi için yönetici yetkisi gerekir.'}
           </p>
           <p className={[
             'mt-1 text-[10px] font-medium leading-5',
             data.canCurrentUserPublish ? 'text-emerald-800' : 'text-amber-800',
           ].join(' ')}>
-            Bu ekranda henüz yayın komutu yok. Gerçek mutation, revision lifecycle ve
-            atomik replacement sözleşmesi tamamlandıktan sonra ayrıca açılacak.
+            Bu ekranda henüz yayınlama düğmesi yok. Gerçek yayınlama özelliği ayrı ve
+            kontrollü bir adım olarak açılacak.
           </p>
         </div>
       )}
