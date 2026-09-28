@@ -52,7 +52,7 @@ function isRetiredSpecialTeacherPlaceholder(
 function teacherState(row: ManagementTeacherResourceRow) {
   if (row.operationalStatus === 'INACTIVE') {
     return {
-      label: 'Pasif',
+      label: 'Atamaya kapalı',
       className: 'bg-slate-200 text-slate-600',
     };
   }
@@ -72,7 +72,7 @@ function teacherState(row: ManagementTeacherResourceRow) {
   }
 
   return {
-    label: 'Aktif',
+    label: 'Atamaya açık',
     className: 'bg-emerald-50 text-emerald-700',
   };
 }
@@ -721,7 +721,7 @@ export function ManagementResources({
                 onClick={() => setShowInactiveTeachers((value) => !value)}
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
               >
-                {showInactiveTeachers ? 'Pasifleri gizle' : 'Pasifleri göster'}
+                {showInactiveTeachers ? 'Atamaya kapalıları gizle' : 'Atamaya kapalıları göster'}
               </button>
             )}
             <button
@@ -848,7 +848,7 @@ export function ManagementResources({
                           )}
                           className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-35"
                         >
-                          {row.operationalStatus === 'ACTIVE' ? 'Pasif' : 'Aktif'}
+                          {row.operationalStatus === 'ACTIVE' ? 'Atamaya kapat' : 'Atamaya aç'}
                         </button>
                         <button
                           type="button"
