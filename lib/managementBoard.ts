@@ -337,6 +337,7 @@ export function translateCandidateReason(code: string) {
     ROOM_INACTIVE: 'Salon kullanımda değil',
     TEACHER_INACTIVE: 'Öğretmen atamaya kapalı',
     GROUP_CONFLICT: 'Öğrenci grubu aynı saatte başka derste',
+    REQUIREMENT_TEACHER_MISMATCH: 'Bu dersin diğer bloklarında farklı bir öğretmen kullanılıyor',
   };
 
   return labels[code] ?? code.replaceAll('_', ' ').toLocaleLowerCase('tr-TR');
