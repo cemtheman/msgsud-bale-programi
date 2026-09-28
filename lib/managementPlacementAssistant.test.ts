@@ -77,13 +77,13 @@ describe('management placement assistant', () => {
     const groups = buildManagementPlacementAssistantGroups([
       card('placed', '5A', {
         placement: {
-          id: 'placement-1',
           dayOfWeek: 1,
           startPeriod: 3,
           teacherId: 'teacher',
           roomId: 'room',
           teacherName: 'Öğretmen',
           roomName: 'Salon',
+          moveTransactionId: null,
         },
       }),
       card('open', '5B'),
