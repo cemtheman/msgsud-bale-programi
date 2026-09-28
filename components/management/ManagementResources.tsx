@@ -66,7 +66,7 @@ function teacherState(row: ManagementTeacherResourceRow) {
 
   if (row.activeRequirementCount === 0 && row.placedBlockCount > 0) {
     return {
-      label: 'Atama kontrolü',
+      label: 'Programda kullanılıyor',
       className: 'bg-amber-50 text-amber-700',
     };
   }
@@ -669,7 +669,7 @@ export function ManagementResources({
                 Kaynaklar
               </p>
               <h2 className="mt-1 text-2xl font-black text-slate-950">
-                Öğretmen ve salon envanteri
+                Öğretmenler ve salonlar
               </h2>
               <p className="mt-2 max-w-[720px] text-sm font-medium leading-6 text-slate-500">
                 Ders Planı ve Program tarafından kullanılan öğretmen ve salon kayıtlarını,
@@ -679,10 +679,10 @@ export function ManagementResources({
 
             <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
               <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
-                M18.7
+                Salon özellikleri
               </p>
               <p className="mt-1 text-[11px] font-bold text-slate-700">
-                Salon profili sihirbazı
+                Uygunluk kurallarını yönetin
               </p>
             </div>
           </div>
