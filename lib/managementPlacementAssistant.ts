@@ -38,6 +38,22 @@ export interface ManagementPlacementAssistantSuggestion {
   roomLabels: string[];
 }
 
+export interface ManagementPlacementAssistantOption {
+  id: string;
+  dayOfWeek: number;
+  startPeriod: number;
+  moves: ManagementPlacementAssistantMove[];
+  teacherLabels: string[];
+  roomLabels: string[];
+}
+
+export interface ManagementPlacementAssistantPlan {
+  group: ManagementPlacementAssistantGroup;
+  commonSlotCount: number;
+  exactOptions: ManagementPlacementAssistantOption[];
+  resourceChoiceSlotCount: number;
+}
+
 function groupStatus(cards: ManagementBoardCard[]): ManagementPlacementAssistantGroupStatus {
   if (
     cards.length === 0
@@ -118,30 +134,74 @@ function slotKey(candidate: ManagementCandidateAssessment) {
   return `${candidate.dayOfWeek}:${candidate.startPeriod}`;
 }
 
-export function buildSafeManagementPlacementSuggestion(
+function candidateLabels(
+  moves: ManagementPlacementAssistantMove[],
+  teacherNamesById: Readonly<Record<string, string>>,
+  roomNamesById: Readonly<Record<string, string>>,
+) {
+  return {
+    teacherLabels: Array.from(new Set(
+      moves.map(({ candidate }) => (
+        candidate.teacherId
+          ? teacherNamesById[candidate.teacherId] ?? 'Öğretmen'
+          : 'Öğretmen daha sonra kesinleşebilir'
+      )),
+    )),
+    roomLabels: Array.from(new Set(
+      moves.map(({ candidate }) => (
+        candidate.roomId
+          ? roomNamesById[candidate.roomId] ?? 'Salon'
+          : 'Salon daha sonra kesinleşebilir'
+      )),
+    )),
+  };
+}
+
+export function buildManagementPlacementAssistantPlan(
   group: ManagementPlacementAssistantGroup,
   detailsByCardId: Readonly<Record<string, ManagementCandidateDetail>>,
   teacherNamesById: Readonly<Record<string, string>>,
   roomNamesById: Readonly<Record<string, string>>,
-): ManagementPlacementAssistantSuggestion | null {
-  if (group.status !== 'SINGLE_OPTION' || group.cardIds.length === 0) {
-    return null;
+): ManagementPlacementAssistantPlan {
+  if (group.cardIds.length === 0) {
+    return {
+      group,
+      commonSlotCount: 0,
+      exactOptions: [],
+      resourceChoiceSlotCount: 0,
+    };
   }
 
   const candidatesByCardId = new Map<string, ManagementCandidateAssessment[]>();
 
   for (const cardId of group.cardIds) {
     const detail = detailsByCardId[cardId];
-    if (!detail) return null;
+    if (!detail) {
+      return {
+        group,
+        commonSlotCount: 0,
+        exactOptions: [],
+        resourceChoiceSlotCount: 0,
+      };
+    }
 
     const valid = uniqueValidCandidates(detail);
-    if (valid.length === 0) return null;
+    if (valid.length === 0) {
+      return {
+        group,
+        commonSlotCount: 0,
+        exactOptions: [],
+        resourceChoiceSlotCount: 0,
+      };
+    }
+
     candidatesByCardId.set(cardId, valid);
   }
 
   const [firstCardId, ...otherCardIds] = group.cardIds;
-  const firstCandidates = candidatesByCardId.get(firstCardId) ?? [];
-  let commonSlots = new Set(firstCandidates.map(slotKey));
+  let commonSlots = new Set(
+    (candidatesByCardId.get(firstCardId) ?? []).map(slotKey),
+  );
 
   for (const cardId of otherCardIds) {
     const cardSlots = new Set(
@@ -152,43 +212,108 @@ export function buildSafeManagementPlacementSuggestion(
     );
   }
 
-  if (commonSlots.size !== 1) return null;
+  const orderedSlots = Array.from(commonSlots)
+    .map((key) => {
+      const [dayText, periodText] = key.split(':');
+      return {
+        key,
+        dayOfWeek: Number(dayText),
+        startPeriod: Number(periodText),
+      };
+    })
+    .sort((a, b) => (
+      a.dayOfWeek - b.dayOfWeek
+      || a.startPeriod - b.startPeriod
+    ));
 
-  const [commonSlot] = Array.from(commonSlots);
-  const [dayText, periodText] = commonSlot.split(':');
-  const dayOfWeek = Number(dayText);
-  const startPeriod = Number(periodText);
-  const moves: ManagementPlacementAssistantMove[] = [];
+  const exactOptions: ManagementPlacementAssistantOption[] = [];
+  let resourceChoiceSlotCount = 0;
 
-  for (const cardId of group.cardIds) {
-    const atSlot = (candidatesByCardId.get(cardId) ?? []).filter(
-      (candidate) => (
-        candidate.dayOfWeek === dayOfWeek
-        && candidate.startPeriod === startPeriod
-      ),
+  for (const slot of orderedSlots) {
+    const moves: ManagementPlacementAssistantMove[] = [];
+    let exact = true;
+
+    for (const cardId of group.cardIds) {
+      const atSlot = (candidatesByCardId.get(cardId) ?? []).filter(
+        (candidate) => (
+          candidate.dayOfWeek === slot.dayOfWeek
+          && candidate.startPeriod === slot.startPeriod
+        ),
+      );
+
+      if (atSlot.length !== 1) {
+        exact = false;
+        break;
+      }
+
+      moves.push({ cardId, candidate: atSlot[0] });
+    }
+
+    if (!exact) {
+      resourceChoiceSlotCount += 1;
+      continue;
+    }
+
+    const labels = candidateLabels(
+      moves,
+      teacherNamesById,
+      roomNamesById,
     );
 
-    // A single time with multiple teacher/room combinations still requires
-    // a human choice. Do not call that an automatic suggestion.
-    if (atSlot.length !== 1) return null;
-    moves.push({ cardId, candidate: atSlot[0] });
+    exactOptions.push({
+      id: `${group.id}:${slot.key}`,
+      dayOfWeek: slot.dayOfWeek,
+      startPeriod: slot.startPeriod,
+      moves,
+      ...labels,
+    });
   }
 
-  const teacherLabels = Array.from(new Set(
-    moves.map(({ candidate }) => (
-      candidate.teacherId
-        ? teacherNamesById[candidate.teacherId] ?? 'Öğretmen'
-        : 'Öğretmen daha sonra kesinleşebilir'
-    )),
-  ));
+  return {
+    group,
+    commonSlotCount: orderedSlots.length,
+    exactOptions,
+    resourceChoiceSlotCount,
+  };
+}
 
-  const roomLabels = Array.from(new Set(
-    moves.map(({ candidate }) => (
-      candidate.roomId
-        ? roomNamesById[candidate.roomId] ?? 'Salon'
-        : 'Salon daha sonra kesinleşebilir'
-    )),
+export function sortManagementPlacementAssistantPlans(
+  plans: ManagementPlacementAssistantPlan[],
+) {
+  return [...plans].sort((a, b) => (
+    // Zero means the fresh candidate pass found a problem; surface it first.
+    a.commonSlotCount - b.commonSlotCount
+    || a.group.classCodes.join(' ').localeCompare(
+      b.group.classCodes.join(' '),
+      'tr',
+      { numeric: true },
+    )
+    || a.group.subjectName.localeCompare(b.group.subjectName, 'tr')
   ));
+}
+
+export function buildSafeManagementPlacementSuggestion(
+  group: ManagementPlacementAssistantGroup,
+  detailsByCardId: Readonly<Record<string, ManagementCandidateDetail>>,
+  teacherNamesById: Readonly<Record<string, string>>,
+  roomNamesById: Readonly<Record<string, string>>,
+): ManagementPlacementAssistantSuggestion | null {
+  const plan = buildManagementPlacementAssistantPlan(
+    group,
+    detailsByCardId,
+    teacherNamesById,
+    roomNamesById,
+  );
+
+  if (
+    plan.commonSlotCount !== 1
+    || plan.exactOptions.length !== 1
+    || plan.resourceChoiceSlotCount !== 0
+  ) {
+    return null;
+  }
+
+  const option = plan.exactOptions[0];
 
   return {
     id: group.id,
@@ -196,10 +321,10 @@ export function buildSafeManagementPlacementSuggestion(
     subjectName: group.subjectName,
     classCodes: group.classCodes,
     durationPeriods: group.durationPeriods,
-    dayOfWeek,
-    startPeriod,
-    moves,
-    teacherLabels,
-    roomLabels,
+    dayOfWeek: option.dayOfWeek,
+    startPeriod: option.startPeriod,
+    moves: option.moves,
+    teacherLabels: option.teacherLabels,
+    roomLabels: option.roomLabels,
   };
 }
