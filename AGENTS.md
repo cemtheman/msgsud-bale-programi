@@ -16,7 +16,7 @@
 | Implementation commit | `fix: clean M29 room pool test artifacts` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M30.1 öğretmen havuzu ve M30.2 salon havuzu temizliği production'da PASS; M29 test artıkları temizlendi |
-| Sıradaki iş paketi | M31.4 — terminoloji / boş durum / mikro metin son polish |
+| Sıradaki iş paketi | M31.4 final build/browser doğrulaması; ardından M32 otomatik/yarı otomatik yerleştirme |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1141,3 +1141,57 @@ Son terminoloji ve mikro metin turunda kullanıcı ekranına sızan iç mimari i
   - Yardım Merkezi terminolojisi “Bilgi eksik” diliyle hizalandı
 
 Bu fazda davranış veya veri modeli değişikliği yoktur; migration yoktur.
+
+
+## 27. 28 Eylül 2026 — Partisyon marka kararı ve M31.4 son polish
+
+Kullanıcı ürün adı için **Partisyon** kararını verdi.
+
+### Marka kararı
+
+Kullanıcıya görünen ürün adı:
+
+```
+Partisyon
+MSGSÜ İstanbul Devlet Konservatuvarı
+```
+
+Alt tanım gerektiğinde:
+
+```
+Ders Programı ve Kaynak Yönetimi
+```
+
+Uygulama metadata/PWA kısa adı `Partisyon` olarak güncellendi. Yönetim girişinde ve yönetim çalışma alanı marka satırında Partisyon kullanılır. Repository ve teknik isimler bu aşamada değiştirilmedi.
+
+### Öğretmen durum terminolojisi
+
+Öğretmen kaynaklarında `Aktif / Pasif` kullanıcı dili kaldırıldı:
+
+- `Atamaya açık`
+- `Atamaya kapalı`
+- `Atamaya kapalıları göster / gizle`
+- `Atamaya aç / Atamaya kapat`
+
+Bu değişiklik yalnız kullanıcı dili içindir; backend enum değerleri `ACTIVE / INACTIVE` olarak kalır.
+
+### M31.4 teknik dil temizliği
+
+Program Durumu / yayın öncesi ekranlarında kullanıcıya sızan iç implementasyon terimleri temizlendi:
+
+- `M19.4`, `M19.1` kullanıcı ekranından kaldırıldı.
+- `Baseline` → mevcut yayın / karşılaştırma kaynağı
+- `Revision` → taslak sürümü
+- `session-group` → grup kaydı
+- `Runtime düzeltmeleri` → son program değişiklikleri
+- `state-token`, `atomik publication`, `mutation`, `revision lifecycle` gibi teknik açıklamalar kullanıcı metninden çıkarıldı.
+- Yayın karşılaştırmasındaki `eşleme / taslak zinciri` dili sadeleştirildi.
+
+İlgili marka ve M31.4 commit zincirinin son remote HEAD'i:
+
+```
+afa8355c344fbf9fc557838b403a0ff013de0c6d
+polish: simplify publication comparison copy
+```
+
+Durum: **frontend-only; migration yok. Local build ve son browser kontrolü bekleniyor.**
