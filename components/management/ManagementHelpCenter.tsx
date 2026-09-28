@@ -86,8 +86,8 @@ const GLOSSARY = [
       'Yerleşim, ders planından farklı olarak somut program sonucudur. Mevcut bir yerleşimin öğretmenini veya salonunu değiştirmek yalnız o yerleşimi etkiler; dersin genel kaynak tanımını değiştirmez.',
   },
   {
-    term: 'Belirsiz',
-    text: 'Bir hata anlamına gelmez. Öğretmen veya salon henüz kesinleşmemiş olabilir.',
+    term: 'Bilgi eksik',
+    text: 'Bir hata anlamına gelmez. Öğretmen veya salon gibi bir bilgi henüz kesinleşmemiş olabilir.',
     detail:
       'Belirsiz bir kaynak “yok” veya “uygun değil” demek değildir. Sistem o ders için geçerli bir yer bulabiliyorsa ders programa alınabilir; kesin kaynak seçimi daha sonra tamamlanabilir.',
   },
