@@ -57,8 +57,8 @@ export function ManagementPublicationPreview({
             {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} · Mevcut yayın → Bu taslak
           </h3>
           <p className="mt-1 max-w-[680px] text-[11px] font-medium leading-5 text-slate-500">
-            Yerleşmiş taslak dersleri gerçek ders saatlerine açılarak mevcut
-            yayın oturumlarıyla karşılaştırılır. Bu ekran hiçbir şeyi yayımlamaz.
+            Taslak programdaki ders saatleri mevcut yayınla karşılaştırılır.
+            Bu ekran yalnız farkları gösterir; hiçbir şeyi yayımlamaz.
           </p>
           <span className="mt-2 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-bold text-slate-600">
             Kaynak: {data.mappingSource === 'MANAGED_PUBLICATION'
@@ -81,12 +81,12 @@ export function ManagementPublicationPreview({
       {!data.mappingHealthy && (
         <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
           <p className="text-[10px] font-black text-rose-800">
-            Mevcut yayın ile karşılaştırma eşlemesi artık birebir değil.
+            Mevcut yayınla karşılaştırma için kullanılan kayıtlar tam eşleşmiyor.
           </p>
           <p className="mt-1 text-[10px] font-medium leading-5 text-rose-700">
-            {data.missingEvidenceSessionCount} eşlenmiş oturum mevcut yayında veya güncel taslak zincirinde bulunamadı ·{' '}
-            {data.unmappedCurrentPublicSessionCount} mevcut yayın oturumu karşılaştırma eşlemesinde yok.
-            Bu durum çözülmeden yayınlama adımı güvenli biçimde açılamaz.
+            {data.missingEvidenceSessionCount} ders saati karşılaştırma kayıtlarında bulunamadı ·{' '}
+            {data.unmappedCurrentPublicSessionCount} mevcut yayın dersi taslakla eşleştirilemedi.
+            Bu durum çözülmeden yayınlama adımı açılamaz.
           </p>
         </div>
       )}
@@ -99,7 +99,7 @@ export function ManagementPublicationPreview({
           <p className="mt-1 text-[10px] font-medium leading-5 text-amber-800">
             {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} kapsamında {health.totalCards - health.placedCount} ders kartı henüz yerleşmediği için
             “yayından çıkacak” sayısı geçici olarak yüksek görünebilir. Bu rakamlar
-            final yayın kararı değil, taslağın şu anki halinin mevcut yayına göre farkıdır.
+            son yayın kararı değil, taslağın şu anki halinin mevcut yayına göre farkıdır.
           </p>
         </div>
       )}
