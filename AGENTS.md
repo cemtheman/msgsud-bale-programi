@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.2.1 — late-stage PLACE timeout migration production doğrulaması; ardından M32.3 |
+| Sıradaki iş paketi | M32.3 — requirement-level teacher continuity migration doğrulaması; ardından seçenek etkisi |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1466,3 +1466,61 @@ perf: skip placed cards in delta refresh
 ```
 
 Durum: **migration local dry-run + production push + aynı Solfej Uygula regresyon testi bekleniyor.**
+
+
+## 33. 28 Eylül 2026 — M32.3 ders–şube öğretmen sürekliliği
+
+Kullanıcı temel program kuralını netleştirdi:
+
+> Bir şube için bir dersi bir öğretmen vermeli. Ders haftada birden fazla bloktan oluşuyorsa, ilk blokta seçilen öğretmen diğer bloklarda da aynı olmalı.
+
+Örnek:
+- 5A Matematik haftada 3 ayrı blok ise 3 farklı Matematik öğretmeni kullanılamaz.
+- Requirement'ın öğretmen havuzu birden fazla öğretmen içeriyorsa bu havuz yalnız ilk resolved öğretmen seçilene kadar seçim alanıdır.
+- İlk resolved yerleşim öğretmeni requirement seviyesinde fiilî kilit oluşturur.
+- Sonraki blok candidate'ları yalnız bu öğretmenle geçerli olabilir.
+- Salon bu kurala dahil değildir; bloklar farklı salonlarda olabilir.
+- M22 provisional UNKNOWN teacher semantiği korunur: resolved öğretmen yokken NULL/provisional kimlik kural dışı sayılmaz.
+
+### Implementation
+
+Yeni migration:
+
+```
+20260928223000_management_m32_3_requirement_teacher_continuity.sql
+```
+
+Migration üç seviyede koruma sağlar:
+
+1. **Mevcut veri guard'ı**
+   - Aynı revision + requirement içinde birden fazla farklı resolved teacher zaten varsa migration fail eder.
+   - Böylece yeni invariant çelişkili veri üstüne sessizce kurulmaz.
+
+2. **Hard placement invariant**
+   - `placements` üzerinde BEFORE INSERT/UPDATE trigger.
+   - Aynı requirement/revision içindeki başka resolved teacher ile farklı yeni resolved teacher yazılamaz.
+   - Provisional NULL teacher M22 gereği hard trigger tarafından bloke edilmez.
+
+3. **Candidate-domain lock**
+   - Yeni reason code:
+     `REQUIREMENT_TEACHER_MISMATCH`
+   - İlk resolved sibling placement öğretmeni bulunduğunda kalan blokların farklı öğretmen candidate'ları INVALID olur.
+   - Exact validation / delta revalidation bu kuralı uygular.
+   - Group candidate refresh sonrası aynı teacher lock postprocess edilir.
+   - Kalan havuz domain summary'leri yeniden hesaplanır.
+
+UI dili:
+- `REQUIREMENT_TEACHER_MISMATCH` →
+  “Bu dersin diğer bloklarında farklı bir öğretmen kullanılıyor”
+- Hard write guard hatası →
+  “Aynı şubenin aynı dersi tüm bloklarda aynı öğretmenle yürütülmeli.”
+
+İlgili commitler:
+
+```
+a2512f1e1b06fc507a7a4991e22c68cd5449457f feat: lock course blocks to one teacher
+98d2d069fb2312262328ccccea2bc94ff9ee20ac polish: explain course teacher continuity
+7f290dd6013b4bac30d76104f90237b437a4c762 polish: translate teacher continuity errors
+```
+
+Durum: **migration dry-run / production push / gerçek multi-block ders regresyon testi bekleniyor.**
