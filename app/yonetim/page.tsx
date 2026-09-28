@@ -218,13 +218,13 @@ function LoginScreen({
     <main className="management-workbench-root flex min-h-screen items-center justify-center bg-[#F5F3EE] px-5 py-10 text-slate-900">
       <section className="w-full max-w-[430px] rounded-[28px] border border-slate-200 bg-white p-7 shadow-[0_24px_70px_rgba(15,23,42,0.10)]">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#A63D48]">
-          MSGSÜ Ders Programı
+          PARTİSYON
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
           Yönetim
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Taslak program çalışma alanına erişmek için yönetim hesabınızla giriş yapın.
+          MSGSÜ İstanbul Devlet Konservatuvarı ders programı çalışma alanına erişmek için yönetim hesabınızla giriş yapın.
         </p>
 
         <form onSubmit={submit} className="mt-7 space-y-4">
@@ -1275,7 +1275,7 @@ export default function ManagementPage() {
         <div className="flex h-[46px] items-center gap-5 px-5">
           <div className="flex h-full items-center gap-4">
             <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A63D48]">
-              Yönetim
+              Partisyon
             </span>
 
             <nav className="flex h-full items-center gap-5">
@@ -1960,8 +1960,8 @@ export default function ManagementPage() {
             setCommandNotice({
               kind: 'success',
               text: operationalStatus === 'ACTIVE'
-                ? `Öğretmen yeniden aktif göreve alındı. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`
-                : `Öğretmen pasif hale getirildi. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`,
+                ? `Öğretmen atamaya açıldı. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`
+                : `Öğretmen atamaya kapatıldı. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`,
             });
             setRefreshToken((value) => value + 1);
           }}
