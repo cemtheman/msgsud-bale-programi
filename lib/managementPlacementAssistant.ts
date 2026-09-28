@@ -47,9 +47,18 @@ export interface ManagementPlacementAssistantOption {
   roomLabels: string[];
 }
 
+export interface ManagementPlacementAssistantSlot {
+  id: string;
+  dayOfWeek: number;
+  startPeriod: number;
+  exactOption: ManagementPlacementAssistantOption | null;
+  primaryCandidates: ManagementCandidateAssessment[];
+}
+
 export interface ManagementPlacementAssistantPlan {
   group: ManagementPlacementAssistantGroup;
   commonSlotCount: number;
+  slots: ManagementPlacementAssistantSlot[];
   exactOptions: ManagementPlacementAssistantOption[];
   resourceChoiceSlotCount: number;
 }
@@ -167,6 +176,7 @@ export function buildManagementPlacementAssistantPlan(
     return {
       group,
       commonSlotCount: 0,
+      slots: [],
       exactOptions: [],
       resourceChoiceSlotCount: 0,
     };
@@ -226,12 +236,19 @@ export function buildManagementPlacementAssistantPlan(
       || a.startPeriod - b.startPeriod
     ));
 
+  const slots: ManagementPlacementAssistantSlot[] = [];
   const exactOptions: ManagementPlacementAssistantOption[] = [];
   let resourceChoiceSlotCount = 0;
 
   for (const slot of orderedSlots) {
     const moves: ManagementPlacementAssistantMove[] = [];
     let exact = true;
+    const primaryCandidates = (candidatesByCardId.get(firstCardId) ?? []).filter(
+      (candidate) => (
+        candidate.dayOfWeek === slot.dayOfWeek
+        && candidate.startPeriod === slot.startPeriod
+      ),
+    );
 
     for (const cardId of group.cardIds) {
       const atSlot = (candidatesByCardId.get(cardId) ?? []).filter(
@@ -251,6 +268,13 @@ export function buildManagementPlacementAssistantPlan(
 
     if (!exact) {
       resourceChoiceSlotCount += 1;
+      slots.push({
+        id: `${group.id}:${slot.key}`,
+        dayOfWeek: slot.dayOfWeek,
+        startPeriod: slot.startPeriod,
+        exactOption: null,
+        primaryCandidates,
+      });
       continue;
     }
 
@@ -260,18 +284,28 @@ export function buildManagementPlacementAssistantPlan(
       roomNamesById,
     );
 
-    exactOptions.push({
+    const exactOption: ManagementPlacementAssistantOption = {
       id: `${group.id}:${slot.key}`,
       dayOfWeek: slot.dayOfWeek,
       startPeriod: slot.startPeriod,
       moves,
       ...labels,
+    };
+
+    exactOptions.push(exactOption);
+    slots.push({
+      id: exactOption.id,
+      dayOfWeek: slot.dayOfWeek,
+      startPeriod: slot.startPeriod,
+      exactOption,
+      primaryCandidates,
     });
   }
 
   return {
     group,
     commonSlotCount: orderedSlots.length,
+    slots,
     exactOptions,
     resourceChoiceSlotCount,
   };
