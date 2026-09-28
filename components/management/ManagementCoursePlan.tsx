@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ManagementRequirementStructurePreview } from '@/components/management/ManagementRequirementStructurePreview';
 import { ManagementRoomStrategyEditor } from '@/components/management/ManagementRoomStrategyEditor';
+import { ManagementTeacherPolicyEditor } from '@/components/management/ManagementTeacherPolicyEditor';
 import {
   coursePlanMatchesStage,
   type ManagementCoursePlanData,
@@ -10,6 +11,9 @@ import {
   type ManagementPlanStage,
   type ManagementPlanTermStatus,
   type ManagementRoomStrategy,
+  type ManagementTeacherAssignmentScope,
+  type ManagementTeacherContinuity,
+  type ManagementTeacherPolicyPreview,
   type ManagementRequirementStructurePreview as ManagementRequirementStructurePreviewResult,
   type ManagementRequirementStructurePreviewInput,
 } from '@/lib/managementCoursePlan';
@@ -103,6 +107,28 @@ function teacherLabel(row: ManagementCoursePlanRow) {
   return row.teacherNames.join(', ');
 }
 
+function teacherPolicyLabel(row: ManagementCoursePlanRow) {
+  if (
+    row.teacherAssignmentScope === 'REQUIREMENT'
+    && row.teacherContinuity === 'REQUIRED'
+  ) {
+    return 'Tüm bloklarda aynı öğretmen';
+  }
+
+  if (
+    row.teacherAssignmentScope === 'BLOCK'
+    && row.teacherContinuity === 'PREFERRED'
+  ) {
+    return 'Bloklar esnek · aynı öğretmen tercih';
+  }
+
+  if (row.teacherAssignmentScope === 'BLOCK') {
+    return 'Her blok ayrı öğretmen seçebilir';
+  }
+
+  return 'Öğretmen kuralı belirlenmedi';
+}
+
 function roomLabel(row: ManagementCoursePlanRow) {
   if (row.resourceMode === 'UNKNOWN') {
     return 'Salon henüz belirlenmemiş';
@@ -174,6 +200,7 @@ function requirementRow(
   ) => void,
   canEdit: boolean,
   onEditTeacher: (row: ManagementCoursePlanRow) => void,
+  onEditTeacherPolicy: (row: ManagementCoursePlanRow) => void,
   onEditRoom: (row: ManagementCoursePlanRow) => void,
   onEditStructure: (row: ManagementCoursePlanRow) => void,
 ) {
@@ -233,6 +260,13 @@ function requirementRow(
             Birden fazla seçenek
           </p>
         )}
+        <p className={
+          row.teacherAssignmentScope === 'UNSPECIFIED'
+            ? 'mt-1 text-[9px] font-bold text-amber-600'
+            : 'mt-1 text-[9px] font-medium text-slate-400'
+        }>
+          {teacherPolicyLabel(row)}
+        </p>
       </div>
 
       <div className="min-w-0">
@@ -278,6 +312,17 @@ function requirementRow(
                 </button>
                 <button
                   type="button"
+                  onClick={() => onEditTeacherPolicy(row)}
+                  className={
+                    row.teacherAssignmentScope === 'UNSPECIFIED'
+                      ? 'rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[8px] font-bold text-amber-700 hover:bg-amber-100'
+                      : 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50'
+                  }
+                >
+                  Öğretmen kuralı
+                </button>
+                <button
+                  type="button"
                   onClick={() => onEditRoom(row)}
                   className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50"
                 >
@@ -304,6 +349,8 @@ export function ManagementCoursePlan({
   onOpenProgram,
   canEdit,
   onUpdateTeachers,
+  onUpdateTeacherPolicyPreview,
+  onUpdateTeacherPolicy,
   onUpdateRoomStrategy,
   onPreviewStructure,
   onApplyStructure,
@@ -317,6 +364,17 @@ export function ManagementCoursePlan({
   onUpdateTeachers: (
     requirementId: string,
     teacherIds: string[],
+  ) => Promise<void>;
+  onUpdateTeacherPolicyPreview: (
+    requirementId: string,
+    scope: ManagementTeacherAssignmentScope,
+    continuity: ManagementTeacherContinuity,
+  ) => Promise<ManagementTeacherPolicyPreview>;
+  onUpdateTeacherPolicy: (
+    requirementId: string,
+    scope: ManagementTeacherAssignmentScope,
+    continuity: ManagementTeacherContinuity,
+    expectedStateToken: string,
   ) => Promise<void>;
   onUpdateRoomStrategy: (
     requirementId: string,
@@ -346,6 +404,8 @@ export function ManagementCoursePlan({
   const [structureRow, setStructureRow] =
     useState<ManagementCoursePlanRow | null>(null);
   const [roomStrategyRow, setRoomStrategyRow] =
+    useState<ManagementCoursePlanRow | null>(null);
+  const [teacherPolicyRow, setTeacherPolicyRow] =
     useState<ManagementCoursePlanRow | null>(null);
 
   const stageRows = useMemo(
@@ -781,6 +841,7 @@ export function ManagementCoursePlan({
                           onOpenProgram,
                           canEdit,
                           (row) => openEditor(row, 'TEACHER'),
+                          (row) => setTeacherPolicyRow(row),
                           (row) => setRoomStrategyRow(row),
                           (row) => setStructureRow(row),
                         ))}
@@ -824,6 +885,20 @@ export function ManagementCoursePlan({
             onOpenProgram(requirementId, targetStage);
           }}
           onSave={onUpdateRoomStrategy}
+        />
+      )}
+
+      {teacherPolicyRow && (
+        <ManagementTeacherPolicyEditor
+          row={teacherPolicyRow}
+          stage={stage}
+          onClose={() => setTeacherPolicyRow(null)}
+          onOpenProgram={(requirementId, targetStage) => {
+            setTeacherPolicyRow(null);
+            onOpenProgram(requirementId, targetStage);
+          }}
+          onPreview={onUpdateTeacherPolicyPreview}
+          onApply={onUpdateTeacherPolicy}
         />
       )}
 
