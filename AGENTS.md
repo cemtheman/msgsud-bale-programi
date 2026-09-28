@@ -12,11 +12,11 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `4a8ee3cf0a9947b192911e85efc0a4626e2db31b` |
-| Implementation commit | `fix: clean M29 room pool test artifacts` |
+| Son doğrulanmış implementation checkpoint | `41275317ff43226c576b426b5ed310c08de104bc` |
+| Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
-| Son kullanıcı kabulü | M30.1 öğretmen havuzu ve M30.2 salon havuzu temizliği production'da PASS; M29 test artıkları temizlendi |
-| Sıradaki iş paketi | M31.4 final build/browser doğrulaması; ardından M32 otomatik/yarı otomatik yerleştirme |
+| Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
+| Sıradaki iş paketi | M32.1 — güvenli Yerleştirme Asistanı local test/build/browser doğrulaması |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1194,4 +1194,68 @@ afa8355c344fbf9fc557838b403a0ff013de0c6d
 polish: simplify publication comparison copy
 ```
 
-Durum: **frontend-only; migration yok. Local build ve son browser kontrolü bekleniyor.**
+Durum: **M31 tamamlandı ve kullanıcı tarafından kabul edildi. Migration yok.**
+
+
+## 28. 28 Eylül 2026 — M32.1 güvenli Yerleştirme Asistanı
+
+M31 kullanıcı kabulüyle kapatıldı. M32 otomatik / yarı otomatik yerleştirme fazı **kontrollü öneri motoru** yaklaşımıyla başlatıldı.
+
+### M32 ürün ilkesi
+
+İlk sürüm “programı kendi başına dolduran kara kutu” değildir.
+
+Akış:
+
+1. Mevcut görünümde havuzdaki dersleri sınıflandır.
+2. Önce yalnız **Tek seçenek** görünen dersleri ele al.
+3. Her tek seçenekli ders/grup için candidate domain'i yeniden hesapla.
+4. Gün + saat + öğretmen + salon sonucu gerçekten tek ve kesin ise kullanıcıya öner.
+5. Birden fazla kaynak veya zaman seçeneği varsa otomatik karar verme.
+6. Kullanıcı `Bu öneriyi uygula` demeden program verisini değiştirme.
+7. Bir öneri uygulandıktan veya program başka bir yoldan değiştikten sonra kalan önerileri stale say; yeniden analiz zorunlu olsun.
+
+### M32.1 implementation
+
+Yeni dosyalar:
+
+- `lib/managementPlacementAssistant.ts`
+  - havuzdaki görsel ders gruplarını `SINGLE_OPTION / CHOICES / INFO_MISSING / PROBLEM` olarak sınıflandırır.
+  - grouped common cards için source card kimliklerini korur.
+  - fresh candidate detail içinden tüm source card'lar için tek ortak slotu doğrular.
+  - aynı slotta birden fazla öğretmen/salon kombinasyonu varsa otomatik öneri üretmez.
+  - provisional NULL teacher/room semantiğini korur.
+- `components/management/ManagementPlacementAssistant.tsx`
+  - Partisyon · Yerleştirme Asistanı modalı.
+  - Tek seçenek / Seçim gerekiyor / Bilgi eksik / Sorunlu özetleri.
+  - doğrulanmış öneriler ve tekil `Bu öneriyi uygula` işlemi.
+  - kullanıcıya otomasyon güvenlik kuralını açıklar.
+- `lib/managementPlacementAssistant.test.ts`
+  - tek seçenek sınıflandırması,
+  - grouped source card'larda tek ortak güvenli slot,
+  - aynı slotta çoklu kaynak seçeneğinde otomatik öneriyi reddetme senaryoları.
+
+Workbench:
+- Program araç çubuğuna `✦ Asistan` girişi eklendi.
+- Analiz, mevcut `management_refresh_card_group_candidates` ve candidate detail altyapısını yeniden kullanır.
+- Uygulama, mevcut single/bundle place komutlarını kullanır; yeni DB write yolu oluşturulmadı.
+- Candidate refresh işlemleri DB yükünü sınırlamak için tek seçenekli gruplarda **sıralı** yürütülür.
+- Her `refreshToken` değişiminde eski asistan önerileri geçersizleştirilir.
+
+### Güvenlik sınırı
+
+M32.1'de:
+- toplu “hepsini uygula” yok,
+- birden fazla olasılıkta otomatik seçim yok,
+- yeni placement RPC yok,
+- yeni migration yok,
+- mevcut undo/redo ve grouped atomic sözleşmesi korunur.
+
+Son implementation HEAD (henüz local doğrulanmadı):
+
+```
+44c503afa86ce33e9bf4e7b4eb16ebb75e2171e2
+polish: align teacher command wording
+```
+
+Durum: **local focused test + build + browser doğrulaması bekleniyor.**
