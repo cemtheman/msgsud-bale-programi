@@ -628,6 +628,10 @@ export default function ManagementPage() {
       // card from being analyzed again while the normal workbench refresh is
       // still catching up.
       const freshBoard = await fetchManagementBoard(session.accessToken);
+      if (!freshBoard) {
+        throw new Error('Güncel program verisi alınamadı.');
+      }
+
       const freshVisibleCards = freshBoard.cards.filter(
         (card) => cardMatchesStage(card, stage)
           && cardMatchesAudience(card, audienceFilter),
