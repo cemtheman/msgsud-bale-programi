@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.3.1 — Matematik/Orkestra policy sınıflandırması production doğrulaması; ardından kalan UNSPECIFIED audit ve Course Plan policy UI |
+| Sıradaki iş paketi | M32.3.2 — teacher policy editor migration/build doğrulaması; ardından kalan 16 UNSPECIFIED sınıflandırması ve candidate enforcement |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1653,3 +1653,82 @@ M32.3.1 production apply sonrası beklenen önemli değişiklik:
 - unspecifiedMultiBlockPools → 0
 - requiredContinuityViolations → 2 (10A ve 10B Matematik), çünkü mevcut placement'larda iki farklı resolved Matematik öğretmeni kullanılıyor.
 - Bu iki ihlal otomatik düzeltilmeyecek; reconciliation kullanıcıya açıklanarak yapılacak.
+
+
+## 36. 28 Eylül 2026 — M32.3.1 production PASS / M32.3.2 policy editor
+
+M32.3.1 production sonrası audit:
+
+- requirements: 193
+- REQUIREMENT scoped: 119
+- BLOCK scoped: 58
+- UNSPECIFIED: 16
+- unspecifiedMultiBlockPools: 0
+- requiredContinuityViolations: 2
+  - 10A SECTION / Matematik
+  - 10B SECTION / Matematik
+- flexibleMultiTeacherRequirements: 12
+  - Ballet/Doğaçlama/Pilates örnekleri
+  - 5/6/7. sınıf Solfej örnekleri
+
+Bu sonuç policy modelini runtime veride doğruladı:
+- Matematik artık REQUIREMENT + REQUIRED olduğu için mevcut iki-öğretmenli placement'lar gerçek violation olarak görünür.
+- Orkestra BLOCK + NONE olduğu için artık unspecified multi-block pool değildir.
+- Bale ve Solfej esnekliği korunur.
+
+M32.3.2 eklendi:
+
+```
+20260928224000_management_m32_3_2_teacher_policy_editor.sql
+```
+
+RPC'ler:
+- `management_preview_requirement_teacher_policy(uuid,text,text)`
+- `management_apply_requirement_teacher_policy(uuid,text,text,text)`
+
+Güvenlik:
+- policy-only mutation
+- placement değiştirmez
+- candidate rebuild etmez
+- public schedule değiştirmez
+- REQUIREMENT + REQUIRED seçimi mevcut resolved placement'larda birden fazla öğretmen varsa bloke edilir
+- stale-state token ile apply korunur
+
+Course Plan UI:
+- teacher policy her requirement satırında görünür
+- UNSPECIFIED amber olarak görünür
+- “Öğretmen kuralı” editorü:
+  - Tüm bloklarda aynı öğretmen
+  - Bloklar esnek, aynı öğretmen tercih edilsin
+  - Her blok ayrı öğretmen seçebilir
+  - Henüz belirlenmedi
+- önce etki önizlemesi, sonra apply
+- conflict varsa blok/gün/saat/öğretmen listesi gösterilir
+- Course Plan üst özetinde “Öğretmen kuralı” belirsiz aktif ders sayısı görünür
+
+Commitler:
+
+```
+f90c646b00fe55f709bc48b4c3cf06ed9937defd feat: add safe teacher policy editor contract
+82a6954c503962eb6559ce1e915d3c127a181e27 feat: expose teacher assignment policy in course plan
+1d87f334d55c2c48f51771a385c8cd342584be70 feat: add teacher policy editor
+d2f48e11c61503ca40f207568ed5e52e9db21636 feat: expose teacher policy in course plan
+70bf8446149f6b678a5c1aaf5c348370941a428c feat: wire teacher policy editor
+8a05428d9a52d22d1d4cd1774b1b33cc6a78b267 polish: surface unspecified teacher policies
+```
+
+Kalan read-only sınıflandırma sorgusu:
+
+```
+docs/sql/m32_3_1_all_unspecified_teacher_policies.sql
+```
+
+Sonraki sıra:
+1. M32.3.2 migration dry-run/push.
+2. `npm.cmd run build`.
+3. Course Plan policy editor browser smoke test.
+4. Kalan 16 UNSPECIFIED audit çıktısını sınıflandır.
+5. 10A/10B Matematik için explicit teacher reconciliation UX.
+6. Candidate engine'i REQUIREMENT/BLOCK/PREFERRED policy-aware yap.
+7. M29 placement teacher override'ını policy-aware yap.
+8. Assistant forward-impact metrics.
