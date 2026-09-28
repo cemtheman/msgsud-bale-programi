@@ -308,7 +308,7 @@ export function ManagementProgramStatus({
                 Bu ekran taslağı kontrol eder
               </p>
               <p className="mt-2 text-[11px] font-medium leading-5 text-blue-800">
-                Burada yaptığınız kontroller henüz öğrenci ve öğretmen programlarını değiştirmez. M19.1 mevcut yayın ile taslağın farkını gösterir; gerçek yayınlama ayrı ve kontrollü bir adım olacaktır.
+                Burada yaptığınız kontroller henüz öğrenci ve öğretmen programlarını değiştirmez. Mevcut yayın ile taslak arasındaki farklar ayrı gösterilir; gerçek yayınlama ayrıca ve kontrollü biçimde yapılır.
               </p>
             </div>
 
