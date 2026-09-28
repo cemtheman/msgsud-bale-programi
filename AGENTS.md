@@ -16,7 +16,7 @@
 | Implementation commit | `fix: clean M29 room pool test artifacts` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M30.1 öğretmen havuzu ve M30.2 salon havuzu temizliği production'da PASS; M29 test artıkları temizlendi |
-| Sıradaki iş paketi | M31.3 — 5 adımlık hızlı tur |
+| Sıradaki iş paketi | M31.4 — terminoloji / boş durum / mikro metin son polish |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1089,3 +1089,55 @@ Hedef:
 - turu zorunlu veya uzun hale getirmemek;
 - Yardım Merkezi'nden tekrar başlatılabilir yapmak;
 - tur sırasında hiçbir program verisini değiştirmemek.
+
+
+## 26. 28 Eylül 2026 — M31.3 spotlight turu kabulü ve M31.4 başlangıcı
+
+M31.3 hızlı tur, ilk statik modal sürümden sonra gerçek spotlight davranışına yükseltildi ve kullanıcı tarafından kabul edildi.
+
+### M31.3 kabul edilen davranış
+
+- Tur 5 adımdır: Ders Havuzu, Program Alanı, Uygunluk, Ayrıntılar, Geri Al/Yinele.
+- Her adım ilgili gerçek UI alanını spotlight ile aydınlatır.
+- Tur kartı hedef alanı kapatmamak için viewport boşluğuna göre sağ/sol/üst/alt konumlanır.
+- İlk kullanımda bir kez otomatik açılır; tamamlandıktan sonra localStorage ile tekrar otomatik açılmaz.
+- Yardım Merkezi içinden her zaman manuel yeniden başlatılabilir.
+- 4. adımda Ayrıntılar kapalıysa mevcut yerleşmiş bir kart yalnızca UI seçimi olarak açılır; program verisi değiştirilmez.
+- Mevcut program büyük ölçüde yerleşmiş olsa bile turun öğretici kalması için yalnız tur sırasında görünen, veriyle bağlantısız demo katmanları eklendi:
+  - örnek havuz kartı,
+  - sürükleme yönü + uygun hedef,
+  - Uygun / Bilgi eksik / Uygun değil örnekleri,
+  - Neden uygun değil? örneği,
+  - Geri Al / Yinele açıklaması.
+- Demo katmanları yalnız görseldir; Supabase veya program verisine yazmaz.
+
+İlgili son checkpoint:
+
+```
+abfcb67d879d418f7c48eb3377a7fe6c68ed7e25
+fix: keep tour demos prerender safe
+```
+
+Durum: **M31.3 kullanıcı tarafından kabul edildi.**
+
+### M31.4 başlangıcı
+
+Son terminoloji ve mikro metin turunda kullanıcı ekranına sızan iç mimari ifadeleri temizleme kararı alındı.
+
+İlk yapılanlar:
+
+- Ders Planı:
+  - “Seçilebilir havuz” → “Birden fazla seçenek”
+  - “Ders tanımı” → “Sınıf / grup planı”
+  - “Dönem dışı / belirsiz” → “Aktif olmayanlar”
+- Kaynaklar:
+  - “Öğretmen ve salon envanteri” → “Öğretmenler ve salonlar”
+  - kullanıcıya görünen `M18.7` etiketi kaldırıldı
+  - “Atama kontrolü” → “Programda kullanılıyor”
+- Program Durumu:
+  - kullanıcıya görünen `M19.1` iç sürüm referansı kaldırıldı
+- Ayrıntılar / Yardım:
+  - “Seçilebilir havuz” → “Birden fazla seçenek”
+  - Yardım Merkezi terminolojisi “Bilgi eksik” diliyle hizalandı
+
+Bu fazda davranış veya veri modeli değişikliği yoktur; migration yoktur.
