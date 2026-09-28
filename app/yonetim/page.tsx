@@ -332,6 +332,8 @@ export default function ManagementPage() {
   const [placementAssistantPlans, setPlacementAssistantPlans] =
     useState<ManagementPlacementAssistantPlan[]>([]);
   const [placementAssistantLoading, setPlacementAssistantLoading] = useState(false);
+  const [placementAssistantWaitingForRefresh, setPlacementAssistantWaitingForRefresh] = useState(false);
+  const [placementAssistantSawRefreshLoading, setPlacementAssistantSawRefreshLoading] = useState(false);
   const [placementAssistantAnalyzed, setPlacementAssistantAnalyzed] = useState(false);
   const [placementAssistantStale, setPlacementAssistantStale] = useState(false);
   const [placementAssistantError, setPlacementAssistantError] = useState<string | null>(null);
@@ -482,6 +484,24 @@ export default function ManagementPage() {
     setPlacementAssistantError(null);
   }, [refreshToken]);
 
+  useEffect(() => {
+    if (!placementAssistantWaitingForRefresh) return;
+
+    if (dataLoading) {
+      setPlacementAssistantSawRefreshLoading(true);
+      return;
+    }
+
+    if (placementAssistantSawRefreshLoading) {
+      setPlacementAssistantWaitingForRefresh(false);
+      setPlacementAssistantSawRefreshLoading(false);
+    }
+  }, [
+    dataLoading,
+    placementAssistantSawRefreshLoading,
+    placementAssistantWaitingForRefresh,
+  ]);
+
   const rows = useMemo(
     () => (
       board
@@ -591,17 +611,12 @@ export default function ManagementPage() {
       || !access?.canEdit
       || status !== 'ready'
       || placementAssistantLoading
+      || placementAssistantWaitingForRefresh
+      || dataLoading
       || commandBusy
     ) {
       return;
     }
-
-    const analyzableGroups = placementAssistantGroups.filter(
-      (group) => (
-        group.status === 'SINGLE_OPTION'
-        || group.status === 'CHOICES'
-      ),
-    );
 
     setPlacementAssistantLoading(true);
     setPlacementAssistantError(null);
@@ -609,6 +624,22 @@ export default function ManagementPage() {
     setPlacementAssistantStale(false);
 
     try {
+      // Always start from a fresh board snapshot. This prevents a just-placed
+      // card from being analyzed again while the normal workbench refresh is
+      // still catching up.
+      const freshBoard = await fetchManagementBoard(session.accessToken);
+      const freshVisibleCards = freshBoard.cards.filter(
+        (card) => cardMatchesStage(card, stage)
+          && cardMatchesAudience(card, audienceFilter),
+      );
+      const analyzableGroups = buildManagementPlacementAssistantGroups(
+        freshVisibleCards,
+      ).filter(
+        (group) => (
+          group.status === 'SINGLE_OPTION'
+          || group.status === 'CHOICES'
+        ),
+      );
       const nextPlans: ManagementPlacementAssistantPlan[] = [];
 
       // Deliberately sequential: each refresh can be expensive and later
@@ -630,8 +661,8 @@ export default function ManagementPage() {
           buildManagementPlacementAssistantPlan(
             group,
             Object.fromEntries(entries),
-            board.teacherNamesById,
-            board.roomNamesById,
+            freshBoard.teacherNamesById,
+            freshBoard.roomNamesById,
           ),
         );
       }
@@ -721,7 +752,7 @@ export default function ManagementPage() {
       || !commandCard
       || commandBusy
     ) {
-      return;
+      return false;
     }
 
     setCommandBusy(true);
@@ -752,6 +783,7 @@ export default function ManagementPage() {
       setCandidateFocus(null);
       setActiveDay(candidate.dayOfWeek);
       setRefreshToken((value) => value + 1);
+      return true;
     } catch (reason: unknown) {
       setCommandNotice({
         kind: 'error',
@@ -759,6 +791,7 @@ export default function ManagementPage() {
           ? reason.message
           : 'İşlem tamamlanamadı.',
       });
+      return false;
     } finally {
       setCommandBusy(false);
       setCommandActivity(null);
@@ -769,7 +802,7 @@ export default function ManagementPage() {
     moves: ManagementGroupDropCandidate[],
   ) => {
     if (!session || !access?.canEdit || !board || commandBusy || moves.length === 0) {
-      return;
+      return false;
     }
 
     const commands = moves.flatMap(({ cardId, candidate }) => {
@@ -783,12 +816,11 @@ export default function ManagementPage() {
         kind: 'error',
         text: 'Birleşik dersin tüm kayıtları için geçerli hedef bulunamadı.',
       });
-      return;
+      return false;
     }
 
     if (commands.length === 1) {
-      await runCandidateCommand(commands[0].candidate, commands[0].card);
-      return;
+      return runCandidateCommand(commands[0].candidate, commands[0].card);
     }
 
     const placementStates = commands.map(({ card }) => Boolean(card.placement));
@@ -800,7 +832,7 @@ export default function ManagementPage() {
         kind: 'error',
         text: 'Birleşik dersin kayıtları aynı yerleşim durumunda değil. Programı yenileyip tekrar deneyin.',
       });
-      return;
+      return false;
     }
 
     const bundleItems = commands.map(({ card, candidate }) => ({
@@ -835,6 +867,7 @@ export default function ManagementPage() {
           : `${commands[0].card.subjectName} · ${commands.length} kayıt birlikte yerleştirildi.`,
       });
       setRefreshToken((value) => value + 1);
+      return true;
     } catch (reason: unknown) {
       setCommandNotice({
         kind: 'error',
@@ -842,6 +875,7 @@ export default function ManagementPage() {
           ? reason.message
           : 'Birleşik ders işlemi tamamlanamadı.',
       });
+      return false;
     } finally {
       setCommandBusy(false);
       setCommandActivity(null);
@@ -854,18 +888,24 @@ export default function ManagementPage() {
     if (
       placementAssistantStale
       || placementAssistantLoading
+      || placementAssistantWaitingForRefresh
       || commandBusy
       || !access?.canEdit
     ) {
       return;
     }
 
-    await runDropCandidates(option.moves);
-
-    // Any attempted placement can change candidate availability. Never reuse
-    // the previous ordering or its options after an apply attempt.
+    setPlacementAssistantWaitingForRefresh(true);
+    setPlacementAssistantSawRefreshLoading(false);
     setPlacementAssistantPlans([]);
     setPlacementAssistantStale(true);
+
+    const applied = await runDropCandidates(option.moves);
+
+    if (!applied) {
+      setPlacementAssistantWaitingForRefresh(false);
+      setPlacementAssistantSawRefreshLoading(false);
+    }
   };
 
   const inspectPlacementAssistantGroup = (
@@ -2252,6 +2292,7 @@ export default function ManagementPage() {
         error={placementAssistantError}
         canEdit={access?.canEdit === true}
         commandBusy={commandBusy}
+        refreshing={dataLoading || placementAssistantWaitingForRefresh}
         onAnalyze={() => {
           void analyzePlacementAssistant();
         }}
