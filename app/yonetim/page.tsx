@@ -472,6 +472,16 @@ export default function ManagementPage() {
     setPlacementAssistantError(null);
   }, [audienceFilter, stage]);
 
+  useEffect(() => {
+    if (refreshToken === 0) return;
+
+    setPlacementAssistantSuggestions([]);
+    setPlacementAssistantReviewCount(0);
+    setPlacementAssistantAnalyzed(false);
+    setPlacementAssistantStale(true);
+    setPlacementAssistantError(null);
+  }, [refreshToken]);
+
   const rows = useMemo(
     () => (
       board
@@ -1461,7 +1471,7 @@ export default function ManagementPage() {
               type="button"
               onClick={() => setHelpOpen(true)}
               className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-              aria-label="Yönetim yardım merkezini aç"
+              aria-label="Partisyon yardım merkezini aç"
             >
               ? Yardım
             </button>
