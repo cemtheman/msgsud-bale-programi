@@ -5,7 +5,9 @@ import type {
 } from '@/lib/managementBoard';
 import {
   buildManagementPlacementAssistantGroups,
+  buildManagementPlacementAssistantPlan,
   buildSafeManagementPlacementSuggestion,
+  sortManagementPlacementAssistantPlans,
 } from '@/lib/managementPlacementAssistant';
 
 function card(
@@ -103,6 +105,75 @@ describe('management placement assistant', () => {
     expect(suggestion?.dayOfWeek).toBe(2);
     expect(suggestion?.startPeriod).toBe(3);
     expect(suggestion?.moves).toHaveLength(2);
+  });
+
+  it('orders multi-choice lessons from fewer common slots to more', () => {
+    const [tightGroup] = buildManagementPlacementAssistantGroups([
+      card('tight', '5A', { isForced: false, validCount: 2 }),
+    ]);
+    const [wideGroup] = buildManagementPlacementAssistantGroups([
+      card('wide', '6A', { isForced: false, validCount: 4 }),
+    ]);
+
+    const tightPlan = buildManagementPlacementAssistantPlan(
+      tightGroup,
+      {
+        tight: detail([
+          { dayOfWeek: 1, startPeriod: 1 },
+          { dayOfWeek: 2, startPeriod: 1 },
+        ]),
+      },
+      { teacher: 'Öğretmen' },
+      { room: 'Salon' },
+    );
+
+    const widePlan = buildManagementPlacementAssistantPlan(
+      wideGroup,
+      {
+        wide: detail([
+          { dayOfWeek: 1, startPeriod: 1 },
+          { dayOfWeek: 2, startPeriod: 1 },
+          { dayOfWeek: 3, startPeriod: 1 },
+          { dayOfWeek: 4, startPeriod: 1 },
+        ]),
+      },
+      { teacher: 'Öğretmen' },
+      { room: 'Salon' },
+    );
+
+    const sorted = sortManagementPlacementAssistantPlans([
+      widePlan,
+      tightPlan,
+    ]);
+
+    expect(sorted[0].group.id).toBe(tightGroup.id);
+    expect(sorted[0].commonSlotCount).toBe(2);
+    expect(sorted[1].commonSlotCount).toBe(4);
+  });
+
+  it('keeps resource-ambiguous slots for human review instead of auto-applying them', () => {
+    const [group] = buildManagementPlacementAssistantGroups([
+      card('a', '5A', { isForced: false, validCount: 2 }),
+    ]);
+
+    const plan = buildManagementPlacementAssistantPlan(
+      group,
+      {
+        a: detail([
+          { dayOfWeek: 3, startPeriod: 4, roomId: 'room-a' },
+          { dayOfWeek: 3, startPeriod: 4, roomId: 'room-b' },
+        ]),
+      },
+      { teacher: 'Türkçe Öğretmeni' },
+      {
+        'room-a': 'B1 105A',
+        'room-b': 'A 101',
+      },
+    );
+
+    expect(plan.commonSlotCount).toBe(1);
+    expect(plan.exactOptions).toHaveLength(0);
+    expect(plan.resourceChoiceSlotCount).toBe(1);
   });
 
   it('refuses automatic suggestion when the exact slot still has a resource choice', () => {
