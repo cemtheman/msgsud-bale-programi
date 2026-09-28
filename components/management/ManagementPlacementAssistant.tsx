@@ -30,6 +30,7 @@ export function ManagementPlacementAssistant({
   error,
   canEdit,
   commandBusy,
+  refreshing,
   onAnalyze,
   onApply,
   onInspect,
@@ -45,6 +46,7 @@ export function ManagementPlacementAssistant({
   error: string | null;
   canEdit: boolean;
   commandBusy: boolean;
+  refreshing: boolean;
   onAnalyze: () => void;
   onApply: (
     group: ManagementPlacementAssistantGroup,
@@ -177,14 +179,16 @@ export function ManagementPlacementAssistant({
                 <button
                   type="button"
                   onClick={onAnalyze}
-                  disabled={!canEdit || loading || commandBusy || analyzableCount === 0}
+                  disabled={!canEdit || loading || refreshing || commandBusy || analyzableCount === 0}
                   className="shrink-0 rounded-xl bg-slate-950 px-4 py-2.5 text-[10px] font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
                 >
-                  {loading
-                    ? 'Hesaplanıyor…'
-                    : analyzed || stale
-                      ? 'Yeniden hesapla'
-                      : 'Seçenekleri hazırla'}
+                  {refreshing
+                    ? 'Program güncelleniyor…'
+                    : loading
+                      ? 'Hesaplanıyor…'
+                      : analyzed || stale
+                        ? 'Yeniden hesapla'
+                        : 'Seçenekleri hazırla'}
                 </button>
               </div>
 
