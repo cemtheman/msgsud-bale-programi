@@ -132,13 +132,6 @@ const RESOURCE_VIEWS: Array<{
   { id: 'SALONLAR', label: 'Salonlar' },
 ];
 
-const SECTION_DESCRIPTIONS: Record<'PROGRAM' | 'PLAN' | 'RESOURCES' | 'STATUS', string> = {
-  PROGRAM: 'Dersleri havuzdan haftalık programa yerleştirin.',
-  PLAN: 'Derslerin blok yapısını ve kullanılabilecek öğretmen / salon kurallarını tanımlayın.',
-  RESOURCES: 'Öğretmenleri, salonları ve kullanılabilirlik durumlarını yönetin.',
-  STATUS: 'Taslağın eksiklerini ve yayın öncesi kontrollerini gözden geçirin.',
-};
-
 function roleLabel(role: string | null | undefined) {
   if (role === 'ADMIN') return 'Yönetici';
   if (role === 'EDITOR') return 'Editör';
@@ -1278,10 +1271,6 @@ export default function ManagementPage() {
             </nav>
           </div>
 
-          <p className="hidden max-w-[430px] truncate text-[10px] font-medium text-slate-400 2xl:block">
-            {SECTION_DESCRIPTIONS[activeSection]}
-          </p>
-
           <div className="ml-auto flex items-center gap-2">
             <span className="hidden max-w-[210px] truncate text-[10px] font-medium text-slate-400 xl:block">
               {session?.email}
@@ -2048,6 +2037,7 @@ export default function ManagementPage() {
         open={helpOpen}
         activeSection={activeSection}
         onClose={() => setHelpOpen(false)}
+        onNavigate={(section) => setActiveSection(section)}
       />
 
       {removeConfirmOpen && selectedCard?.placement && selectedCards.length > 0 && (
