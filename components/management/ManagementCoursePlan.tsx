@@ -230,7 +230,7 @@ function requirementRow(
         </p>
         {row.teacherMode === 'ELIGIBLE_POOL' && (
           <p className="mt-1 text-[9px] font-medium text-slate-400">
-            Seçilebilir havuz
+            Birden fazla seçenek
           </p>
         )}
       </div>
@@ -245,7 +245,7 @@ function requirementRow(
         </p>
         {row.resourceMode === 'ELIGIBLE_POOL' && (
           <p className="mt-1 text-[9px] font-medium text-slate-400">
-            Seçilebilir havuz
+            Birden fazla seçenek
           </p>
         )}
       </div>
@@ -435,7 +435,7 @@ export function ManagementCoursePlan({
       .map(([label, rows]) => makeGroup(
         `class:${label}`,
         label,
-        `${rows.length} ders tanımı`,
+        `${rows.length} ders`,
         rows,
       ))
       .sort((a, b) => a.title.localeCompare(
@@ -600,7 +600,7 @@ export function ManagementCoursePlan({
               </p>
               <p className="mt-2 text-2xl font-black text-slate-900">{activeCount}</p>
               <p className="mt-1 text-[10px] font-medium text-slate-500">
-                sınıf / grup yükümlülüğü
+                aktif sınıf / grup kaydı
               </p>
             </div>
 
@@ -674,7 +674,7 @@ export function ManagementCoursePlan({
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                Dönem dışı / belirsiz
+                Aktif olmayanlar
               </button>
               <button
                 type="button"
