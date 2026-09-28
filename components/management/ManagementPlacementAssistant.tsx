@@ -163,13 +163,13 @@ export function ManagementPlacementAssistant({
                   </p>
                   <p className="mt-1 text-[10px] font-medium leading-5 text-slate-500">
                     Yalnız “Tek seçenek” görünen derslerin gün, saat, öğretmen ve salon bilgisi
-                    güncel aday alanından yeniden kontrol edilir.
+                    güncel aday alanından yeniden kontrol edilir. Bu kontrol düzenleme yetkisi gerektirir.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={onAnalyze}
-                  disabled={loading || commandBusy || singleOptionCount === 0}
+                  disabled={!canEdit || loading || commandBusy || singleOptionCount === 0}
                   className="shrink-0 rounded-xl bg-slate-950 px-4 py-2.5 text-[10px] font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {loading
