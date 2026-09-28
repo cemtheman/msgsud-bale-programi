@@ -128,6 +128,95 @@ revoke all
 
 
 -- -------------------------------------------------------------------------
+-- UNIVERSAL CANDIDATE GUARD
+-- -------------------------------------------------------------------------
+-- Run before the existing M22 provisional-semantics trigger (zy < zz).
+-- Any candidate builder/rebuilder therefore sees the same teacher-continuity
+-- rule, not only the management group-refresh entrypoint.
+
+create or replace function public.management_apply_requirement_teacher_candidate_lock()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $
+declare
+  v_requirement_id uuid;
+  v_revision_id uuid;
+  v_locked_teacher_id uuid;
+  v_teacher_count integer;
+begin
+  select
+    card.requirement_id,
+    card.schedule_revision_id
+  into
+    v_requirement_id,
+    v_revision_id
+  from public.schedule_cards card
+  where card.id = new.card_id;
+
+  if v_requirement_id is null or v_revision_id is null then
+    return new;
+  end if;
+
+  select
+    min(placement.teacher_id::text)::uuid,
+    count(distinct placement.teacher_id)
+  into
+    v_locked_teacher_id,
+    v_teacher_count
+  from public.placements placement
+  join public.schedule_cards sibling
+    on sibling.id = placement.card_id
+  where sibling.schedule_revision_id = v_revision_id
+    and sibling.requirement_id = v_requirement_id
+    and sibling.id <> new.card_id
+    and placement.teacher_id is not null;
+
+  new.reason_codes := array_remove(
+    coalesce(new.reason_codes, array[]::text[]),
+    'REQUIREMENT_TEACHER_MISMATCH'
+  );
+  new.details := coalesce(new.details, '{}'::jsonb)
+    - 'requirement_teacher_lock_id';
+
+  if coalesce(v_teacher_count, 0) > 0
+     and (
+       v_teacher_count > 1
+       or new.teacher_id is distinct from v_locked_teacher_id
+     ) then
+    new.reason_codes := new.reason_codes
+      || array['REQUIREMENT_TEACHER_MISMATCH']::text[];
+    new.status := 'INVALID';
+    new.is_complete := false;
+    new.details := new.details || jsonb_build_object(
+      'requirement_teacher_lock_id',
+      v_locked_teacher_id,
+      'teacher_continuity_version',
+      'M32.3-v1'
+    );
+  end if;
+
+  return new;
+end
+$;
+
+drop trigger if exists
+  zy_management_requirement_teacher_candidate_lock_trigger
+  on public.schedule_card_candidate_assessments;
+
+create trigger zy_management_requirement_teacher_candidate_lock_trigger
+before insert or update
+on public.schedule_card_candidate_assessments
+for each row
+execute function public.management_apply_requirement_teacher_candidate_lock();
+
+revoke all
+  on function public.management_apply_requirement_teacher_candidate_lock()
+  from public, anon, authenticated;
+
+
+-- -------------------------------------------------------------------------
 -- FRESH GROUP-CANDIDATE POSTPROCESS
 -- -------------------------------------------------------------------------
 -- M26.6 bundle candidate rebuilding remains authoritative for time, room,
@@ -694,6 +783,9 @@ $$;
 
 comment on function public.management_enforce_requirement_teacher_continuity() is
   'M32.3 hard placement invariant: one resolved teacher per course requirement/revision.';
+
+comment on function public.management_apply_requirement_teacher_candidate_lock() is
+  'M32.3 universal candidate guard: once a requirement has a resolved teacher placement, different/unknown teacher candidates are invalid.';
 
 comment on function public.management_apply_requirement_teacher_lock_to_candidates(
   uuid, uuid[]
