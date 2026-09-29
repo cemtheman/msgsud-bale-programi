@@ -14,6 +14,7 @@ import {
   type ManagementTeacherAssignmentScope,
   type ManagementTeacherContinuity,
   type ManagementTeacherPolicyPreview,
+  type ManagementTeacherReconciliationPreview,
   type ManagementRequirementStructurePreview as ManagementRequirementStructurePreviewResult,
   type ManagementRequirementStructurePreviewInput,
 } from '@/lib/managementCoursePlan';
@@ -378,6 +379,8 @@ export function ManagementCoursePlan({
   onUpdateTeachers,
   onUpdateTeacherPolicyPreview,
   onUpdateTeacherPolicy,
+  onPreviewTeacherReconciliation,
+  onApplyTeacherReconciliation,
   onUpdateRoomStrategy,
   onPreviewStructure,
   onApplyStructure,
@@ -401,6 +404,15 @@ export function ManagementCoursePlan({
     requirementId: string,
     scope: ManagementTeacherAssignmentScope,
     continuity: ManagementTeacherContinuity,
+    expectedStateToken: string,
+  ) => Promise<void>;
+  onPreviewTeacherReconciliation: (
+    requirementId: string,
+    teacherId: string,
+  ) => Promise<ManagementTeacherReconciliationPreview>;
+  onApplyTeacherReconciliation: (
+    requirementId: string,
+    teacherId: string,
     expectedStateToken: string,
   ) => Promise<void>;
   onUpdateRoomStrategy: (
@@ -964,6 +976,8 @@ export function ManagementCoursePlan({
           }}
           onPreview={onUpdateTeacherPolicyPreview}
           onApply={onUpdateTeacherPolicy}
+          onPreviewReconciliation={onPreviewTeacherReconciliation}
+          onApplyReconciliation={onApplyTeacherReconciliation}
         />
       )}
 
