@@ -696,7 +696,6 @@ export default function ManagementPage() {
       const sortedPlans = sortManagementPlacementAssistantPlans(nextPlans);
       const impactScenarios = sortedPlans
         .flatMap((plan) => plan.exactOptions)
-        .slice(0, 60)
         .map((option) => ({
           id: option.id,
           items: option.moves.map(({ cardId, candidate }) => ({
@@ -708,12 +707,15 @@ export default function ManagementPage() {
           })),
         }));
 
-      const impacts = impactScenarios.length > 0
-        ? await previewManagementCandidateForwardImpacts(
-          session.accessToken,
-          impactScenarios,
-        )
-        : [];
+      const impacts = [];
+      for (let index = 0; index < impactScenarios.length; index += 60) {
+        impacts.push(
+          ...await previewManagementCandidateForwardImpacts(
+            session.accessToken,
+            impactScenarios.slice(index, index + 60),
+          ),
+        );
+      }
 
       setPlacementAssistantPlans(
         attachManagementPlacementAssistantForwardImpacts(
