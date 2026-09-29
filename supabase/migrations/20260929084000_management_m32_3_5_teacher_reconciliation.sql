@@ -298,6 +298,7 @@ declare
   v_changed_card_ids uuid[];
   v_m29_preview jsonb;
   v_m29_apply jsonb;
+  v_before_rows jsonb := '[]'::jsonb;
   v_before record;
 begin
   if not public.has_management_role('EDITOR') then
@@ -346,29 +347,20 @@ begin
     raise exception 'M32.3.5 reconciliation produced no changed cards';
   end if;
 
-  create temporary table if not exists pg_temp.m32_3_5_before (
-    card_id uuid primary key,
-    day_of_week smallint not null,
-    start_period smallint not null,
-    teacher_id uuid,
-    room_id uuid
-  ) on commit drop;
-
-  truncate table pg_temp.m32_3_5_before;
-
-  insert into pg_temp.m32_3_5_before (
-    card_id,
-    day_of_week,
-    start_period,
-    teacher_id,
-    room_id
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'cardId', placement.card_id,
+        'dayOfWeek', placement.day_of_week,
+        'startPeriod', placement.start_period,
+        'teacherId', placement.teacher_id,
+        'roomId', placement.room_id
+      )
+      order by placement.card_id
+    ),
+    '[]'::jsonb
   )
-  select
-    placement.card_id,
-    placement.day_of_week,
-    placement.start_period,
-    placement.teacher_id,
-    placement.room_id
+  into v_before_rows
   from public.placements placement
   where placement.card_id = any(v_changed_card_ids);
 
@@ -390,8 +382,13 @@ begin
   );
 
   for v_before in
-    select *
-    from pg_temp.m32_3_5_before
+    select
+      (entry.value ->> 'cardId')::uuid as card_id,
+      (entry.value ->> 'dayOfWeek')::smallint as day_of_week,
+      (entry.value ->> 'startPeriod')::smallint as start_period,
+      nullif(entry.value ->> 'teacherId', '')::uuid as teacher_id,
+      nullif(entry.value ->> 'roomId', '')::uuid as room_id
+    from jsonb_array_elements(v_before_rows) as entry(value)
   loop
     perform public.refresh_management_candidate_domain_delta(
       v_revision_id,
