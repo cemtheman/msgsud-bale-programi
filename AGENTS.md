@@ -12,11 +12,11 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `9e17b72f8c8e80588a90b105815e449b97459fa3` |
-| Implementation commit | `M32.4.2 manual teacher override correction — browser accepted` |
+| Son doğrulanmış implementation checkpoint | `06bc06adaf94ea326ce613678a0608019277f295` |
+| Implementation commit | `M32.5.1 candidate summary ownership — rollback QA PASS` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.5 — persisted teacher-policy candidate domains + forward-domain impact production/test/build/rollback QA |
+| Sıradaki iş paketi | M33 — solver snapshot + soft-objective foundation |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -2857,3 +2857,30 @@ Commit:
 
 M32.5 rollback QA dosyası değişmedi; M32.5.1 apply sonrası aynı QA tekrar çalıştırılmalı.
 Beklenen: exception yok / `Success. No rows returned`, transaction sonunda ROLLBACK.
+
+
+## 49. 29 Eylül 2026 — M32.5.1 rollback QA PASS / M32.5 closed
+
+Kullanıcı, M32.5.1 apply sonrası aynı
+`docs/sql/m32_5_candidate_policy_forward_impact_rollback_qa.sql`
+dosyasını yeniden çalıştırdı ve test exception olmadan tamamlandı.
+
+Sonuç:
+- candidate-domain rebuild sırasında duplicate summary ownership problemi kapandı
+- persisted REQUIREMENT+REQUIRED teacher-policy reason'ları rebuild zincirinde çalışıyor
+- resolved teacher dışındaki adaylar VALID kalmıyor
+- domain summary creation authority tekrar candidate-domain builder'da
+- existing same-requirement summary'ler policy trigger tarafından güncellenebiliyor
+- forward-impact preview original valid placement scenario üzerinde çalışıyor
+- QA transaction sonunda ROLLBACK; production schedule state değişmedi
+
+M32.5 bu doğrulamayla CLOSED/PASS.
+
+Sıradaki mimari paket M33:
+- immutable/reproducible solver snapshot
+- current placements ayrı “baseline/change-cost” girdisi
+- hard constraints ile soft objectives ayrımı
+- teacher continuity PREFERRED, teacher load/gaps, room stability,
+  time-of-day preference ve change penalty için explicit objective model
+- objective ağırlıkları kullanıcı/kurum kararı olmadan sessizce “en iyi” seçmeyecek
+- feasibility → optimize → explain → human review → commit akışının foundation'ı
