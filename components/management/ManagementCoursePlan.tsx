@@ -285,7 +285,8 @@ function requirementRow(
           </p>
         )}
         <p className={
-          row.teacherAssignmentScope === 'UNSPECIFIED'
+          row.teacherRequirement !== 'NONE'
+          && row.teacherAssignmentScope === 'UNSPECIFIED'
             ? 'mt-1 text-[9px] font-bold text-amber-600'
             : 'mt-1 text-[9px] font-medium text-slate-400'
         }>
