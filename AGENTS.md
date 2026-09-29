@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.3.7 — coordinated teacher apply/undo/redo + Course Plan resolver production/build/rollback QA; ardından policy-aware candidate enforcement |
+| Sıradaki iş paketi | M32.4 — teacher-policy-aware candidate reads + placement override gate + assistant policy impact; production/test/build doğrulaması |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -2220,3 +2220,176 @@ M32.3.7 doğrulama mümkün olduğunca tek batch:
 8. apply yapılırsa global Undo/Redo smoke
 9. teacher-policy audit requiredContinuityViolations=[] beklenir
 10. ardından policy-aware candidate enforcement.
+
+
+## 44. 29 Eylül 2026 — M32.3.7 production PASS / M32.4 runtime policy batch
+
+M32.3.7 doğrulama:
+- rollback-only QA SQL başarıyla tamamlandı. Supabase sonucu
+  `Success. No rows returned` normaldir; DO block exception üretmedi ve sonunda ROLLBACK yaptı.
+- browser Course Plan / Lise continuity resolver PASS.
+- kullanıcı açıkça şu dağılımı seçti:
+  - 10A Matematik → Matematik Öğretmeni 2
+  - 10B Matematik → Matematik Öğretmeni 1
+- preview: canApply=true, toplam 2 blok teacher change.
+- gerçek production apply PASS.
+- başarı toast:
+  `2 blokta öğretmen dağılımı birlikte uzlaştırıldı. Gün, saat ve salonlar korundu.`
+- Course Plan üst özetinde öğretmen eksik=0 ve öğretmen kuralı belirsiz=0 görüldü.
+- production placement'larda gün/saat/salon korunarak yalnız iki teacher id değişti.
+
+M32.4 toplu çalışma paketi:
+
+### A. Policy-aware candidate read layer
+
+`ManagementBoardCard` artık şunları taşır:
+- teacherRequirement
+- teacherAssignmentScope
+- teacherContinuity
+- resolvedRequirementTeacherId
+- teacherContinuityConflict
+
+Board fetch, active requirement policy kolonlarını okur ve mevcut placement'lardan
+requirement bazında resolved teacher state türetir.
+
+`applyManagementTeacherPolicyToCandidateDetail()`:
+- yalnız REQUIREMENT + REQUIRED üzerinde filtre uygular
+- requirement'ın yerleşmiş bloklarında tek teacher resolve olmuşsa diğer teacher
+  candidate'larını INVALID yapar
+- mevcut requirement zaten multi-teacher conflict durumundaysa teacher candidate'larını
+  `REQUIREMENT_TEACHER_CONFLICT` ile bloke eder
+- BLOCK + NONE/PREFERRED adaylarını değiştirmez
+- raw DB candidate tablolarını mutate etmez; bu aşama read/runtime safety katmanıdır
+
+Workbench şu akışlarda policy-aware candidate detail kullanır:
+- Inspector
+- drag hazırlığı
+- deferred drop
+- grouped candidate action
+- Placement Assistant
+
+Bu katman, raw domain-summary sayılarının DB'de yeniden yazılması değildir.
+History-aware hard candidate-domain enforcement ayrı sonraki adımdır.
+
+### B. M29 placement teacher override policy gate
+
+Yeni migration:
+
+```
+20260929101500_management_m32_4_teacher_policy_runtime.sql
+```
+
+Yeni wrapper RPC'ler:
+- `management_preview_placement_resource_change_v2(uuid[],text,uuid)`
+- `management_apply_placement_resource_change_v2(uuid[],text,uuid,text)`
+
+Davranış:
+- mevcut M29 preview/apply/history motoru korunur
+- TEACHER override için affected requirement'ların proposed FINAL placed teacher
+  state'i hesaplanır
+- REQUIREMENT + REQUIRED final state >1 teacher olacaksa:
+  - canApply=false
+  - reason `REQUIREMENT_TEACHER_MISMATCH`
+  - `requiresRequirementWideTeacherChange=true`
+- BLOCK scoped derslerde per-block override açık kalır
+- ROOM override M29 davranışıyla aynı kalır
+- apply requirement policy row'larını lock eder, v2 stateToken'ı yeniden doğrular,
+  sonra history-safe mutation için M29'a delegasyon yapar
+- naive placement trigger eklenmedi; coordinated undo'nun historical violation state'ini
+  güvenli biçimde restore edebilmesi korunur
+
+Frontend M29 preview/apply artık v2 RPC'lere gider.
+Inspector blocker copy kullanıcıyı Ders Planı / Öğretmen Sürekliliği akışına yönlendirir.
+
+### C. Placement Assistant policy impact + slot focus
+
+Assistant plan yeni sinyaller taşır:
+- policyFilteredCandidateCount
+- policyTeacherLabels
+- policyConflictCount
+
+UI:
+- `doğrudan uygulanabilir` gibi “en iyi/recommended” çağrışımı yapan eski copy kaldırıldı
+- `N kaynak seçimi gerektirmiyor`
+- `Öğretmen kuralı N adayı eledi`
+- `Süreklilik: <teacher>`
+- continuity conflict varsa önce uzlaştırma uyarısı
+
+Eski slot-focus bug da kapatıldı:
+- `Kaynak seç` tıklaması artık seçilen slotun day/start + primary candidates
+  bilgisini Inspector'a taşır
+- genel/generic candidate listesine düşmez
+
+Slot chronology regression testi:
+- Pazartesi ambiguous + Cuma exact durumunda Pazartesi slotu gizlenmez
+- slots kronolojik kalır; exact slot yalnız kaynak seçimi gerektirmeyen seçenek olarak gösterilir
+
+### D. Testler / audit
+
+Güncellenen/eklenen testler:
+- `lib/managementPlacementAssistant.test.ts`
+  - ambiguous earlier slot chronology
+  - assistant policy impact
+- `tests/managementBoardClassRows.test.ts`
+  - yeni board policy fixture alanları
+- `tests/managementTeacherPolicyCandidates.test.ts`
+  - REQUIREMENT+REQUIRED teacher filtering
+  - BLOCK+NONE unchanged
+  - unresolved continuity conflict blocks teacher choices
+
+Read-only SQL audit:
+```
+docs/sql/m32_4_teacher_policy_runtime_audit.sql
+```
+
+Bu audit ACTIVE teacher-bearing requirements için:
+- placed distinct teacher count
+- resolved teacher
+- unplaced block count
+- raw VALID candidate'lardan continuity nedeniyle runtime'da filtrelenecek olanların sayısı
+- continuity violation
+alanlarını gösterir.
+
+Önemli sınır:
+M32.4 henüz raw DB candidate-domain tablolarını policy-aware yeniden üretmez ve direct
+legacy RPC'lere history-breaking global constraint eklemez. UI/workbench candidate reads
+policy-aware; M29 override backend'de policy-aware. DB candidate generation + propagation
+için history-aware hard enforcement sonraki pakettir.
+
+M32.4 commitleri:
+```
+0b241afb87a7843033ec68e48359bc6d400d72b8 feat: expose teacher policy on management board
+45195f6bbd4e3914b2cbb1b8e6316a683fe94158 feat: derive resolved requirement teacher on board
+b5eb562336b69538a38aa86cc192592269e1b4c9 feat: filter candidate details by teacher continuity
+c876bc58bd7ef6964820d01bb869cbe85bca8017 feat: use teacher-policy-aware candidates in workbench
+1cdba26306b3c1438c58f75f818ce260d4529e97 fix: use current board for policy-aware candidate actions
+fb1b393e838011542efff84213f0dd24ffbdf1bf fix: scope policy-aware candidates to active board
+42c147bea784b2d46e810048db1aa3a65ffdac4c feat: expose teacher-policy impact in placement assistant
+c6f6e7342e3f4c61088265a20601b8367b4aa42e polish: explain teacher-policy impact in assistant
+679a167987d32195255a577bdeb6833f3fd16cc8 fix: focus assistant resource choice on selected slot
+e12b6324af03055a5e85a6ff4590d1b8d9c9b6d3 feat: enforce teacher policy on placement overrides
+121214d093ec208c0653dd355f317b56fb25acc9 feat: route placement overrides through teacher policy gate
+ed266e67d9507f6347a4e0c58724125284b10af1 polish: explain requirement-wide teacher override block
+6f483d372cc73284f60dc254030e082de6f118e1 test: cover teacher policy impact and slot chronology
+861c8c52db318c6c32797cfeda60009028304b64 test: add teacher policy fields to board fixtures
+1cc56a632e3a02f3a6f9720c034867495ba6ef10 test: cover teacher-policy-aware candidate filtering
+74ddbd493c17ef042bc2ed785abcc701d915d6b1 fix: preserve policy impact on empty assistant plans
+cfb67c356fcb2c3bd96be1a5ce4f9daf65c74077 docs: add teacher policy runtime audit
+```
+
+Doğrulama tek batch yapılacak:
+1. pull/HEAD/status
+2. migration list + dry-run; yalnız M32.4 beklenir
+3. db push
+4. npm test
+5. npm run build
+6. gerekirse npm run lint
+7. read-only M32.4 audit
+8. browser smoke:
+   - REQUIREMENT+REQUIRED tek blok teacher override başka teacher'a → blocked
+   - BLOCK+NONE flexible lesson per-block override policy nedeniyle bloke olmamalı
+   - Assistant slot chronology ve policy badge'leri
+
+Sonraki paket:
+history-aware raw candidate generation/enforcement + propagation + gerçek forward-domain impact
+(simulated domain loss / forced / contradiction changes), ardından solver snapshot/objective katmanı.
