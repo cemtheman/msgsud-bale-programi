@@ -273,11 +273,26 @@ export function ManagementPlacementAssistant({
                                   {plan.commonSlotCount} ortak uygun saat
                                 </span>
                                 <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
-                                  {plan.exactOptions.length} doğrudan uygulanabilir
+                                  {plan.exactOptions.length} kaynak seçimi gerektirmiyor
                                 </span>
                                 {plan.resourceChoiceSlotCount > 0 && (
                                   <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
                                     {plan.resourceChoiceSlotCount} saatte kaynak seçimi gerekir
+                                  </span>
+                                )}
+                                {plan.policyFilteredCandidateCount > 0 && (
+                                  <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
+                                    Öğretmen kuralı {plan.policyFilteredCandidateCount} adayı eledi
+                                  </span>
+                                )}
+                                {plan.policyTeacherLabels.length > 0 && (
+                                  <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
+                                    Süreklilik: {plan.policyTeacherLabels.join(' · ')}
+                                  </span>
+                                )}
+                                {plan.policyConflictCount > 0 && (
+                                  <span className="rounded-full bg-rose-50 px-2.5 py-1 text-rose-700">
+                                    Öğretmen sürekliliği önce uzlaştırılmalı
                                   </span>
                                 )}
                               </div>
