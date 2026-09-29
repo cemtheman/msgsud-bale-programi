@@ -2814,3 +2814,46 @@ Sonraki solver-ready paket:
   room stability, change penalty)
 - immutable draft snapshot
 - feasibility/optimization prototype
+
+
+## 48. 29 Eylül 2026 — M32.5 rollback QA duplicate summary / M32.5.1 ownership fix
+
+M32.5 migration production'a uygulandıktan sonra rollback-only QA şu hatayı yakaladı:
+
+```
+ERROR 23505 duplicate key value violates unique constraint
+schedule_card_domain_summaries_pkey
+```
+
+Failing path:
+- QA bir placed REQUIREMENT+REQUIRED kartını transaction içinde geçici kaldırdı
+- `refresh_management_candidate_domain_subset()` target card summary'sini önce DELETE etti
+- candidate rows INSERT edildi
+- M32.5 AFTER INSERT policy trigger'ı candidate'ları reclassify ederken
+  `schedule_card_domain_summaries` için INSERT ... ON CONFLICT yaptı
+- böylece target summary erken yeniden oluştu
+- M14.3 subset builder sonunda kendi summary INSERT'ini yapınca aynı card_id için PK conflict oluştu
+
+Kök neden:
+candidate-policy trigger ile candidate-domain builder aynı missing summary satırının “creator”
+authority'sini paylaşıyordu.
+
+M32.5.1 ownership kuralı:
+- candidate-domain builder, rebuild sırasında missing summary satırını CREATE eden tek authority
+- M32.5 policy trigger summary tarafında yalnız VAR OLAN satırları UPDATE eder
+- same-requirement non-overlap kartların mevcut summary'leri yine policy değişimine göre güncellenir
+- rebuild target summary yoksa trigger onu yaratmaz; builder final INSERT'i güvenle yapar
+- M22 provisional domain-summary BEFORE trigger mevcut UPDATE/INSERT yollarında aynen korunur
+
+Yeni migration:
+```
+20260929113000_management_m32_5_1_candidate_summary_ownership.sql
+```
+
+Commit:
+```
+06bc06adaf94ea326ce613678a0608019277f295 fix: avoid candidate summary ownership race
+```
+
+M32.5 rollback QA dosyası değişmedi; M32.5.1 apply sonrası aynı QA tekrar çalıştırılmalı.
+Beklenen: exception yok / `Success. No rows returned`, transaction sonunda ROLLBACK.
