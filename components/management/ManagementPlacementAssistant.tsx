@@ -306,6 +306,7 @@ export function ManagementPlacementAssistant({
                                 <div className="mt-3 space-y-2">
                                   {visibleSlots.map((slot) => {
                                     const option = slot.exactOption;
+                                    const impact = option?.forwardImpact ?? null;
 
                                     return (
                                       <div
@@ -324,11 +325,36 @@ export function ManagementPlacementAssistant({
                                           </p>
 
                                           {option ? (
-                                            <p className="mt-0.5 truncate text-[8px] font-semibold text-slate-500">
-                                              {option.teacherLabels.join(' · ')}
-                                              {' · '}
-                                              {option.roomLabels.join(' · ')}
-                                            </p>
+                                            <>
+                                              <p className="mt-0.5 truncate text-[8px] font-semibold text-slate-500">
+                                                {option.teacherLabels.join(' · ')}
+                                                {' · '}
+                                                {option.roomLabels.join(' · ')}
+                                              </p>
+                                              {impact && (
+                                                <div className="mt-1.5 flex flex-wrap gap-1 text-[8px] font-bold">
+                                                  {impact.domainLossCount === 0 ? (
+                                                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">
+                                                      Diğer adayları daraltmıyor
+                                                    </span>
+                                                  ) : (
+                                                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-slate-700">
+                                                      {impact.domainLossCount} aday azalır · {impact.affectedCardCount} ders etkilenir
+                                                    </span>
+                                                  )}
+                                                  {impact.newForcedCount > 0 && (
+                                                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">
+                                                      {impact.newForcedCount} yeni tek seçenek
+                                                    </span>
+                                                  )}
+                                                  {impact.newContradictionCount > 0 && (
+                                                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-rose-800">
+                                                      {impact.newContradictionCount} ders seçeneksiz kalır
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              )}
+                                            </>
                                           ) : (
                                             <p className="mt-0.5 text-[8px] font-semibold text-amber-700">
                                               {slot.primaryCandidates.length > 1
@@ -342,10 +368,21 @@ export function ManagementPlacementAssistant({
                                           <button
                                             type="button"
                                             onClick={() => onApply(plan.group, option)}
-                                            disabled={!canEdit || commandBusy}
+                                            disabled={
+                                              !canEdit
+                                              || commandBusy
+                                              || (impact !== null && !impact.safeToApply)
+                                            }
+                                            title={
+                                              impact !== null && !impact.safeToApply
+                                                ? 'Bu seçenek başka bir dersin aday alanını çelişkiye düşürüyor.'
+                                                : undefined
+                                            }
                                             className="shrink-0 rounded-lg bg-emerald-800 px-3 py-2 text-[9px] font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-35"
                                           >
-                                            Uygula
+                                            {impact !== null && !impact.safeToApply
+                                              ? 'Riskli'
+                                              : 'Uygula'}
                                           </button>
                                         ) : (
                                           <button
@@ -403,8 +440,10 @@ export function ManagementPlacementAssistant({
               Güvenlik kuralı
             </p>
             <p className="mt-1 text-[10px] font-semibold leading-5 text-slate-600">
-              Asistan sıralama ve seçenek sunar; sizin yerinize karar vermez. Bir seçenek
-              uygulandığında kalan sonuçlar geçersiz sayılır ve yeni programa göre tekrar hesaplanır.
+              Asistan sıralama ve seçenek sunar; sizin yerinize karar vermez. Kaynak seçimi
+              gerektirmeyen seçeneklerde ileri etki de hesaplanır: kaç adayın kaybolacağı, yeni tek
+              seçenek veya yeni çelişki doğup doğmayacağı gösterilir. Başka bir dersi seçeneksiz
+              bırakacak seçenek Asistan üzerinden uygulanmaz.
             </p>
           </div>
         </div>
