@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.3.4 — OPTIONAL teacher semantics + active readiness production doğrulaması; ardından Matematik teacher reconciliation |
+| Sıradaki iş paketi | M32.3.5 — requirement-level teacher reconciliation production/build doğrulaması; ardından Matematik reconciliation ve policy-aware candidate enforcement |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1859,3 +1859,91 @@ M32.3.4 sonrası beklenen audit:
 
 Sonraki mimari iş:
 Matematik reconciliation ayrı atomik workflow olacak. Bir requirement için tek öğretmen seçilecek; mevcut bütün yerleşmiş bloklar aynı zaman/oda korunarak bu öğretmene geçirilebiliyor mu önce preview edilecek. Teacher conflict/unavailability varsa apply bloke edilecek ve hangi blokların yeniden zamanlanması gerektiği gösterilecek. Sessiz teacher seçimi veya otomatik winner yok.
+
+
+## 39. 29 Eylül 2026 — M32.3.4 PASS / M32.3.5 requirement teacher reconciliation
+
+M32.3.4 production audit sonucu öğretmen politika katmanını temiz doğruladı:
+
+- requirements: 193
+- activeRequirements: 192
+- requirementScoped: 119
+- blockScoped: 57
+- teacherNotRequired: 16
+- teacherOptional: 9
+- teacherRequirementUnspecified: 0
+- assignmentPolicyUnspecified: 0
+- requiredTeacherMissingEligibility: []
+- requiredContinuityViolations: yalnız
+  - 10A SECTION / Matematik
+  - 10B SECTION / Matematik
+- OPTIONAL listesi aktif Sahne / B. Uygulama kayıtlarını doğru gösterir.
+- flexibleMultiTeacherRequirements Bale/Solfej esnekliğini korur.
+- `fullAutoReady=false` öğretmen-policy audit bağlamında yalnız iki Matematik continuity violation nedeniyle kalır.
+
+M32.3.5 amacı:
+REQUIREMENT + REQUIRED bir derste mevcut placement'lar birden fazla öğretmen kullanıyorsa kullanıcı bir eligible öğretmen seçer; sistem bütün yerleşmiş blokları aynı gün/saat/salonla o öğretmene geçirmenin güvenli olup olmadığını önizler. Sistem öğretmeni kendi seçmez.
+
+Migration:
+
+```
+20260929084000_management_m32_3_5_teacher_reconciliation.sql
+```
+
+RPC'ler:
+- `management_preview_requirement_teacher_reconciliation(uuid, uuid)`
+- `management_apply_requirement_teacher_reconciliation(uuid, uuid, text)`
+
+Güvenlik:
+- yalnız ACTIVE requirement
+- yalnız `teacher_requirement in (REQUIRED, OPTIONAL)`
+- yalnız `teacher_assignment_scope=REQUIREMENT + teacher_continuity=REQUIRED`
+- seçilen öğretmen requirement'ın mevcut eligible pool'unda olmalı
+- öğretmen ACTIVE olmalı
+- gün/saat/salon değiştirilmez
+- M29 placement-resource conflict preview yeniden kullanılır
+- stale-state token ile apply korunur
+- requirement teacher pool genişletilmez/değiştirilmez
+- M29 bundle history/undo semantiği yeniden kullanılır
+- apply sonrası her değişen blok için M15 delta candidate refresh yapılır
+- teacher winner otomatik seçilmez
+
+Implementation commits:
+
+```
+53ee441f2164c4a2df2a01081e2e6766afcca996 feat: add requirement teacher reconciliation
+c61bedbe38854a529055d2fa904d2635e10c5b52 fix: keep reconciliation snapshot in transaction memory
+176241b46a7a4b947302d353f4a95c97341ff859 feat: add teacher reconciliation client contract
+074d7e65bfcad5351a73e02967980c8dac510766 feat: add teacher reconciliation flow
+7d36de03b82747b62c425aaa66247c0f6c2a7a83 feat: wire teacher reconciliation into course plan
+bede58f4ee705ed8f3476a7343039718c949fe39 feat: wire requirement teacher reconciliation
+43e8ae3375346eaf2ee805d2ebe6ef8e4437caa9 polish: keep teacherless policy labels neutral
+9fad5c0b9a5e56deb3fad30d6fdd8a819e58ccc1 polish: serialize teacher policy and reconciliation actions
+e24eb4c2aa80edca70c0a6f0333b18137e86a083 docs: add teacher reconciliation option diagnostic
+```
+
+Course Plan / Öğretmen Kuralı UI:
+- continuity conflict önizlenince uygun öğretmenler ayrı seçim olarak görünür
+- seçilen öğretmen için “Uzlaştırmayı kontrol et”
+- preview:
+  - kaç blok öğretmen değiştirecek
+  - gün/saat/salon korunabiliyor mu
+  - teacher conflict blocker'ları
+  - blok bazında eski → yeni öğretmen
+- ancak canApply=true ise “Tüm bloklarda bu öğretmeni kullan”
+- apply sonrası normal global refresh + undo/redo geçmişi
+
+Read-only bütün seçenekleri yan yana teşhis:
+
+```
+docs/sql/m32_3_5_teacher_reconciliation_options.sql
+```
+
+M32.3.5 doğrulama sırası:
+1. migration dry-run / push
+2. `npm.cmd run build`
+3. read-only reconciliation-options SQL
+4. 10A/10B Matematikte iki öğretmen adayının canApply/conflict çıktısını incele
+5. kullanıcı bir öğretmeni açıkça seçmeden apply yapma
+6. reconciliation sonrası policy audit'te requiredContinuityViolations boşalmalı
+7. ondan sonra candidate engine policy enforcement
