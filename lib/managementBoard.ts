@@ -741,6 +741,20 @@ export async function fetchManagementBoard(
   const placementByCard = new Map(placements.map((row) => [row.card_id, row]));
   const domainByCard = new Map(domains.map((row) => [row.card_id, row]));
 
+  const requirementIdByCardId = new Map(
+    cards.map((card) => [card.id, card.requirement_id]),
+  );
+  const placedTeacherIdsByRequirement = new Map<string, Set<string>>();
+  placements.forEach((placement) => {
+    if (!placement.teacher_id) return;
+    const requirementId = requirementIdByCardId.get(placement.card_id);
+    if (!requirementId) return;
+    const values = placedTeacherIdsByRequirement.get(requirementId)
+      ?? new Set<string>();
+    values.add(placement.teacher_id);
+    placedTeacherIdsByRequirement.set(requirementId, values);
+  });
+
   const childGroupsByComposite = new Map<string, string[]>();
   groupRelations
     .filter((row) => row.relation === 'CONTAINS')
@@ -858,6 +872,17 @@ export async function fetchManagementBoard(
       audienceTargets: resolveAudienceTargets(group.id),
       weeklyLoad: requirement.weekly_load,
       teacherMode: requirement.teacher_mode,
+      teacherRequirement: requirement.teacher_requirement,
+      teacherAssignmentScope: requirement.teacher_assignment_scope,
+      teacherContinuity: requirement.teacher_continuity,
+      resolvedRequirementTeacherId: (() => {
+        const placedTeachers = placedTeacherIdsByRequirement.get(requirement.id);
+        return placedTeachers?.size === 1
+          ? Array.from(placedTeachers)[0]
+          : null;
+      })(),
+      teacherContinuityConflict:
+        (placedTeacherIdsByRequirement.get(requirement.id)?.size ?? 0) > 1,
       teacherIds,
       teacherNames: teacherIds.map((id) => teacherById.get(id) ?? 'Bilinmeyen öğretmen'),
       resourceMode: requirement.resource_mode,
