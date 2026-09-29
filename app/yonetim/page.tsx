@@ -70,6 +70,7 @@ import {
   type ManagementPlacementAssistantGroup,
   type ManagementPlacementAssistantOption,
   type ManagementPlacementAssistantPlan,
+  type ManagementPlacementAssistantSlot,
 } from '@/lib/managementPlacementAssistant';
 import {
   applyManagementRequirementStructure,
@@ -933,6 +934,7 @@ export default function ManagementPage() {
 
   const inspectPlacementAssistantGroup = (
     group: ManagementPlacementAssistantGroup,
+    slot?: ManagementPlacementAssistantSlot,
   ) => {
     const primaryCardId = group.cardIds[0];
     if (!primaryCardId) return;
@@ -941,7 +943,18 @@ export default function ManagementPage() {
     setPoolOpen(true);
     setSelectedCardId(primaryCardId);
     setSelectedCardIds(group.cardIds);
-    setCandidateFocus(null);
+
+    if (slot) {
+      setActiveDay(slot.dayOfWeek);
+      setCandidateFocus({
+        dayOfWeek: slot.dayOfWeek,
+        startPeriod: slot.startPeriod,
+        candidates: slot.primaryCandidates,
+      });
+    } else {
+      setCandidateFocus(null);
+    }
+
     setInspectorOpen(true);
   };
 
