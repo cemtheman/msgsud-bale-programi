@@ -964,7 +964,7 @@ export default function ManagementPage() {
       const details = await Promise.all(
         selectedCardIds.map(async (cardId) => ({
           cardId,
-          detail: await fetchPolicyAwareCandidates(session.accessToken, cardId, freshBoard),
+          detail: await fetchPolicyAwareCandidates(session.accessToken, cardId, board),
         })),
       );
 
