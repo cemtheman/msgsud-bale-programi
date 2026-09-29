@@ -227,21 +227,12 @@ export function ManagementInspector({
     [card, cardIds],
   );
 
-  const eligiblePlacementTeacherOptions = useMemo(
-    () => (
-      card
-        ? teacherOptions.filter((option) => card.teacherIds.includes(option.id))
-        : []
-    ),
-    [card, teacherOptions],
-  );
-
   const placementResourceOptions = useMemo(() => {
     const placement = card?.placement;
     if (!placement || !placementEditMode) return [];
 
     if (placementEditMode === 'TEACHER') {
-      return eligiblePlacementTeacherOptions.filter(
+      return teacherOptions.filter(
         (option) => option.id !== placement.teacherId,
       );
     }
@@ -251,9 +242,9 @@ export function ManagementInspector({
     );
   }, [
     card?.placement,
-    eligiblePlacementTeacherOptions,
     placementEditMode,
     roomOptions,
+    teacherOptions,
   ]);
 
   const openPlanTeacherEditor = () => {
@@ -569,7 +560,10 @@ export function ManagementInspector({
             Gün veya saati değiştirmek için kartı çizelgede sürükleyin. Öğretmen veya salonu değiştirmek için kaynağı seçin; sistem mevcut slot üzerindeki etkisini ve çakışmaları önce hesaplar.
           </p>
           <p className="mt-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-[9px] font-semibold leading-4 text-blue-800">
-            Bu işlem yalnızca bu mevcut yerleşimi değiştirir. Ders Planı’ndaki öğretmen veya salon havuzu değişmez.
+            {card.teacherAssignmentScope === 'REQUIREMENT'
+              && card.teacherContinuity === 'REQUIRED'
+              ? 'Öğretmen değişikliği bu dersin yerleşmiş tüm bloklarına birlikte uygulanır; gün, saat ve salonlar korunur. Salon değişikliği yalnız bu yerleşimi etkiler. Ders Planı öğretmen/salon havuzu değişmez.'
+              : 'Öğretmen veya salon değişikliği yalnızca bu mevcut yerleşimi etkiler. Ders Planı öğretmen/salon havuzu değişmez.'}
           </p>
 
           <div className="mt-3 grid grid-cols-2 gap-2">
@@ -583,8 +577,7 @@ export function ManagementInspector({
               }}
               disabled={
                 card.teacherRequirement === 'NONE'
-                || eligiblePlacementTeacherOptions.length
-                  <= (placement.teacherId ? 1 : 0)
+                || teacherOptions.length <= (placement.teacherId ? 1 : 0)
                 || commandBusy
                 || card.locked
               }
@@ -598,8 +591,7 @@ export function ManagementInspector({
               <span className="ml-1 text-[9px] opacity-65">
                 · {Math.max(
                   0,
-                  eligiblePlacementTeacherOptions.length
-                    - (placement.teacherId ? 1 : 0),
+                  teacherOptions.length - (placement.teacherId ? 1 : 0),
                 )}
               </span>
             </button>
@@ -674,8 +666,21 @@ export function ManagementInspector({
                           : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
                       }`}
                     >
-                      <span>{option.name}</span>
-                      <span>{selected ? 'Seçildi' : 'Seç'}</span>
+                      <span className="min-w-0">
+                        <span className="block truncate">{option.name}</span>
+                        {placementEditMode === 'TEACHER' && (
+                          <span className={
+                            selected
+                              ? 'mt-0.5 block text-[8px] font-semibold text-slate-300'
+                              : 'mt-0.5 block text-[8px] font-semibold text-slate-400'
+                          }>
+                            {card.teacherIds.includes(option.id)
+                              ? 'Ders planı havuzunda'
+                              : 'Manuel seçim'}
+                          </span>
+                        )}
+                      </span>
+                      <span className="shrink-0">{selected ? 'Seçildi' : 'Seç'}</span>
                     </button>
                   );
                 })}
@@ -704,8 +709,11 @@ export function ManagementInspector({
                   </p>
                   <p className="mt-1 text-[9px] font-medium leading-4 text-slate-600">
                     {placementResourcePreview.affectedCardCount} kart · {placementResourcePreview.affectedRequirementCount} ders tanımı
-                    {placementResourcePreview.poolExpansionCount > 0
-                      ? ` · ${placementResourcePreview.poolExpansionCount} öğretmen/salon havuzu genişleyecek`
+                    {placementResourcePreview.requirementWideExpansionCount > 0
+                      ? ' · öğretmen değişikliği dersin yerleşmiş bloklarına birlikte uygulanacak'
+                      : ''}
+                    {placementResourcePreview.outsidePlanningPoolCount > 0
+                      ? ' · manuel öğretmen seçimi; Ders Planı havuzu değişmeyecek'
                       : ''}
                   </p>
 
@@ -724,7 +732,9 @@ export function ManagementInspector({
                                   : reason === 'CARD_LOCKED'
                                     ? 'Kart kilitli.'
                                     : reason === 'REQUIREMENT_TEACHER_MISMATCH'
-                                      ? 'Bu ders tüm bloklarda aynı öğretmeni kullanmalı. Öğretmen değişikliği dersin tamamı için birlikte yapılmalı.'
+                                      ? 'Bu ders tüm bloklarda aynı öğretmeni kullanmalı.'
+                                      : reason === 'OUTSIDE_PLANNING_POOL_WITH_UNPLACED_BLOCKS'
+                                        ? 'Bu dersin henüz yerleşmemiş blokları var. Seçilen öğretmeni önce Ders Planı öğretmen havuzuna ekleyin.'
                                       : reason === 'NO_CHANGES'
                                         ? 'Kaynak zaten bu yerleşimde kullanılıyor.'
                                         : reason}
