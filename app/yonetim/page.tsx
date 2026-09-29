@@ -1582,7 +1582,7 @@ export default function ManagementPage() {
         </div>
 
         {activeSection === 'PROGRAM' && (
-          <div className="flex h-[50px] items-center gap-2.5 border-t border-slate-100 px-4">
+          <div className="flex h-[50px] min-w-0 items-center gap-2 border-t border-slate-100 px-3">
             <button
               type="button"
               onClick={() => setPoolOpen((value) => !value)}
@@ -1666,7 +1666,7 @@ export default function ManagementPage() {
               ))}
             </div>
   
-            <div className="flex items-center gap-2 text-[9px] font-semibold text-slate-500">
+            <div className="flex shrink-0 items-center gap-2 text-[9px] font-semibold text-slate-500 max-[1360px]:hidden">
               <span>{visiblePlacedCount} yerleşmiş</span>
               <span className="text-slate-300">·</span>
               <span>{visibleUnplacedCount} havuzda</span>
@@ -1678,7 +1678,7 @@ export default function ManagementPage() {
               type="button"
               onClick={() => setPlacementAssistantOpen(true)}
               disabled={dataLoading || commandBusy}
-              className="rounded-xl border border-[#A63D48]/25 bg-white px-3 py-2 text-[10px] font-black text-[#A63D48] transition hover:border-[#A63D48]/45 hover:bg-[#A63D48]/5 disabled:cursor-not-allowed disabled:opacity-35"
+              className="shrink-0 whitespace-nowrap rounded-xl border border-[#A63D48]/25 bg-white px-3 py-2 text-[10px] font-black text-[#A63D48] transition hover:border-[#A63D48]/45 hover:bg-[#A63D48]/5 disabled:cursor-not-allowed disabled:opacity-35"
               title="Tek seçenekli dersler için güvenli yerleşim önerileri"
             >
               ✦ Asistan
@@ -1695,28 +1695,36 @@ export default function ManagementPage() {
             )}
   
             {access?.canEdit ? (
-              <div data-tour-target="history-actions" className="flex items-center gap-1.5">
+              <div data-tour-target="history-actions" className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => void runUndo()}
                   disabled={!commandState.undo || commandBusy}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+                  className="flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30 max-[1280px]:w-9 max-[1280px]:px-0"
                   title={commandState.undo
                     ? `${commandContextLabel(commandState.undo, board)} geri al`
                     : 'Geri alınabilecek işlem yok'}
+                  aria-label={commandState.undo
+                    ? `${commandContextLabel(commandState.undo, board)} geri al`
+                    : 'Geri alınabilecek işlem yok'}
                 >
-                  ↶ Geri Al
+                  <span aria-hidden="true">↶</span>
+                  <span className="max-[1280px]:hidden">Geri Al</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => void runRedo()}
                   disabled={!commandState.redo || commandBusy}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+                  className="flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30 max-[1280px]:w-9 max-[1280px]:px-0"
                   title={commandState.redo
                     ? `${commandContextLabel(commandState.redo, board)} yeniden uygula`
                     : 'Yinelenecek işlem yok'}
+                  aria-label={commandState.redo
+                    ? `${commandContextLabel(commandState.redo, board)} yeniden uygula`
+                    : 'Yinelenecek işlem yok'}
                 >
-                  ↷ Yinele
+                  <span aria-hidden="true">↷</span>
+                  <span className="max-[1280px]:hidden">Yinele</span>
                 </button>
               </div>
             ) : (
