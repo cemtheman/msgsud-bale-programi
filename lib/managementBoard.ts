@@ -1050,22 +1050,16 @@ export function applyManagementTeacherPolicyToCandidateDetail(
 
   const policyConflict = card.teacherContinuityConflict;
   const resolvedTeacherId = card.resolvedRequirementTeacherId;
-  let policyFilteredCount = 0;
 
   const assessments = detail.assessments.map((assessment) => {
     const mismatch = Boolean(
       resolvedTeacherId
-      && assessment.teacherId
       && assessment.teacherId !== resolvedTeacherId
     );
-    const blockedByConflict = Boolean(policyConflict && assessment.teacherId);
+    const blockedByConflict = policyConflict;
 
     if (!mismatch && !blockedByConflict) {
       return assessment;
-    }
-
-    if (assessment.status === 'VALID') {
-      policyFilteredCount += 1;
     }
 
     const code = policyConflict
@@ -1075,6 +1069,7 @@ export function applyManagementTeacherPolicyToCandidateDetail(
     return {
       ...assessment,
       status: 'INVALID' as const,
+      isComplete: false,
       reasonCodes: assessment.reasonCodes.includes(code)
         ? assessment.reasonCodes
         : [...assessment.reasonCodes, code],
@@ -1087,6 +1082,11 @@ export function applyManagementTeacherPolicyToCandidateDetail(
       policyReasonMap.set(code, (policyReasonMap.get(code) ?? 0) + 1);
     });
   });
+
+  const policyFilteredCount = assessments.filter((assessment) => (
+    assessment.reasonCodes.includes('REQUIREMENT_TEACHER_MISMATCH')
+    || assessment.reasonCodes.includes('REQUIREMENT_TEACHER_CONFLICT')
+  )).length;
 
   return {
     assessments,
