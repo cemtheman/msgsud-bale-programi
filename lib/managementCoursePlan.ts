@@ -19,6 +19,11 @@ export type ManagementTeacherContinuity =
   | 'REQUIRED'
   | 'PREFERRED'
   | 'NONE';
+export type ManagementTeacherRequirement =
+  | 'REQUIRED'
+  | 'OPTIONAL'
+  | 'NONE'
+  | 'UNSPECIFIED';
 
 export interface ManagementCoursePlanRow {
   requirementId: string;
@@ -37,6 +42,7 @@ export interface ManagementCoursePlanRow {
   termStatus: ManagementPlanTermStatus;
   knowledgeStatus: string;
   teacherMode: string;
+  teacherRequirement: ManagementTeacherRequirement;
   teacherAssignmentScope: ManagementTeacherAssignmentScope;
   teacherContinuity: ManagementTeacherContinuity;
   teacherIds: string[];
@@ -141,6 +147,7 @@ interface RequirementRow {
   term_status: ManagementPlanTermStatus;
   knowledge_status: string;
   teacher_mode: string;
+  teacher_requirement: ManagementTeacherRequirement;
   teacher_assignment_scope: ManagementTeacherAssignmentScope;
   teacher_continuity: ManagementTeacherContinuity;
   resource_mode: string;
@@ -460,7 +467,7 @@ export async function fetchManagementCoursePlan(
     roomNameOverrides,
   ] = await Promise.all([
     authedGet<RequirementRow[]>(
-      `course_requirements?select=id,subject_id,instructional_group_id,weekly_load,preferred_partition,allowed_partitions,min_distinct_days,max_blocks_per_day,max_consecutive_periods,course_character,delivery_mode,term_status,knowledge_status,teacher_mode,teacher_assignment_scope,teacher_continuity,resource_mode,required_capability&requirement_set_id=eq.${revision.requirement_set_id}`,
+      `course_requirements?select=id,subject_id,instructional_group_id,weekly_load,preferred_partition,allowed_partitions,min_distinct_days,max_blocks_per_day,max_consecutive_periods,course_character,delivery_mode,term_status,knowledge_status,teacher_mode,teacher_requirement,teacher_assignment_scope,teacher_continuity,resource_mode,required_capability&requirement_set_id=eq.${revision.requirement_set_id}`,
       accessToken,
     ),
     authedGet<GroupRow[]>(
@@ -624,6 +631,7 @@ export async function fetchManagementCoursePlan(
       termStatus: requirement.term_status,
       knowledgeStatus: requirement.knowledge_status,
       teacherMode: requirement.teacher_mode,
+      teacherRequirement: requirement.teacher_requirement,
       teacherAssignmentScope: requirement.teacher_assignment_scope,
       teacherContinuity: requirement.teacher_continuity,
       teacherIds,
