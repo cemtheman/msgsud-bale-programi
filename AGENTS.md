@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.4 — teacher-policy-aware candidate reads + placement override gate + assistant policy impact; production/test/build doğrulaması |
+| Sıradaki iş paketi | M32.4.2 — manual teacher override correction production/test/build doğrulaması; ardından DB-level candidate enforcement + forward impact |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -2538,3 +2538,95 @@ Sonraki doğrulama batch:
    - yalnız Solfej pool teacher'ları
    - E. Gemalmaz gibi havuz dışı öğretmen görünmemeli
 8. Matematik continuity blocker halen çalışmalı
+
+
+## 46. 29 Eylül 2026 — M32.4.1 over-constraint / M32.4.2 manual override correction
+
+Kullanıcı gözlemi:
+“artık nerdeyse hiçbir derste öğretmen değiştiremiyoruz.”
+
+Kök neden:
+- M32.4.1 `course_requirement_teachers` tablosunu hard eligibility whitelist gibi kullandı.
+- Ancak proje geçmişinde bu tablo M27/M30 boyunca çoğunlukla mevcut/kanıtlanmış
+  placement teacher kapasitesinden ve planlama havuzundan türetildi.
+- Dolayısıyla özellikle FIXED / tek-teacher requirement'larda placement teacher picker
+  neredeyse boş kaldı.
+- Bu, planning pool ile teacher qualification kavramlarını yanlış biçimde birleştirdi.
+
+Düzeltilmiş semantik:
+- `course_requirement_teachers` = automatic planning / solver teacher pool.
+- Manual editor authority bundan ayrıdır.
+- EDITOR explicit olarak herhangi bir ACTIVE teacher seçebilir.
+- BLOCK scope:
+  - yalnız seçilen placed block(lar) değişir.
+  - teacher planning pool dışında olabilir.
+  - Course Plan pool sessizce değişmez.
+- REQUIREMENT + REQUIRED:
+  - tek blok teacher değişikliği otomatik olarak requirement'ın tüm placed block'larına
+    genişler.
+  - böylece continuity bozulmaz.
+  - gün/start/room korunur.
+  - planning pool sessizce değişmez.
+- Eğer REQUIREMENT+REQUIRED derste unplaced block varsa ve seçilen teacher planning pool
+  dışındaysa apply bloke edilir; önce Course Plan pool açıkça güncellenir.
+- Mevcut teacher/room timetable conflict kontrolleri aynen korunur.
+
+Yeni migration:
+```
+20260929104500_management_m32_4_2_manual_teacher_override.sql
+```
+
+RPC contract aynı:
+- management_preview_placement_resource_change_v2
+- management_apply_placement_resource_change_v2
+
+Yeni preview metadata:
+- requestedCardIds
+- outsidePlanningPoolCount
+- requirementWideExpansionCount
+- planningPoolChanged=false
+- policyImpacts
+
+UI:
+- placement teacher picker yeniden tüm ACTIVE öğretmenleri gösterir.
+- mevcut planning-pool öğretmenleri listenin başında ve “Ders planı havuzunda” etiketiyle.
+- diğerleri “Manuel seçim”.
+- BLOCK copy: yalnız mevcut placement değişir.
+- REQUIREMENT+REQUIRED copy:
+  öğretmen değişikliği dersin yerleşmiş tüm bloklarına birlikte uygulanır.
+- preview requirement-wide genişlemeyi ve outside-pool manuel seçimi açıklar.
+- teacher pool otomatik genişletilmez.
+
+M32.4.1 historical migration geri yazılmadı; M32.4.2 onun davranışını güvenli biçimde override eder.
+Bu nedenle M32.4.1 production'a uygulanmış veya uygulanmamış olması M32.4.2 deployment'ını etkilemez.
+
+Read-only QA:
+```
+docs/sql/m32_4_2_manual_teacher_override_qa.sql
+```
+Kontroller:
+- BLOCK outside-pool ACTIVE teacher artık TEACHER_NOT_ELIGIBLE almaz.
+- BLOCK preview tek kartta kalır.
+- REQUIREMENT+REQUIRED single-card request bütün placed requirement bloklarına genişler.
+- continuity mismatch oluşmaz.
+- planningPoolChanged=false kalır.
+- gerçek timetable conflict varsa canApply yine false olabilir; bu beklenir.
+
+Commits:
+```
+da91460605758f394016524e55a6617c8329e2df fix: restore practical manual teacher overrides
+290d5f814857d64cdfb4f4cf09c0389c9a0ce35c fix: model manual override metadata
+8eec2962ceb2834f8fc39334f643c1ecc4d5a530 fix: restore manual teacher choice without changing plan pool
+a2f436d789b00b3a0bddab775a3f130f020ec05a polish: keep planned teachers first in manual picker
+a5a698ea538484064260a85239a9add92c9aa6c0 test: add manual teacher override semantics QA
+65ab3431505414c35f5f2825667de2b150ed2546 docs: distinguish planning pool from manual teacher override
+```
+
+UI layout fix also landed:
+```
+45b58d71728ad93c2c4d06bb4ec48117642927cb fix: keep history actions compact on narrow screens
+```
+- Geri Al/Yinele no-wrap
+- <=1280 px icon-only
+- <=1360 px placement summary hidden
+- history actions shrink edilmez
