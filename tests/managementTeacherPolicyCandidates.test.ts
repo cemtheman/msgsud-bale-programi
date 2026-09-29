@@ -94,6 +94,28 @@ describe('teacher-policy-aware candidate reads', () => {
     });
   });
 
+  it('counts policy rows already invalidated by the persisted domain layer', () => {
+    const persisted = detail();
+    persisted.assessments[0] = {
+      ...persisted.assessments[0],
+      status: 'INVALID',
+      isComplete: false,
+      reasonCodes: ['REQUIREMENT_TEACHER_MISMATCH'],
+    };
+
+    const result = applyManagementTeacherPolicyToCandidateDetail(
+      persisted,
+      card(),
+    );
+
+    expect(result.policyFilteredCount).toBe(1);
+    expect(result.validCandidates).toHaveLength(1);
+    expect(result.reasonCounts).toContainEqual({
+      code: 'REQUIREMENT_TEACHER_MISMATCH',
+      count: 1,
+    });
+  });
+
   it('keeps BLOCK-scoped teacher candidates independent', () => {
     const result = applyManagementTeacherPolicyToCandidateDetail(
       detail(),
