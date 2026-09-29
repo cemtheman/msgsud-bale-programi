@@ -348,7 +348,8 @@ export function translateCandidateReason(code: string) {
     ROOM_INACTIVE: 'Salon kullanımda değil',
     TEACHER_INACTIVE: 'Öğretmen atamaya kapalı',
     GROUP_CONFLICT: 'Öğrenci grubu aynı saatte başka derste',
-    REQUIREMENT_TEACHER_MISMATCH: 'Bu dersin diğer bloklarında farklı bir öğretmen kullanılıyor',
+    REQUIREMENT_TEACHER_MISMATCH: 'Bu dersin diğer bloklarında kullanılan öğretmenle eşleşmiyor',
+    REQUIREMENT_TEACHER_CONFLICT: 'Bu dersin yerleşmiş bloklarında birden fazla öğretmen kullanılıyor',
   };
 
   return labels[code] ?? code.replaceAll('_', ' ').toLocaleLowerCase('tr-TR');
@@ -1030,5 +1031,73 @@ export async function fetchManagementCardCandidates(
       .map(([code, count]) => ({ code, count }))
       .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code)),
     validCandidates: assessments.filter((assessment) => assessment.status === 'VALID'),
+    policyFilteredCount: 0,
+    policyResolvedTeacherId: null,
+    policyConflict: false,
+  };
+}
+
+export function applyManagementTeacherPolicyToCandidateDetail(
+  detail: ManagementCandidateDetail,
+  card: ManagementBoardCard,
+): ManagementCandidateDetail {
+  if (
+    card.teacherAssignmentScope !== 'REQUIREMENT'
+    || card.teacherContinuity !== 'REQUIRED'
+  ) {
+    return detail;
+  }
+
+  const policyConflict = card.teacherContinuityConflict;
+  const resolvedTeacherId = card.resolvedRequirementTeacherId;
+  let policyFilteredCount = 0;
+
+  const assessments = detail.assessments.map((assessment) => {
+    const mismatch = Boolean(
+      resolvedTeacherId
+      && assessment.teacherId
+      && assessment.teacherId !== resolvedTeacherId
+    );
+    const blockedByConflict = Boolean(policyConflict && assessment.teacherId);
+
+    if (!mismatch && !blockedByConflict) {
+      return assessment;
+    }
+
+    if (assessment.status === 'VALID') {
+      policyFilteredCount += 1;
+    }
+
+    const code = policyConflict
+      ? 'REQUIREMENT_TEACHER_CONFLICT'
+      : 'REQUIREMENT_TEACHER_MISMATCH';
+
+    return {
+      ...assessment,
+      status: 'INVALID' as const,
+      reasonCodes: assessment.reasonCodes.includes(code)
+        ? assessment.reasonCodes
+        : [...assessment.reasonCodes, code],
+    };
+  });
+
+  const policyReasonMap = new Map<string, number>();
+  assessments.forEach((assessment) => {
+    assessment.reasonCodes.forEach((code) => {
+      policyReasonMap.set(code, (policyReasonMap.get(code) ?? 0) + 1);
+    });
+  });
+
+  return {
+    assessments,
+    reasonCounts: Array.from(policyReasonMap.entries())
+      .map(([code, count]) => ({ code, count }))
+      .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code)),
+    validCandidates: assessments.filter(
+      (assessment) => assessment.status === 'VALID',
+    ),
+    policyFilteredCount,
+    policyResolvedTeacherId: resolvedTeacherId,
+    policyConflict,
   };
 }
