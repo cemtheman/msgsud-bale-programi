@@ -100,30 +100,52 @@ function partitionLabel(row: ManagementCoursePlanRow) {
 }
 
 function teacherLabel(row: ManagementCoursePlanRow) {
+  if (row.teacherRequirement === 'NONE') {
+    return 'Öğretmen gerekmiyor';
+  }
+
+  if (row.teacherRequirement === 'OPTIONAL' && row.teacherNames.length === 0) {
+    return 'Öğretmen ataması isteğe bağlı';
+  }
+
+  if (row.teacherRequirement === 'UNSPECIFIED') {
+    return 'Öğretmen gereksinimi henüz belirlenmedi';
+  }
+
   if (row.teacherMode === 'UNKNOWN' || row.teacherNames.length === 0) {
-    return 'Öğretmen henüz belirlenmemiş';
+    return 'Öğretmen gerekli, henüz belirlenmedi';
   }
 
   return row.teacherNames.join(', ');
 }
 
 function teacherPolicyLabel(row: ManagementCoursePlanRow) {
+  if (row.teacherRequirement === 'NONE') {
+    return 'Öğretmen kuralı uygulanmaz';
+  }
+
   if (
     row.teacherAssignmentScope === 'REQUIREMENT'
     && row.teacherContinuity === 'REQUIRED'
   ) {
-    return 'Tüm bloklarda aynı öğretmen';
+    return row.teacherRequirement === 'OPTIONAL'
+      ? 'İsteğe bağlı · tüm bloklarda aynı öğretmen'
+      : 'Tüm bloklarda aynı öğretmen';
   }
 
   if (
     row.teacherAssignmentScope === 'BLOCK'
     && row.teacherContinuity === 'PREFERRED'
   ) {
-    return 'Bloklar esnek · aynı öğretmen tercih';
+    return row.teacherRequirement === 'OPTIONAL'
+      ? 'İsteğe bağlı · bloklar esnek · aynı öğretmen tercih'
+      : 'Bloklar esnek · aynı öğretmen tercih';
   }
 
   if (row.teacherAssignmentScope === 'BLOCK') {
-    return 'Her blok ayrı öğretmen seçebilir';
+    return row.teacherRequirement === 'OPTIONAL'
+      ? 'İsteğe bağlı · her blok ayrı öğretmen seçebilir'
+      : 'Her blok ayrı öğretmen seçebilir';
   }
 
   return 'Öğretmen kuralı belirlenmedi';
@@ -156,6 +178,7 @@ function audienceLabel(row: ManagementCoursePlanRow) {
 function rowHasMissingTeacher(row: ManagementCoursePlanRow) {
   return (
     row.termStatus === 'ACTIVE'
+    && row.teacherRequirement === 'REQUIRED'
     && (row.teacherMode === 'UNKNOWN' || row.teacherNames.length === 0)
   );
 }
@@ -303,24 +326,28 @@ function requirementRow(
           <div className="mt-2 flex flex-wrap gap-1">
             {row.termStatus === 'ACTIVE' && (
               <>
-                <button
-                  type="button"
-                  onClick={() => onEditTeacher(row)}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50"
-                >
-                  Öğretmen
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onEditTeacherPolicy(row)}
-                  className={
-                    row.teacherAssignmentScope === 'UNSPECIFIED'
-                      ? 'rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[8px] font-bold text-amber-700 hover:bg-amber-100'
-                      : 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50'
-                  }
-                >
-                  Öğretmen kuralı
-                </button>
+                {row.teacherRequirement !== 'NONE' && (
+                  <button
+                    type="button"
+                    onClick={() => onEditTeacher(row)}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50"
+                  >
+                    Öğretmen
+                  </button>
+                )}
+                {row.teacherRequirement !== 'NONE' && (
+                  <button
+                    type="button"
+                    onClick={() => onEditTeacherPolicy(row)}
+                    className={
+                      row.teacherAssignmentScope === 'UNSPECIFIED'
+                        ? 'rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[8px] font-bold text-amber-700 hover:bg-amber-100'
+                        : 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50'
+                    }
+                  >
+                    Öğretmen kuralı
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => onEditRoom(row)}
@@ -595,6 +622,7 @@ export function ManagementCoursePlan({
   const missingRoomCount = stageRows.filter(rowHasMissingRoom).length;
   const unspecifiedTeacherPolicyCount = stageRows.filter((row) => (
     row.termStatus === 'ACTIVE'
+    && row.teacherRequirement !== 'NONE'
     && row.teacherAssignmentScope === 'UNSPECIFIED'
   )).length;
 
