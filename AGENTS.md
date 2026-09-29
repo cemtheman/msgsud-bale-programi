@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.3.6 — coordinated teacher reconciliation preview production doğrulaması; ardından coordinated apply/history ve policy-aware candidate enforcement |
+| Sıradaki iş paketi | M32.3.7 — coordinated teacher apply/undo/redo + Course Plan resolver production/build/rollback QA; ardından policy-aware candidate enforcement |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -2109,3 +2109,114 @@ Commit:
 ```
 3d4f703c972bfc1b7b514f5da29736e00fd2be0a fix: use UUID-safe coordinated revision lookup
 ```
+
+
+## 43. 29 Eylül 2026 — M32.3.6 PASS / M32.3.7 coordinated apply + history
+
+M32.3.6 final-state diagnostic PASS:
+
+Geçerli çapraz planlar:
+- 10A Matematik → Matematik Öğretmeni 2
+  10B Matematik → Matematik Öğretmeni 1
+  `canApply=true`, toplam 2 blok değişir.
+- 10A Matematik → Matematik Öğretmeni 1
+  10B Matematik → Matematik Öğretmeni 2
+  `canApply=true`, toplam 5 blok değişir.
+
+Geçersiz planlar:
+- iki sınıf da Matematik Öğretmeni 1 → TEACHER_CONFLICT
+- iki sınıf da Matematik Öğretmeni 2 → TEACHER_CONFLICT
+
+Ürün/solver yorumu:
+- 2-blok planı yalnız “mevcut programa en az müdahale” metriğinde daha düşük maliyetlidir.
+- Öğretmen yükü/tercihleri henüz objective'e katılmadığı için sistem bunu “en iyi öğretmen dağılımı” diye seçmez.
+- kullanıcı teacher assignment kararını açıkça verir; Partisyon final state'i birlikte doğrular.
+
+M32.3.7 migration:
+
+```
+20260929092000_management_m32_3_7_coordinated_reconciliation_apply.sql
+```
+
+Yeni RPC:
+- `management_apply_coordinated_teacher_reconciliation(jsonb,text)`
+- `management_undo_coordinated_teacher_reconciliation(uuid)`
+- `management_redo_coordinated_teacher_reconciliation(uuid)`
+
+Davranış:
+- M32.3.6 stateToken tekrar doğrulanır
+- final coordinated preview canApply değilse apply yok
+- bütün changed placement'lar tek DB transaction içinde yazılır
+- gün/start/room korunur; yalnız teacher değişir
+- requirement teacher pool değişmez
+- bir changed card = bir USER/MOVE root
+- bütün root'lar aynı bundle_id ve
+  `bundle_engine_version=M32.3.7-coordinated-teacher` taşır
+- different target teachers aynı bundle içinde desteklenir
+- bütün placement writes bittikten sonra M15 delta candidate refresh çalışır
+- converged final state ayrıca doğrulanır
+- custom atomic undo exact before snapshots'e döner
+- custom redo M32.3.6 FINAL_COORDINATED_STATE preview'i yeniden çalıştırır; safe değilse durur
+- existing global `management_undo_bundle` / `management_redo_bundle`
+  M32.3.7 bundle engine'i algılayıp custom path'e dispatch eder
+- diğer M26/M29 bundle davranışları korunur
+
+Commit:
+```
+33c49b14afa8ebd87ee34f041fa47dde7ede9795 feat: apply coordinated teacher reconciliation atomically
+```
+
+Frontend / Course Plan:
+- `fetchManagementCoursePlan` teacher policy audit'i de getirir
+- `teacherContinuityViolations` Course Plan data'ya eklenir
+- stage'e ait continuity conflict varsa violet banner görünür
+- “Birlikte çöz” resolver:
+  - her conflict requirement için eligible teacher seçimi
+  - hiçbir default/winner yok
+  - tüm seçimler tamamlanınca FINAL_COORDINATED_STATE preview
+  - changed block count, assignment bazlı impact ve conflict gösterimi
+  - yalnız canApply=true ise “Koordineli uygula”
+- apply sonrası global refresh; bundle history sayesinde normal Undo/Redo UI tek karar olarak çalışır
+
+Commits:
+```
+7fd0d983ee19403ab69c52ae311221bb36a05449 feat: expose coordinated teacher reconciliation
+7563a172f75518e196f91a895df69b1563c95b6d feat: add coordinated teacher continuity resolver
+ef6631a750b429ac45c9d90650dbe53aca7d7797 feat: surface coordinated teacher continuity resolver
+b7d97e384cef53d4cb9c11b704efeed418065c5f feat: wire coordinated teacher continuity actions
+```
+
+Rollback-only backend QA:
+
+```
+docs/sql/m32_3_7_coordinated_reconciliation_rollback_qa.sql
+```
+
+QA otomatik olarak yalnız test transaction'ında:
+1. mevcut iki violation için valid planlar arasından en az changed-block planını seçer
+2. preview → apply
+3. audit: continuity violation 0
+4. custom undo
+5. audit: continuity violation 2
+6. custom redo
+7. audit: continuity violation 0
+8. ROLLBACK
+
+Production verisi QA sonunda değişmeden kalır.
+
+Commit:
+```
+f2f20a87f9d8469a5392f9e1df939d8b3eb2ec95 test: add coordinated reconciliation rollback QA
+```
+
+M32.3.7 doğrulama mümkün olduğunca tek batch:
+1. pull + HEAD
+2. migration list + dry-run
+3. db push
+4. npm build
+5. rollback-only SQL QA
+6. browser Course Plan / Lise / “Birlikte çöz”
+7. 10A T2 + 10B T1 seçimi ile preview (2 changed blocks beklenir)
+8. apply yapılırsa global Undo/Redo smoke
+9. teacher-policy audit requiredContinuityViolations=[] beklenir
+10. ardından policy-aware candidate enforcement.
