@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.3.5 — requirement-level teacher reconciliation production/build doğrulaması; ardından Matematik reconciliation ve policy-aware candidate enforcement |
+| Sıradaki iş paketi | M32.3.6 — coordinated teacher reconciliation preview production doğrulaması; ardından coordinated apply/history ve policy-aware candidate enforcement |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1979,3 +1979,98 @@ Commit:
 ```
 5c15823bb4604481a17f4656f8813fcd0b2ca829 fix: make reconciliation diagnostic SQL-editor safe
 ```
+
+
+## 41. 29 Eylül 2026 — M32.3.5 local preview'in sınırı / M32.3.6 coordinated preview
+
+M32.3.5 read-only reconciliation option diagnostic sonucu:
+
+10A Matematik:
+- Öğretmen 1 → can_apply=false, 2 blok değişir
+  - Salı 1'de 10B Matematik Öğretmen 1 ile çakışır
+  - Çarşamba 9'da 10B Matematik Öğretmen 1 ile çakışır
+- Öğretmen 2 → can_apply=false, 1 blok değişir
+  - Salı 7–8 bloğu, 10B'nin Salı 8 Matematik Öğretmen 2 bloğuyla çakışır
+
+10B Matematik:
+- Öğretmen 1 → can_apply=false, 1 blok değişir
+  - Salı 8 bloğu, 10A'nın Salı 7–8 Matematik Öğretmen 1 bloğuyla çakışır
+- Öğretmen 2 → can_apply=false, 3 blok değişir
+  - Salı 1 ve Çarşamba 9'da 10A Matematik Öğretmen 2 ile çakışır
+
+Kritik çıkarım:
+M32.3.5 tek requirement'ı mevcut occupancy'ye karşı değerlendirir. Burada iki requirement birbirini bloke ettiği için bütün tekli preview'lar false çıkıyor; fakat eşzamanlı final-state değerlendirmede iki geçerli tamamlayıcı plan var:
+
+1. 10A → Matematik Öğretmeni 2
+   10B → Matematik Öğretmeni 1
+   toplam 2 blokta teacher change.
+   Salı 7–8 karşılıklı conflict iki taraf aynı anda değişince ortadan kalkar.
+
+2. 10A → Matematik Öğretmeni 1
+   10B → Matematik Öğretmeni 2
+   toplam 5 blokta teacher change.
+   Salı 1 ve Çarşamba 9 karşılıklı conflict iki taraf aynı anda değişince ortadan kalkar.
+
+Bu full-auto solver için genel bir ders:
+- local/greedy variable validation global çözümü kaçırabilir;
+- birbirine bağlı teacher assignment kararları FINAL coordinated state üzerinde değerlendirilmelidir;
+- “tekli canApply=false” = “global çözüm yok” anlamına gelmez;
+- optimizer objective olarak minimum changed blocks kullanılabilir, ama teacher winner sessiz/arbitrary seçilmemelidir.
+
+M32.3.6 preview-only migration:
+
+```
+20260929090000_management_m32_3_6_coordinated_reconciliation_preview.sql
+```
+
+RPC:
+```
+management_preview_coordinated_teacher_reconciliation(jsonb)
+```
+
+Input:
+```json
+[
+  {"requirementId":"...","teacherId":"..."},
+  {"requirementId":"...","teacherId":"..."}
+]
+```
+
+Davranış:
+- 1..24 distinct requirement
+- tek DRAFT revision
+- ACTIVE + teacher-bearing + REQUIREMENT/REQUIRED policy
+- teacher existing eligible pool'da ve ACTIVE
+- gün/saat/salon final planda korunur
+- conflict hesabı mevcut occupancy değil proposed FINAL teacher state üzerinden yapılır
+- target-target swap/complement değişikliklerini birlikte görür
+- locked changed card blocker
+- no mutation / no apply
+- SQL Editor postgres diagnostics allowed; authenticated caller still EDITOR
+
+Commit:
+```
+b50ef07e4408faa975a5f6275b72da9247c821cf feat: preview coordinated teacher reconciliation
+```
+
+Current two violations için bütün teacher pairing'lerini enumerating read-only SQL:
+```
+docs/sql/m32_3_6_coordinated_teacher_options.sql
+```
+
+Commit:
+```
+e1a540fe2c4dd1a5afd3d260e502f6f23f5029f9 docs: add coordinated teacher option diagnostic
+```
+
+Beklenen current-data sonucu:
+- 10A T2 + 10B T1 → canApply true, changedBlockCount 2
+- 10A T1 + 10B T2 → canApply true, changedBlockCount 5
+- aynı öğretmeni iki sınıfa veren eşleşmeler timetable overlap nedeniyle blocked olabilir
+- hiçbir apply yapılmayacak; önce M32.3.6 runtime preview doğrulanacak
+
+Apply/history için karar:
+- M32.3.5 single apply iki requirement'a sırayla uygulanmayacak; bu false intermediate conflicts üretir.
+- Bir sonraki coordinated apply atomik final-state write olmalı.
+- Undo/redo da coordinated bundle semantics'i anlamalı; mevcut M29 same-resource bundle redo mantığı farklı teacher targets için doğrudan yeterli değildir.
+- Bu nedenle M32.3.6 yalnız preview; coordinated apply/history ayrı migration'da tasarlanacak.
