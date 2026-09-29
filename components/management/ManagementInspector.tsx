@@ -232,16 +232,21 @@ export function ManagementInspector({
     if (!placement || !placementEditMode) return [];
 
     if (placementEditMode === 'TEACHER') {
-      return teacherOptions.filter(
-        (option) => option.id !== placement.teacherId,
-      );
+      return teacherOptions
+        .filter((option) => option.id !== placement.teacherId)
+        .sort((left, right) => {
+          const leftInPlan = card?.teacherIds.includes(left.id) ? 0 : 1;
+          const rightInPlan = card?.teacherIds.includes(right.id) ? 0 : 1;
+          return leftInPlan - rightInPlan
+            || left.name.localeCompare(right.name, 'tr');
+        });
     }
 
     return roomOptions.filter(
       (option) => option.id !== placement.roomId,
     );
   }, [
-    card?.placement,
+    card,
     placementEditMode,
     roomOptions,
     teacherOptions,
