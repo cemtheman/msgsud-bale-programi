@@ -49,6 +49,10 @@ export interface ManagementPlacementResourcePreview {
   affectedCardCount: number;
   affectedRequirementCount: number;
   poolExpansionCount: number;
+  requestedCardIds?: string[];
+  outsidePlanningPoolCount: number;
+  requirementWideExpansionCount: number;
+  planningPoolChanged: boolean;
   stateToken: string;
 }
 
@@ -59,6 +63,9 @@ export interface ManagementPlacementResourceApplyResult {
   resourceName: string;
   affectedCardCount: number;
   poolExpansionCount: number;
+  outsidePlanningPoolCount: number;
+  requirementWideExpansionCount: number;
+  planningPoolChanged: boolean;
   transactionId: string;
   publishedChanged: false;
 }
@@ -211,26 +218,34 @@ function translateCommandError(message: string, fallback: string) {
     normalized.includes('m29 preview is stale')
     || normalized.includes('m32.4 placement resource preview is stale')
     || normalized.includes('m32.4.1 placement resource preview is stale')
+    || normalized.includes('m32.4.2 placement resource preview is stale')
   ) {
     return 'Program, kaynak veya öğretmen kuralı önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.';
   }
 
   if (normalized.includes('m32.4.1 selected teacher is outside requirement eligible pool')) {
-    return 'Seçilen öğretmen bu ders için tanımlı öğretmen havuzunda değil. Önce Ders Planı üzerinden öğretmen havuzunu düzenleyin.';
+    return 'Sunucu henüz yeni manuel öğretmen değiştirme kuralına güncellenmemiş görünüyor. Veriyi yenileyip yeniden deneyin.';
+  }
+
+  if (
+    normalized.includes('m32.4.2 outside planning pool teacher requires course plan update for unplaced blocks')
+  ) {
+    return 'Bu dersin henüz yerleşmemiş blokları var. Seçtiğiniz öğretmeni önce Ders Planı öğretmen havuzuna ekleyin; ardından tüm bloklar aynı öğretmenle sürdürülebilir.';
   }
 
   if (
     normalized.includes('m32.4 requirement teacher continuity requires requirement-wide change')
     || normalized.includes('m32.4.1 requirement teacher continuity requires requirement-wide change')
   ) {
-    return 'Bu ders tüm bloklarda aynı öğretmeni kullanmalı. Tek bir bloğun öğretmenini değiştirmek yerine Ders Planı > Öğretmen Sürekliliği üzerinden tüm blokları birlikte uzlaştırın.';
+    return 'Bu ders tüm bloklarda aynı öğretmeni kullanmalı. Yeni sürümde öğretmen değişikliği yerleşmiş blokların tamamına birlikte uygulanır; veriyi yenileyip yeniden deneyin.';
   }
 
   if (
     normalized.includes('m32.4 placement resource change is blocked')
     || normalized.includes('m32.4.1 placement resource change is blocked')
+    || normalized.includes('m32.4.2 placement resource change is blocked')
   ) {
-    return 'Bu kaynak değişikliği öğretmen kuralı veya mevcut program nedeniyle uygulanamıyor.';
+    return 'Bu kaynak değişikliği mevcut programdaki bir çakışma veya kural nedeniyle uygulanamıyor.';
   }
 
   if (normalized.includes('m29 resource change is blocked')) {
