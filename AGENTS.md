@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.3.3 — teacher requirement semantics production doğrulaması; ardından policy UI entegrasyonu ve Matematik reconciliation |
+| Sıradaki iş paketi | M32.3.4 — OPTIONAL teacher semantics + active readiness production doğrulaması; ardından Matematik teacher reconciliation |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1790,3 +1790,72 @@ f13e9b567f53fcdbf97acd34c818798df3f5faf8 feat: separate teacher requirement from
 2. Audit yeniden çalıştırılacak.
 3. Ancak migration doğrulandıktan sonra frontend `teacher_requirement` kolonunu okumaya başlayacak.
 Bu sıra, Vercel'in yeni frontend'i DB kolonundan önce deploy edip Course Plan fetch'ini kırmasını önler.
+
+
+## 38. 29 Eylül 2026 — M32.3.3 audit sonucu / M32.3.4 OPTIONAL semantics
+
+M32.3.3 production audit sonucu:
+
+- requirements: 193
+- REQUIREMENT scoped: 119
+- BLOCK scoped: 58
+- teacherNotRequired: 16
+- teacherRequirementUnspecified: 0
+- assignmentPolicyUnspecified: 0
+- requiredContinuityViolations: 2
+  - 10A Matematik
+  - 10B Matematik
+- teacherNotRequiredRequirements: 16 adet KULÜP DERSLERİ
+- requiredTeacherMissingEligibility: 8
+  - Sahne: 9A, 10A, 11A, 12A BALLET
+  - B. Uygulama: 5A, 6A, 7A, 8A BALLET
+
+Yeni semantik karar:
+- KULÜP DERSLERİ → teacher_requirement = NONE
+- Sahne ve Birlikte Uygulama / B. Uygulama → teacher_requirement = OPTIONAL
+- OPTIONAL demek: Partisyon dedicated/resolved öğretmen kimliğini zorunlu tutmaz; mevcut veya gelecekte atanmış öğretmeni de engellemez.
+- Bu ayrım tam otomasyonda sahte/sentetik öğretmen üretimini önler ve özel/pratik dersleri esnek bırakır.
+
+Audit hatası da tespit edildi:
+- full-auto readiness inactive requirement'ları da eksik kaynak sayabiliyordu.
+- 5A B. Uygulama gibi dönemsel kapalı kayıtlar aktif solver readiness'i bloke etmemeli.
+- M32.3.4 audit'i readiness ve blocker listelerini yalnız ACTIVE requirement'lar üzerinden hesaplar.
+
+Migration:
+
+```
+20260929082500_management_m32_3_4_optional_teacher_semantics.sql
+```
+
+Commit:
+
+```
+e612c511ce52ec3537db67b749db036cedeb26aa fix: model optional teacher lessons and active readiness
+```
+
+Frontend teacher semantics:
+- Course Plan fetch artık `teacher_requirement` okur.
+- REQUIRED + eksik kimlik → “Öğretmen gerekli, henüz belirlenmedi”
+- OPTIONAL + kimlik yok → “Öğretmen ataması isteğe bağlı”
+- NONE → “Öğretmen gerekmiyor”
+- NONE requirement'larda Öğretmen / Öğretmen kuralı düzenleme butonları gösterilmez.
+- “Öğretmen eksik” sayacı yalnız REQUIRED dersleri sayar.
+- Öğretmen kuralı belirsizlik sayacı NONE dersleri saymaz.
+
+Commits:
+
+```
+caa3eab0bf4b0f6bf9d3ffb8cffdbe2f36f89316 feat: expose teacher requirement semantics
+074f425e8af46034e37c32f48821afa35c835a7b polish: show teacher requirement semantics in course plan
+```
+
+M32.3.4 sonrası beklenen audit:
+- teacherRequirementUnspecified = []
+- assignmentPolicyUnspecified = []
+- requiredTeacherMissingEligibility = []
+- optionalTeacherRequirements → aktif Sahne/B. Uygulama kayıtları
+- requiredContinuityViolations = yalnız 10A ve 10B Matematik
+- fullAutoReady = false yalnız Matematik continuity conflict nedeniyle (öğretmen-policy eksikleri açısından)
+
+Sonraki mimari iş:
+Matematik reconciliation ayrı atomik workflow olacak. Bir requirement için tek öğretmen seçilecek; mevcut bütün yerleşmiş bloklar aynı zaman/oda korunarak bu öğretmene geçirilebiliyor mu önce preview edilecek. Teacher conflict/unavailability varsa apply bloke edilecek ve hangi blokların yeniden zamanlanması gerektiği gösterilecek. Sessiz teacher seçimi veya otomatik winner yok.
