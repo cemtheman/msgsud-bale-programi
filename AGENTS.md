@@ -2455,3 +2455,86 @@ Sonuç:
 - runtime candidate policy filter kodu hazır
 - gerçek unplaced candidate enforcement/forward-impact doğrulaması için yeni
   unplaced state veya rollback-only synthetic/snapshot QA gerekir
+
+
+## 45. 29 Eylül 2026 — M32.4 smoke test / M32.4.1 teacher eligibility override fix
+
+Browser smoke sonucu M32.4 continuity gate'i doğruladı ve ayrı bir eligibility açığı yakaladı.
+
+Gözlemler:
+- Matematik REQUIREMENT+REQUIRED tek-blok teacher override doğru biçimde blocked:
+  “Bu ders tüm bloklarında aynı öğretmeni kullanmalı. Öğretmen değişikliği dersin tamamı için birlikte yapılmalı.”
+- Aynı preview ayrıca gerçek teacher conflict'i de gösterdi.
+- Solfej BLOCK+NONE per-block override policy nedeniyle bloke olmadı; bu beklenen.
+- Fakat placement teacher picker global aktif öğretmen listesini gösteriyordu.
+  Örneğin E. Gemalmaz Solfej requirement'ın eligible pool'unda olmamasına rağmen
+  preview “uygulanabilir” diyebiliyordu.
+
+Kritik semantik düzeltme:
+- BLOCK + NONE/PREFERRED = blok bazında bağımsız teacher seçimi
+- ama seçim HER ZAMAN requirement'ın mevcut eligible teacher pool'u içinden yapılır.
+- Assignment scope esnekliği eligibility esnekliği değildir.
+- Placement override teacher pool'u değiştirmez.
+
+M32.4.1 migration:
+
+```
+20260929103000_management_m32_4_1_teacher_eligibility_override.sql
+```
+
+Backend:
+- M32.4 v2 wrapper RPC'leri aynı isimle replace edilir.
+- TEACHER preview her affected requirement için:
+  - eligibleTeacherCount
+  - selectedTeacherEligible
+  - blockedByEligibility
+  - blockedByContinuity
+  hesaplar.
+- Havuz dışı teacher:
+  - canApply=false
+  - blockReasons += TEACHER_NOT_ELIGIBLE
+  - teacherEligibilityBlocked=true
+- apply doğrudan RPC çağrısıyla da havuz dışı teacher'ı reddeder.
+- REQUIREMENT+REQUIRED continuity gate aynen korunur.
+- ROOM davranışı değişmez.
+- M29 history-safe mutation yine alttaki authority'dir.
+
+UI:
+- ManagementInspector placement teacher picker artık global teacherOptions değil
+  `card.teacherIds` ile kesişen eligible teacher listesi kullanır.
+- Havuz dışı öğretmen listede görünmez.
+- “Öğretmen değiştir · N” sayacı yalnız eligible alternatifleri sayar.
+- teacherRequirement=NONE ise teacher override kapalıdır.
+- OPTIONAL + empty pool için placement-only arbitrary teacher atama yapılmaz;
+  önce Course Plan'da pool tanımlanmalıdır.
+
+Commitler:
+```
+5e591b2ac06321f0a4ee4f7c78ac1d011665b4a4 fix: scope placement teacher picker to course pool
+05a131619f3bb8a96846c409a151236b906247d3 polish: show only eligible teacher override count
+e09b915130ca8f11f5f9ad27074c104e93f1940b fix: enforce teacher eligibility on placement overrides
+4478cc993323668682fe4ea0d38e96526e6f8df7 fix: explain teacher eligibility override blocks
+781cef391e4b79a29969fca3a2b47345e6607727 test: add teacher eligibility override QA
+```
+
+Read-only SQL Editor QA:
+```
+docs/sql/m32_4_1_teacher_eligibility_override_qa.sql
+```
+- suitable ACTIVE placed BLOCK requirement seçer (Solfej öncelikli)
+- aktif ama pool dışı teacher seçer
+- v2 preview TEACHER_NOT_ELIGIBLE ve canApply=false bekler
+- uygun alternatif teacher varsa eligibility gate'in onu yanlışlıkla reddetmediğini de doğrular
+- write yapmaz
+
+Sonraki doğrulama batch:
+1. pull / HEAD
+2. npm test
+3. npm run build
+4. migration list + dry-run
+5. yalnız M32.4.1 varsa db push
+6. read-only M32.4.1 QA
+7. browser Solfej placement teacher picker:
+   - yalnız Solfej pool teacher'ları
+   - E. Gemalmaz gibi havuz dışı öğretmen görünmemeli
+8. Matematik continuity blocker halen çalışmalı
