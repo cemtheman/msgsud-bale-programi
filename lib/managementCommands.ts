@@ -82,6 +82,46 @@ export interface ManagementSlotBlocker {
   conflictTypes: string[];
 }
 
+export interface ManagementForwardImpactItem {
+  cardId: string;
+  dayOfWeek: number;
+  startPeriod: number;
+  teacherId: string | null;
+  roomId: string | null;
+}
+
+export interface ManagementForwardImpactScenario {
+  id: string;
+  items: ManagementForwardImpactItem[];
+}
+
+export interface ManagementForwardImpactRow {
+  cardId: string;
+  subjectName: string;
+  groupName: string;
+  currentValidCount: number;
+  lostValidCount: number;
+  remainingValidCount: number;
+  newForced: boolean;
+  newContradiction: boolean;
+}
+
+export interface ManagementForwardImpact {
+  id: string;
+  revisionId: string;
+  itemCount: number;
+  safeToApply: boolean;
+  scenarioBlockReasons: string[];
+  affectedCardCount: number;
+  domainLossCount: number;
+  newForcedCount: number;
+  newContradictionCount: number;
+  impactRows: ManagementForwardImpactRow[];
+  stateToken: string;
+  previewOnly: true;
+  engineVersion: string;
+}
+
 interface RootTransactionRow {
   id: string;
   action: 'PLACE' | 'MOVE' | 'REMOVE' | 'STRUCTURE';
@@ -474,6 +514,19 @@ export function fetchManagementSlotBlockers(
       p_card_ids: cardIds,
       p_day_of_week: dayOfWeek,
       p_start_period: startPeriod,
+    },
+  );
+}
+
+export function previewManagementCandidateForwardImpacts(
+  accessToken: string,
+  scenarios: ManagementForwardImpactScenario[],
+) {
+  return callJsonRpc<ManagementForwardImpact[]>(
+    'management_preview_candidate_forward_impacts',
+    accessToken,
+    {
+      p_scenarios: scenarios,
     },
   );
 }
