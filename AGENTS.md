@@ -1947,3 +1947,35 @@ M32.3.5 doğrulama sırası:
 5. kullanıcı bir öğretmeni açıkça seçmeden apply yapma
 6. reconciliation sonrası policy audit'te requiredContinuityViolations boşalmalı
 7. ondan sonra candidate engine policy enforcement
+
+
+## 40. 29 Eylül 2026 — M32.3.5 SQL Editor diagnostic fix
+
+Supabase SQL Editor'da `docs/sql/m32_3_5_teacher_reconciliation_options.sql`
+çalıştırıldığında şu hata görüldü:
+
+```
+M32.3.5 management EDITOR role required
+```
+
+Neden:
+- diagnostic dosyası doğrudan
+  `management_preview_requirement_teacher_reconciliation()` RPC'sini çağırıyordu.
+- Bu RPC uygulama içi güvenlik gereği EDITOR management role ister.
+- Supabase SQL Editor uygulamadaki `auth.uid()` / management-role bağlamını taşımaz.
+
+Karar:
+- Uygulama preview/apply RPC yetkileri GEVŞETİLMEDİ.
+- Diagnostic SQL tamamen read-only hale getirildi ve aynı teacher-side güvenlik
+  kontrollerini doğrudan tablolardan hesaplıyor:
+  - teacher mevcut eligible pool'da
+  - teacher ACTIVE
+  - değişecek kart kilitli değil
+  - dış placement teacher conflict yok
+  - gün/saat/salon korunuyor
+- Böylece SQL Editor teşhisi ile uygulama yetki modeli ayrıldı.
+
+Commit:
+```
+5c15823bb4604481a17f4656f8813fcd0b2ca829 fix: make reconciliation diagnostic SQL-editor safe
+```
