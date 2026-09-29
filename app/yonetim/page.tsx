@@ -108,6 +108,7 @@ import {
   updateManagementRequirementTeachers,
   type ManagementCommandDescriptor,
   type ManagementCommandState,
+  type ManagementForwardImpact,
   type ManagementRootAction,
 } from '@/lib/managementCommands';
 
@@ -707,7 +708,7 @@ export default function ManagementPage() {
           })),
         }));
 
-      const impacts = [];
+      const impacts: ManagementForwardImpact[] = [];
       for (let index = 0; index < impactScenarios.length; index += 60) {
         impacts.push(
           ...await previewManagementCandidateForwardImpacts(
