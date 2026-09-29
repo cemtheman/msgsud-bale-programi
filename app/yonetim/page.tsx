@@ -64,6 +64,7 @@ import {
   type ManagementPublicationPreviewData,
 } from '@/lib/managementPublicationPreview';
 import {
+  attachManagementPlacementAssistantForwardImpacts,
   buildManagementPlacementAssistantGroups,
   buildManagementPlacementAssistantPlan,
   sortManagementPlacementAssistantPlans,
@@ -95,6 +96,7 @@ import {
   placeManagementCardBundle,
   previewManagementPlacementResourceChange,
   applyManagementPlacementResourceChange,
+  previewManagementCandidateForwardImpacts,
   redoManagement,
   redoManagementBundle,
   removeManagementCard,
@@ -691,8 +693,33 @@ export default function ManagementPage() {
         );
       }
 
+      const sortedPlans = sortManagementPlacementAssistantPlans(nextPlans);
+      const impactScenarios = sortedPlans
+        .flatMap((plan) => plan.exactOptions)
+        .slice(0, 60)
+        .map((option) => ({
+          id: option.id,
+          items: option.moves.map(({ cardId, candidate }) => ({
+            cardId,
+            dayOfWeek: candidate.dayOfWeek,
+            startPeriod: candidate.startPeriod,
+            teacherId: candidate.teacherId,
+            roomId: candidate.roomId,
+          })),
+        }));
+
+      const impacts = impactScenarios.length > 0
+        ? await previewManagementCandidateForwardImpacts(
+          session.accessToken,
+          impactScenarios,
+        )
+        : [];
+
       setPlacementAssistantPlans(
-        sortManagementPlacementAssistantPlans(nextPlans),
+        attachManagementPlacementAssistantForwardImpacts(
+          sortedPlans,
+          impacts,
+        ),
       );
       setPlacementAssistantAnalyzed(true);
     } catch (reason: unknown) {
