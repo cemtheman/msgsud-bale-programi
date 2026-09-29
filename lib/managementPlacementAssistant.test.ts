@@ -4,6 +4,7 @@ import type {
   ManagementCandidateDetail,
 } from '@/lib/managementBoard';
 import {
+  attachManagementPlacementAssistantForwardImpacts,
   buildManagementPlacementAssistantGroups,
   buildManagementPlacementAssistantPlan,
   buildSafeManagementPlacementSuggestion,
@@ -235,6 +236,48 @@ describe('management placement assistant', () => {
     ]);
     expect(plan.resourceChoiceSlotCount).toBe(1);
     expect(plan.exactOptions).toHaveLength(1);
+  });
+
+  it('attaches forward impact to the matching exact option and slot', () => {
+    const [group] = buildManagementPlacementAssistantGroups([
+      card('a', '5A', { isForced: false, validCount: 2 }),
+    ]);
+
+    const plan = buildManagementPlacementAssistantPlan(
+      group,
+      {
+        a: detail([
+          { dayOfWeek: 1, startPeriod: 2 },
+          { dayOfWeek: 2, startPeriod: 2 },
+        ]),
+      },
+      { teacher: 'Türkçe Öğretmeni' },
+      { room: 'B1 105A' },
+    );
+
+    const optionId = plan.exactOptions[0].id;
+    const [withImpact] = attachManagementPlacementAssistantForwardImpacts(
+      [plan],
+      [{
+        id: optionId,
+        revisionId: 'revision',
+        itemCount: 1,
+        safeToApply: true,
+        scenarioBlockReasons: [],
+        affectedCardCount: 2,
+        domainLossCount: 5,
+        newForcedCount: 1,
+        newContradictionCount: 0,
+        impactRows: [],
+        stateToken: 'token',
+        previewOnly: true,
+        engineVersion: 'M32.5-v1',
+      }],
+    );
+
+    expect(withImpact.exactOptions[0].forwardImpact?.domainLossCount).toBe(5);
+    expect(withImpact.slots[0].exactOption?.forwardImpact?.newForcedCount).toBe(1);
+    expect(withImpact.exactOptions[1].forwardImpact).toBeNull();
   });
 
   it('surfaces teacher-policy filtering in the assistant plan', () => {
