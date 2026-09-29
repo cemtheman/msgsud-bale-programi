@@ -704,9 +704,11 @@ export function ManagementInspector({
                                   ? 'Salon dersin gerekli özelliğini karşılamıyor.'
                                   : reason === 'CARD_LOCKED'
                                     ? 'Kart kilitli.'
-                                    : reason === 'NO_CHANGES'
-                                      ? 'Kaynak zaten bu yerleşimde kullanılıyor.'
-                                      : reason}
+                                    : reason === 'REQUIREMENT_TEACHER_MISMATCH'
+                                      ? 'Bu ders tüm bloklarda aynı öğretmeni kullanmalı. Öğretmen değişikliği dersin tamamı için birlikte yapılmalı.'
+                                      : reason === 'NO_CHANGES'
+                                        ? 'Kaynak zaten bu yerleşimde kullanılıyor.'
+                                        : reason}
                         </p>
                       ))}
                     </div>
