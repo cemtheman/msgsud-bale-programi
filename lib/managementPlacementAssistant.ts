@@ -61,6 +61,9 @@ export interface ManagementPlacementAssistantPlan {
   slots: ManagementPlacementAssistantSlot[];
   exactOptions: ManagementPlacementAssistantOption[];
   resourceChoiceSlotCount: number;
+  policyFilteredCandidateCount: number;
+  policyTeacherLabels: string[];
+  policyConflictCount: number;
 }
 
 function groupStatus(cards: ManagementBoardCard[]): ManagementPlacementAssistantGroupStatus {
@@ -179,10 +182,16 @@ export function buildManagementPlacementAssistantPlan(
       slots: [],
       exactOptions: [],
       resourceChoiceSlotCount: 0,
+      policyFilteredCandidateCount: 0,
+      policyTeacherLabels: [],
+      policyConflictCount: 0,
     };
   }
 
   const candidatesByCardId = new Map<string, ManagementCandidateAssessment[]>();
+  let policyFilteredCandidateCount = 0;
+  let policyConflictCount = 0;
+  const policyTeacherIds = new Set<string>();
 
   for (const cardId of group.cardIds) {
     const detail = detailsByCardId[cardId];
@@ -194,6 +203,12 @@ export function buildManagementPlacementAssistantPlan(
         exactOptions: [],
         resourceChoiceSlotCount: 0,
       };
+    }
+
+    policyFilteredCandidateCount += detail.policyFilteredCount;
+    if (detail.policyConflict) policyConflictCount += 1;
+    if (detail.policyResolvedTeacherId) {
+      policyTeacherIds.add(detail.policyResolvedTeacherId);
     }
 
     const valid = uniqueValidCandidates(detail);
@@ -310,6 +325,11 @@ export function buildManagementPlacementAssistantPlan(
     slots,
     exactOptions,
     resourceChoiceSlotCount,
+    policyFilteredCandidateCount,
+    policyTeacherLabels: Array.from(policyTeacherIds)
+      .map((teacherId) => teacherNamesById[teacherId] ?? 'Öğretmen')
+      .sort((a, b) => a.localeCompare(b, 'tr')),
+    policyConflictCount,
   };
 }
 
