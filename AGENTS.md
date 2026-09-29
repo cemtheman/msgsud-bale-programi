@@ -2421,3 +2421,37 @@ Karar:
 - global React hook lint borcu ayrı refactor paketi olarak ele alınacak;
 - M32.4 production migration/test/build akışı bununla karıştırılmayacak;
 - lint global clean olmadan “lint PASS” denmeyecek.
+
+
+### M32.4 production audit PASS
+
+Production audit CSV sonucu:
+- 176 ACTIVE teacher-bearing requirement satırı incelendi.
+- 119 adet `REQUIREMENT + REQUIRED` satırının tamamında
+  `distinct_resolved_teacher_count = 1`.
+- continuity violation toplamı: 0.
+- 10A Matematik: 3/3 blok yerleşik, 1 resolved teacher, violation=false.
+- 10B Matematik: 4/4 blok yerleşik, 1 resolved teacher, violation=false.
+- 57 adet `BLOCK + NONE` requirement korunuyor.
+- Bunların 12'sinde iki farklı resolved teacher var; bu intentional flexible multi-teacher kullanımıdır.
+- 6 BLOCK row resolved teacher=0:
+  - Sahne: 9A, 10A, 11A, 12A
+  - B. Uygulama: 6A, 7A
+  Bunlar OPTIONAL teacher semantics ile uyumludur.
+- Audit anında bütün 176 satırın bütün kartları yerleşmiş:
+  `unplaced_block_count = 0`.
+  Bu nedenle `raw_valid_candidates_filtered_by_continuity = 0` sonucu
+  policy filter'ın çalışmadığı anlamına gelmez; query yalnız unplaced card
+  raw VALID candidate'larını sayar ve test edecek unplaced card kalmamıştır.
+
+M32.4 DB migration production'a uygulandı:
+```
+20260929101500_management_m32_4_teacher_policy_runtime.sql
+```
+
+Sonuç:
+- production teacher continuity state temiz
+- M29 v2 teacher-policy gate production'da
+- runtime candidate policy filter kodu hazır
+- gerçek unplaced candidate enforcement/forward-impact doğrulaması için yeni
+  unplaced state veya rollback-only synthetic/snapshot QA gerekir
