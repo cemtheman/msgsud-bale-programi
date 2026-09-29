@@ -74,10 +74,12 @@ import {
   applyManagementRequirementStructure,
   applyManagementRequirementTeacherPolicy,
   applyManagementRequirementTeacherReconciliation,
+  applyManagementCoordinatedTeacherReconciliation,
   fetchManagementCoursePlan,
   previewManagementRequirementStructure,
   previewManagementRequirementTeacherPolicy,
   previewManagementRequirementTeacherReconciliation,
+  previewManagementCoordinatedTeacherReconciliation,
   updateManagementRequirementRoomStrategy,
   type ManagementCoursePlanData,
   type ManagementPlanStage,
@@ -2084,6 +2086,43 @@ export default function ManagementPage() {
               setCommandNotice({
                 kind: 'success',
                 text: `${result.changedBlockCount} blok aynı öğretmenle uzlaştırıldı. Gün, saat ve salonlar korundu.`,
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onPreviewCoordinatedTeacherReconciliation={async (assignments) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            return previewManagementCoordinatedTeacherReconciliation(
+              session.accessToken,
+              assignments,
+            );
+          }}
+          onApplyCoordinatedTeacherReconciliation={async (
+            assignments,
+            expectedStateToken,
+          ) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Birbirine bağlı öğretmen kararları birlikte uygulanıyor.');
+
+            try {
+              const result = await applyManagementCoordinatedTeacherReconciliation(
+                session.accessToken,
+                assignments,
+                expectedStateToken,
+              );
+              setCommandNotice({
+                kind: 'success',
+                text: `${result.changedBlockCount} blokta öğretmen dağılımı birlikte uzlaştırıldı. Gün, saat ve salonlar korundu.`,
               });
               setRefreshToken((value) => value + 1);
             } finally {
