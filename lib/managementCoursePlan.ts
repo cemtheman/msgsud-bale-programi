@@ -289,6 +289,22 @@ function translateStructurePreviewError(message: string) {
     return 'Bu öğretmen kuralı mevcut yerleşimlerle çelişiyor. Önizlemedeki blokları kontrol edin.';
   }
 
+  if (normalized.includes('reconciliation preview is stale')) {
+    return 'Öğretmen uzlaştırma önizlemesi güncelliğini kaybetti. Etkiyi yeniden hesaplayın.';
+  }
+
+  if (normalized.includes('reconciliation apply blocked')) {
+    return 'Bu öğretmenle mevcut blokları aynı saat ve salonlarda uzlaştırmak mümkün değil.';
+  }
+
+  if (normalized.includes('reconciliation became unsafe before apply')) {
+    return 'Program önizlemeden sonra değişti. Öğretmen uzlaştırmasını yeniden kontrol edin.';
+  }
+
+  if (normalized.includes('teacher not eligible')) {
+    return 'Seçilen öğretmen bu dersin uygun öğretmen havuzunda değil.';
+  }
+
   if (normalized.includes('invalid teacher policy combination')) {
     return 'Öğretmen kuralı kombinasyonu geçersiz.';
   }
@@ -830,6 +846,98 @@ export function applyManagementRequirementTeacherPolicy(
       p_requirement_id: requirementId,
       p_teacher_assignment_scope: teacherAssignmentScope,
       p_teacher_continuity: teacherContinuity,
+      p_expected_state_token: expectedStateToken,
+    },
+  );
+}
+
+
+export interface ManagementTeacherReconciliationPlacement {
+  cardId: string;
+  blockIndex: number;
+  durationPeriods: number;
+  dayOfWeek: number;
+  startPeriod: number;
+  teacherId: string | null;
+  teacherName: string | null;
+  roomId: string | null;
+  roomName: string | null;
+  willChange: boolean;
+}
+
+export interface ManagementTeacherReconciliationConflict {
+  cardId: string;
+  blockingCardId: string;
+  subjectName: string;
+  groupName: string;
+  dayOfWeek: number;
+  startPeriod: number;
+  conflictType: string;
+}
+
+export interface ManagementTeacherReconciliationPreview {
+  requirementId: string;
+  revisionId: string;
+  subjectName: string;
+  groupName: string;
+  teacherId: string;
+  teacherName: string;
+  placedBlockCount: number;
+  unplacedBlockCount: number;
+  changedBlockCount: number;
+  currentDistinctTeacherCount: number;
+  placements: ManagementTeacherReconciliationPlacement[];
+  canApply: boolean;
+  blockReasons: string[];
+  conflicts: ManagementTeacherReconciliationConflict[];
+  stateToken: string;
+  preservesTime: true;
+  preservesRoom: true;
+  changesTeacherPool: false;
+  previewOnly: true;
+}
+
+export interface ManagementTeacherReconciliationApplyResult {
+  applied: true;
+  requirementId: string;
+  revisionId: string;
+  teacherId: string;
+  teacherName: string;
+  changedBlockCount: number;
+  transactionId: string;
+  preservedTime: true;
+  preservedRoom: true;
+  changedTeacherPool: false;
+  publishedChanged: false;
+}
+
+export function previewManagementRequirementTeacherReconciliation(
+  accessToken: string,
+  requirementId: string,
+  teacherId: string,
+) {
+  return authedRpc<ManagementTeacherReconciliationPreview>(
+    'management_preview_requirement_teacher_reconciliation',
+    accessToken,
+    {
+      p_requirement_id: requirementId,
+      p_teacher_id: teacherId,
+    },
+  );
+}
+
+export function applyManagementRequirementTeacherReconciliation(
+  accessToken: string,
+  requirementId: string,
+  teacherId: string,
+  expectedStateToken: string,
+) {
+  return authedRpc<ManagementTeacherReconciliationApplyResult>(
+    'management_apply_requirement_teacher_reconciliation',
+    accessToken,
+    {
+      p_requirement_id: requirementId,
+      p_teacher_id: teacherId,
       p_expected_state_token: expectedStateToken,
     },
   );
