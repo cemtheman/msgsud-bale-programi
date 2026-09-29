@@ -16,7 +16,7 @@
 | Implementation commit | `brand: align help center with Partisyon` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.3.2 — teacher policy editor migration/build doğrulaması; ardından kalan 16 UNSPECIFIED sınıflandırması ve candidate enforcement |
+| Sıradaki iş paketi | M32.3.3 — teacher requirement semantics production doğrulaması; ardından policy UI entegrasyonu ve Matematik reconciliation |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -1732,3 +1732,61 @@ Sonraki sıra:
 6. Candidate engine'i REQUIREMENT/BLOCK/PREFERRED policy-aware yap.
 7. M29 placement teacher override'ını policy-aware yap.
 8. Assistant forward-impact metrics.
+
+
+## 37. 29 Eylül 2026 — M32.3.3 teacher requirement semantics
+
+Kalan 16 `UNSPECIFIED` requirement'ın tamamı read-only audit ile aynı kategori çıktı:
+
+- subject: `KULÜP DERSLERİ`
+- groups: 5A..12B SECTION
+- teacher_mode: UNKNOWN
+- eligible_teacher_count: 0
+- card_count: 1
+- placed_block_count: 1
+- distinct_resolved_teacher_count: 0
+
+Bu kayıtlar “öğretmeni henüz bilinmiyor” değildir. Mevcut ürün kuralına göre Kulüp dersleri öğretmensiz olabilir. Dolayısıyla `teacher_mode = UNKNOWN` iki farklı anlamı taşımaya başlamıştı:
+1. öğretmen gerekli ama kimliği bilinmiyor
+2. öğretmen gerekmiyor
+
+Yeni mimari karar:
+- teacher eligibility, assignment scope ve teacher requirement üç ayrı eksendir.
+- Yeni kolon:
+  `teacher_requirement = REQUIRED | OPTIONAL | NONE | UNSPECIFIED`
+
+M32.3.3 migration:
+
+```
+20260929081000_management_m32_3_3_teacher_requirement.sql
+```
+
+Davranış:
+- Kulüp dersleri → `teacher_requirement = NONE`
+- Kulüp için assignment scope uygulanmaz:
+  `teacher_assignment_scope = UNSPECIFIED`, `teacher_continuity = NONE`
+- teacher_mode FIXED/ELIGIBLE_POOL → yüksek güvenle `REQUIRED`
+- daha önce REQUIREMENT/BLOCK policy atanmış requirement → `REQUIRED`
+- kalan gerçek belirsizlikler `UNSPECIFIED`
+- placement/candidate/public projection değiştirilmez
+- audit RPC aynı isimle v2 semantiğine yükseltilir:
+  - teacherRequirementUnspecified
+  - teacherNotRequiredRequirements
+  - requiredTeacherMissingEligibility
+  - requiredContinuityViolations
+  - assignmentPolicyUnspecified
+  - flexibleMultiTeacherRequirements
+  - fullAutoReady
+- full-auto readiness artık öğretmen gerekmeyen dersleri eksik öğretmen/policy saymaz.
+
+Commit:
+
+```
+f13e9b567f53fcdbf97acd34c818798df3f5faf8 feat: separate teacher requirement from assignment policy
+```
+
+Önemli deployment sırası:
+1. Önce M32.3.3 migration production'a uygulanacak.
+2. Audit yeniden çalıştırılacak.
+3. Ancak migration doğrulandıktan sonra frontend `teacher_requirement` kolonunu okumaya başlayacak.
+Bu sıra, Vercel'in yeni frontend'i DB kolonundan önce deploy edip Course Plan fetch'ini kırmasını önler.
