@@ -664,10 +664,11 @@ begin
       on scenario_policy.requirement_id = card.requirement_id
     where assessment.status = 'VALID'
       and assessment.is_complete
-      and not (assessment.card_id = any(
-        select array_agg(target.card_id)
+      and not exists (
+        select 1
         from target
-      ))
+        where target.card_id = assessment.card_id
+      )
       and not exists (
         select 1
         from public.placements placement
