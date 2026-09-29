@@ -2393,3 +2393,31 @@ Doğrulama tek batch yapılacak:
 Sonraki paket:
 history-aware raw candidate generation/enforcement + propagation + gerçek forward-domain impact
 (simulated domain loss / forced / contradiction changes), ardından solver snapshot/objective katmanı.
+
+
+### M32.4 lint sonucu / scope kararı
+
+Kullanıcının 29 Eylül lint çıktısı:
+- `npm run lint` → 29 problem: 18 error, 11 warning.
+- Hataların büyük çoğunluğu `react-hooks/set-state-in-effect` ve daha önce mevcut yönetim/public UI kodlarında bulunuyor:
+  - app/yonetim/page.tsx legacy effects
+  - ManagementCardPool
+  - ManagementCoursePlan
+  - ManagementInspector
+  - ManagementQuickTour
+  - ManagementTeacherPolicyEditor
+  - useTeacherSchedule
+- Bu pattern'ler M32.4 öncesi committe de mevcuttu; M32.4 migration/runtime doğrulamasını bloke eden yeni functional hata olarak değerlendirilmedi.
+- M32.4 ile eklenen tek yeni lint uyarısı:
+  `React Hook useEffect has a missing dependency: fetchPolicyAwareCandidates`.
+- Bu uyarı `useCallback(...,[board])` ile kapatıldı.
+
+Fix commit:
+```
+230a0d2dce1a09255497d4b9c847bb13ebd4421c fix: stabilize policy-aware candidate callback
+```
+
+Karar:
+- global React hook lint borcu ayrı refactor paketi olarak ele alınacak;
+- M32.4 production migration/test/build akışı bununla karıştırılmayacak;
+- lint global clean olmadan “lint PASS” denmeyecek.
