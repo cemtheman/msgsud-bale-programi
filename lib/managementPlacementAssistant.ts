@@ -4,6 +4,7 @@ import {
   type ManagementCandidateAssessment,
   type ManagementCandidateDetail,
 } from '@/lib/managementBoard';
+import type { ManagementForwardImpact } from '@/lib/managementCommands';
 
 export type ManagementPlacementAssistantGroupStatus =
   | 'SINGLE_OPTION'
@@ -45,6 +46,7 @@ export interface ManagementPlacementAssistantOption {
   moves: ManagementPlacementAssistantMove[];
   teacherLabels: string[];
   roomLabels: string[];
+  forwardImpact: ManagementForwardImpact | null;
 }
 
 export interface ManagementPlacementAssistantSlot {
@@ -317,6 +319,7 @@ export function buildManagementPlacementAssistantPlan(
       startPeriod: slot.startPeriod,
       moves,
       ...labels,
+      forwardImpact: null,
     };
 
     exactOptions.push(exactOption);
@@ -393,4 +396,43 @@ export function buildSafeManagementPlacementSuggestion(
     teacherLabels: option.teacherLabels,
     roomLabels: option.roomLabels,
   };
+}
+
+
+export function attachManagementPlacementAssistantForwardImpacts(
+  plans: ManagementPlacementAssistantPlan[],
+  impacts: ManagementForwardImpact[],
+) {
+  const impactById = new Map(impacts.map((impact) => [impact.id, impact]));
+
+  return plans.map((plan) => {
+    const optionById = new Map<string, ManagementPlacementAssistantOption>();
+
+    const exactOptions = plan.exactOptions.map((option) => {
+      const next = {
+        ...option,
+        forwardImpact: impactById.get(option.id) ?? option.forwardImpact,
+      };
+      optionById.set(next.id, next);
+      return next;
+    });
+
+    const slots = plan.slots.map((slot) => ({
+      ...slot,
+      exactOption: slot.exactOption
+        ? optionById.get(slot.exactOption.id) ?? {
+          ...slot.exactOption,
+          forwardImpact:
+            impactById.get(slot.exactOption.id)
+            ?? slot.exactOption.forwardImpact,
+        }
+        : null,
+    }));
+
+    return {
+      ...plan,
+      exactOptions,
+      slots,
+    };
+  });
 }
