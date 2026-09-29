@@ -2074,3 +2074,38 @@ Apply/history için karar:
 - Bir sonraki coordinated apply atomik final-state write olmalı.
 - Undo/redo da coordinated bundle semantics'i anlamalı; mevcut M29 same-resource bundle redo mantığı farklı teacher targets için doğrudan yeterli değildir.
 - Bu nedenle M32.3.6 yalnız preview; coordinated apply/history ayrı migration'da tasarlanacak.
+
+
+## 42. 29 Eylül 2026 — M32.3.6.1 UUID revision lookup fix
+
+M32.3.6 production preview çağrısı SQL Editor'da şu hatayla durdu:
+
+```
+ERROR 42883: function min(uuid) does not exist
+```
+
+Neden:
+- coordinated preview, tek DRAFT revision id'sini almak için `min(revision.id)`
+  kullanıyordu.
+- PostgreSQL UUID için `min(uuid)` aggregate sağlamıyor.
+- Preview read-only olduğu için hata hiçbir placement/policy/publication verisini
+  değiştirmedi.
+
+M32.3.6 production'a uygulanmış olduğundan eski migration düzenlenmedi.
+Yeni düzeltme migration'ı:
+
+```
+20260929090500_management_m32_3_6_1_uuid_revision_fix.sql
+```
+
+Fix:
+```sql
+(array_agg(distinct revision.id order by revision.id))[1]
+```
+
+Fonksiyonun geri kalan FINAL_COORDINATED_STATE semantiği değişmedi.
+
+Commit:
+```
+3d4f703c972bfc1b7b514f5da29736e00fd2be0a fix: use UUID-safe coordinated revision lookup
+```
