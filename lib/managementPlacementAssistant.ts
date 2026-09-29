@@ -202,6 +202,11 @@ export function buildManagementPlacementAssistantPlan(
         slots: [],
         exactOptions: [],
         resourceChoiceSlotCount: 0,
+        policyFilteredCandidateCount,
+        policyTeacherLabels: Array.from(policyTeacherIds)
+          .map((teacherId) => teacherNamesById[teacherId] ?? 'Öğretmen')
+          .sort((a, b) => a.localeCompare(b, 'tr')),
+        policyConflictCount,
       };
     }
 
@@ -219,6 +224,11 @@ export function buildManagementPlacementAssistantPlan(
         slots: [],
         exactOptions: [],
         resourceChoiceSlotCount: 0,
+        policyFilteredCandidateCount,
+        policyTeacherLabels: Array.from(policyTeacherIds)
+          .map((teacherId) => teacherNamesById[teacherId] ?? 'Öğretmen')
+          .sort((a, b) => a.localeCompare(b, 'tr')),
+        policyConflictCount,
       };
     }
 
