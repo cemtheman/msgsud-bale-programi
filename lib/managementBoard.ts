@@ -31,6 +31,11 @@ export interface ManagementBoardCard {
   audienceTargets: string[];
   weeklyLoad: number;
   teacherMode: string;
+  teacherRequirement: 'REQUIRED' | 'OPTIONAL' | 'NONE' | 'UNSPECIFIED';
+  teacherAssignmentScope: 'REQUIREMENT' | 'BLOCK' | 'UNSPECIFIED';
+  teacherContinuity: 'REQUIRED' | 'PREFERRED' | 'NONE';
+  resolvedRequirementTeacherId: string | null;
+  teacherContinuityConflict: boolean;
   teacherIds: string[];
   teacherNames: string[];
   resourceMode: string;
@@ -93,6 +98,9 @@ export interface ManagementCandidateDetail {
   assessments: ManagementCandidateAssessment[];
   reasonCounts: Array<{ code: string; count: number }>;
   validCandidates: ManagementCandidateAssessment[];
+  policyFilteredCount: number;
+  policyResolvedTeacherId: string | null;
+  policyConflict: boolean;
 }
 
 interface RevisionRow {
@@ -114,6 +122,9 @@ interface RequirementRow {
   instructional_group_id: string;
   weekly_load: number;
   teacher_mode: string;
+  teacher_requirement: 'REQUIRED' | 'OPTIONAL' | 'NONE' | 'UNSPECIFIED';
+  teacher_assignment_scope: 'REQUIREMENT' | 'BLOCK' | 'UNSPECIFIED';
+  teacher_continuity: 'REQUIRED' | 'PREFERRED' | 'NONE';
   resource_mode: string;
   course_character: string;
   delivery_mode: string;
@@ -652,7 +663,7 @@ export async function fetchManagementBoard(
       accessToken,
     ),
     authedGet<RequirementRow[]>(
-      `course_requirements?select=id,subject_id,instructional_group_id,weekly_load,teacher_mode,resource_mode,course_character,delivery_mode,knowledge_status&requirement_set_id=eq.${revision.requirement_set_id}&term_status=eq.ACTIVE`,
+      `course_requirements?select=id,subject_id,instructional_group_id,weekly_load,teacher_mode,teacher_requirement,teacher_assignment_scope,teacher_continuity,resource_mode,course_character,delivery_mode,knowledge_status&requirement_set_id=eq.${revision.requirement_set_id}&term_status=eq.ACTIVE`,
       accessToken,
     ),
     authedGet<GroupRow[]>(
