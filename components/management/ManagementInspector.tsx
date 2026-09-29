@@ -581,7 +581,13 @@ export function ManagementInspector({
                 setPlacementResourcePreview(null);
                 setPlacementResourceError(null);
               }}
-              disabled={teacherOptions.length <= (placement.teacherId ? 1 : 0) || commandBusy || card.locked}
+              disabled={
+                card.teacherRequirement === 'NONE'
+                || eligiblePlacementTeacherOptions.length
+                  <= (placement.teacherId ? 1 : 0)
+                || commandBusy
+                || card.locked
+              }
               className={`rounded-xl border px-3 py-2.5 text-[10px] font-bold transition ${
                 placementEditMode === 'TEACHER'
                   ? 'border-slate-950 bg-slate-950 text-white'
@@ -590,7 +596,11 @@ export function ManagementInspector({
             >
               Öğretmen değiştir
               <span className="ml-1 text-[9px] opacity-65">
-                · {Math.max(0, teacherOptions.length - (placement.teacherId ? 1 : 0))}
+                · {Math.max(
+                  0,
+                  eligiblePlacementTeacherOptions.length
+                    - (placement.teacherId ? 1 : 0),
+                )}
               </span>
             </button>
 
