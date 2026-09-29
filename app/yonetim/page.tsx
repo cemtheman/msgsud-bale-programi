@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ManagementBoardGrid,
   managementAssessmentMatchesRow,
@@ -549,7 +549,7 @@ export default function ManagementPage() {
     [board, overview, stage],
   );
 
-  const fetchPolicyAwareCandidates = async (
+  const fetchPolicyAwareCandidates = useCallback(async (
     accessToken: string,
     cardId: string,
     sourceBoard: ManagementBoardData | null = board,
@@ -559,7 +559,7 @@ export default function ManagementPage() {
     return card
       ? applyManagementTeacherPolicyToCandidateDetail(detail, card)
       : detail;
-  };
+  }, [board]);
 
   const selectCard = (cardId: string, sourceCardIds?: string[]) => {
     const ids = Array.from(new Set(
@@ -621,7 +621,7 @@ export default function ManagementPage() {
     return () => {
       active = false;
     };
-  }, [refreshToken, selectedCardId, session, status]);
+  }, [fetchPolicyAwareCandidates, refreshToken, selectedCardId, session, status]);
 
 
   const analyzePlacementAssistant = async () => {
