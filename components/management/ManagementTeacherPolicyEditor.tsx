@@ -7,6 +7,7 @@ import {
   type ManagementTeacherAssignmentScope,
   type ManagementTeacherContinuity,
   type ManagementTeacherPolicyPreview,
+  type ManagementTeacherReconciliationPreview,
 } from '@/lib/managementCoursePlan';
 
 const DAY_LABELS: Record<number, string> = {
@@ -16,6 +17,22 @@ const DAY_LABELS: Record<number, string> = {
   4: 'Perşembe',
   5: 'Cuma',
 };
+
+function reconciliationReasonLabel(code: string) {
+  const labels: Record<string, string> = {
+    CARD_LOCKED: 'Etkilenen bloklardan biri kilitli.',
+    RESOURCE_INACTIVE: 'Seçilen öğretmen atamaya kapalı.',
+    TEACHER_CONFLICT: 'Seçilen öğretmenin aynı saatte başka bir dersi var.',
+    TEACHER_NOT_ELIGIBLE: 'Seçilen öğretmen bu dersin uygun öğretmen havuzunda değil.',
+    POLICY_NOT_REQUIREMENT_REQUIRED: 'Bu ders tüm bloklarda aynı öğretmen kuralında değil.',
+    REQUIREMENT_INACTIVE: 'Bu ders bu dönem aktif değil.',
+    NO_PLACED_BLOCKS: 'Uzlaştırılacak yerleşmiş blok yok.',
+    NO_CHANGES: 'Bütün yerleşmiş bloklar zaten bu öğretmeni kullanıyor.',
+    TOO_MANY_CHANGED_BLOCKS: 'Tek işlem için çok fazla blok etkileniyor.',
+  };
+
+  return labels[code] ?? code;
+}
 
 type PolicyChoice =
   | 'SAME_TEACHER'
@@ -89,6 +106,8 @@ export function ManagementTeacherPolicyEditor({
   onOpenProgram,
   onPreview,
   onApply,
+  onPreviewReconciliation,
+  onApplyReconciliation,
 }: {
   row: ManagementCoursePlanRow;
   stage: ManagementPlanStage;
@@ -108,6 +127,15 @@ export function ManagementTeacherPolicyEditor({
     continuity: ManagementTeacherContinuity,
     expectedStateToken: string,
   ) => Promise<void>;
+  onPreviewReconciliation: (
+    requirementId: string,
+    teacherId: string,
+  ) => Promise<ManagementTeacherReconciliationPreview>;
+  onApplyReconciliation: (
+    requirementId: string,
+    teacherId: string,
+    expectedStateToken: string,
+  ) => Promise<void>;
 }) {
   const initial = policyChoice(
     row.teacherAssignmentScope,
@@ -118,11 +146,22 @@ export function ManagementTeacherPolicyEditor({
   const [previewing, setPreviewing] = useState(false);
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reconciliationTeacherId, setReconciliationTeacherId] =
+    useState<string | null>(null);
+  const [reconciliationPreview, setReconciliationPreview] =
+    useState<ManagementTeacherReconciliationPreview | null>(null);
+  const [reconciling, setReconciling] = useState(false);
+  const [reconciliationApplying, setReconciliationApplying] = useState(false);
+  const [reconciliationError, setReconciliationError] =
+    useState<string | null>(null);
 
   useEffect(() => {
     setChoice(initial);
     setPreview(null);
     setError(null);
+    setReconciliationTeacherId(null);
+    setReconciliationPreview(null);
+    setReconciliationError(null);
   }, [initial, row.requirementId]);
 
   const runPreview = async () => {
@@ -174,6 +213,62 @@ export function ManagementTeacherPolicyEditor({
     }
   };
 
+  const runReconciliationPreview = async () => {
+    if (!reconciliationTeacherId || reconciling || reconciliationApplying) {
+      return;
+    }
+
+    setReconciling(true);
+    setReconciliationError(null);
+
+    try {
+      setReconciliationPreview(await onPreviewReconciliation(
+        row.requirementId,
+        reconciliationTeacherId,
+      ));
+    } catch (reason: unknown) {
+      setReconciliationPreview(null);
+      setReconciliationError(
+        reason instanceof Error
+          ? reason.message
+          : 'Öğretmen uzlaştırmasının etkisi hesaplanamadı.',
+      );
+    } finally {
+      setReconciling(false);
+    }
+  };
+
+  const applyReconciliation = async () => {
+    if (
+      !reconciliationPreview
+      || !reconciliationPreview.canApply
+      || reconciliationApplying
+      || reconciling
+    ) {
+      return;
+    }
+
+    setReconciliationApplying(true);
+    setReconciliationError(null);
+
+    try {
+      await onApplyReconciliation(
+        row.requirementId,
+        reconciliationPreview.teacherId,
+        reconciliationPreview.stateToken,
+      );
+      onClose();
+    } catch (reason: unknown) {
+      setReconciliationError(
+        reason instanceof Error
+          ? reason.message
+          : 'Öğretmen uzlaştırması uygulanamadı.',
+      );
+    } finally {
+      setReconciliationApplying(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/25 p-4 backdrop-blur-[1px]">
       <div className="w-full max-w-[680px] rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_28px_90px_rgba(15,23,42,0.24)]">
@@ -216,6 +311,9 @@ export function ManagementTeacherPolicyEditor({
                   setChoice(option.id);
                   setPreview(null);
                   setError(null);
+                  setReconciliationTeacherId(null);
+                  setReconciliationPreview(null);
+                  setReconciliationError(null);
                 }}
                 disabled={previewing || applying}
                 className={
@@ -295,6 +393,166 @@ export function ManagementTeacherPolicyEditor({
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {preview
+          && !preview.canApply
+          && preview.proposedScope === 'REQUIREMENT'
+          && preview.proposedContinuity === 'REQUIRED'
+          && preview.distinctResolvedTeacherCount > 1
+          && row.teacherIds.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 p-4">
+            <div>
+              <p className="text-[10px] font-black text-violet-900">
+                Öğretmenleri uzlaştır
+              </p>
+              <p className="mt-1 text-[9px] font-medium leading-4 text-violet-800">
+                Dersin uygun öğretmenlerinden birini seçin. Partisyon önce tüm
+                yerleşmiş blokların gün, saat ve salonunu koruyarak bu öğretmene
+                geçirmenin mümkün olup olmadığını kontrol eder.
+              </p>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {row.teacherIds.map((teacherId, index) => {
+                const selected = reconciliationTeacherId === teacherId;
+                return (
+                  <button
+                    key={teacherId}
+                    type="button"
+                    onClick={() => {
+                      setReconciliationTeacherId(teacherId);
+                      setReconciliationPreview(null);
+                      setReconciliationError(null);
+                    }}
+                    disabled={reconciling || reconciliationApplying}
+                    className={
+                      selected
+                        ? 'rounded-xl border border-violet-900 bg-violet-900 px-3 py-2.5 text-left text-[10px] font-black text-white'
+                        : 'rounded-xl border border-violet-200 bg-white px-3 py-2.5 text-left text-[10px] font-black text-violet-900 hover:bg-violet-100'
+                    }
+                  >
+                    {row.teacherNames[index] ?? 'Öğretmen'}
+                  </button>
+                );
+              })}
+            </div>
+
+            {reconciliationPreview && (
+              <div className={'mt-3 rounded-xl border p-3 ' + (
+                reconciliationPreview.canApply
+                  ? 'border-emerald-200 bg-emerald-50'
+                  : 'border-amber-200 bg-amber-50'
+              )}>
+                <p className={'text-[10px] font-black ' + (
+                  reconciliationPreview.canApply
+                    ? 'text-emerald-800'
+                    : 'text-amber-800'
+                )}>
+                  {reconciliationPreview.canApply
+                    ? 'Mevcut saat ve salonlar korunarak uzlaştırılabilir.'
+                    : 'Bu öğretmenle mevcut yerleşimlerin tamamı korunamıyor.'}
+                </p>
+                <p className="mt-1 text-[9px] font-medium text-slate-600">
+                  {reconciliationPreview.changedBlockCount} blokta öğretmen değişecek
+                  {reconciliationPreview.unplacedBlockCount > 0
+                    ? ` · ${reconciliationPreview.unplacedBlockCount} blok henüz yerleşmemiş`
+                    : ''}
+                </p>
+
+                {reconciliationPreview.blockReasons.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {reconciliationPreview.blockReasons.map((reason) => (
+                      <p
+                        key={reason}
+                        className="text-[9px] font-bold text-amber-800"
+                      >
+                        {reconciliationReasonLabel(reason)}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                {reconciliationPreview.conflicts.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    {reconciliationPreview.conflicts.map((conflict) => (
+                      <div
+                        key={conflict.cardId + ':' + conflict.blockingCardId}
+                        className="rounded-lg bg-white/80 px-2.5 py-2 text-[9px] text-slate-700"
+                      >
+                        <span className="font-black">
+                          {DAY_LABELS[conflict.dayOfWeek] ?? conflict.dayOfWeek}
+                          {' · '}
+                          {conflict.startPeriod}. ders
+                        </span>
+                        {' — '}
+                        {conflict.subjectName} · {conflict.groupName}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-3 max-h-[160px] space-y-1.5 overflow-y-auto">
+                  {reconciliationPreview.placements.map((block) => (
+                    <div
+                      key={block.cardId}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-white/75 px-2.5 py-2 text-[9px]"
+                    >
+                      <span className="font-black text-slate-700">
+                        Blok {block.blockIndex} · {' '}
+                        {DAY_LABELS[block.dayOfWeek] ?? block.dayOfWeek} · {' '}
+                        {block.startPeriod}. ders
+                      </span>
+                      <span className={
+                        block.willChange
+                          ? 'font-bold text-violet-700'
+                          : 'font-semibold text-slate-500'
+                      }>
+                        {block.willChange
+                          ? `${block.teacherName ?? 'Belirsiz'} → ${reconciliationPreview.teacherName}`
+                          : reconciliationPreview.teacherName}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {reconciliationError && (
+              <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700">
+                {reconciliationError}
+              </div>
+            )}
+
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => void runReconciliationPreview()}
+                disabled={
+                  !reconciliationTeacherId
+                  || reconciling
+                  || reconciliationApplying
+                }
+                className="rounded-xl border border-violet-200 bg-white px-3 py-2 text-[9px] font-black text-violet-900 hover:bg-violet-100 disabled:opacity-40"
+              >
+                {reconciling ? 'Kontrol ediliyor…' : 'Uzlaştırmayı kontrol et'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void applyReconciliation()}
+                disabled={
+                  !reconciliationPreview?.canApply
+                  || reconciling
+                  || reconciliationApplying
+                }
+                className="rounded-xl bg-violet-900 px-3 py-2 text-[9px] font-black text-white hover:bg-violet-800 disabled:opacity-35"
+              >
+                {reconciliationApplying
+                  ? 'Uygulanıyor…'
+                  : 'Tüm bloklarda bu öğretmeni kullan'}
+              </button>
+            </div>
           </div>
         )}
 
