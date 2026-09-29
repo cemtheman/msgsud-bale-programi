@@ -12,11 +12,11 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `41275317ff43226c576b426b5ed310c08de104bc` |
-| Implementation commit | `brand: align help center with Partisyon` |
+| Son doğrulanmış implementation checkpoint | `9e17b72f8c8e80588a90b105815e449b97459fa3` |
+| Implementation commit | `M32.4.2 manual teacher override correction — browser accepted` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M32.4.2 — manual teacher override correction production/test/build doğrulaması; ardından DB-level candidate enforcement + forward impact |
+| Sıradaki iş paketi | M32.5 — persisted teacher-policy candidate domains + forward-domain impact production/test/build/rollback QA |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -2630,3 +2630,187 @@ UI layout fix also landed:
 - <=1280 px icon-only
 - <=1360 px placement summary hidden
 - history actions shrink edilmez
+
+
+## 47. 29 Eylül 2026 — M32.4.2 browser PASS / M32.5 persisted candidate policy + forward impact
+
+Kullanıcı M32.4.2 sonrası manuel öğretmen değiştirme davranışını doğruladı:
+`ok. düzeldi.`
+
+Bu, planning pool ile explicit manual override ayrımını production/browser düzeyinde kabul
+ettiğimiz checkpoint'tir.
+
+### M32.5 hedefi
+
+Bir sonraki solver-ready katman iki işi birlikte yapar:
+
+1. REQUIREMENT + REQUIRED teacher continuity yalnız frontend filtresi olmaktan çıkar;
+   candidate assessment/domain summary katmanında kalıcı olarak uygulanır.
+2. Placement Assistant, bir exact seçeneği uygulamadan önce kalan havuz üzerindeki ileri
+   etkisini hesaplar:
+   - kaç VALID aday kaybolur
+   - kaç kartın alanı daralır
+   - kaç kart yeni tek seçeneğe düşer
+   - kaç kart yeni contradiction olur
+
+### Candidate-domain teacher policy enforcement
+
+Yeni migration:
+```
+20260929111500_management_m32_5_candidate_policy_forward_impact.sql
+```
+
+Yeni AFTER-statement candidate trigger:
+- candidate INSERT/UPDATE sonrası set-based çalışır
+- aynı requirement içindeki candidate satırlarını current placement teacher state'e göre
+  yeniden sınıflandırır
+- REQUIREMENT + REQUIRED:
+  - placed teacher count >1:
+    `REQUIREMENT_TEACHER_CONFLICT`
+  - placed teacher count =1 ve candidate teacher farklı/NULL:
+    `REQUIREMENT_TEACHER_MISMATCH`
+- BLOCK + NONE/PREFERRED:
+  hard teacher-policy filtresi uygulanmaz
+- stale M32.5 policy reason'ları her geçişte temizlenip current state'ten yeniden üretilir
+- candidate satırları dışında placement/history state mutate edilmez
+- M22 provisional certainty BEFORE trigger nihai resource-semantics classifier olarak korunur
+- same-requirement non-overlap kartların domain summary'leri de aynı batch'te güncellenir
+
+History safety:
+- placement seviyesine yeni reject trigger eklenmedi
+- undo/redo historical snapshot'ları restore edebilir
+- candidate domain, restore edilen CURRENT placement state'e göre yeniden sınıflanır
+- bu nedenle history semantiği ile hard candidate policy birbirinden ayrıdır
+
+Frontend `applyManagementTeacherPolicyToCandidateDetail()` persisted policy reason'larını da
+tanır; DB tarafından zaten INVALID edilmiş satırları doğru policyFilteredCount içine alır.
+NULL teacher, resolved REQUIREMENT teacher'dan farklı kabul edilir.
+
+### Forward-domain preview
+
+Yeni internal RPC:
+```
+management_preview_candidate_forward_impact(jsonb)
+```
+
+Yeni authenticated batch RPC:
+```
+management_preview_candidate_forward_impacts(jsonb)
+```
+
+Batch sınırı: 60 scenario / çağrı.
+Frontend bütün exact Assistant seçeneklerini 60'lık ardışık batch'ler halinde hesaplar;
+fan-out RPC yapılmaz.
+
+Input scenario:
+```json
+{
+  "id": "<assistant option id>",
+  "items": [
+    {
+      "cardId": "...",
+      "dayOfWeek": 1,
+      "startPeriod": 3,
+      "teacherId": "...",
+      "roomId": "..."
+    }
+  ]
+}
+```
+
+Preview:
+- write yapmaz
+- yalnız unplaced current VALID+complete candidate scenario kabul eder
+- multi-card scenario içinde proposed teacher/room/group internal conflict'i kontrol eder
+- REQUIREMENT+REQUIRED proposed teacher anchor'ını da simüle eder
+- diğer unplaced kartların VALID candidate alanında proposed occupancy/policy nedeniyle
+  kaybolacak assessment satırlarını sayar
+- M22 provisional candidate varsa onu deterministic forced kabul etmez
+- unresolved_count >0 olan kart için yanlış forced/contradiction ilan etmez
+
+Output:
+- safeToApply
+- scenarioBlockReasons
+- affectedCardCount
+- domainLossCount
+- newForcedCount
+- newContradictionCount
+- impactRows
+- stateToken
+- previewOnly=true
+
+Assistant UI:
+- exact option altında:
+  - `Diğer adayları daraltmıyor`
+  - veya `N aday azalır · M ders etkilenir`
+  - `N yeni tek seçenek`
+  - `N ders seçeneksiz kalır`
+- forward preview yeni contradiction doğuruyorsa Assistant'taki apply butonu
+  `Riskli` olur ve disabled kalır
+- manuel grid/Inspector yetkisi ayrıca korunur; Assistant kendi safe-apply sözleşmesini uygular
+- Asistan hâlâ kullanıcı adına “en iyi” seçeneği ilan etmez veya otomatik seçim yapmaz
+
+Frontend/client commitleri:
+```
+825297ac64f29d0ad645340399d39e02c2210720 feat: add forward candidate impact client
+bff7f6d2e11f01b375cab00999e0ede6bfc8a72d feat: attach forward impact to assistant options
+2057037d94e4db5645ef3505506846d01fc56f27 feat: calculate assistant forward-domain impact
+734d38708f94476d901b81c3bd3dbcda23ad3b9a feat: show forward-domain impact in assistant
+c22259dbadc14d18715d0ce4d6c68820acd84d1a perf: batch all assistant forward impact scenarios
+50814ef21bad325e14c867085d6838a7b5f20eed fix: type assistant forward impact batches
+c432a60f75c3d93daa197f555e2a4660bb63840d fix: align candidate reads with persisted teacher policy
+781cf4ed4b97f6f22f205011c087d89ef8883f21 polish: translate forward impact errors
+```
+
+Migration commits:
+```
+73709283a2727484c70bbf9ad1008d775c2853e3 feat: enforce teacher policy in candidate domains
+8101d1ba1224c53754ef548457769cd7a675b989 fix: use explicit target exclusion in forward impact
+```
+
+Tests:
+```
+d9942e7fa2807517a25d650f3992de2518e5e014 test: cover assistant forward impact attachment
+2dd543251d83589c37b7085303c1a98bc8021019 test: cover persisted teacher policy candidate rows
+```
+
+Rollback-only production QA:
+```
+docs/sql/m32_5_candidate_policy_forward_impact_rollback_qa.sql
+```
+Commit:
+```
+3b8d6d696888d52ab0df3f9eae01ed5abc859af1
+```
+
+QA transaction içinde:
+1. fully placed REQUIREMENT+REQUIRED + multi-teacher planning pool requirement seçer
+2. bir placement'ı geçici siler
+3. card candidate domain'ini rebuild eder
+4. alternate teacher satırlarında persisted REQUIREMENT_TEACHER_MISMATCH bekler
+5. resolved teacher dışındaki VALID candidate count=0 bekler
+6. silinen placement'ın original exact candidate'ının VALID olduğunu doğrular
+7. original placement için forward-impact preview çalıştırır
+8. previewOnly=true ve scenario blockers=[] bekler
+9. ROLLBACK
+
+Production programı QA sonunda değişmeden kalır.
+
+M32.5 doğrulama batch:
+1. pull / HEAD / clean status
+2. npm test
+3. npm run build
+4. migration list + dry-run
+5. yalnız M32.5 migration bekleniyorsa db push
+6. rollback-only M32.5 QA
+7. browser smoke için bir veya birkaç kartı kontrollü kaldırıp Assistant:
+   - exact option impact badge'leri
+   - contradiction üreten option varsa Riskli/disabled
+   - apply sonrası assistant stale → refresh
+8. undo ile kaldırılan kartları gerekirse geri getir
+
+Sonraki solver-ready paket:
+- soft objective model (teacher continuity PREFERRED, teacher load/gaps, time-of-day preferences,
+  room stability, change penalty)
+- immutable draft snapshot
+- feasibility/optimization prototype
