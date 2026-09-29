@@ -25,6 +25,7 @@ import {
   cardMatchesStage,
   fetchManagementBoard,
   fetchManagementCardCandidates,
+  applyManagementTeacherPolicyToCandidateDetail,
   managementRowsForView,
   translateCandidateReason,
   type ManagementAudienceScope,
@@ -547,6 +548,18 @@ export default function ManagementPage() {
     [board, overview, stage],
   );
 
+  const fetchPolicyAwareCandidates = async (
+    accessToken: string,
+    cardId: string,
+    sourceBoard: ManagementBoardData | null = board,
+  ) => {
+    const detail = await fetchManagementCardCandidates(accessToken, cardId);
+    const card = sourceBoard?.cards.find((item) => item.id === cardId) ?? null;
+    return card
+      ? applyManagementTeacherPolicyToCandidateDetail(detail, card)
+      : detail;
+  };
+
   const selectCard = (cardId: string, sourceCardIds?: string[]) => {
     const ids = Array.from(new Set(
       sourceCardIds?.length ? sourceCardIds : [cardId],
@@ -587,7 +600,7 @@ export default function ManagementPage() {
     setCandidateLoading(true);
     setCandidateError(null);
 
-    fetchManagementCardCandidates(session.accessToken, selectedCardId)
+    fetchPolicyAwareCandidates(session.accessToken, selectedCardId)
       .then((detail) => {
         if (!active) return;
         setCandidateDetail(detail);
@@ -663,7 +676,7 @@ export default function ManagementPage() {
         const entries = await Promise.all(
           group.cardIds.map(async (cardId) => [
             cardId,
-            await fetchManagementCardCandidates(session.accessToken, cardId),
+            await fetchPolicyAwareCandidates(session.accessToken, cardId, freshBoard),
           ] as const),
         );
 
@@ -717,7 +730,7 @@ export default function ManagementPage() {
       .then(() => Promise.all(
         ids.map(async (id) => [
           id,
-          await fetchManagementCardCandidates(session.accessToken, id),
+          await fetchPolicyAwareCandidates(session.accessToken, id),
         ] as const),
       ))
       .then((entries) => {
@@ -951,7 +964,7 @@ export default function ManagementPage() {
       const details = await Promise.all(
         selectedCardIds.map(async (cardId) => ({
           cardId,
-          detail: await fetchManagementCardCandidates(session.accessToken, cardId),
+          detail: await fetchPolicyAwareCandidates(session.accessToken, cardId, freshBoard),
         })),
       );
 
@@ -1029,7 +1042,7 @@ export default function ManagementPage() {
       const details = await Promise.all(
         cardIds.map(async (cardId) => ({
           cardId,
-          detail: await fetchManagementCardCandidates(session.accessToken, cardId),
+          detail: await fetchPolicyAwareCandidates(session.accessToken, cardId, freshBoard),
         })),
       );
 
