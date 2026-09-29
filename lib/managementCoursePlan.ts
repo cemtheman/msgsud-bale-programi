@@ -59,12 +59,22 @@ export interface ManagementCoursePlanOption {
   name: string;
 }
 
+export interface ManagementTeacherContinuityViolation {
+  requirementId: string;
+  subjectName: string;
+  groupName: string;
+  distinctResolvedTeachers: number;
+  placedBlocks: number;
+}
+
 export interface ManagementCoursePlanData {
   requirementSetId: string;
+  revisionId: string;
   rows: ManagementCoursePlanRow[];
   teacherOptions: ManagementCoursePlanOption[];
   roomOptions: ManagementCoursePlanOption[];
   roomCapabilityOptions: string[];
+  teacherContinuityViolations: ManagementTeacherContinuityViolation[];
 }
 
 export interface ManagementRequirementStructurePreviewInput {
@@ -221,6 +231,10 @@ interface PlacementRow {
   card_id: string;
 }
 
+interface TeacherPolicyAuditResult {
+  requiredContinuityViolations?: ManagementTeacherContinuityViolation[];
+}
+
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -299,6 +313,18 @@ function translateStructurePreviewError(message: string) {
 
   if (normalized.includes('reconciliation became unsafe before apply')) {
     return 'Program önizlemeden sonra değişti. Öğretmen uzlaştırmasını yeniden kontrol edin.';
+  }
+
+  if (normalized.includes('coordinated preview is stale')) {
+    return 'Koordineli öğretmen planı önizlemeden sonra güncelliğini kaybetti. Etkiyi yeniden hesaplayın.';
+  }
+
+  if (normalized.includes('coordinated reconciliation apply blocked')) {
+    return 'Bu öğretmen dağılımı mevcut programda güvenli biçimde uygulanamıyor.';
+  }
+
+  if (normalized.includes('coordinated redo is no longer safe')) {
+    return 'Bu koordineli öğretmen değişikliği artık aynı koşullarda yeniden uygulanamıyor.';
   }
 
   if (normalized.includes('teacher not eligible')) {
@@ -481,6 +507,7 @@ export async function fetchManagementCoursePlan(
     placements,
     teacherNameOverrides,
     roomNameOverrides,
+    teacherPolicyAudit,
   ] = await Promise.all([
     authedGet<RequirementRow[]>(
       `course_requirements?select=id,subject_id,instructional_group_id,weekly_load,preferred_partition,allowed_partitions,min_distinct_days,max_blocks_per_day,max_consecutive_periods,course_character,delivery_mode,term_status,knowledge_status,teacher_mode,teacher_requirement,teacher_assignment_scope,teacher_continuity,resource_mode,required_capability&requirement_set_id=eq.${revision.requirement_set_id}`,
@@ -527,6 +554,11 @@ export async function fetchManagementCoursePlan(
     authedGet<RoomNameOverrideRow[]>(
       `management_room_name_overrides?select=room_id,display_name&schedule_revision_id=eq.${revision.id}`,
       accessToken,
+    ),
+    authedRpc<TeacherPolicyAuditResult>(
+      'management_diagnose_teacher_assignment_policy',
+      accessToken,
+      { p_schedule_revision_id: revision.id },
     ),
   ]);
 
@@ -672,6 +704,7 @@ export async function fetchManagementCoursePlan(
 
   return {
     requirementSetId: revision.requirement_set_id,
+    revisionId: revision.id,
     rows,
     teacherOptions: teachers
       .filter((teacher) => teacher.operational_status === 'ACTIVE')
@@ -691,6 +724,8 @@ export async function fetchManagementCoursePlan(
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
     roomCapabilityOptions: [...MANAGEMENT_ROOM_CAPABILITY_IDS],
+    teacherContinuityViolations:
+      teacherPolicyAudit.requiredContinuityViolations ?? [],
   };
 }
 
@@ -938,6 +973,111 @@ export function applyManagementRequirementTeacherReconciliation(
     {
       p_requirement_id: requirementId,
       p_teacher_id: teacherId,
+      p_expected_state_token: expectedStateToken,
+    },
+  );
+}
+
+
+export interface ManagementCoordinatedTeacherAssignmentInput {
+  requirementId: string;
+  teacherId: string;
+}
+
+export interface ManagementCoordinatedTeacherAssignmentSummary {
+  requirementId: string;
+  subjectName: string;
+  groupName: string;
+  teacherId: string;
+  teacherName: string;
+  placedBlockCount: number;
+  unplacedBlockCount: number;
+  changedBlockCount: number;
+  currentDistinctTeacherCount: number;
+}
+
+export interface ManagementCoordinatedTeacherConflict {
+  teacherId: string;
+  dayOfWeek: number;
+  leftCardId: string;
+  leftRequirementId: string;
+  leftSubjectName: string;
+  leftGroupName: string;
+  leftStartPeriod: number;
+  leftDurationPeriods: number;
+  rightCardId: string;
+  rightRequirementId: string;
+  rightSubjectName: string;
+  rightGroupName: string;
+  rightStartPeriod: number;
+  rightDurationPeriods: number;
+  conflictType: 'TEACHER_CONFLICT';
+}
+
+export interface ManagementCoordinatedTeacherPreview {
+  revisionId: string;
+  assignmentCount: number;
+  assignments: ManagementCoordinatedTeacherAssignmentSummary[];
+  placedBlockCount: number;
+  unplacedBlockCount: number;
+  changedBlockCount: number;
+  canApply: boolean;
+  blockReasons: string[];
+  conflicts: ManagementCoordinatedTeacherConflict[];
+  stateToken: string;
+  preservesTime: true;
+  preservesRoom: true;
+  changesTeacherPools: false;
+  evaluationMode: 'FINAL_COORDINATED_STATE';
+  previewOnly: true;
+}
+
+export interface ManagementCoordinatedTeacherApplyResult {
+  applied: true;
+  revisionId: string;
+  assignmentCount: number;
+  changedBlockCount: number;
+  bundleId: string;
+  transactionId: string;
+  assignments: ManagementCoordinatedTeacherAssignmentSummary[];
+  preservedTime: true;
+  preservedRoom: true;
+  changedTeacherPools: false;
+  publishedChanged: false;
+}
+
+function coordinatedTeacherPayload(
+  assignments: ManagementCoordinatedTeacherAssignmentInput[],
+) {
+  return assignments.map((assignment) => ({
+    requirementId: assignment.requirementId,
+    teacherId: assignment.teacherId,
+  }));
+}
+
+export function previewManagementCoordinatedTeacherReconciliation(
+  accessToken: string,
+  assignments: ManagementCoordinatedTeacherAssignmentInput[],
+) {
+  return authedRpc<ManagementCoordinatedTeacherPreview>(
+    'management_preview_coordinated_teacher_reconciliation',
+    accessToken,
+    {
+      p_assignments: coordinatedTeacherPayload(assignments),
+    },
+  );
+}
+
+export function applyManagementCoordinatedTeacherReconciliation(
+  accessToken: string,
+  assignments: ManagementCoordinatedTeacherAssignmentInput[],
+  expectedStateToken: string,
+) {
+  return authedRpc<ManagementCoordinatedTeacherApplyResult>(
+    'management_apply_coordinated_teacher_reconciliation',
+    accessToken,
+    {
+      p_assignments: coordinatedTeacherPayload(assignments),
       p_expected_state_token: expectedStateToken,
     },
   );
