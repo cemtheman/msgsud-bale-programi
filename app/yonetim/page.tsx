@@ -73,9 +73,11 @@ import {
 import {
   applyManagementRequirementStructure,
   applyManagementRequirementTeacherPolicy,
+  applyManagementRequirementTeacherReconciliation,
   fetchManagementCoursePlan,
   previewManagementRequirementStructure,
   previewManagementRequirementTeacherPolicy,
+  previewManagementRequirementTeacherReconciliation,
   updateManagementRequirementRoomStrategy,
   type ManagementCoursePlanData,
   type ManagementPlanStage,
@@ -2039,6 +2041,49 @@ export default function ManagementPage() {
               setCommandNotice({
                 kind: 'success',
                 text: 'Öğretmen kuralı kaydedildi. Mevcut yerleşimler değiştirilmedi.',
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onPreviewTeacherReconciliation={async (
+            requirementId,
+            teacherId,
+          ) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            return previewManagementRequirementTeacherReconciliation(
+              session.accessToken,
+              requirementId,
+              teacherId,
+            );
+          }}
+          onApplyTeacherReconciliation={async (
+            requirementId,
+            teacherId,
+            expectedStateToken,
+          ) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Dersin öğretmeni tüm bloklarda uzlaştırılıyor.');
+
+            try {
+              const result = await applyManagementRequirementTeacherReconciliation(
+                session.accessToken,
+                requirementId,
+                teacherId,
+                expectedStateToken,
+              );
+              setCommandNotice({
+                kind: 'success',
+                text: `${result.changedBlockCount} blok aynı öğretmenle uzlaştırıldı. Gün, saat ve salonlar korundu.`,
               });
               setRefreshToken((value) => value + 1);
             } finally {
