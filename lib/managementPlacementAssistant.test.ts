@@ -30,6 +30,11 @@ function card(
     audienceTargets: ['SECTION'],
     weeklyLoad: 1,
     teacherMode: 'FIXED',
+    teacherRequirement: 'REQUIRED',
+    teacherAssignmentScope: 'REQUIREMENT',
+    teacherContinuity: 'REQUIRED',
+    resolvedRequirementTeacherId: null,
+    teacherContinuityConflict: false,
     teacherIds: ['teacher'],
     teacherNames: ['Türkçe Öğretmeni'],
     resourceMode: 'SPECIFIC',
@@ -69,6 +74,9 @@ function detail(
     })),
     reasonCounts: [],
     validCandidates: [],
+    policyFilteredCount: 0,
+    policyResolvedTeacherId: null,
+    policyConflict: false,
   };
 }
 
@@ -194,6 +202,62 @@ describe('management placement assistant', () => {
     expect(plan.commonSlotCount).toBe(1);
     expect(plan.exactOptions).toHaveLength(0);
     expect(plan.resourceChoiceSlotCount).toBe(1);
+  });
+
+  it('keeps ambiguous earlier slots before a later exact slot', () => {
+    const [group] = buildManagementPlacementAssistantGroups([
+      card('a', '5A', { isForced: false, validCount: 3 }),
+    ]);
+
+    const plan = buildManagementPlacementAssistantPlan(
+      group,
+      {
+        a: detail([
+          { dayOfWeek: 1, startPeriod: 2, roomId: 'room-a' },
+          { dayOfWeek: 1, startPeriod: 2, roomId: 'room-b' },
+          { dayOfWeek: 5, startPeriod: 3, roomId: 'room-a' },
+        ]),
+      },
+      { teacher: 'Türkçe Öğretmeni' },
+      {
+        'room-a': 'B1 105A',
+        'room-b': 'A 101',
+      },
+    );
+
+    expect(plan.slots.map((slot) => [
+      slot.dayOfWeek,
+      slot.startPeriod,
+      Boolean(slot.exactOption),
+    ])).toEqual([
+      [1, 2, false],
+      [5, 3, true],
+    ]);
+    expect(plan.resourceChoiceSlotCount).toBe(1);
+    expect(plan.exactOptions).toHaveLength(1);
+  });
+
+  it('surfaces teacher-policy filtering in the assistant plan', () => {
+    const [group] = buildManagementPlacementAssistantGroups([
+      card('a', '10A', { isForced: false, validCount: 2 }),
+    ]);
+
+    const policyDetail = detail([
+      { dayOfWeek: 1, startPeriod: 1, teacherId: 'teacher' },
+    ]);
+    policyDetail.policyFilteredCount = 7;
+    policyDetail.policyResolvedTeacherId = 'teacher';
+
+    const plan = buildManagementPlacementAssistantPlan(
+      group,
+      { a: policyDetail },
+      { teacher: 'Matematik Öğretmeni 2' },
+      { room: 'Salon' },
+    );
+
+    expect(plan.policyFilteredCandidateCount).toBe(7);
+    expect(plan.policyTeacherLabels).toEqual(['Matematik Öğretmeni 2']);
+    expect(plan.policyConflictCount).toBe(0);
   });
 
   it('refuses automatic suggestion when the exact slot still has a resource choice', () => {
