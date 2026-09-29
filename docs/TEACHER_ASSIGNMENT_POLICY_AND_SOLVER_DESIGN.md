@@ -8,9 +8,15 @@ Status: architecture decision record / implementation plan
 The current model has two concepts:
 
 - `course_requirements.teacher_mode`: `FIXED | ELIGIBLE_POOL | UNKNOWN`
-- `course_requirement_teachers`: eligible teacher identities for a requirement
+- `course_requirement_teachers`: the requirement's current planning teacher pool
 
-This answers **who may teach** but not **at what scope the choice is made**.
+The planning pool tells the automatic candidate engine which teacher identities
+to consider. Historical import/completion migrations may derive it from observed
+placements or inferred capacity, so it is **not a universal qualification
+whitelist**.
+
+This still leaves a separate question unanswered: **at what scope is the
+teacher choice made?**
 
 Today `ELIGIBLE_POOL` therefore carries two incompatible meanings:
 
@@ -110,6 +116,24 @@ Concrete timetable decision for a block:
 - room
 
 This Requirement → Card → Placement hierarchy is already appropriate for a solver.
+
+## 3.1 Planning pool vs explicit manual override
+
+Planning and manual editing intentionally have different authority.
+
+- automatic placement / solver candidates come from
+  `course_requirement_teachers`;
+- an editor may explicitly choose any ACTIVE teacher as a manual override;
+- for `BLOCK` scope the override affects only the selected block;
+- for `REQUIREMENT + REQUIRED` the override expands to every currently placed
+  block of that requirement so continuity is preserved;
+- a manual placement override never silently changes the Course Plan teacher
+  pool;
+- if there are still unplaced blocks and the explicitly selected teacher is
+  outside the planning pool, the pool must first be updated in Course Plan.
+
+Therefore **planning-pool membership and human-authorized manual assignment are
+not the same concept**.
 
 ## 4. Separate teacher eligibility from teacher allocation policy
 
