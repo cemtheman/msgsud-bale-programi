@@ -187,6 +187,24 @@ function translateCommandError(message: string, fallback: string) {
     return 'Bu aday henüz belirsiz olduğu için işlem yapılamıyor.';
   }
 
+  if (
+    normalized.includes('m32.5 forward impact requires current valid complete candidates')
+  ) {
+    return 'Yerleştirme seçeneklerinden biri hesaplama sırasında güncelliğini kaybetti. Asistanı yeniden hesaplayın.';
+  }
+
+  if (
+    normalized.includes('m32.5 forward impact currently accepts unplaced cards only')
+  ) {
+    return 'İleri etki hesabı yalnız ders havuzundaki henüz yerleşmemiş kartlar için yapılabilir.';
+  }
+
+  if (
+    normalized.includes('m32.5 forward impact items must be distinct known cards from one revision')
+  ) {
+    return 'İleri etki senaryosu güncel taslak programla eşleşmiyor. Asistanı yeniden hesaplayın.';
+  }
+
   if (normalized.includes('requirement teacher continuity requires teacher')) {
     return 'Bu dersin diğer bloklarında farklı bir öğretmen kullanılıyor. Aynı şubenin aynı dersi tüm bloklarda aynı öğretmenle yürütülmeli.';
   }
