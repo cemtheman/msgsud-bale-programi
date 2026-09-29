@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ManagementRequirementStructurePreview } from '@/components/management/ManagementRequirementStructurePreview';
 import { ManagementRoomStrategyEditor } from '@/components/management/ManagementRoomStrategyEditor';
 import { ManagementTeacherPolicyEditor } from '@/components/management/ManagementTeacherPolicyEditor';
+import { ManagementTeacherContinuityResolver } from '@/components/management/ManagementTeacherContinuityResolver';
 import {
   coursePlanMatchesStage,
   type ManagementCoursePlanData,
@@ -15,6 +16,8 @@ import {
   type ManagementTeacherContinuity,
   type ManagementTeacherPolicyPreview,
   type ManagementTeacherReconciliationPreview,
+  type ManagementCoordinatedTeacherAssignmentInput,
+  type ManagementCoordinatedTeacherPreview,
   type ManagementRequirementStructurePreview as ManagementRequirementStructurePreviewResult,
   type ManagementRequirementStructurePreviewInput,
 } from '@/lib/managementCoursePlan';
@@ -382,6 +385,8 @@ export function ManagementCoursePlan({
   onUpdateTeacherPolicy,
   onPreviewTeacherReconciliation,
   onApplyTeacherReconciliation,
+  onPreviewCoordinatedTeacherReconciliation,
+  onApplyCoordinatedTeacherReconciliation,
   onUpdateRoomStrategy,
   onPreviewStructure,
   onApplyStructure,
@@ -416,6 +421,13 @@ export function ManagementCoursePlan({
     teacherId: string,
     expectedStateToken: string,
   ) => Promise<void>;
+  onPreviewCoordinatedTeacherReconciliation: (
+    assignments: ManagementCoordinatedTeacherAssignmentInput[],
+  ) => Promise<ManagementCoordinatedTeacherPreview>;
+  onApplyCoordinatedTeacherReconciliation: (
+    assignments: ManagementCoordinatedTeacherAssignmentInput[],
+    expectedStateToken: string,
+  ) => Promise<void>;
   onUpdateRoomStrategy: (
     requirementId: string,
     strategy: ManagementRoomStrategy,
@@ -447,6 +459,7 @@ export function ManagementCoursePlan({
     useState<ManagementCoursePlanRow | null>(null);
   const [teacherPolicyRow, setTeacherPolicyRow] =
     useState<ManagementCoursePlanRow | null>(null);
+  const [continuityResolverOpen, setContinuityResolverOpen] = useState(false);
 
   const stageRows = useMemo(
     () => data?.rows.filter((row) => coursePlanMatchesStage(row, stage)) ?? [],
@@ -638,6 +651,10 @@ export function ManagementCoursePlan({
     && row.teacherRequirement !== 'NONE'
     && row.teacherAssignmentScope === 'UNSPECIFIED'
   )).length;
+  const stageRequirementIds = new Set(stageRows.map((row) => row.requirementId));
+  const stageContinuityViolations = data.teacherContinuityViolations.filter(
+    (violation) => stageRequirementIds.has(violation.requirementId),
+  );
 
   return (
     <section className="management-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
@@ -687,6 +704,29 @@ export function ManagementCoursePlan({
               </button>
             </div>
           </div>
+
+          {stageContinuityViolations.length > 0 && (
+            <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3">
+              <div>
+                <p className="text-[10px] font-black text-violet-900">
+                  {stageContinuityViolations.length} öğretmen sürekliliği sorunu
+                </p>
+                <p className="mt-1 text-[9px] font-medium text-violet-700">
+                  Aynı dersin haftalık bloklarında birden fazla öğretmen kullanılıyor.
+                  Birbirini bloke eden kararlar birlikte çözülebilir.
+                </p>
+              </div>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setContinuityResolverOpen(true)}
+                  className="shrink-0 rounded-xl bg-violet-900 px-4 py-2.5 text-[10px] font-black text-white hover:bg-violet-800"
+                >
+                  Birlikte çöz
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="mt-5 grid grid-cols-5 gap-3">
             <div className="rounded-2xl bg-slate-950 p-4 text-white">
@@ -963,6 +1003,16 @@ export function ManagementCoursePlan({
             onOpenProgram(requirementId, targetStage);
           }}
           onSave={onUpdateRoomStrategy}
+        />
+      )}
+
+      {continuityResolverOpen && stageContinuityViolations.length > 0 && (
+        <ManagementTeacherContinuityResolver
+          violations={stageContinuityViolations}
+          rows={stageRows}
+          onClose={() => setContinuityResolverOpen(false)}
+          onPreview={onPreviewCoordinatedTeacherReconciliation}
+          onApply={onApplyCoordinatedTeacherReconciliation}
         />
       )}
 
