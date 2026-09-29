@@ -288,7 +288,7 @@ export function ManagementTeacherPolicyEditor({
           <button
             type="button"
             onClick={onClose}
-            disabled={previewing || applying}
+            disabled={previewing || applying || reconciling || reconciliationApplying}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-40"
           >
             Kapat
@@ -315,7 +315,7 @@ export function ManagementTeacherPolicyEditor({
                   setReconciliationPreview(null);
                   setReconciliationError(null);
                 }}
-                disabled={previewing || applying}
+                disabled={previewing || applying || reconciling || reconciliationApplying}
                 className={
                   selected
                     ? 'w-full rounded-2xl border border-slate-950 bg-slate-950 px-4 py-3 text-left text-white'
@@ -572,7 +572,7 @@ export function ManagementTeacherPolicyEditor({
             <button
               type="button"
               onClick={() => void runPreview()}
-              disabled={previewing || applying}
+              disabled={previewing || applying || reconciling || reconciliationApplying}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
             >
               {previewing ? 'Kontrol ediliyor…' : 'Etkiyi kontrol et'}
@@ -580,7 +580,13 @@ export function ManagementTeacherPolicyEditor({
             <button
               type="button"
               onClick={() => void apply()}
-              disabled={!preview?.canApply || previewing || applying}
+              disabled={
+                !preview?.canApply
+                || previewing
+                || applying
+                || reconciling
+                || reconciliationApplying
+              }
               className="rounded-xl bg-slate-950 px-4 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
             >
               {applying ? 'Kaydediliyor…' : 'Kuralı kaydet'}
