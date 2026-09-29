@@ -227,12 +227,21 @@ export function ManagementInspector({
     [card, cardIds],
   );
 
+  const eligiblePlacementTeacherOptions = useMemo(
+    () => (
+      card
+        ? teacherOptions.filter((option) => card.teacherIds.includes(option.id))
+        : []
+    ),
+    [card, teacherOptions],
+  );
+
   const placementResourceOptions = useMemo(() => {
     const placement = card?.placement;
     if (!placement || !placementEditMode) return [];
 
     if (placementEditMode === 'TEACHER') {
-      return teacherOptions.filter(
+      return eligiblePlacementTeacherOptions.filter(
         (option) => option.id !== placement.teacherId,
       );
     }
@@ -242,9 +251,9 @@ export function ManagementInspector({
     );
   }, [
     card?.placement,
+    eligiblePlacementTeacherOptions,
     placementEditMode,
     roomOptions,
-    teacherOptions,
   ]);
 
   const openPlanTeacherEditor = () => {
