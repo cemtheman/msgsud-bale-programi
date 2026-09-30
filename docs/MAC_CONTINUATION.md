@@ -10,7 +10,7 @@ Tarih: 30 Eylül 2026
 - Çalışma dizini: `/workspaces/msgsud-bale-programi`
 - Shell: Linux/bash
 - Branch: `main`
-- Komut biçimi: `npm`, `npx`; `npm.cmd` / `npx.cmd` kullanılmaz
+- Komut biçimi: `npm`, `npx`
 - Kullanıcı yeni ortam bildirmedikçe Codespaces geçerli kabul edilir
 
 Başlangıç:
@@ -28,78 +28,128 @@ cat docs/MAC_CONTINUATION.md
 
 ## 2. M33.2 — CLOSED / PASS
 
-Production browser smoke:
-- Kurallara uygun bir yerleşim bulundu
-- mevcut program bütün zorunlu kuralları karşılıyor
-- yerinde kalan ders: **300/300**
-- salonu henüz belirlenmeyen ders: 54
-- Cuma ek dersi uyarısı yok
-- changed-card diagnostic yok
-- program mutation yok
+Production:
+- mevcut program hard-rule valid
+- 300/300 yerinde kalan ders
+- Cuma ek dersi warning yok
+- 54 UNKNOWN/provisional salon kartı blocker değil
 
-Codespaces test:
+Codespaces:
+- 14/14 test files PASS
+- 72/72 tests PASS
+- production build PASS
 
+## 3. M33.3-v0 — implementation hazır, acceptance pending
+
+Core:
 ```
-Test Files 14 passed (14)
-Tests 72 passed (72)
-```
-
-Production build:
-
-```
-Next.js 16.3.4
-Compiled successfully
-TypeScript PASS
-/yonetim PASS
+b14ca08089a47e0a4bc268107c0afe98b9884b33
+feat: add weighted in-memory objective optimizer
 ```
 
-Journal checkpoint:
-
+Tests:
 ```
-d6f384bddce2267700905694171701f986d95ccb
-docs: close M33.2 and open M33.3
+f5f20f06881cd8b5ca86bb157a12e106caf6aef9
+test: cover weighted objective optimization
 ```
 
-## 3. M33.3 — aktif paket
+UI:
+```
+00525899ec3e519ee7f356d949f327cfbd89958a
+feat: expose preference-driven program option preview
+```
 
-Amaç: Öncelikler'deki değerler artık çözüm seçimini gerçekten etkileyecek.
+Sidebar language:
+```
+507ca5a5c493b6b3f6ad0b86207f02b201b69c32
+polish: finish priorities sidebar terminology
+```
 
-Supported objective metrics:
+Contract:
+```
+51024660122838a3f45e6c0b3c93c0cfabf59688
+docs: define M33.3 preference optimization contract
+```
+
+Journal:
+```
+4151c3d1c1db263fd0abed4cef7adb5f7960b312
+docs: checkpoint M33.3 objective optimization
+```
+
+## 4. M33.3 davranışı
+
+`Programı kontrol et`:
+- yalnız zorunlu kurallar
+- preferences kullanmaz
+
+`Bu tercihlerle seçenek oluştur`:
+- ekrandaki weights'i doğrudan kullanır
+- read-only
+- current program baseline
+- local best-improvement search
+- no auto apply
+
+Metric vector:
 - changeCost
 - preferredTeacherContinuityBreaks
 - teacherIdleGapPeriods
 - roomStabilityBreaks
 
-M33.3-v0 sözleşmesi:
-- current program baseline/referans
-- yalnız hard-feasible çözümler karşılaştırılır
-- active preference weights weighted score'a girer
-- weight=0 objective çözüm seçimini etkilemez
-- deterministic in-memory local improvement
-- locked cards değişmez
-- browser freeze guard
-- baseline/proposed metric delta açıklanır
-- program otomatik apply edilmez
-- Supabase placement mutation yok
+Score:
+- raw metric / cardCount
+- normalized * preference weight
+- toplam düşük daha iyi
+- weight 0 metric'i devre dışı bırakır
 
-300 kart üzerinde full combinatorial exhaustive search yapılmayacak.
+Search guard:
+- max 8 accepted move
+- kart başına 24 yakın candidate
+- structural domain guard 400
+- locked immutable
+- hard rules her move'da korunur
 
-İlk implementation:
-1. metric vector evaluator
-2. weighted score
-3. feasible baseline üzerinde one-card neighborhood
-4. best-improvement loop
-5. explanation/result contract
-6. unit tests
-7. Öncelikler UI'da `Tercihlere göre seçenek oluştur`
+Global optimum garantisi yok; local improvement.
 
-## 4. Değişmez kurallar
+## 5. Sıradaki acceptance
+
+Codespaces:
+
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
+```
+
+Beklenen:
+- eski 72 test + yeni optimizer testleri PASS
+- build PASS
+
+Browser:
+1. Öncelikler refresh
+2. sol başlık `Öncelikler / Kayıtlı ayarlar`
+3. en az bir tercih açık
+4. `Bu tercihlerle seçenek oluştur`
+5. sonucu ve süreyi kaydet
+6. farklı bir ağırlık kombinasyonu seç
+7. yeniden çalıştır
+8. önerinin veya UNCHANGED sonucunun önceliklere göre anlamlı biçimde değiştiğini doğrula
+9. Program ekranında mevcut schedule'ın değişmediğini doğrula
+
+Önerilen ilk iki smoke:
+- A: yalnız `Öğretmen boşluklarını azalt = Çok yüksek`
+- B: `Mevcut programı mümkün olduğunca koru = Çok yüksek` + `Öğretmen boşluklarını azalt = Çok yüksek`
+
+A'nın daha fazla değişiklik yapabilmesi; B'nin daha muhafazakâr kalması beklenir.
+
+## 6. Değişmez kurallar
 
 - Applied migration geriye dönük düzenlenmez
-- DB değişikliğinde yeni additive migration
 - Force push yok
 - Runtime/browser kanıtı varsayımdan üstündür
-- M32.4.2: planning pool != manual placement override
-- M22: UNKNOWN != ABSENT != UNAVAILABLE
-- Solver hesapları snapshot + in-memory
-- kullanıcı yeni ortam bildirmedikçe Codespaces/Linux komutları
+- M32.4.2 planning pool != manual placement override
+- M22 UNKNOWN != ABSENT != UNAVAILABLE
+- Solver snapshot + in-memory
+- no automatic apply
+- kullanıcı yeni ortam bildirmedikçe Codespaces/Linux
