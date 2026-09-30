@@ -5437,3 +5437,30 @@ Rules frozen:
 
 Goal:
 future features must fit this system rather than introducing another local UI dialect.
+
+
+## 81. 30 Eylül 2026 — UI normalization visual acceptance
+
+Kullanıcı normalization sonrası tüm ana sekmelerin yeni ekran görüntülerini paylaştı.
+
+Visual acceptance:
+- Program: intentional full-width dense workbench; no regression observed
+- Ders Planı: normalized typography and width visually coherent
+- Kaynaklar: typography/readability improved, no clipping observed
+- Öncelikler: accepted layout preserved
+- Program Durumu: wider 1220px content, larger type and consolidated help card visibly improved
+- global Geri Al/Yinele placement consistent across tabs
+
+Remaining visual defect found:
+Program Durumu empty blocker/warning sections still rendered `0 başlık` badges.
+Previous intended patch did not match the post-normalization class string.
+
+Fix:
+```
+2b7a2a7b2f11da1c6a29f27bc00c470e8d6b0f76
+ui: hide zero issue badges on program status
+```
+
+Optional future refinement:
+publication comparison currently shows 8 rows + "+ N ders daha" and makes Program Durumu long.
+Could later switch to 5–6 default rows with explicit expand/collapse, but this is not a blocker.
