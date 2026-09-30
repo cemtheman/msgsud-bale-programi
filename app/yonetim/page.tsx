@@ -18,6 +18,7 @@ import { ManagementResources } from '@/components/management/ManagementResources
 import { ManagementHelpCenter } from '@/components/management/ManagementHelpCenter';
 import { ManagementQuickTour } from '@/components/management/ManagementQuickTour';
 import { ManagementPlacementAssistant } from '@/components/management/ManagementPlacementAssistant';
+import { ManagementHistoryActions } from '@/components/management/ManagementHistoryActions';
 import { ManagementSolverWorkspacePanel } from '@/components/management/ManagementSolverWorkspacePanel';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
@@ -1621,6 +1622,21 @@ export default function ManagementPage() {
                 Düzenleme açık
               </span>
             )}
+            {access?.canEdit && (
+              <ManagementHistoryActions
+                undoAvailable={Boolean(commandState.undo) && !dataLoading}
+                redoAvailable={Boolean(commandState.redo) && !dataLoading}
+                busy={commandBusy || dataLoading}
+                undoTitle={commandState.undo
+                  ? `${commandContextLabel(commandState.undo, board)} geri al`
+                  : 'Geri alınabilecek işlem yok'}
+                redoTitle={commandState.redo
+                  ? `${commandContextLabel(commandState.redo, board)} yeniden uygula`
+                  : 'Yinelenecek işlem yok'}
+                onUndo={() => void runUndo()}
+                onRedo={() => void runRedo()}
+              />
+            )}
             <button
               type="button"
               onClick={() => setHelpOpen(true)}
@@ -1760,44 +1776,6 @@ export default function ManagementPage() {
               </button>
             )}
   
-            {access?.canEdit ? (
-              <div data-tour-target="history-actions" className="flex shrink-0 items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => void runUndo()}
-                  disabled={!commandState.undo || commandBusy || dataLoading}
-                  className="flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30 max-[1280px]:w-9 max-[1280px]:px-0"
-                  title={commandState.undo
-                    ? `${commandContextLabel(commandState.undo, board)} geri al`
-                    : 'Geri alınabilecek işlem yok'}
-                  aria-label={commandState.undo
-                    ? `${commandContextLabel(commandState.undo, board)} geri al`
-                    : 'Geri alınabilecek işlem yok'}
-                >
-                  <span aria-hidden="true">↶</span>
-                  <span className="max-[1280px]:hidden">Geri Al</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void runRedo()}
-                  disabled={!commandState.redo || commandBusy || dataLoading}
-                  className="flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30 max-[1280px]:w-9 max-[1280px]:px-0"
-                  title={commandState.redo
-                    ? `${commandContextLabel(commandState.redo, board)} yeniden uygula`
-                    : 'Yinelenecek işlem yok'}
-                  aria-label={commandState.redo
-                    ? `${commandContextLabel(commandState.redo, board)} yeniden uygula`
-                    : 'Yinelenecek işlem yok'}
-                >
-                  <span aria-hidden="true">↷</span>
-                  <span className="max-[1280px]:hidden">Yinele</span>
-                </button>
-              </div>
-            ) : (
-              <span className="text-[10px] font-semibold text-slate-400">
-                Salt okunur
-              </span>
-            )}
           </div>
         )}
       </header>
@@ -2513,8 +2491,6 @@ export default function ManagementPage() {
           data={solverWorkspace}
           canEdit={access?.canEdit === true}
           busy={commandBusy}
-          undoAvailable={Boolean(commandState.undo) && !dataLoading}
-          onUndo={runUndo}
           onSave={async (input) => {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
