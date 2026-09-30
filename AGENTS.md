@@ -13,11 +13,11 @@
 | Aktif çalışma ortamı | `GitHub Codespaces` |
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `94eb8b34a9aa359aec4fb453b597d15a7a87686b` |
-| Implementation commit | `M33.3 objective optimization + simplified priorities workflow/UI — browser A/B PASS; final Codespaces test/build pending` |
-| Son documentation checkpoint | `eca67486ba753e7227545b96c0c96deea1f31a85` |
-| Son kullanıcı/QA kabulü | **M33.3 CLOSED/PASS** — browser A/B PASS; Codespaces 15/15 test files, 77/77 tests PASS; Next/TypeScript production build PASS; Öncelikler UI frozen |
-| Sıradaki iş paketi | M33.4 explicit proposal review/apply — reuse existing atomic transaction + undo/redo infrastructure; no auto-apply |
+| Son doğrulanmış implementation checkpoint | `2b7a2a7b2f11da1c6a29f27bc00c470e8d6b0f76` |
+| Implementation commit | `M33.4 proposal apply/undo/redo + global history controls + management UI normalization — Codespaces test/build PASS` |
+| Son documentation checkpoint | Bu dosyanın güncel HEAD'i; yeni oturumda `git rev-parse HEAD` ile doğrula |
+| Son kullanıcı/QA kabulü | **M33.4 CLOSED/PASS + UI normalization PASS** — proposal apply/undo/redo browser PASS; global history görünür; Codespaces 16/16 test files, 81/81 tests PASS; Next/TypeScript production build PASS |
+| Sıradaki iş paketi | Yeni feature öncesi ürün kararı: Kaynak mutasyonlarını global undo/redo history engine'e dahil etme gereksinimini değerlendir; UI sistemi `docs/MANAGEMENT_UI_SYSTEM.md` ile korunur |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -5464,3 +5464,65 @@ ui: hide zero issue badges on program status
 Optional future refinement:
 publication comparison currently shows 8 rows + "+ N ders daha" and makes Program Durumu long.
 Could later switch to 5–6 default rows with explicit expand/collapse, but this is not a blocker.
+
+
+## 82. 30 Eylül 2026 — M33.4 + UI normalization final acceptance
+
+Kullanıcı Codespaces üzerinde final doğrulama yaptı:
+
+```
+Test Files  16 passed (16)
+Tests       81 passed (81)
+```
+
+Production build:
+- Next.js 16.3.4
+- TypeScript PASS
+- PWA compile PASS
+- static pages PASS
+- /yonetim dynamic route build PASS
+
+Browser acceptance daha önce:
+- program seçeneği oluşturma PASS
+- explicit apply confirmation PASS
+- fast atomic proposal apply PASS
+- Geri Al PASS
+- Yinele PASS
+- tekrar undo/redo PASS
+- timeout regression M33.4.2 ile kapandı
+- stale proposal invalidation PASS
+- global history controls tüm ana sekmelerde görünür
+- Öncelikler progress feedback kullanıcıya işlem sürdüğünü gösteriyor
+- management UI normalization visual review PASS
+
+Final small UI fix:
+```
+2b7a2a7b2f11da1c6a29f27bc00c470e8d6b0f76
+ui: hide zero issue badges on program status
+```
+
+### Paket durumu
+
+**M33.4 CLOSED / PASS**
+
+**Management UI normalization CLOSED / PASS**
+
+### Korunan ürün kuralları
+
+- Program full-width yoğun workbench kalır.
+- Ders Planı / Kaynaklar / Program Durumu 1220px içerik ailesini kullanır.
+- Öncelikler sidebar nedeniyle daha geniş shell kullanabilir.
+- Geri Al / Yinele global management history kontrolüdür.
+- Yeni 8–9px body/meta typography eklenmez.
+- Uzun süren işlem görünür progress feedback vermelidir.
+- UI contract: `docs/MANAGEMENT_UI_SYSTEM.md`.
+
+### Bilinen sınır
+
+Kaynaklar ekranındaki teacher/room profile-name-status gibi resource mutations mevcut
+management command history engine'e ROOT_UNDO/ROOT_REDO olarak yazılmıyor.
+Global Geri Al/Yinele Kaynaklar sekmesinde görünse de yalnız mevcut undoable management
+history item'ını yönetir.
+
+Bu davranış şu aşamada açıkça kayıtlı bir ürün/altyapı sınırıdır; universal resource undo
+istenirse ayrı backend history paketi açılmalıdır.
