@@ -57,17 +57,17 @@ const SECTION_GUIDES: Record<
     ],
   },
   SOLVER: {
-    eyebrow: 'Optimizasyon',
-    title: 'Geçerli çözümler arasında hangi tercihlerin önemli olduğunu tanımlayın',
+    eyebrow: 'Öncelikler',
+    title: 'Program hazırlanırken nelerin daha önemli olduğunu seçin',
     summary:
-      'Hard kurallar programın geçerli olup olmadığını belirler. Bu bölüm ise birden fazla geçerli program arasından seçim yapılırken hangi hedeflerin ne kadar önemli olduğunu açıkça tanımlar.',
+      'Zorunlu kurallar değişmez. Buradaki tercihler, birden fazla uygun program olduğunda hangisinin öne çıkacağını belirler.',
     detail:
-      'Partisyon optimizasyon hedeflerini kendiliğinden belirlemez. Mevcut programa sadakat, esnek derslerde öğretmen devamlılığı, öğretmen boşluklarını azaltma ve salon istikrarı gibi ölçütlere siz öncelik verirsiniz. Bu ekran programı doğrudan değiştirmez; gelecekteki solver için açık bir karar profili oluşturur.',
+      'Mevcut programı koruma, aynı öğretmenle devam etme, öğretmenlerin gün içindeki boşluklarını azaltma ve aynı dersi mümkün olduğunca aynı salonda tutma gibi konulara öncelik verebilirsiniz. Bu bölüm mevcut programı kendiliğinden değiştirmez.',
     steps: [
-      'Yeni bir hedef profili oluşturun veya mevcut profili seçin.',
-      'Her hedef için Kapalı / Düşük / Orta / Yüksek / Çok yüksek önceliklerinden birini seçin.',
-      'Profil taslakken değişiklikleri deneyebilir; hazır olduğunda Etkin profil yapabilirsiniz.',
-      'Etkin profil solver için tercih ölçütlerini tanımlar; hard program kurallarını değiştirmez.',
+      'Yeni bir tercih ayarı oluşturun veya kayıtlı bir ayarı seçin.',
+      'Her tercih için Kapalı / Düşük / Orta / Yüksek / Çok yüksek seçeneklerinden birini belirleyin.',
+      'Hazır olmadığınız ayarları taslak olarak saklayabilirsiniz.',
+      'Kullanmak istediğiniz ayarı seçip “Bu ayarları kullan” düğmesine basın.',
     ],
   },
   STATUS: {
