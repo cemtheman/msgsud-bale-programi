@@ -437,7 +437,7 @@ export function ManagementSolverWorkspacePanel({
                             <span
                               key={code}
                               className="rounded-full bg-amber-100 px-2 py-1 text-[8px] font-black text-amber-800"
-                              title={code}
+                              title={BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
                             >
                               {BASELINE_ISSUE_LABELS[code] ?? code}
                             </span>
