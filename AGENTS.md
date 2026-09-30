@@ -4957,3 +4957,114 @@ Acceptance:
 8. Yinele one-step
 9. stale proposal rejection
 10. apply sonrası Programı kontrol et -> hard-rule valid / 300/300
+
+
+## 75. 30 Eylül 2026 — M33.4 browser regression: history race + bundle redo
+
+Kullanıcı gerçek browser acceptance sırasında optimizer proposal apply yaptı.
+
+Gözlem:
+- proposal confirmation UI çalıştı
+- proposal programda uygulandı
+- Geri Al çalıştı
+- art arda ikinci Geri Al ilk tıklamada
+  `M26 active bundle root not found`
+  verdi; ikinci denemede çalıştı
+- Yinele:
+  `Seçtiğiniz yer artık uygun değil. Veriyi yenileyip yeniden deneyin.`
+  ile başarısız oldu
+- Öncelikler / proposal alanındaki 8–10px metinler kullanıcı tarafından fazla küçük bulundu
+
+### Kök neden 1 — stale history descriptor race
+
+`runUndo` / `runRedo` başarıdan sonra yalnız `refreshToken` artırıyordu.
+Server transaction tamamlanmışken yeni workspace fetch bitene kadar eski
+`commandState` birkaç render boyunca aktif kalabiliyordu.
+
+Hızlı sonraki tıklama artık aktif olmayan eski root transaction id'sini yeniden
+gönderiyordu. Bu, görülen `active bundle root not found` hatasıyla uyumludur.
+
+Fix:
+
+```
+5e5ac459ba5fcf608b88c26df6cd53aa3b740248
+fix: prevent stale history clicks during refresh
+```
+
+Davranış:
+- successful apply / undo / redo sonrası commandState hemen null
+- fresh server state gelene kadar history buttons disabled
+- history buttons ayrıca `dataLoading` sırasında disabled
+
+### Kök neden 2 — bundle REDO sibling self-conflict
+
+M26.8 grouped MOVE önce bütün bundle'ı external occupancy'ye göre doğru
+biçimde validate ediyor, ancak sonrasında her üyeyi
+`management_move_bundle_member` ile tekrar tek tek exact-candidate validate
+ediyordu.
+
+UNDO sonrası REDO'da siblings eski/geri alınmış konumlarında bulunduğu için
+ilk replay edilen kart diğer bundle üyelerini geçici blocker olarak görebiliyor.
+Böylece final hedef bütün olarak valid olmasına rağmen single-card validation
+`target candidate no longer exists / invalid` üretiyor.
+
+Fix migration:
+
+```
+20260930160000_management_m33_4_1_bundle_redo.sql
+ffe546b6a72ead9066fcf96e8fae5a869ec310bd
+fix: replay grouped moves as one bundle on redo
+```
+
+M33.4.1:
+- complete MOVE bundle external occupancy'ye karşı bir kez validate edilir
+- member writes ikinci single-card candidate validation yapmadan aynı DB
+  transaction içinde yürür
+- candidate delta external cards için korunur
+- final bundle subset refresh yapılır
+- ordinary MOVE bundle REDO targetları topluca reconstruct edilir
+- REDO aynı simultaneous bundle path ile uygulanır
+- yeni replay roots `ROOT_REDO` audit metadata'sına çevrilir
+- ROOT_UNDO rows redone olarak işaretlenir
+- sonraki Geri Al/Yinele zinciri korunur
+- M29 placement-resource override redo özel M29.5 yolunda kalır
+
+Migration Vercel source build: PASS.
+Remote Supabase apply henüz browser tarafından doğrulanmadı.
+
+### UX text size
+
+Commit:
+```
+b1338e8bdfc1d1aa560c32d99d7417e5d32846dd
+ux: increase priorities workspace text size
+```
+
+Öncelikler workspace body/helper text minimumları yükseltildi:
+- 8px -> 10px
+- 9px -> 11px
+- 10px -> 12px
+- compact uppercase kickers 11px
+
+Program toast:
+- title 12px
+- body 11px
+
+Layout/hierarchy değiştirilmedi; yalnız readability düzeltildi.
+
+### M33.4 durumu
+
+**OPEN — regression fixes pending Codespaces + migration + browser acceptance.**
+
+Sıradaki acceptance:
+1. git pull
+2. npm test
+3. npm run build
+4. supabase migration list
+5. db push --dry-run => yalnız M33.4.1
+6. db push
+7. mevcut pending Yinele'yi dene
+8. Geri Al -> Yinele -> Geri Al art arda; stale transaction hatası olmamalı
+9. proposal apply -> undo -> redo
+10. post-redo Programı kontrol et / hard-rule validity
+11. typography browser review
