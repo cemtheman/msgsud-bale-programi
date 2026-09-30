@@ -46,7 +46,7 @@ Instructional group conflict semantiği M4 ile aynıdır: aynı set, transitif C
 
 ## Planning pool / manual override
 
-M32.4.2 sözleşmesi korunur. course_requirement_teachers otomatik planning/solver pool'dur. Unlocked kartlarda solver bu havuzu kullanır; manual override planning pool'a sessizce eklenmez. Locked kart active baseline kaynağını pin olarak koruyabilir.
+M32.4.2 sözleşmesi korunur. course_requirement_teachers otomatik planning/solver pool'dur. Yeni alternatifler üretilirken solver bu havuzu kullanır; manual override planning pool'a sessizce eklenmez. Ancak mevcut programdaki ACTIVE bir manuel öğretmen/salon seçimi, yalnız planning pool dışında olduğu için baseline'da hard-geçersiz sayılmaz. Baseline kaynakları aktiflik, capability (gerekiyorsa), overlap ve diğer hard kurallarla doğrulanır.
 
 ## UNKNOWN salon semantiği
 
@@ -74,10 +74,13 @@ Guard'lar: default search node limiti 100000, card candidate limiti 5000. Limit 
 ## Test kapsamı
 
 1. tamamen yerleşmiş feasible baseline → zero-search fast path
-2. CONTAINS participant conflict → alternatif in-memory placement
-3. UNKNOWN room → provisional/null room feasibility
-4. REQUIREMENT+REQUIRED teacher continuity
-5. locked card + missing baseline → INFEASIBLE
+2. ACTIVE manuel öğretmen override planning pool dışında olsa da baseline'da korunur
+3. ACTIVE manuel salon override planning pool dışında olsa da baseline'da korunur
+4. gerçek maxConsecutive ihlali baseline'ı geçersiz saymaya devam eder
+5. CONTAINS participant conflict → alternatif in-memory placement
+6. UNKNOWN room → provisional/null room feasibility
+7. REQUIREMENT+REQUIRED teacher continuity
+8. locked card + missing baseline → INFEASIBLE
 
 ## M33.2 kabul kriteri
 
@@ -85,7 +88,8 @@ Guard'lar: default search node limiti 100000, card candidate limiti 5000. Limit 
 2. Vitest M33.2 tests PASS
 3. production Optimizasyon ekranında read-only feasibility butonu görünür
 4. güncel 300-card snapshot üzerinde sonuç alınır
-5. beklenen ilk sonuç: FEASIBLE, baselineWasFeasible=true, visitedNodeCount=0, baselineReuseCount=300
-6. program placement state'i değişmez
+5. planning-pool dışı fakat ACTIVE manuel override'lar tek başına baseline uyarısı üretmez
+6. yalnız gerçek hard-rule ihlalleri mevcut program uyarısı olarak kalır
+7. program placement state'i değişmez
 
 M33.2 kapandıktan sonra M33.3: objective metric vector + baseline delta + açıklanabilir optimizasyon. M33.3 de doğrudan apply yapmayacaktır; human review / explicit commit ayrı sözleşmedir.
