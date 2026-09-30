@@ -819,6 +819,14 @@ begin
   v_before := v_original_payload -> 'before';
   v_after := v_original_payload -> 'after';
 
+  if v_operation is null
+     or v_resource_type is null
+     or v_resource_id is null
+     or v_before is null
+     or v_after is null then
+    raise exception 'M34 original RESOURCE root payload is incomplete';
+  end if;
+
   v_current := public.management_resource_history_state(
     v_revision_id,
     v_resource_type,
