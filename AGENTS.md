@@ -3937,3 +3937,45 @@ Migration/QA sonrası production `Programı kontrol et` beklenen:
 - program mutation yok
 
 M33.2 bu apply + QA + browser rerun + Vitest sonrası CLOSED kabul edilecek.
+
+
+## 61. 30 Eylül 2026 — M33.2.1 migration UUID aggregate hotfix
+
+İlk migration çalıştırma denemesi transaction'ın ilk DO bloğunda durdu:
+
+```
+ERROR: function min(uuid) does not exist (SQLSTATE 42883)
+```
+
+Kök neden:
+- requirement sayımı ve tek UUID seçimi aynı aggregate sorguda
+  `min(requirement.id)` ile yapılmıştı
+- PostgreSQL bu ortamda UUID için `min(uuid)` aggregate'i sağlamıyor
+
+Önemli:
+- hata ilk DO bloğunda, UPDATE öncesinde oluştu
+- explicit `begin;` transaction error state'e geçti
+- migration veri değişikliği yapmadan başarısız oldu
+- migration applied kabul edilmedi; aynı dosyayı düzeltmek güvenli
+
+Hotfix:
+```
+9cf4df58ca647785352fd5147e5ef165e8ad1b64
+fix: avoid uuid aggregate in M33.2.1 migration
+```
+
+Yeni yaklaşım:
+1. exact target count ayrı `count(*)` sorgusuyla alınır
+2. count=1 ise requirement UUID ayrı `select id ... limit 1` ile alınır
+3. kalan safety guard ve update semantiği değişmez
+
+Dosyanın kalan PostgreSQL kullanımları tekrar gözden geçirildi:
+- min/max(start_period) numeric/smallint aggregate
+- count FILTER
+- PL/pgSQL FOUND
+- uuid[] ARRAY subquery
+uygun.
+
+Sıradaki adım:
+- repo güncellendikten sonra migration dry-run/push yeniden çalıştır
+- ardından docs/sql/m33_2_1_friday_k_bale_rule_qa.sql
