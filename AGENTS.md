@@ -4244,3 +4244,46 @@ Kalan acceptance:
 6. verify result changes or UNCHANGED changes consistently
 7. verify no schedule mutation
 8. measure browser responsiveness / elapsed time
+
+
+## 65. 30 Eylül 2026 — M33.3 optimizer test tie-case hotfix
+
+Codespaces acceptance run:
+- build PASS
+- Vitest: 75 PASS / 1 FAIL
+
+Failing test:
+`lib/managementObjectiveOptimizer.test.ts`
+`reduces teacher gaps when that is the only active priority`
+
+Observed:
+- optimizer correctly reduced teacherIdleGapPeriods 1 -> 0
+- changeCost = 1
+- exactly one card changed
+- test expected specifically c2 startPeriod 2
+- deterministic tie-break instead moved c1 to period 2 and left c2 at period 3
+
+Both solutions are objective-equivalent:
+- periods 1+2
+- periods 2+3
+Both produce zero teacher gap with one changed decision.
+
+Conclusion:
+- optimizer behavior is valid
+- test was over-specified to one equivalent card identity
+
+Hotfix:
+```
+74f1b66d4b8c81b39727d152af1f1e39a08bcf96
+test: accept equivalent teacher-gap improvements
+```
+
+New assertion:
+- two placements remain on Monday
+- their start periods are consecutive
+- does not force which specific card moves
+
+Next:
+`git pull --ff-only && npm test`
+Expected: 76/76 PASS.
+Build already passed before this test-only hotfix; rerun build optional unless full acceptance is desired.
