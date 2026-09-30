@@ -7,6 +7,7 @@ import type {
   ManagementSolverObjectiveWeights,
   ManagementSolverProfileInput,
   ManagementSolverProfileStatus,
+  ManagementSolverRequirement,
   ManagementSolverWorkspace,
 } from '@/lib/managementSolver';
 import {
@@ -58,6 +59,36 @@ const BASELINE_ISSUE_LABELS: Record<string, string> = {
   BASELINE_MAX_BLOCKS_PER_DAY: 'Aynı gün blok sınırı aşılıyor',
   BASELINE_MAX_CONSECUTIVE_PERIODS: 'Ardışık ders sınırı aşılıyor',
 };
+
+function baselineIssueDetail(
+  code: string,
+  requirement: ManagementSolverRequirement | undefined,
+) {
+  if (!requirement) return null;
+
+  if (
+    code === 'BASELINE_MAX_CONSECUTIVE_PERIODS'
+    && requirement.maxConsecutivePeriods != null
+  ) {
+    return `Bu ders için aynı gün en fazla ${requirement.maxConsecutivePeriods} ardışık ders saati tanımlı.`;
+  }
+
+  if (
+    code === 'BASELINE_MAX_BLOCKS_PER_DAY'
+    && requirement.maxBlocksPerDay != null
+  ) {
+    return `Bu ders için aynı gün en fazla ${requirement.maxBlocksPerDay} blok tanımlı.`;
+  }
+
+  if (
+    code === 'BASELINE_MIN_DISTINCT_DAYS'
+    && requirement.minDistinctDays != null
+  ) {
+    return `Bu ders haftada en az ${requirement.minDistinctDays} farklı güne yayılmalı.`;
+  }
+
+  return null;
+}
 
 function placementSummary(
   dayOfWeek: number | null,
@@ -201,6 +232,12 @@ export function ManagementSolverWorkspacePanel({
     && name.trim().length > 0
     && positiveObjectiveCount > 0
   );
+  const changedCardIds = new Set(
+    feasibilityResult?.changedCards?.map((item) => item.cardId) ?? [],
+  );
+  const additionalBaselineIssues = (
+    feasibilityResult?.baselineIssues ?? []
+  ).filter((issue) => !changedCardIds.has(issue.cardId));
 
   const loadProfile = (profile: ManagementSolverObjectiveProfile | null) => {
     setSelectedProfileId(profile?.id ?? null);
@@ -432,16 +469,35 @@ export function ManagementSolverWorkspacePanel({
                       </div>
 
                       {item.baselineIssueCodes.length > 0 ? (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {item.baselineIssueCodes.map((code) => (
-                            <span
-                              key={code}
-                              className="rounded-full bg-amber-100 px-2 py-1 text-[8px] font-black text-amber-800"
-                              title={BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
-                            >
-                              {BASELINE_ISSUE_LABELS[code] ?? code}
-                            </span>
-                          ))}
+                        <div className="mt-2">
+                          <div className="flex flex-wrap gap-1.5">
+                            {item.baselineIssueCodes.map((code) => (
+                              <span
+                                key={code}
+                                className="rounded-full bg-amber-100 px-2 py-1 text-[8px] font-black text-amber-800"
+                                title={BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
+                              >
+                                {BASELINE_ISSUE_LABELS[code] ?? code}
+                              </span>
+                            ))}
+                          </div>
+                          {item.baselineIssueCodes.map((code) => {
+                            const detail = baselineIssueDetail(
+                              code,
+                              data.preview.requirements.find(
+                                (requirement) => requirement.id === item.requirementId,
+                              ),
+                            );
+
+                            return detail ? (
+                              <p
+                                key={`${code}-detail`}
+                                className="mt-1.5 text-[8px] font-semibold text-amber-800"
+                              >
+                                {detail}
+                              </p>
+                            ) : null;
+                          })}
                         </div>
                       ) : (
                         <p className="mt-2 text-[8px] font-bold text-slate-400">
@@ -451,6 +507,57 @@ export function ManagementSolverWorkspacePanel({
                     </div>
                   ))}
                 </div>
+
+                {additionalBaselineIssues.length > 0 && (
+                  <div className="mt-4 border-t border-amber-200 pt-3">
+                    <p className="text-[9px] font-black text-amber-950">
+                      Yer değiştirmeyen ancak uyarı taşıyan dersler
+                    </p>
+                    <p className="mt-1 text-[8px] font-medium leading-4 text-amber-800">
+                      Bu dersler geçici çözümde yerinde kaldı; yine de mevcut programdaki kural uyarısının bir parçası.
+                    </p>
+
+                    <div className="mt-2 grid gap-2">
+                      {additionalBaselineIssues.map((issue) => {
+                        const requirement = data.preview.requirements.find(
+                          (item) => item.id === issue.requirementId,
+                        );
+
+                        return (
+                          <div
+                            key={issue.cardId}
+                            className="rounded-xl border border-amber-100 bg-white px-3 py-2.5"
+                          >
+                            <p className="text-[9px] font-black text-slate-900">
+                              {issue.groupName} · {issue.subjectName} · Blok {issue.blockIndex}
+                            </p>
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              {issue.codes.map((code) => (
+                                <span
+                                  key={code}
+                                  className="rounded-full bg-amber-100 px-2 py-1 text-[8px] font-black text-amber-800"
+                                >
+                                  {BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
+                                </span>
+                              ))}
+                            </div>
+                            {issue.codes.map((code) => {
+                              const detail = baselineIssueDetail(code, requirement);
+                              return detail ? (
+                                <p
+                                  key={`${code}-detail`}
+                                  className="mt-1.5 text-[8px] font-semibold text-amber-800"
+                                >
+                                  {detail}
+                                </p>
+                              ) : null;
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </section>
