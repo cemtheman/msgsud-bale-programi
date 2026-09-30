@@ -12,11 +12,11 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `32150f7b5855ac7011672cc8b16857399b685882` |
-| Implementation commit | `M33.0.1 solver snapshot foundation — readiness + rollback QA PASS` |
-| Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
-| Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M33.1 — objective profile UX build + rollback QA + browser smoke; ardından feasibility solver prototype |
+| Son doğrulanmış implementation checkpoint | `8b33c3a3397a5abe41cc6b68aae501769ad64a4a` |
+| Implementation commit | `M33.1 objective profile UX — rollback QA PASS; browser smoke pending` |
+| Son documentation checkpoint | `17504045f596ae944f02b159df6a283b8213c9e3` |
+| Son kullanıcı/QA kabulü | M33 snapshot foundation PASS; M33.1 rollback-only objective profile QA PASS |
+| Sıradaki iş paketi | M33.1 browser Optimizasyon smoke; ardından immutable snapshot consumer feasibility solver prototype |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -3328,3 +3328,55 @@ M33.1 doğrulama:
   - ACTIVE explicit
   - readiness badge objective-ready
   - no schedule placement mutation
+
+
+## 54. 30 Eylül 2026 — M33.1 rollback QA PASS
+
+Kullanıcı, M33.1 objective profile implementation checkpoint'i sonrasında
+`docs/sql/m33_1_objective_profile_rollback_qa.sql`
+dosyasını production DB üzerinde rollback-only test olarak çalıştırdı.
+
+Sonuç:
+```
+Success. No rows returned
+```
+
+Bu sonuçla M33.1 DB/objective-profile sözleşmesi PASS:
+- unsupported `teacherLoadBalance > 0` validation tarafından reddediliyor
+- supported objective ağırlıklarıyla DRAFT profile oluşturulabiliyor
+- list RPC DRAFT profili görüyor
+- aynı profil explicit ACTIVE yapılabiliyor
+- ACTIVE profile ile `objectiveProfileReady=true`
+- mevcut `hardInputReady=true` state ile `solverPrototypeReady=true`
+- weight round-trip korunuyor
+- test transaction sonunda ROLLBACK; kalıcı objective profile veya schedule mutation bırakmıyor
+
+M33.1 mevcut kod checkpoint'i:
+```
+8b33c3a3397a5abe41cc6b68aae501769ad64a4a
+feat: add optimization objective workspace
+```
+
+İlgili yardımcı commitler:
+```
+36a9876fd30d8ed4d8fecdd759330f21a6466496 feat: add solver objective workspace client
+e9eae21b8029b9d74880b8febc263b9bdf8d5e7b feat: add human-readable solver objective editor
+1880cf0d8c1eb4fa6b530ca0d95d7ea816c6280d feat: fetch latest solver objective workspace
+1b82bcfb281f65f8201beecc13c36fb56f74dd59 docs: add optimization workspace help
+cda35515ea3ed4a7eb8d9c7572ac5c2c553e95f1 test: add objective profile rollback QA
+0e2ac0d502fac29006da19b63de695e1d09dbd6a docs: describe objective profile UX
+17504045f596ae944f02b159df6a283b8213c9e3 docs: checkpoint M33.1 objective profile UX
+```
+
+Sıradaki kabul adımı browser smoke'tur:
+1. Yönetim > Optimizasyon açılır.
+2. No-profile state doğru görünür.
+3. Yeni DRAFT profil oluşturulur.
+4. Profil seçimi/değiştirme çalışır.
+5. En az bir supported objective pozitif yapılıp profil explicit ACTIVE edilir.
+6. readiness göstergesi objective-ready / solver-prototype-ready state'e geçer.
+7. Profil kaydı program placement'larını değiştirmez.
+8. UNKNOWN salonların M22 `PROVISIONAL_UNKNOWN` bilgisi görünür; hard blocker gibi sunulmaz.
+
+Browser smoke PASS sonrası M33.1 CLOSED kabul edilecek ve sıradaki paket
+immutable solver snapshot'ını tüketen **feasibility solver prototype** olacaktır.
