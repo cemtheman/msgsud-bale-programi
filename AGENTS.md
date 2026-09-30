@@ -5360,3 +5360,80 @@ Yeni feature eklemeden kısa bir `Management UI normalization` turu:
 
 Goal:
 görsel yeniden tasarım değil, existing screens'i aynı product family'ye döndürmek.
+
+
+## 80. 30 Eylül 2026 — Management UI normalization
+
+Kullanıcı tüm ana sekmelerin ekran görüntülerini paylaştı:
+- Program
+- Ders Planı
+- Kaynaklar
+- Öncelikler
+- Program Durumu
+
+Gözlem:
+Program deliberately dense workbench olarak tutarlı; ancak eski geliştirme paketlerinden kalan
+Kaynaklar / Ders Planı / Program Durumu typography ve card-density dili Öncelikler'den belirgin
+biçimde farklılaşmıştı.
+
+History controls daha önce global top bar'a taşındığı için tüm sekmeler aynı işlem geçmişi
+kontrollerini artık aynı konumda kullanıyor.
+
+### Typography / width normalization
+
+Commits:
+```
+310145deb1c067bcae8904b2bf28d2b44b7cfc74
+ui: normalize resources typography and content width
+
+1612a533db553f2a7c46392f4b4d090a8947ee46
+ui: normalize course plan typography
+
+aa8db2608af4b74ab828f1a0396546b9f4a3e8a5
+ui: normalize publication comparison typography
+
+b5bf4a928abb3315717ecf21965b3a66904f1334
+ui: normalize publication gate typography
+
+f15fee41d61fad2a1b3f32a90c1cfad6545b9521
+ui: simplify and normalize program status
+```
+
+Results:
+- legacy 8px / 9px text eliminated from normalized content screens
+- body/helper/meta floor moved to readable 10–11px+ range
+- Kaynaklar content width -> 1220px
+- Ders Planı already 1220px
+- Program Durumu content width -> 1220px
+- Program Durumu zero-count "0 başlık" badges hidden
+- Program Durumu three explanatory side cards consolidated into one structured information card
+- accepted information architecture preserved
+- Program timetable full-width density intentionally preserved
+- Solver keeps wider 1460px shell because saved-settings sidebar is persistent
+
+All five implementation commits Vercel PASS.
+
+### Visual system contract
+
+```
+8799ac2224a95eaf5971db4f1f7f5b4a80733ca7
+docs: define management UI normalization rules
+```
+
+New:
+`docs/MANAGEMENT_UI_SYSTEM.md`
+
+Rules frozen:
+- page families / density modes
+- typography floor
+- surface/radius/border/shadow language
+- spacing rhythm
+- action hierarchy
+- global history placement
+- semantic status colors
+- user-facing Turkish
+- progress feedback
+- deliberate Program/Solver exceptions
+
+Goal:
+future features must fit this system rather than introducing another local UI dialect.
