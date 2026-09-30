@@ -177,7 +177,42 @@ function actionNoun(action: ManagementRootAction) {
   if (action === 'PLACE') return 'yerleştirmesi';
   if (action === 'MOVE') return 'taşıması';
   if (action === 'REMOVE') return 'kaldırma işlemi';
+  if (action === 'RESOURCE') return 'kaynak değişikliği';
   return 'ders yapısı değişikliği';
+}
+
+function resourceHistoryLabel(descriptor: ManagementCommandDescriptor) {
+  const resourceName = descriptor.resourceName
+    ? `“${descriptor.resourceName}” `
+    : '';
+  const resourceKind = descriptor.resourceType === 'TEACHER'
+    ? 'öğretmen'
+    : descriptor.resourceType === 'ROOM'
+      ? 'salon'
+      : 'kaynak';
+
+  switch (descriptor.resourceOperation) {
+    case 'TEACHER_NAME':
+      return `${resourceName}öğretmen adı değişikliği`;
+    case 'ROOM_NAME':
+      return `${resourceName}salon adı değişikliği`;
+    case 'TEACHER_STATUS':
+      return `${resourceName}öğretmen durumu değişikliği`;
+    case 'ROOM_PROFILE':
+      return `${resourceName}salon özellikleri değişikliği`;
+    case 'ROOM_STATUS':
+      return `${resourceName}salon durumu değişikliği`;
+    case 'TEACHER_CREATE':
+      return `${resourceName}öğretmen ekleme işlemi`;
+    case 'ROOM_CREATE':
+      return `${resourceName}salon ekleme işlemi`;
+    case 'TEACHER_DELETE':
+      return `${resourceName}öğretmen silme işlemi`;
+    case 'ROOM_DELETE':
+      return `${resourceName}salon silme işlemi`;
+    default:
+      return `${resourceName}${resourceKind} değişikliği`;
+  }
 }
 
 function commandContextLabel(
@@ -188,6 +223,10 @@ function commandContextLabel(
 
   if (descriptor.action === 'STRUCTURE') {
     return 'Ders yapısı değişikliği';
+  }
+
+  if (descriptor.action === 'RESOURCE') {
+    return resourceHistoryLabel(descriptor);
   }
 
   const card = descriptor.cardId
@@ -2337,54 +2376,115 @@ export default function ManagementPage() {
             }
           }}
           onCreateTeacher={async (name) => {
-            if (!session || !access?.canEdit) {
+            if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
-            await createManagementTeacherResource(session.accessToken, name);
-            setCommandNotice({ kind: 'success', text: `Öğretmen “${name}” kaynaklara eklendi.` });
-            setRefreshToken((value) => value + 1);
+
+            setCommandBusy(true);
+            setCommandActivity('Öğretmen kaydı ekleniyor.');
+
+            try {
+              await createManagementTeacherResource(
+                session.accessToken,
+                resources.revisionId,
+                name,
+              );
+              setCommandNotice({ kind: 'success', text: `Öğretmen “${name}” kaynaklara eklendi.` });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
           }}
           onCreateRoom={async (name) => {
-            if (!session || !access?.canEdit) {
+            if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
-            await createManagementRoomResource(session.accessToken, name);
-            setCommandNotice({ kind: 'success', text: `Salon “${name}” kaynaklara eklendi.` });
-            setRefreshToken((value) => value + 1);
+
+            setCommandBusy(true);
+            setCommandActivity('Salon kaydı ekleniyor.');
+
+            try {
+              await createManagementRoomResource(
+                session.accessToken,
+                resources.revisionId,
+                name,
+              );
+              setCommandNotice({ kind: 'success', text: `Salon “${name}” kaynaklara eklendi.` });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
           }}
           onSetTeacherStatus={async (teacherId, operationalStatus) => {
             if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
-            const result = await setManagementTeacherOperationalStatus(
-              session.accessToken,
-              resources.revisionId,
-              teacherId,
-              operationalStatus,
-            );
-            setCommandNotice({
-              kind: 'success',
-              text: operationalStatus === 'ACTIVE'
-                ? `Öğretmen atamaya açıldı. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`
-                : `Öğretmen atamaya kapatıldı. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`,
-            });
-            setRefreshToken((value) => value + 1);
+
+            setCommandBusy(true);
+            setCommandActivity('Öğretmen durumu güncelleniyor.');
+
+            try {
+              const result = await setManagementTeacherOperationalStatus(
+                session.accessToken,
+                resources.revisionId,
+                teacherId,
+                operationalStatus,
+              );
+              setCommandNotice({
+                kind: 'success',
+                text: operationalStatus === 'ACTIVE'
+                  ? `Öğretmen atamaya açıldı. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`
+                  : `Öğretmen atamaya kapatıldı. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`,
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
           }}
           onDeleteTeacher={async (teacherId) => {
-            if (!session || !access?.canEdit) {
+            if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
-            await deleteManagementTeacherResource(session.accessToken, teacherId);
-            setCommandNotice({ kind: 'success', text: 'Kullanılmayan öğretmen kaydı silindi.' });
-            setRefreshToken((value) => value + 1);
+
+            setCommandBusy(true);
+            setCommandActivity('Öğretmen kaydı siliniyor.');
+
+            try {
+              await deleteManagementTeacherResource(
+                session.accessToken,
+                resources.revisionId,
+                teacherId,
+              );
+              setCommandNotice({ kind: 'success', text: 'Kullanılmayan öğretmen kaydı silindi.' });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
           }}
           onDeleteRoom={async (roomId) => {
-            if (!session || !access?.canEdit) {
+            if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
-            await deleteManagementRoomResource(session.accessToken, roomId);
-            setCommandNotice({ kind: 'success', text: 'Kullanılmayan salon kaydı silindi.' });
-            setRefreshToken((value) => value + 1);
+
+            setCommandBusy(true);
+            setCommandActivity('Salon kaydı siliniyor.');
+
+            try {
+              await deleteManagementRoomResource(
+                session.accessToken,
+                resources.revisionId,
+                roomId,
+              );
+              setCommandNotice({ kind: 'success', text: 'Kullanılmayan salon kaydı silindi.' });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
           }}
           onPreviewRoomProfile={async (
             roomId,
