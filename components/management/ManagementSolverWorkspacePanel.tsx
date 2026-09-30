@@ -42,13 +42,13 @@ const DAY_NAMES: Record<number, string> = {
 const BASELINE_ISSUE_LABELS: Record<string, string> = {
   CARD_REQUIREMENT_MISSING: 'Ders kuralı bulunamadı',
   BASELINE_PLACEMENT_MISSING: 'Mevcut yerleşim eksik',
-  BASELINE_TIME_INVALID: 'Mevcut gün/saat hard kurala uymuyor',
+  BASELINE_TIME_INVALID: 'Mevcut gün/saat zorunlu kurala uymuyor',
   REQUIRED_TEACHER_MISSING: 'Zorunlu öğretmen eksik',
   BASELINE_TEACHER_INACTIVE: 'Mevcut öğretmen aktif değil',
-  BASELINE_TEACHER_OUTSIDE_PLANNING_POOL: 'Mevcut öğretmen planlama havuzu dışında',
-  BASELINE_TEACHER_NOT_ALLOWED: 'Mevcut öğretmen seçimi solver alanında değil',
+  BASELINE_TEACHER_OUTSIDE_PLANNING_POOL: 'Mevcut öğretmen otomatik planlama seçeneklerinde değil',
+  BASELINE_TEACHER_NOT_ALLOWED: 'Mevcut öğretmen seçimi otomatik yerleştirme için kullanılamıyor',
   BASELINE_ROOM_INACTIVE: 'Mevcut salon aktif değil',
-  BASELINE_ROOM_OUTSIDE_PLANNING_POOL: 'Mevcut salon planlama havuzu dışında',
+  BASELINE_ROOM_OUTSIDE_PLANNING_POOL: 'Mevcut salon otomatik planlama seçeneklerinde değil',
   BASELINE_ROOM_CAPABILITY_MISMATCH: 'Mevcut salon gerekli yeteneğe uymuyor',
   BASELINE_TEACHER_CONFLICT: 'Mevcut programda öğretmen çakışması',
   BASELINE_ROOM_CONFLICT: 'Mevcut programda salon çakışması',
@@ -341,7 +341,7 @@ export function ManagementSolverWorkspacePanel({
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
-                  Solver hazırlığı
+                  Program çözümleme hazırlığı
                 </p>
                 <h1 className="mt-1 text-xl font-black tracking-tight text-slate-950">
                   Kurumun önceliklerini tanımlayın
@@ -359,7 +359,7 @@ export function ManagementSolverWorkspacePanel({
                     ? 'bg-emerald-100 text-emerald-700'
                     : 'bg-rose-100 text-rose-700'
                 }`}>
-                  {hardReady ? 'Hard girdiler hazır' : 'Hard girdiler eksik'}
+                  {hardReady ? 'Zorunlu kurallar hazır' : 'Zorunlu kural verileri eksik'}
                 </span>
                 <span className={`rounded-full px-3 py-1.5 text-[9px] font-black ${
                   objectiveReady
@@ -374,7 +374,7 @@ export function ManagementSolverWorkspacePanel({
             {unknownRooms && (
               <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/70 px-4 py-3">
                 <p className="text-[10px] font-black text-blue-950">
-                  {unknownRooms.count} dersin salon stratejisi provisional
+                  {unknownRooms.count} dersin salon bilgisi henüz kesin değil
                 </p>
                 <p className="mt-1 text-[9px] font-medium leading-4 text-blue-800">
                   Bu durum solver hazırlığını engellemiyor. {unknownRooms.withBaselineRoomEvidence ?? 0} derste
@@ -389,7 +389,7 @@ export function ManagementSolverWorkspacePanel({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-black text-amber-950">
-                      Mevcut programdan {feasibilityResult.changedCards.length} kart farklı çözüldü
+                      Kontrol için {feasibilityResult.changedCards.length} ders kartında farklı yerleşim gerekti
                     </p>
                     <p className="mt-1 max-w-4xl text-[9px] font-medium leading-4 text-amber-800">
                       Aşağıdaki karşılaştırma yalnız teşhistir; hiçbir değişiklik programa uygulanmadı.
@@ -397,7 +397,7 @@ export function ManagementSolverWorkspacePanel({
                     </p>
                   </div>
                   <span className="rounded-full bg-white px-2.5 py-1 text-[8px] font-black text-amber-700">
-                    {feasibilityResult.baselineIssues?.length ?? 0} baseline uyarısı
+                    {feasibilityResult.baselineIssues?.length ?? 0} mevcut program uyarısı
                   </span>
                 </div>
 
@@ -421,7 +421,7 @@ export function ManagementSolverWorkspacePanel({
                             )}
                           </p>
                           <p className="mt-0.5 text-[9px] font-bold text-slate-700">
-                            Bellekte çözüm: {placementSummary(
+                            Geçici çözüm: {placementSummary(
                               item.proposed.dayOfWeek,
                               item.proposed.startPeriod,
                               item.proposed.teacherName,
@@ -445,7 +445,7 @@ export function ManagementSolverWorkspacePanel({
                         </div>
                       ) : (
                         <p className="mt-2 text-[8px] font-bold text-slate-400">
-                          Bu kart başka bir hard çakışmayı çözebilmek için taşındı; doğrudan kart-level reason code yok.
+                          Bu kartın kendi üzerinde doğrudan bir kural ihlali yok; başka bir zorunlu çakışmayı çözmek için geçici çözümde taşındı.
                         </p>
                       )}
                     </div>
@@ -459,10 +459,10 @@ export function ManagementSolverWorkspacePanel({
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-3xl">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
-                  M33.2 · Uygunluk motoru
+                  Program uygunluk denetimi
                 </p>
                 <h2 className="mt-1 text-[15px] font-black text-slate-950">
-                  Program hard kurallarla çözülebiliyor mu?
+                  Program zorunlu kurallara uygun mu?
                 </h2>
                 <p className="mt-2 text-[10px] font-medium leading-5 text-slate-600">
                   Bu kontrol snapshot verisini tarayıcı belleğine alır ve yalnız geçerli bir yerleşim
@@ -483,7 +483,7 @@ export function ManagementSolverWorkspacePanel({
 
             {!hardReady && (
               <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[10px] font-bold text-rose-700">
-                Hard girdiler hazır olmadığı için uygunluk motoru çalıştırılmıyor.
+                Zorunlu kural verileri hazır olmadığı için uygunluk denetimi çalıştırılamıyor.
               </div>
             )}
 
@@ -511,19 +511,19 @@ export function ManagementSolverWorkspacePanel({
                   </p>
                   <p className="mt-1 text-[9px] font-medium leading-4 text-slate-600">
                     {feasibilityResult.status === 'FEASIBLE' && feasibilityResult.baselineWasFeasible
-                      ? 'Mevcut program hard kurallar açısından zaten geçerli bir başlangıç çözümü.'
+                      ? 'Mevcut program zorunlu kurallar açısından zaten geçerli.'
                       : feasibilityResult.status === 'FEASIBLE'
-                        ? 'Motor, yalnız bellekte farklı bir geçerli yerleşim üretti.'
+                        ? 'Denetim, yalnız geçici bellekte farklı bir geçerli yerleşim buldu.'
                         : feasibilityResult.reasons.join(' · ')}
                   </p>
                   <p className="mt-2 text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
-                    Program değişmedi · yazma işlemi yok
+                    Program değişmedi · veritabanına yazılmadı
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
                   <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
-                    Başlangıç korundu
+                    Mevcut yerleşim korundu
                   </p>
                   <p className="mt-1 text-[14px] font-black text-slate-900">
                     {feasibilityResult.metrics.baselineReuseCount}/{feasibilityResult.metrics.cardCount}
@@ -532,7 +532,7 @@ export function ManagementSolverWorkspacePanel({
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
                   <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
-                    Arama düğümü
+                    İncelenen seçenek
                   </p>
                   <p className="mt-1 text-[14px] font-black text-slate-900">
                     {feasibilityResult.metrics.visitedNodeCount}
@@ -541,7 +541,7 @@ export function ManagementSolverWorkspacePanel({
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
                   <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
-                    Provisional salon
+                    Salonu belirsiz kart
                   </p>
                   <p className="mt-1 text-[14px] font-black text-slate-900">
                     {feasibilityResult.metrics.provisionalRoomCount}
@@ -670,7 +670,7 @@ export function ManagementSolverWorkspacePanel({
                 {positiveObjectiveCount} hedef açık
               </p>
               <p className="mt-1 text-[9px] font-medium text-slate-500">
-                Etkin profil, ileride solver çalıştırılırken karşılaştırma ölçütlerini belirleyecek.
+                Etkin profil, çözüm aranırken hangi hedeflerin daha önemli olduğunu belirleyecek.
                 Program bu ekranda değiştirilmez.
               </p>
             </div>
