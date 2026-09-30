@@ -205,3 +205,47 @@ B. Mevcut programı mümkün olduğunca koru = Çok yüksek + Öğretmen boşluk
 
 B sonucu, A'da bulunan çözümün combined score'undan daha kötü olmamalı.
 Özellikle aynı 67 boşluk seviyesinde changeCost 12 yerine 11 veya daha iyi beklenir.
+
+
+## 8. M33.3 multi-seed production acceptance — PASS
+
+Production A/B rerun:
+
+Scenario A:
+- yalnız Öğretmen boşluklarını azalt = Çok yüksek
+- changeCost 12
+- teacher gaps 97 -> 67
+- room breaks 40 -> 40
+
+Scenario B:
+- Mevcut programı mümkün olduğunca koru = Çok yüksek
+- Öğretmen boşluklarını azalt = Çok yüksek
+- changeCost 10
+- teacher gaps 97 -> 67
+- room breaks 40 -> 40
+
+Sonuç:
+- aynı 30-period teacher-gap improvement
+- preserve-current priority 2 daha az changed decision üretti
+- multi-seed fix production'da beklenen yönde çalışıyor
+- preferences gerçekten solution selection'ı etkiliyor
+- no auto apply
+
+Display:
+- PARALELL/PARALLEL -> PARALEL production PASS
+- SHARED -> ORTAK production PASS
+
+Browser acceptance M33.3-v0: PASS.
+
+Kapanış için kalan tek ana teknik kanıt:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+```
+
+Beklenen:
+- 15 test files PASS
+- 77 tests PASS (multi-seed regression dahil)
+
+Bu da PASS olursa M33.3-v0 CLOSED.
