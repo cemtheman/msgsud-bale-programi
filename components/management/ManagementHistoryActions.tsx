@@ -19,8 +19,9 @@ export function ManagementHistoryActions({
 }) {
   return (
     <div
+      data-tour-target="history-actions"
       className="flex shrink-0 items-center gap-1"
-      aria-label="İşlem geçmişi"
+      aria-label="Program işlem geçmişi"
     >
       <button
         type="button"
