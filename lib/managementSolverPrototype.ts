@@ -462,7 +462,11 @@ function longestConsecutiveRun(periods: Set<number>) {
   let previous: number | null = null;
 
   for (const period of sorted) {
-    if (previous != null && period === previous + 1) {
+    if (
+      previous != null
+      && period === previous + 1
+      && !(previous === LUNCH_LEFT_PERIOD && period === LUNCH_RIGHT_PERIOD)
+    ) {
       current += 1;
     } else {
       current = 1;
@@ -499,6 +503,13 @@ function respectsRequirementRules(
   const proposed = [...current, candidate];
 
   if (
+    requirement.teacherRequirement === 'REQUIRED'
+    && candidate.teacherId == null
+  ) {
+    return false;
+  }
+
+  if (
     requirement.teacherAssignmentScope === 'REQUIREMENT'
     && requirement.teacherContinuity === 'REQUIRED'
   ) {
@@ -510,12 +521,6 @@ function respectsRequirementRules(
 
     if (teachers.length > 1) return false;
 
-    if (
-      requirement.teacherRequirement === 'REQUIRED'
-      && candidate.teacherId == null
-    ) {
-      return false;
-    }
   }
 
   if (requirement.maxBlocksPerDay != null) {
