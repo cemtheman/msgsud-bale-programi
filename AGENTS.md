@@ -12,11 +12,11 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `8b33c3a3397a5abe41cc6b68aae501769ad64a4a` |
-| Implementation commit | `M33.1 objective profile UX — rollback QA PASS; browser smoke pending` |
-| Son documentation checkpoint | `17504045f596ae944f02b159df6a283b8213c9e3` |
-| Son kullanıcı/QA kabulü | M33 snapshot foundation PASS; M33.1 rollback-only objective profile QA PASS |
-| Sıradaki iş paketi | M33.1 browser Optimizasyon smoke; ardından immutable snapshot consumer feasibility solver prototype |
+| Son doğrulanmış implementation checkpoint | `7b24a138a53e9df48268bc42292c0eee83f58c7f` |
+| Implementation commit | `M33.2 in-memory feasibility + read-only UI — Vercel build PASS; Vitest/browser smoke pending` |
+| Son documentation checkpoint | `605b989422d08922a852d27075e2d8d051a89a54` |
+| Son kullanıcı/QA kabulü | M33.1 rollback-only objective profile QA PASS; M33.2 production build PASS |
+| Sıradaki iş paketi | M33.1/M33.2 Optimizasyon browser smoke + M33.2 Vitest; ardından M33.3 explainable objective optimization |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -3380,3 +3380,107 @@ Sıradaki kabul adımı browser smoke'tur:
 
 Browser smoke PASS sonrası M33.1 CLOSED kabul edilecek ve sıradaki paket
 immutable solver snapshot'ını tüketen **feasibility solver prototype** olacaktır.
+
+
+## 55. 30 Eylül 2026 — M33.2 in-memory feasibility prototype
+
+M33.1 rollback QA PASS sonrasında immutable snapshot'ı tüketen ilk gerçek solver katmanı eklendi.
+
+Kalıcı mimari karar:
+- solver deneme/yanılma sırasında Supabase placement/candidate tablolarını mutate etmez
+- snapshot bir kez okunur
+- domain üretimi ve feasibility araması geçici istemci belleği/matris üzerinde yapılır
+- ilk paket yalnız hard-constraint feasibility'dir
+- objective profile henüz çözüm seçmek/puanlamak için kullanılmaz
+- sonuç doğrudan programa uygulanmaz
+
+Yeni/updated dosyalar:
+```
+lib/managementSolver.ts
+lib/managementSolverPrototype.ts
+lib/managementSolverPrototype.test.ts
+components/management/ManagementSolverWorkspacePanel.tsx
+docs/M33_2_IN_MEMORY_FEASIBILITY_SOLVER.md
+```
+
+Implementation commits:
+```
+b411e001d063ceef0b1531022e60c61f54731dfb feat: type structural solver snapshot inputs
+83ba94064c6741cd95383b91af6c0166ba307eb5 feat: add in-memory feasibility solver prototype
+76f1e376211d9f8f861dcc32c48d3190fa0bcb0a perf: validate feasibility baseline without expanding domains
+8d76ed16fd6d1073caba6a1ce8e6456eda48222b test: cover in-memory feasibility solver prototype
+ca8c2129d745036310c0327b334b8035cae06770 fix: tighten feasibility hard-constraint checks
+7b24a138a53e9df48268bc42292c0eee83f58c7f feat: expose read-only feasibility check
+605b989422d08922a852d27075e2d8d051a89a54 docs: define in-memory feasibility solver contract
+```
+
+M33.2-v0 hard constraint kapsamı:
+- TIME_WITHIN_DAY
+- NO_BLOCK_ACROSS_LUNCH_BOUNDARY
+- NO_TEACHER_OVERLAP
+- NO_ROOM_OVERLAP; canonical room identity dikkate alınır
+- NO_PARTICIPANT_GROUP_OVERLAP; M4 CONTAINS/OVERLAPS semantiği
+- LOCKED_CARD_PIN
+- REQUIREMENT_TEACHER_CONTINUITY_REQUIRED
+- minDistinctDays
+- maxBlocksPerDay
+- maxConsecutivePeriods
+
+M32.4.2 planning/manual ayrımı korunur:
+- `course_requirement_teachers` automatic planning/solver pool'dur
+- unlocked kart solver teacher domain'i planning pool'dan gelir
+- manual placement override planning pool'a sessizce eklenmez
+- locked kart active baseline kaynağını pin olarak koruyabilir
+
+M22/M33.0.1 salon semantiği korunur:
+- RESOURCE_MODE_UNKNOWN hard blocker değildir
+- salon identity bilinmiyorsa `roomId=null` provisional çözüm mümkündür
+- baseline room evidence kart bazında korunabilir
+- bundan yeni FIXED/ELIGIBLE_POOL requirement policy türetilmez
+
+Performance:
+- 300 kartlık mevcut schedule tamamen placed olduğu için önce baseline fast-path denenir
+- baseline hard-valid ise domain expansion/backtracking yok
+- beklenen production smoke: `FEASIBLE`, `baselineWasFeasible=true`, `visitedNodeCount=0`, `baselineReuseCount=300`
+- full search gerektiğinde smallest-domain-first deterministic backtracking
+- default node guard 100000
+- per-card candidate guard 5000
+- guard aşımı `SEARCH_LIMIT`; `INFEASIBLE` değildir
+
+UI:
+- Optimizasyon bölümünde `Uygunluğu kontrol et`
+- sonucu yalnız local state'te gösterir
+- UI açıkça `Program değişmedi · yazma işlemi yok` der
+- objective profile seçimi feasibility sonucu için kullanılmaz
+
+Build doğrulaması:
+- `ca8c2129...` Vercel PASS
+- `7b24a138...` Vercel PASS
+- dolayısıyla M33.2 core ve UI Next/TypeScript production build'den geçti
+
+Henüz PASS sayılmayanlar:
+- Vitest M33.2 test suite bu oturumda çalıştırılamadı; connector ortamında repo container'a indirilemedi
+- production browser smoke kullanıcı tarafından henüz yapılmadı
+- bu nedenle M33.2 **CLOSED değil**
+
+Birleşik browser acceptance:
+1. Yönetim > Optimizasyon aç
+2. M33.1 için DRAFT profil oluştur; en az bir supported objective aç; explicit ACTIVE yap
+3. `Etkin hedef profili hazır` durumunu doğrula
+4. UNKNOWN salon provisional bilgi kutusunu doğrula
+5. `Uygunluğu kontrol et`
+6. güncel 300-card baseline için beklenen:
+   - Geçerli yerleşim bulundu
+   - mevcut program hard kurallar açısından zaten geçerli
+   - Başlangıç korundu 300/300
+   - Arama düğümü 0
+7. Program ekranına dön; placement değişmemiş olmalı
+8. browser refresh sonrası aynı schedule korunmalı
+
+M33.2 browser + Vitest PASS sonrası sıradaki paket:
+**M33.3 explainable objective optimization**
+- objective metric vector
+- baseline delta
+- ağırlıklı objective search
+- açıklanabilir candidate solution comparison
+- otomatik apply yok; human review / explicit commit ayrı aşama
