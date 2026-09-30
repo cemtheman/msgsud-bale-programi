@@ -12,11 +12,11 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `7b24a138a53e9df48268bc42292c0eee83f58c7f` |
-| Implementation commit | `M33.2 in-memory feasibility + read-only UI — Vercel build PASS; Vitest/browser smoke pending` |
+| Son doğrulanmış implementation checkpoint | `831c3e4bd582d9d5509e6b69f0927f9511fa7489` |
+| Implementation commit | `M33.2 feasibility baseline diagnostics — build PASS; production diagnostic rerun pending` |
 | Son documentation checkpoint | `605b989422d08922a852d27075e2d8d051a89a54` |
-| Son kullanıcı/QA kabulü | M33.1 rollback-only objective profile QA PASS; M33.2 production build PASS |
-| Sıradaki iş paketi | M33.1/M33.2 Optimizasyon browser smoke + M33.2 Vitest; ardından M33.3 explainable objective optimization |
+| Son kullanıcı/QA kabulü | M33.1 browser smoke CLOSED/PASS; M33.2 feasibility found solution but baseline changed 6/300 |
+| Sıradaki iş paketi | M33.2 baseline deviation diagnosis (6 cards) + Vitest; only then M33.3 objective optimization |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -3484,3 +3484,89 @@ M33.2 browser + Vitest PASS sonrası sıradaki paket:
 - ağırlıklı objective search
 - açıklanabilir candidate solution comparison
 - otomatik apply yok; human review / explicit commit ayrı aşama
+
+## 56. 30 Eylül 2026 — M33.1 browser PASS / M33.2 baseline deviation diagnostic
+
+Kullanıcı production Optimizasyon ekranını browser'da doğruladı.
+
+### M33.1 browser acceptance
+
+Ekran kanıtları:
+- başlangıçta profil yok state doğru
+- yeni profil oluşturuldu
+- dört supported objective Orta seviyesine getirildi
+- profil adı Orta
+- profil explicit ACTIVE yapıldı
+- sol profil listesinde Etkin
+- üst readiness badge: Etkin hedef profili hazır
+- hard readiness badge: Hard girdiler hazır
+- 41 provisional salon requirement bilgisi: 3 baseline room evidence / 38 salon identity bilinmiyor
+
+Sonuç: **M33.1 CLOSED/PASS.**
+
+### M33.2 production smoke sonucu
+
+Uygunluğu kontrol et çalıştı ve yazma işlemi olmadan FEASIBLE sonuç döndü.
+
+Observed:
+```
+Geçerli yerleşim bulundu
+Başlangıç korundu: 294/300
+Arama düğümü: 395
+Provisional salon: 54
+```
+
+UI ayrıca: Program değişmedi · yazma işlemi yok
+
+Bu sonuç M33.2 motorunun gerçek production snapshot üzerinde çalıştığını doğruluyor; ancak beklenen 300/300 zero-search fast-path oluşmadı.
+
+Yorum:
+- 6 kart mevcut baseline'dan farklı çözüldü.
+- Bunun gerçek hard-rule ihlali mi, yoksa solver baseline-domain semantiğinin planning pool ile manual override'ı yeniden karıştırması mı olduğu kanıtlanmadan davranış değiştirilmemeli.
+- Özellikle M29/M32.4.2 ile geçerli kabul edilen planning-pool dışı manual teacher/room placement override'ları şüpheli ama henüz kanıt değildir.
+- 54 provisional salon sayısı 41 requirement sayısıyla çelişmez; metric card/placement sayısıdır, requirement sayısı değildir.
+
+### Read-only diagnostic katmanı
+
+Yeni core diagnostic:
+```
+8ad252ecaea95301be81bb264eefb553d239ba7b
+feat: explain feasibility baseline changes
+```
+
+Yeni UI diagnostic:
+```
+831c3e4bd582d9d5509e6b69f0927f9511fa7489
+feat: show feasibility baseline diagnostics
+```
+
+Test extension:
+```
+488b6c7285b2b1eb2a755e881f978bddc572e26c
+test: explain feasibility baseline deviations
+```
+
+Diagnostic artık baseline issue listesi ve final in-memory solution ile baseline arasında değişen kartları listeler.
+Her kart için sınıf/grup, ders, blok, önceki gün/saat/öğretmen/salon, bellekte bulunan çözüm ve reason code gösterilir.
+
+Önemli reason code'lar:
+- BASELINE_TEACHER_OUTSIDE_PLANNING_POOL
+- BASELINE_ROOM_OUTSIDE_PLANNING_POOL
+- BASELINE_TEACHER_CONFLICT
+- BASELINE_ROOM_CONFLICT
+- BASELINE_GROUP_CONFLICT
+- BASELINE_REQUIREMENT_TEACHER_CONTINUITY
+- BASELINE_MIN_DISTINCT_DAYS
+- BASELINE_MAX_BLOCKS_PER_DAY
+- BASELINE_MAX_CONSECUTIVE_PERIODS
+
+Core diagnostic ve UI Vercel build PASS.
+
+Sıradaki adım:
+1. production refresh
+2. Uygunluğu kontrol et yeniden çalıştır
+3. yeni amber diagnostic panelindeki 6 changed card + reason code'ları incele
+4. kök nedeni kanıtla
+5. yalnız kanıta göre M33.2 semantiğini düzelt veya gerçek baseline rule violation olarak kabul et
+
+M33.2 henüz CLOSED değildir.
