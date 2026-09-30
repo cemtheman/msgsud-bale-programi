@@ -464,7 +464,7 @@ export function ManagementSolverWorkspacePanel({
         <aside className="sticky top-4 self-start rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
                 Öncelikler
               </p>
               <h2 className="mt-1 text-[15px] font-black text-slate-950">
@@ -476,20 +476,20 @@ export function ManagementSolverWorkspacePanel({
                 type="button"
                 onClick={() => requestLoadProfile(null)}
                 disabled={busy}
-                className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-[9px] font-black text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-black text-slate-600 hover:bg-slate-50 disabled:opacity-40"
               >
                 + Yeni
               </button>
             )}
           </div>
 
-          <p className="mt-2 text-[9px] font-medium text-slate-400">
+          <p className="mt-2 text-[11px] font-medium text-slate-400">
             Bir ayar seçin veya yeni bir ayar oluşturun.
           </p>
 
           <div className="mt-4 space-y-2">
             {data.profiles.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-[10px] font-semibold leading-5 text-slate-500">
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-[12px] font-semibold leading-5 text-slate-500">
                 Henüz kayıtlı ayar yok. Yeni bir ayar oluşturup öncelikleri seçin.
               </div>
             ) : (
@@ -509,14 +509,14 @@ export function ManagementSolverWorkspacePanel({
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="min-w-0 flex-1 truncate text-[10px] font-black">
+                      <p className="min-w-0 flex-1 truncate text-[12px] font-black">
                         {profile.name}
                       </p>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-black ${meta.className}`}>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-black ${meta.className}`}>
                         {meta.label}
                       </span>
                     </div>
-                    <p className={`mt-1 text-[9px] font-semibold ${
+                    <p className={`mt-1 text-[11px] font-semibold ${
                       selected ? 'text-slate-300' : 'text-slate-400'
                     }`}>
                       {Object.values(profile.weights).filter((value) => value > 0).length} tercih açık
@@ -529,24 +529,24 @@ export function ManagementSolverWorkspacePanel({
 
           {pendingSelectionId != null && (
             <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
-              <p className="text-[9px] font-black text-amber-900">
+              <p className="text-[11px] font-black text-amber-900">
                 Kaydedilmemiş değişiklikler var
               </p>
-              <p className="mt-1 text-[8px] font-medium leading-4 text-amber-800">
+              <p className="mt-1 text-[12px] font-medium leading-4 text-amber-800">
                 Başka bir ayara geçerseniz bu değişiklikler kaybolacak.
               </p>
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setPendingSelectionId(null)}
-                  className="rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-[8px] font-black text-amber-800"
+                  className="rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-[12px] font-black text-amber-800"
                 >
                   Burada kal
                 </button>
                 <button
                   type="button"
                   onClick={confirmPendingSelection}
-                  className="rounded-lg bg-amber-700 px-2.5 py-1.5 text-[8px] font-black text-white"
+                  className="rounded-lg bg-amber-700 px-2.5 py-1.5 text-[12px] font-black text-white"
                 >
                   Değişiklikleri bırak ve geç
                 </button>
@@ -557,20 +557,20 @@ export function ManagementSolverWorkspacePanel({
 
         <div className="min-w-0 space-y-4">
           <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
               1 · Tercih ayarı
             </p>
             <h1 className="mt-1 text-xl font-black tracking-tight text-slate-950">
               Program hazırlanırken nelere öncelik verilsin?
             </h1>
-            <p className="mt-2 max-w-3xl text-[10px] font-medium leading-5 text-slate-600">
+            <p className="mt-2 max-w-3xl text-[12px] font-medium leading-5 text-slate-600">
               Birden fazla uygun program olduğunda hangisinin öne çıkacağını belirleyin.
             </p>
           </section>
 
           <section className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
             <label className="block">
-              <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <span className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
                 Ayar adı
               </span>
               <input
@@ -583,7 +583,7 @@ export function ManagementSolverWorkspacePanel({
             </label>
 
             <label className="mt-3 block">
-              <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <span className="mb-1.5 block text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
                 Not · isteğe bağlı
               </span>
               <input
@@ -591,14 +591,14 @@ export function ManagementSolverWorkspacePanel({
                 onChange={(event) => updateDescription(event.target.value)}
                 disabled={!canEdit || busy}
                 placeholder="Bu ayar ne zaman veya hangi amaçla kullanılacak?"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[10px] font-medium text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white disabled:opacity-50"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-medium text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white disabled:opacity-50"
               />
             </label>
           </section>
 
           <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-4 py-3">
-              <p className="text-[10px] font-black text-slate-900">
+              <p className="text-[12px] font-black text-slate-900">
                 Tercihler
               </p>
             </div>
@@ -613,10 +613,10 @@ export function ManagementSolverWorkspacePanel({
                     className="grid grid-cols-[minmax(0,1fr)_150px] items-center gap-4 px-4 py-3"
                   >
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black text-slate-950">
+                      <p className="text-[12px] font-black text-slate-950">
                         {objective.title}
                       </p>
-                      <p className="mt-0.5 text-[8px] font-medium text-slate-400">
+                      <p className="mt-0.5 text-[12px] font-medium text-slate-400">
                         {objective.baseline(data)}
                       </p>
                     </div>
@@ -629,7 +629,7 @@ export function ManagementSolverWorkspacePanel({
                         Number(event.target.value),
                       )}
                       aria-label={objective.title}
-                      className={`w-full rounded-xl border px-3 py-2 text-[9px] font-black outline-none transition disabled:opacity-50 ${
+                      className={`w-full rounded-xl border px-3 py-2 text-[11px] font-black outline-none transition disabled:opacity-50 ${
                         current > 0
                           ? 'border-slate-950 bg-slate-950 text-white'
                           : 'border-slate-200 bg-slate-50 text-slate-500'
@@ -648,13 +648,13 @@ export function ManagementSolverWorkspacePanel({
                 );
               })}
             </div>
-            <div className="border-t border-slate-100 px-4 py-2.5 text-[8px] font-medium text-slate-400">
+            <div className="border-t border-slate-100 px-4 py-2.5 text-[12px] font-medium text-slate-400">
               Yakında: Öğretmen yük dengesi · Derslerin tercih edilen gün ve saatleri
             </div>
           </section>
 
           {localError && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[10px] font-bold text-rose-700">
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[12px] font-bold text-rose-700">
               {localError}
             </div>
           )}
@@ -663,7 +663,7 @@ export function ManagementSolverWorkspacePanel({
             <>
               {selectedIsActive && isDirty && (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                  <p className="text-[9px] font-bold text-amber-900">
+                  <p className="text-[11px] font-bold text-amber-900">
                     Kaydedilmemiş değişiklikler var.
                   </p>
                   <button
@@ -674,7 +674,7 @@ export function ManagementSolverWorkspacePanel({
                       || name.trim().length === 0
                       || positiveObjectiveCount === 0
                     }
-                    className="rounded-xl bg-[#A63D48] px-4 py-2 text-[9px] font-black text-white hover:bg-[#8F3340] disabled:opacity-35"
+                    className="rounded-xl bg-[#A63D48] px-4 py-2 text-[11px] font-black text-white hover:bg-[#8F3340] disabled:opacity-35"
                   >
                     Değişiklikleri kaydet
                   </button>
@@ -691,7 +691,7 @@ export function ManagementSolverWorkspacePanel({
                       || !isDirty
                       || name.trim().length === 0
                     }
-                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[9px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[11px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
                   >
                     Taslak olarak kaydet
                   </button>
@@ -699,7 +699,7 @@ export function ManagementSolverWorkspacePanel({
                     type="button"
                     onClick={requestActivate}
                     disabled={!canActivate}
-                    className="rounded-xl bg-[#A63D48] px-4 py-2 text-[9px] font-black text-white hover:bg-[#8F3340] disabled:opacity-35"
+                    className="rounded-xl bg-[#A63D48] px-4 py-2 text-[11px] font-black text-white hover:bg-[#8F3340] disabled:opacity-35"
                   >
                     {selectedProfile && !isDirty
                       ? 'Kullanıma al'
@@ -710,14 +710,14 @@ export function ManagementSolverWorkspacePanel({
 
               {activationPending && (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                  <p className="text-[9px] font-medium text-amber-900">
+                  <p className="text-[11px] font-medium text-amber-900">
                     “{activeProfile?.name}” yerine “{name.trim()}” kullanılacak.
                   </p>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setActivationPending(false)}
-                      className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[8px] font-black text-amber-800"
+                      className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[12px] font-black text-amber-800"
                     >
                       Vazgeç
                     </button>
@@ -727,7 +727,7 @@ export function ManagementSolverWorkspacePanel({
                         setActivationPending(false);
                         void save('ACTIVE');
                       }}
-                      className="rounded-lg bg-amber-700 px-3 py-1.5 text-[8px] font-black text-white"
+                      className="rounded-lg bg-amber-700 px-3 py-1.5 text-[12px] font-black text-white"
                     >
                       Onayla ve kullan
                     </button>
@@ -740,13 +740,13 @@ export function ManagementSolverWorkspacePanel({
           <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-3xl">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
                   2 · Program kontrolü
                 </p>
                 <h2 className="mt-1 text-[15px] font-black text-slate-950">
                   Mevcut program kurallara uygun mu?
                 </h2>
-                <p className="mt-2 text-[10px] font-medium leading-5 text-slate-600">
+                <p className="mt-2 text-[12px] font-medium leading-5 text-slate-600">
                   Yalnız zorunlu kuralları kontrol eder; tercihler bu adımda kullanılmaz.
                 </p>
               </div>
@@ -755,7 +755,7 @@ export function ManagementSolverWorkspacePanel({
                 type="button"
                 onClick={runFeasibility}
                 disabled={!hardReady || feasibilityBusy}
-                className="shrink-0 rounded-xl bg-slate-950 px-4 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+                className="shrink-0 rounded-xl bg-slate-950 px-4 py-2.5 text-[12px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 {feasibilityBusy ? 'Kontrol ediliyor…' : 'Programı kontrol et'}
               </button>
@@ -763,10 +763,10 @@ export function ManagementSolverWorkspacePanel({
 
             {unknownRooms && (
               <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/70 px-4 py-3">
-                <p className="text-[10px] font-black text-blue-950">
+                <p className="text-[12px] font-black text-blue-950">
                   {unknownRooms.count} dersin salonu henüz kesinleşmedi
                 </p>
-                <p className="mt-1 text-[9px] font-medium leading-4 text-blue-800">
+                <p className="mt-1 text-[11px] font-medium leading-4 text-blue-800">
                   Bu durum program oluşturmayı engellemez. {unknownRooms.withBaselineRoomEvidence ?? 0} derste
                   mevcut salon bilgisi var; {unknownRooms.withoutBaselineRoomEvidence ?? 0} derste salon daha sonra belirlenecek.
                 </p>
@@ -774,7 +774,7 @@ export function ManagementSolverWorkspacePanel({
             )}
 
             {!hardReady && (
-              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[10px] font-bold text-rose-700">
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[12px] font-bold text-rose-700">
                 Kural bilgileri eksik olduğu için program kontrol edilemiyor.
               </div>
             )}
@@ -788,7 +788,7 @@ export function ManagementSolverWorkspacePanel({
                       ? 'border-amber-200 bg-amber-50'
                       : 'border-rose-200 bg-rose-50'
                 }`}>
-                  <p className={`text-[10px] font-black ${
+                  <p className={`text-[12px] font-black ${
                     feasibilityResult.status === 'FEASIBLE'
                       ? 'text-emerald-800'
                       : feasibilityResult.status === 'SEARCH_LIMIT'
@@ -801,20 +801,20 @@ export function ManagementSolverWorkspacePanel({
                         ? 'Arama sınırına ulaşıldı'
                         : 'Geçerli yerleşim bulunamadı'}
                   </p>
-                  <p className="mt-1 text-[9px] font-medium leading-4 text-slate-600">
+                  <p className="mt-1 text-[11px] font-medium leading-4 text-slate-600">
                     {feasibilityResult.status === 'FEASIBLE' && feasibilityResult.baselineWasFeasible
                       ? 'Mevcut program bütün zorunlu kuralları karşılıyor.'
                       : feasibilityResult.status === 'FEASIBLE'
                         ? 'Mevcut programda bazı uyuşmazlıklar var; karşılaştırma için uygun bir alternatif bulundu.'
                         : feasibilityResult.reasons.join(' · ')}
                   </p>
-                  <p className="mt-2 text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+                  <p className="mt-2 text-[11px] font-black uppercase tracking-[0.1em] text-slate-400">
                     Bu işlem programı değiştirmedi
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                  <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+                  <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-400">
                     Yerinde kalan ders
                   </p>
                   <p className="mt-1 text-[14px] font-black text-slate-900">
@@ -823,7 +823,7 @@ export function ManagementSolverWorkspacePanel({
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
-                  <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+                  <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-400">
                     Salonu henüz belirlenmeyen ders
                   </p>
                   <p className="mt-1 text-[14px] font-black text-slate-900">
@@ -836,14 +836,14 @@ export function ManagementSolverWorkspacePanel({
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-black text-amber-950">
+                    <p className="text-[12px] font-black text-amber-950">
                       Kurallara uygun bir seçenek bulmak için {feasibilityResult.changedCards.length} dersin yeri değişti
                     </p>
-                    <p className="mt-1 max-w-4xl text-[9px] font-medium leading-4 text-amber-800">
+                    <p className="mt-1 max-w-4xl text-[11px] font-medium leading-4 text-amber-800">
                       Bu yalnızca karşılaştırmadır; program değişmedi. Aşağıda hangi derslerin neden etkilendiğini görebilirsiniz.
                     </p>
                   </div>
-                  <span className="rounded-full bg-white px-2.5 py-1 text-[8px] font-black text-amber-700">
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-black text-amber-700">
                     {feasibilityResult.baselineIssues?.length ?? 0} kural uyuşmazlığı
                   </span>
                 </div>
@@ -856,10 +856,10 @@ export function ManagementSolverWorkspacePanel({
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
-                          <p className="text-[10px] font-black text-slate-900">
+                          <p className="text-[12px] font-black text-slate-900">
                             {displayGroupName(item.groupName)} · {item.subjectName} · {item.blockIndex}. bölüm
                           </p>
-                          <p className="mt-1 text-[9px] font-medium text-slate-500">
+                          <p className="mt-1 text-[11px] font-medium text-slate-500">
                             Önce: {placementSummary(
                               item.baseline.dayOfWeek,
                               item.baseline.startPeriod,
@@ -867,7 +867,7 @@ export function ManagementSolverWorkspacePanel({
                               item.baseline.roomName,
                             )}
                           </p>
-                          <p className="mt-0.5 text-[9px] font-bold text-slate-700">
+                          <p className="mt-0.5 text-[11px] font-bold text-slate-700">
                             Alternatif yerleşim: {placementSummary(
                               item.proposed.dayOfWeek,
                               item.proposed.startPeriod,
@@ -884,7 +884,7 @@ export function ManagementSolverWorkspacePanel({
                             {item.baselineIssueCodes.map((code) => (
                               <span
                                 key={code}
-                                className="rounded-full bg-amber-100 px-2 py-1 text-[8px] font-black text-amber-800"
+                                className="rounded-full bg-amber-100 px-2 py-1 text-[12px] font-black text-amber-800"
                                 title={BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
                               >
                                 {BASELINE_ISSUE_LABELS[code] ?? code}
@@ -902,7 +902,7 @@ export function ManagementSolverWorkspacePanel({
                             return detail ? (
                               <p
                                 key={`${code}-detail`}
-                                className="mt-1.5 text-[8px] font-semibold text-amber-800"
+                                className="mt-1.5 text-[12px] font-semibold text-amber-800"
                               >
                                 {detail}
                               </p>
@@ -910,7 +910,7 @@ export function ManagementSolverWorkspacePanel({
                           })}
                         </div>
                       ) : (
-                        <p className="mt-2 text-[8px] font-bold text-slate-400">
+                        <p className="mt-2 text-[12px] font-bold text-slate-400">
                           Bu derste doğrudan bir sorun yok; diğer derslerdeki uyuşmazlıkları gidermek için alternatif yerleşimde yeri değişti.
                         </p>
                       )}
@@ -920,10 +920,10 @@ export function ManagementSolverWorkspacePanel({
 
                 {additionalBaselineIssues.length > 0 && (
                   <div className="mt-4 border-t border-amber-200 pt-3">
-                    <p className="text-[9px] font-black text-amber-950">
+                    <p className="text-[11px] font-black text-amber-950">
                       Yeri değişmeden kalan diğer uyarılı dersler
                     </p>
-                    <p className="mt-1 text-[8px] font-medium leading-4 text-amber-800">
+                    <p className="mt-1 text-[12px] font-medium leading-4 text-amber-800">
                       Bu derslerin yeri değişmedi; ancak aynı kural uyuşmazlığından etkileniyorlar.
                     </p>
 
@@ -951,10 +951,10 @@ export function ManagementSolverWorkspacePanel({
                             key={issue.cardId}
                             className="rounded-xl border border-amber-100 bg-white px-3 py-2.5"
                           >
-                            <p className="text-[9px] font-black text-slate-900">
+                            <p className="text-[11px] font-black text-slate-900">
                               {displayGroupName(issue.groupName)} · {issue.subjectName} · {issue.blockIndex}. bölüm
                             </p>
-                            <p className="mt-1 text-[8px] font-medium text-slate-500">
+                            <p className="mt-1 text-[12px] font-medium text-slate-500">
                               Mevcut: {placementSummary(
                                 placement?.dayOfWeek ?? null,
                                 placement?.startPeriod ?? null,
@@ -966,7 +966,7 @@ export function ManagementSolverWorkspacePanel({
                               {issue.codes.map((code) => (
                                 <span
                                   key={code}
-                                  className="rounded-full bg-amber-100 px-2 py-1 text-[8px] font-black text-amber-800"
+                                  className="rounded-full bg-amber-100 px-2 py-1 text-[12px] font-black text-amber-800"
                                 >
                                   {BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
                                 </span>
@@ -977,7 +977,7 @@ export function ManagementSolverWorkspacePanel({
                               return detail ? (
                                 <p
                                   key={`${code}-detail`}
-                                  className="mt-1.5 text-[8px] font-semibold text-amber-800"
+                                  className="mt-1.5 text-[12px] font-semibold text-amber-800"
                                 >
                                   {detail}
                                 </p>
@@ -996,13 +996,13 @@ export function ManagementSolverWorkspacePanel({
           <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-3xl">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
                   3 · Program seçeneği
                 </p>
                 <h2 className="mt-1 text-[15px] font-black text-slate-950">
                   Bu tercihlere göre daha uygun bir yerleşim var mı?
                 </h2>
-                <p className="mt-2 text-[10px] font-medium leading-5 text-slate-600">
+                <p className="mt-2 text-[12px] font-medium leading-5 text-slate-600">
                   Ekranda seçili öncelikleri kullanarak mevcut programa yakın alternatifleri karşılaştırır.
                   Denemek için ayarı kaydetmeniz gerekmez; sonuç yalnızca öneridir ve programı değiştirmez.
                 </p>
@@ -1016,7 +1016,7 @@ export function ManagementSolverWorkspacePanel({
                   || optimizationBusy
                   || positiveObjectiveCount === 0
                 }
-                className="shrink-0 rounded-xl bg-[#A63D48] px-4 py-2.5 text-[10px] font-black text-white hover:bg-[#8F3340] disabled:cursor-not-allowed disabled:opacity-35"
+                className="shrink-0 rounded-xl bg-[#A63D48] px-4 py-2.5 text-[12px] font-black text-white hover:bg-[#8F3340] disabled:cursor-not-allowed disabled:opacity-35"
               >
                 {optimizationBusy
                   ? 'Seçenek aranıyor…'
@@ -1025,7 +1025,7 @@ export function ManagementSolverWorkspacePanel({
             </div>
 
             {positiveObjectiveCount === 0 && (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[9px] font-bold text-amber-800">
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-bold text-amber-800">
                 Önce en az bir tercihe Düşük, Orta, Yüksek veya Çok yüksek öncelik verin.
               </div>
             )}
@@ -1039,7 +1039,7 @@ export function ManagementSolverWorkspacePanel({
                       ? 'border-slate-200 bg-slate-50'
                       : 'border-amber-200 bg-amber-50'
                 }`}>
-                  <p className={`text-[10px] font-black ${
+                  <p className={`text-[12px] font-black ${
                     optimizationResult.status === 'IMPROVED'
                       ? 'text-emerald-800'
                       : optimizationResult.status === 'UNCHANGED'
@@ -1052,7 +1052,7 @@ export function ManagementSolverWorkspacePanel({
                         ? 'Mevcut programa yakın seçenekler içinde daha uygunu bulunamadı'
                         : 'Bu tercihlerle seçenek oluşturulamadı'}
                   </p>
-                  <p className="mt-1 text-[9px] font-medium leading-4 text-slate-600">
+                  <p className="mt-1 text-[11px] font-medium leading-4 text-slate-600">
                     {optimizationResult.status === 'IMPROVED'
                       ? `${optimizationResult.changedCards.length} ders için farklı yerleşim öneriliyor.`
                       : optimizationResult.status === 'UNCHANGED'
@@ -1060,10 +1060,10 @@ export function ManagementSolverWorkspacePanel({
                         : 'Önce program kontrolünün temiz olduğundan ve en az bir tercihin açık olduğundan emin olun.'}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+                    <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-400">
                       Bu işlem programı değiştirmedi
                     </p>
-                    <span className={`rounded-full px-2 py-0.5 text-[8px] font-black ${
+                    <span className={`rounded-full px-2 py-0.5 text-[12px] font-black ${
                       isDirty
                         ? 'bg-amber-100 text-amber-700'
                         : 'bg-slate-100 text-slate-500'
@@ -1083,7 +1083,7 @@ export function ManagementSolverWorkspacePanel({
                   <>
                     <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">
+                        <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
                           Değişen karar
                         </p>
                         <p className="mt-1 text-[11px] font-black text-slate-900">
@@ -1094,7 +1094,7 @@ export function ManagementSolverWorkspacePanel({
                       </div>
 
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">
+                        <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
                           Öğretmen değişimi
                         </p>
                         <p className="mt-1 text-[11px] font-black text-slate-900">
@@ -1105,7 +1105,7 @@ export function ManagementSolverWorkspacePanel({
                       </div>
 
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">
+                        <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
                           Öğretmen boşluğu
                         </p>
                         <p className="mt-1 text-[11px] font-black text-slate-900">
@@ -1116,7 +1116,7 @@ export function ManagementSolverWorkspacePanel({
                       </div>
 
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <p className="text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">
+                        <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
                           Salon değişimi
                         </p>
                         <p className="mt-1 text-[11px] font-black text-slate-900">
@@ -1134,10 +1134,10 @@ export function ManagementSolverWorkspacePanel({
                             key={item.cardId}
                             className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
                           >
-                            <p className="text-[9px] font-black text-slate-900">
+                            <p className="text-[11px] font-black text-slate-900">
                               {displayGroupName(item.groupName)} · {item.subjectName} · {item.blockIndex}. bölüm
                             </p>
-                            <p className="mt-1 text-[8px] font-medium text-slate-500">
+                            <p className="mt-1 text-[12px] font-medium text-slate-500">
                               Mevcut: {placementSummary(
                                 item.baseline.dayOfWeek,
                                 item.baseline.startPeriod,
@@ -1145,7 +1145,7 @@ export function ManagementSolverWorkspacePanel({
                                 item.baseline.roomName,
                               )}
                             </p>
-                            <p className="mt-0.5 text-[8px] font-bold text-slate-700">
+                            <p className="mt-0.5 text-[12px] font-bold text-slate-700">
                               Öneri: {placementSummary(
                                 item.proposed.dayOfWeek,
                                 item.proposed.startPeriod,
@@ -1157,7 +1157,7 @@ export function ManagementSolverWorkspacePanel({
                         ))}
 
                         {optimizationResult.changedCards.length > 12 && (
-                          <p className="text-[8px] font-bold text-slate-400">
+                          <p className="text-[12px] font-bold text-slate-400">
                             Ayrıca {optimizationResult.changedCards.length - 12} ders daha değişiyor.
                           </p>
                         )}
@@ -1177,17 +1177,17 @@ export function ManagementSolverWorkspacePanel({
                                 setProposalApplyPending(true);
                               }}
                               disabled={busy}
-                              className="rounded-xl bg-slate-950 px-4 py-2.5 text-[9px] font-black text-white hover:bg-slate-800 disabled:opacity-40"
+                              className="rounded-xl bg-slate-950 px-4 py-2.5 text-[11px] font-black text-white hover:bg-slate-800 disabled:opacity-40"
                             >
                               Öneriyi uygula
                             </button>
                           </div>
                         ) : (
                           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                            <p className="text-[9px] font-black text-amber-950">
+                            <p className="text-[11px] font-black text-amber-950">
                               Bu öneri programa uygulansın mı?
                             </p>
-                            <p className="mt-1 text-[8px] font-medium leading-4 text-amber-800">
+                            <p className="mt-1 text-[12px] font-medium leading-4 text-amber-800">
                               {optimizationResult.changedCards.length} dersin yerleşimi değişecek.
                               Uygulamadan hemen önce programın hâlâ aynı olduğu doğrulanacak ve değişiklikler tek işlem olarak kaydedilecek.
                             </p>
@@ -1199,7 +1199,7 @@ export function ManagementSolverWorkspacePanel({
                                   setProposalApplyError(null);
                                 }}
                                 disabled={busy}
-                                className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[8px] font-black text-amber-800 disabled:opacity-40"
+                                className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[12px] font-black text-amber-800 disabled:opacity-40"
                               >
                                 Vazgeç
                               </button>
@@ -1217,13 +1217,13 @@ export function ManagementSolverWorkspacePanel({
                                     });
                                 }}
                                 disabled={busy}
-                                className="rounded-lg bg-[#A63D48] px-3 py-1.5 text-[8px] font-black text-white disabled:opacity-40"
+                                className="rounded-lg bg-[#A63D48] px-3 py-1.5 text-[12px] font-black text-white disabled:opacity-40"
                               >
                                 Onayla ve uygula
                               </button>
                             </div>
                             {proposalApplyError && (
-                              <p className="mt-2 text-[8px] font-bold text-rose-700">
+                              <p className="mt-2 text-[12px] font-bold text-rose-700">
                                 {proposalApplyError}
                               </p>
                             )}
