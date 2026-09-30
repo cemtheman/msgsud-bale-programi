@@ -426,7 +426,7 @@ export function ManagementSolverWorkspacePanel({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-black text-amber-950">
-                      Kontrol için {feasibilityResult.changedCards.length} ders kartında farklı yerleşim gerekti
+                      Kontrol sırasında {feasibilityResult.changedCards.length} ders için farklı yerleşim gerekti
                     </p>
                     <p className="mt-1 max-w-4xl text-[9px] font-medium leading-4 text-amber-800">
                       Aşağıdaki karşılaştırma yalnızca açıklama amaçlıdır; programa hiçbir değişiklik uygulanmadı.
@@ -434,7 +434,7 @@ export function ManagementSolverWorkspacePanel({
                     </p>
                   </div>
                   <span className="rounded-full bg-white px-2.5 py-1 text-[8px] font-black text-amber-700">
-                    {feasibilityResult.baselineIssues?.length ?? 0} mevcut program uyarısı
+                    {feasibilityResult.baselineIssues?.length ?? 0} kural uyarısı
                   </span>
                 </div>
 
@@ -447,7 +447,7 @@ export function ManagementSolverWorkspacePanel({
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <p className="text-[10px] font-black text-slate-900">
-                            {item.groupName} · {item.subjectName} · Blok {item.blockIndex}
+                            {item.groupName} · {item.subjectName} · {item.blockIndex}. blok
                           </p>
                           <p className="mt-1 text-[9px] font-medium text-slate-500">
                             Önce: {placementSummary(
@@ -542,7 +542,7 @@ export function ManagementSolverWorkspacePanel({
                             className="rounded-xl border border-amber-100 bg-white px-3 py-2.5"
                           >
                             <p className="text-[9px] font-black text-slate-900">
-                              {issue.groupName} · {issue.subjectName} · Blok {issue.blockIndex}
+                              {issue.groupName} · {issue.subjectName} · {issue.blockIndex}. blok
                             </p>
                             <p className="mt-1 text-[8px] font-medium text-slate-500">
                               Mevcut: {placementSummary(
