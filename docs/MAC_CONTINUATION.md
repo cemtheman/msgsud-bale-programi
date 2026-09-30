@@ -419,3 +419,34 @@ M33.4 explicit proposal review/apply
 - undo/redo
 - hard-rule revalidation
 - no automatic apply
+
+
+## 13. M33.3 CLOSED / M33.4 açılışı
+
+Final Codespaces acceptance:
+```
+Test Files 15 passed (15)
+Tests 77 passed (77)
+```
+
+Build:
+- Next.js webpack PASS
+- TypeScript PASS
+- /yonetim PASS
+
+M33.3: **CLOSED/PASS**
+
+Öncelikler UI: frozen.
+
+M33.4:
+**explicit proposal review/apply**
+
+İlk iş:
+- mevcut atomic placement transaction
+- undo/redo
+- preview/apply
+- transaction history
+altyapısını reuse edecek yolu belirle.
+
+No auto-apply.
+Stale snapshot/hash apply reddedilmeli.
