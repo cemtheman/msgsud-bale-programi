@@ -367,6 +367,53 @@ function baselineDimensionAllowed<T>(
   return choices.some((choice) => choice === baselineValue);
 }
 
+function baselineResourceDimensionsAllowed(
+  requirement: ManagementSolverRequirement,
+  baseline: ManagementSolverBaselinePlacement,
+  context: SolverContext,
+) {
+  if (
+    requirement.teacherRequirement === 'REQUIRED'
+    && baseline.teacherId == null
+  ) {
+    return false;
+  }
+
+  if (
+    baseline.teacherId != null
+    && !context.activeTeacherIds.has(baseline.teacherId)
+  ) {
+    return false;
+  }
+
+  if (requirement.resourceMode === 'UNKNOWN') {
+    return (
+      baseline.roomId == null
+      || context.activeRoomIds.has(baseline.roomId)
+    );
+  }
+
+  if (baseline.roomId == null) {
+    return false;
+  }
+
+  if (!context.activeRoomIds.has(baseline.roomId)) {
+    return false;
+  }
+
+  if (requirement.resourceMode === 'CAPABILITY') {
+    const room = context.rooms.get(baseline.roomId);
+    return Boolean(
+      room
+      && requirement.requiredCapability
+      && room.capabilities.includes(requirement.requiredCapability)
+      && room.knowledgeStatus === 'CONFIRMED',
+    );
+  }
+
+  return true;
+}
+
 function rawCandidatesForCard(
   card: ManagementSolverCard,
   context: SolverContext,
@@ -435,29 +482,21 @@ function rawCandidatesForCard(
     });
   };
 
-  if (baselinePlacementIsMaterialized(baseline)) {
-    const baselineTeacherAllowed = card.locked
-      ? (
-        baseline.teacherId == null
-        || context.activeTeacherIds.has(baseline.teacherId)
-      )
-      : baselineDimensionAllowed(baseline.teacherId, teachers);
-    const baselineRoomAllowed = card.locked
-      ? (
-        baseline.roomId == null
-        || context.activeRoomIds.has(baseline.roomId)
-      )
-      : baselineDimensionAllowed(baseline.roomId, rooms);
-
-    if (baselineTeacherAllowed && baselineRoomAllowed) {
-      addCandidate(
-        baseline.dayOfWeek,
-        baseline.startPeriod,
-        baseline.teacherId,
-        baseline.roomId,
-        true,
-      );
-    }
+  if (
+    baselinePlacementIsMaterialized(baseline)
+    && baselineResourceDimensionsAllowed(
+      requirement,
+      baseline,
+      context,
+    )
+  ) {
+    addCandidate(
+      baseline.dayOfWeek,
+      baseline.startPeriod,
+      baseline.teacherId,
+      baseline.roomId,
+      true,
+    );
   }
 
   if (!card.locked) {
@@ -810,25 +849,6 @@ function baselineAudit(
       addBaselineIssue(issueMap, card.id, 'BASELINE_TEACHER_INACTIVE');
     }
 
-    if (!card.locked) {
-      const teachers = teacherChoices(
-        requirement,
-        baseline,
-        false,
-        context,
-      );
-
-      if (!baselineDimensionAllowed(baseline.teacherId, teachers)) {
-        addBaselineIssue(
-          issueMap,
-          card.id,
-          baseline.teacherId != null
-            ? 'BASELINE_TEACHER_OUTSIDE_PLANNING_POOL'
-            : 'BASELINE_TEACHER_NOT_ALLOWED',
-        );
-      }
-    }
-
     if (
       baseline.roomId != null
       && !context.activeRoomIds.has(baseline.roomId)
@@ -836,21 +856,21 @@ function baselineAudit(
       addBaselineIssue(issueMap, card.id, 'BASELINE_ROOM_INACTIVE');
     }
 
-    if (!card.locked && requirement.resourceMode !== 'UNKNOWN') {
-      const rooms = roomChoices(
-        requirement,
-        baseline,
-        false,
-        context,
-      );
-
-      if (!baselineDimensionAllowed(baseline.roomId, rooms)) {
+    if (
+      requirement.resourceMode === 'CAPABILITY'
+      && baseline.roomId != null
+    ) {
+      const room = context.rooms.get(baseline.roomId);
+      if (
+        !room
+        || !requirement.requiredCapability
+        || !room.capabilities.includes(requirement.requiredCapability)
+        || room.knowledgeStatus !== 'CONFIRMED'
+      ) {
         addBaselineIssue(
           issueMap,
           card.id,
-          requirement.resourceMode === 'CAPABILITY'
-            ? 'BASELINE_ROOM_CAPABILITY_MISMATCH'
-            : 'BASELINE_ROOM_OUTSIDE_PLANNING_POOL',
+          'BASELINE_ROOM_CAPABILITY_MISMATCH',
         );
       }
     }
@@ -1130,33 +1150,11 @@ function baselineCandidateForCard(
     return null;
   }
 
-  const teachers = teacherChoices(
+  if (!baselineResourceDimensionsAllowed(
     requirement,
     baseline,
-    card.locked,
     context,
-  );
-  const rooms = roomChoices(
-    requirement,
-    baseline,
-    card.locked,
-    context,
-  );
-
-  const teacherAllowed = card.locked
-    ? (
-      baseline.teacherId == null
-      || context.activeTeacherIds.has(baseline.teacherId)
-    )
-    : baselineDimensionAllowed(baseline.teacherId, teachers);
-  const roomAllowed = card.locked
-    ? (
-      baseline.roomId == null
-      || context.activeRoomIds.has(baseline.roomId)
-    )
-    : baselineDimensionAllowed(baseline.roomId, rooms);
-
-  if (!teacherAllowed || !roomAllowed) {
+  )) {
     return null;
   }
 
