@@ -1,6 +1,17 @@
 'use client';
 
-export type ManagementRootAction = 'PLACE' | 'MOVE' | 'REMOVE' | 'STRUCTURE';
+export type ManagementRootAction = 'PLACE' | 'MOVE' | 'REMOVE' | 'STRUCTURE' | 'RESOURCE';
+
+export type ManagementResourceHistoryOperation =
+  | 'TEACHER_NAME'
+  | 'ROOM_NAME'
+  | 'TEACHER_STATUS'
+  | 'ROOM_PROFILE'
+  | 'ROOM_STATUS'
+  | 'TEACHER_CREATE'
+  | 'ROOM_CREATE'
+  | 'TEACHER_DELETE'
+  | 'ROOM_DELETE';
 
 export interface ManagementCommandDescriptor {
   transactionId: string;
@@ -10,6 +21,10 @@ export interface ManagementCommandDescriptor {
   autoCount: number;
   bundleId: string | null;
   bundleSize: number;
+  resourceOperation: ManagementResourceHistoryOperation | null;
+  resourceType: 'TEACHER' | 'ROOM' | null;
+  resourceId: string | null;
+  resourceName: string | null;
 }
 
 export interface ManagementCommandState {
@@ -124,7 +139,7 @@ export interface ManagementForwardImpact {
 
 interface RootTransactionRow {
   id: string;
-  action: 'PLACE' | 'MOVE' | 'REMOVE' | 'STRUCTURE';
+  action: 'PLACE' | 'MOVE' | 'REMOVE' | 'STRUCTURE' | 'RESOURCE';
   payload: {
     source?: string;
     reverted_root_action?: string;
@@ -699,11 +714,11 @@ export async function fetchManagementCommandState(
     (row) => row.history_sequence > latestStructureSequence,
   );
 
-  const scheduleUndoRow = currentEpochRows.find((row) => {
+  const reversibleUndoRow = currentEpochRows.find((row) => {
     const source = row.payload?.source;
     return row.reverted_at === null
       && (source === 'MANUAL' || source === 'ROOT_REDO')
-      && ['PLACE', 'MOVE', 'REMOVE'].includes(row.action);
+      && ['PLACE', 'MOVE', 'REMOVE', 'RESOURCE'].includes(row.action);
   });
 
   const activeStructureApply = (
@@ -715,14 +730,14 @@ export async function fetchManagementCommandState(
     : null;
 
   const structureUndoRow = (
-    !scheduleUndoRow
+    !reversibleUndoRow
     && currentEpochRows.length === 0
     && activeStructureApply
   )
     ? activeStructureApply
     : null;
 
-  const undoRow = scheduleUndoRow ?? structureUndoRow;
+  const undoRow = reversibleUndoRow ?? structureUndoRow;
 
   const manualSequences = currentEpochRows
     .filter((row) => row.payload?.source === 'MANUAL')
@@ -763,6 +778,23 @@ export async function fetchManagementCommandState(
         ? undoBundleIdValue
         : null,
       bundleSize: Number(undoRow.payload?.bundle_size ?? (undoCardIds.length || 1)) || 1,
+      resourceOperation:
+        typeof undoRow.payload?.resource_operation === 'string'
+          ? undoRow.payload.resource_operation as ManagementResourceHistoryOperation
+          : null,
+      resourceType:
+        undoRow.payload?.resource_type === 'TEACHER'
+        || undoRow.payload?.resource_type === 'ROOM'
+          ? undoRow.payload.resource_type
+          : null,
+      resourceId:
+        typeof undoRow.payload?.resource_id === 'string'
+          ? undoRow.payload.resource_id
+          : null,
+      resourceName:
+        typeof undoRow.payload?.resource_name === 'string'
+          ? undoRow.payload.resource_name
+          : null,
     }
     : null;
 
@@ -787,7 +819,7 @@ export async function fetchManagementCommandState(
       ? originalCardIdValue
       : null;
 
-    if (originalAction && ['PLACE', 'MOVE', 'REMOVE'].includes(originalAction)) {
+    if (originalAction && ['PLACE', 'MOVE', 'REMOVE', 'RESOURCE'].includes(originalAction)) {
       const redoBundleIdValue = redoRow.payload?.bundle_id;
       const redoBundleCardIdsValue =
         redoRow.payload?.bundle_card_ids
@@ -814,6 +846,23 @@ export async function fetchManagementCommandState(
           ?? originalRoot?.payload?.bundle_size
           ?? (redoCardIds.length || 1),
         ) || 1,
+        resourceOperation:
+          typeof originalRoot?.payload?.resource_operation === 'string'
+            ? originalRoot.payload.resource_operation as ManagementResourceHistoryOperation
+            : null,
+        resourceType:
+          originalRoot?.payload?.resource_type === 'TEACHER'
+          || originalRoot?.payload?.resource_type === 'ROOM'
+            ? originalRoot.payload.resource_type
+            : null,
+        resourceId:
+          typeof originalRoot?.payload?.resource_id === 'string'
+            ? originalRoot.payload.resource_id
+            : null,
+        resourceName:
+          typeof originalRoot?.payload?.resource_name === 'string'
+            ? originalRoot.payload.resource_name
+            : null,
       };
     }
   }
