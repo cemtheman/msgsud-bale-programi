@@ -9,6 +9,10 @@ import type {
   ManagementSolverProfileStatus,
   ManagementSolverWorkspace,
 } from '@/lib/managementSolver';
+import {
+  runManagementFeasibilityPrototype,
+  type ManagementFeasibilityResult,
+} from '@/lib/managementSolverPrototype';
 
 const PRIORITY_LEVELS = [
   { value: 0, label: 'Kapalı' },
@@ -119,6 +123,8 @@ export function ManagementSolverWorkspacePanel({
     profileWeights(initialProfile),
   );
   const [localError, setLocalError] = useState<string | null>(null);
+  const [feasibilityResult, setFeasibilityResult] = useState<ManagementFeasibilityResult | null>(null);
+  const [feasibilityBusy, setFeasibilityBusy] = useState(false);
 
   const selectedProfile = useMemo(
     () => data?.profiles.find((profile) => profile.id === selectedProfileId) ?? null,
@@ -157,6 +163,28 @@ export function ManagementSolverWorkspacePanel({
     setDescription(profile?.description ?? '');
     setWeights(profileWeights(profile));
     setLocalError(null);
+  };
+
+  const runFeasibility = () => {
+    if (!hardReady || feasibilityBusy) return;
+
+    setFeasibilityBusy(true);
+    setLocalError(null);
+
+    try {
+      setFeasibilityResult(
+        runManagementFeasibilityPrototype(data.preview),
+      );
+    } catch (reason: unknown) {
+      setFeasibilityResult(null);
+      setLocalError(
+        reason instanceof Error
+          ? reason.message
+          : 'Uygunluk kontrolü tamamlanamadı.',
+      );
+    } finally {
+      setFeasibilityBusy(false);
+    }
   };
 
   const save = async (status: ManagementSolverProfileStatus) => {
@@ -308,6 +336,102 @@ export function ManagementSolverWorkspacePanel({
                   mevcut programdan salon kanıtı var; {unknownRooms.withoutBaselineRoomEvidence ?? 0} derste
                   salon kimliği henüz bilinmiyor. Partisyon bunları sabit salon kuralına dönüştürmüyor.
                 </p>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-3xl">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
+                  M33.2 · Uygunluk motoru
+                </p>
+                <h2 className="mt-1 text-[15px] font-black text-slate-950">
+                  Program hard kurallarla çözülebiliyor mu?
+                </h2>
+                <p className="mt-2 text-[10px] font-medium leading-5 text-slate-600">
+                  Bu kontrol snapshot verisini tarayıcı belleğine alır ve yalnız geçerli bir yerleşim
+                  bulunup bulunamadığını sınar. Supabase&apos;e yerleşim yazmaz, mevcut programı değiştirmez
+                  ve hedef profilinden “en iyi” çözüm seçmez.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={runFeasibility}
+                disabled={!hardReady || feasibilityBusy}
+                className="shrink-0 rounded-xl bg-slate-950 px-4 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {feasibilityBusy ? 'Kontrol ediliyor…' : 'Uygunluğu kontrol et'}
+              </button>
+            </div>
+
+            {!hardReady && (
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[10px] font-bold text-rose-700">
+                Hard girdiler hazır olmadığı için uygunluk motoru çalıştırılmıyor.
+              </div>
+            )}
+
+            {feasibilityResult && (
+              <div className="mt-4 grid grid-cols-[minmax(0,1fr)_repeat(3,minmax(110px,auto))] gap-2">
+                <div className={`rounded-2xl border px-4 py-3 ${
+                  feasibilityResult.status === 'FEASIBLE'
+                    ? 'border-emerald-200 bg-emerald-50'
+                    : feasibilityResult.status === 'SEARCH_LIMIT'
+                      ? 'border-amber-200 bg-amber-50'
+                      : 'border-rose-200 bg-rose-50'
+                }`}>
+                  <p className={`text-[10px] font-black ${
+                    feasibilityResult.status === 'FEASIBLE'
+                      ? 'text-emerald-800'
+                      : feasibilityResult.status === 'SEARCH_LIMIT'
+                        ? 'text-amber-800'
+                        : 'text-rose-800'
+                  }`}>
+                    {feasibilityResult.status === 'FEASIBLE'
+                      ? 'Geçerli yerleşim bulundu'
+                      : feasibilityResult.status === 'SEARCH_LIMIT'
+                        ? 'Arama sınırına ulaşıldı'
+                        : 'Geçerli yerleşim bulunamadı'}
+                  </p>
+                  <p className="mt-1 text-[9px] font-medium leading-4 text-slate-600">
+                    {feasibilityResult.status === 'FEASIBLE' && feasibilityResult.baselineWasFeasible
+                      ? 'Mevcut program hard kurallar açısından zaten geçerli bir başlangıç çözümü.'
+                      : feasibilityResult.status === 'FEASIBLE'
+                        ? 'Motor, yalnız bellekte farklı bir geçerli yerleşim üretti.'
+                        : feasibilityResult.reasons.join(' · ')}
+                  </p>
+                  <p className="mt-2 text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+                    Program değişmedi · yazma işlemi yok
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+                    Başlangıç korundu
+                  </p>
+                  <p className="mt-1 text-[14px] font-black text-slate-900">
+                    {feasibilityResult.metrics.baselineReuseCount}/{feasibilityResult.metrics.cardCount}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+                    Arama düğümü
+                  </p>
+                  <p className="mt-1 text-[14px] font-black text-slate-900">
+                    {feasibilityResult.metrics.visitedNodeCount}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+                    Provisional salon
+                  </p>
+                  <p className="mt-1 text-[14px] font-black text-slate-900">
+                    {feasibilityResult.metrics.provisionalRoomCount}
+                  </p>
+                </div>
               </div>
             )}
           </section>
