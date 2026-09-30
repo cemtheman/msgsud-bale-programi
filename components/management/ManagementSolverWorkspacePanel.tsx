@@ -452,7 +452,7 @@ export function ManagementSolverWorkspacePanel({
   return (
     <section className="management-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
       <div className="mx-auto grid max-w-[1460px] grid-cols-[280px_minmax(0,1fr)] gap-4">
-        <aside className="self-start rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+        <aside className="sticky top-4 self-start rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
@@ -551,7 +551,7 @@ export function ManagementSolverWorkspacePanel({
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
-                  Program tercihleri
+                  1 · Tercih ayarı
                 </p>
                 <h1 className="mt-1 text-xl font-black tracking-tight text-slate-950">
                   Program hazırlanırken nelere öncelik verilsin?
@@ -757,10 +757,218 @@ export function ManagementSolverWorkspacePanel({
           </section>
 
           <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="grid grid-cols-[minmax(0,1fr)_220px] gap-4">
+              <label className="block">
+                <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+                  Ayar adı
+                </span>
+                <input
+                  value={name}
+                  onChange={(event) => updateName(event.target.value)}
+                  disabled={!canEdit || busy}
+                  placeholder="Örn. Dengeli dönem programı"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-bold text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white disabled:opacity-50"
+                />
+              </label>
+
+              <div>
+                <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+                  Durum
+                </span>
+                <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-slate-50 px-3">
+                  <span className="text-[10px] font-bold text-slate-600">
+                    {selectedProfile
+                      ? selectedIsActive
+                        ? isDirty
+                          ? 'Kullanımda · değiştirildi'
+                          : 'Kullanımda'
+                        : isDirty
+                          ? 'Taslak · değiştirildi'
+                          : statusMeta(selectedProfile.status).label
+                      : isDirty
+                        ? 'Yeni · kaydedilmedi'
+                        : 'Yeni ayar'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <label className="mt-3 block">
+              <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+                Not · isteğe bağlı
+              </span>
+              <input
+                value={description}
+                onChange={(event) => updateDescription(event.target.value)}
+                disabled={!canEdit || busy}
+                placeholder="Bu ayar ne zaman veya hangi amaçla kullanılacak?"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[10px] font-medium text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white disabled:opacity-50"
+              />
+            </label>
+          </section>
+
+          <div className="grid grid-cols-2 gap-3">
+            {OBJECTIVES.map((objective) => {
+              const current = weights[objective.key];
+
+              return (
+                <section
+                  key={objective.key}
+                  className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <h3 className="text-[12px] font-black text-slate-950">
+                    {objective.title}
+                  </h3>
+                  <p className="mt-1 text-[9px] font-medium leading-4 text-slate-500">
+                    {objective.summary}
+                  </p>
+                  <p className="mt-2 text-[9px] font-bold text-slate-400">
+                    {objective.baseline(data)}
+                  </p>
+
+                  <div className="mt-4 grid grid-cols-5 gap-1">
+                    {PRIORITY_LEVELS.map((level) => (
+                      <button
+                        key={level.value}
+                        type="button"
+                        disabled={!canEdit || busy}
+                        onClick={() => updateWeight(
+                          objective.key,
+                          level.value,
+                        )}
+                        className={`rounded-lg px-1 py-2 text-[8px] font-black transition ${
+                          current === level.value
+                            ? 'bg-slate-950 text-white'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        } disabled:opacity-50`}
+                      >
+                        {level.label}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+
+          <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[10px] font-black text-slate-900">
+                    {selectedProfile
+                      ? selectedProfile.name
+                      : name.trim() || 'Yeni ayar'}
+                  </p>
+                  {isDirty && (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[8px] font-black text-amber-700">
+                      Kaydedilmedi
+                    </span>
+                  )}
+                  {selectedIsActive && !isDirty && (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[8px] font-black text-emerald-700">
+                      Kullanımda
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-[9px] font-medium leading-4 text-slate-500">
+                  {selectedIsActive
+                    ? isDirty
+                      ? 'Bu ayar kullanımda. Değişiklikler ancak kaydettiğinizde geçerli olur.'
+                      : 'Bu ayar şu anda yeni program seçeneklerinde varsayılan olarak kullanılıyor.'
+                    : 'İsterseniz kaydetmeden seçenek üretebilir; hazır olduğunda taslak olarak saklayabilir veya kullanıma alabilirsiniz.'}
+                </p>
+                <p className="mt-1 text-[8px] font-bold text-slate-400">
+                  {positiveObjectiveCount} tercih açık
+                </p>
+              </div>
+
+              {canEdit ? (
+                selectedIsActive ? (
+                  <button
+                    type="button"
+                    onClick={() => void save('ACTIVE')}
+                    disabled={
+                      busy
+                      || !isDirty
+                      || name.trim().length === 0
+                      || positiveObjectiveCount === 0
+                    }
+                    className="rounded-xl bg-[#A63D48] px-4 py-2.5 text-[10px] font-black text-white hover:bg-[#8F3340] disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    {isDirty ? 'Değişiklikleri kaydet' : 'Kaydedildi · kullanımda'}
+                  </button>
+                ) : (
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void save('DRAFT')}
+                      disabled={
+                        busy
+                        || !isDirty
+                        || name.trim().length === 0
+                      }
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[10px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                    >
+                      Taslak olarak kaydet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={requestActivate}
+                      disabled={!canActivate}
+                      className="rounded-xl bg-[#A63D48] px-4 py-2.5 text-[10px] font-black text-white hover:bg-[#8F3340] disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      {selectedProfile && !isDirty
+                        ? 'Kullanıma al'
+                        : 'Kaydet ve kullan'}
+                    </button>
+                  </div>
+                )
+              ) : (
+                <span className="text-[10px] font-semibold text-slate-400">
+                  Salt okunur
+                </span>
+              )}
+            </div>
+
+            {activationPending && (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3">
+                <div>
+                  <p className="text-[9px] font-black text-amber-900">
+                    Kullanımdaki ayar değiştirilecek
+                  </p>
+                  <p className="mt-1 text-[8px] font-medium leading-4 text-amber-800">
+                    “{activeProfile?.name}” yerine “{name.trim()}” kullanılacak.
+                    Mevcut program değişmez; yalnız bundan sonraki seçenek hesaplarında bu ayar varsayılan olur.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActivationPending(false)}
+                    className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[8px] font-black text-amber-800"
+                  >
+                    Vazgeç
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActivationPending(false);
+                      void save('ACTIVE');
+                    }}
+                    className="rounded-lg bg-amber-700 px-3 py-1.5 text-[8px] font-black text-white"
+                  >
+                    Onayla ve kullan
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-3xl">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
-                  Program kontrolü
+                  2 · Program kontrolü
                 </p>
                 <h2 className="mt-1 text-[15px] font-black text-slate-950">
                   Mevcut program kurallara uygun mu?
@@ -849,97 +1057,10 @@ export function ManagementSolverWorkspacePanel({
           </section>
 
           <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="grid grid-cols-[minmax(0,1fr)_220px] gap-4">
-              <label className="block">
-                <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
-                  Ayar adı
-                </span>
-                <input
-                  value={name}
-                  onChange={(event) => updateName(event.target.value)}
-                  disabled={!canEdit || busy}
-                  placeholder="Örn. Dengeli dönem programı"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-bold text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white disabled:opacity-50"
-                />
-              </label>
-
-              <div>
-                <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
-                  Durum
-                </span>
-                <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-slate-50 px-3">
-                  <span className="text-[10px] font-bold text-slate-600">
-                    {selectedProfile
-                      ? statusMeta(selectedProfile.status).label
-                      : 'Yeni ayar'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <label className="mt-3 block">
-              <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
-                Not · isteğe bağlı
-              </span>
-              <input
-                value={description}
-                onChange={(event) => updateDescription(event.target.value)}
-                disabled={!canEdit || busy}
-                placeholder="Bu ayar ne zaman veya hangi amaçla kullanılacak?"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[10px] font-medium text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white disabled:opacity-50"
-              />
-            </label>
-          </section>
-
-          <div className="grid grid-cols-2 gap-3">
-            {OBJECTIVES.map((objective) => {
-              const current = weights[objective.key];
-
-              return (
-                <section
-                  key={objective.key}
-                  className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <h3 className="text-[12px] font-black text-slate-950">
-                    {objective.title}
-                  </h3>
-                  <p className="mt-1 text-[9px] font-medium leading-4 text-slate-500">
-                    {objective.summary}
-                  </p>
-                  <p className="mt-2 text-[9px] font-bold text-slate-400">
-                    {objective.baseline(data)}
-                  </p>
-
-                  <div className="mt-4 grid grid-cols-5 gap-1">
-                    {PRIORITY_LEVELS.map((level) => (
-                      <button
-                        key={level.value}
-                        type="button"
-                        disabled={!canEdit || busy}
-                        onClick={() => updateWeight(
-                          objective.key,
-                          level.value,
-                        )}
-                        className={`rounded-lg px-1 py-2 text-[8px] font-black transition ${
-                          current === level.value
-                            ? 'bg-slate-950 text-white'
-                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                        } disabled:opacity-50`}
-                      >
-                        {level.label}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-
-          <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-3xl">
                 <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
-                  Program seçeneği
+                  3 · Program seçeneği
                 </p>
                 <h2 className="mt-1 text-[15px] font-black text-slate-950">
                   Bu tercihlere göre daha uygun bir yerleşim var mı?
@@ -1122,44 +1243,6 @@ export function ManagementSolverWorkspacePanel({
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-4 rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
-            <div>
-              <p className="text-[10px] font-black text-slate-800">
-                {positiveObjectiveCount} tercih seçildi
-              </p>
-              <p className="mt-1 text-[9px] font-medium text-slate-500">
-                Kullanımdaki ayarlar, yeni program hazırlanırken hangi tercihlerin daha önemli olduğunu belirler.
-                Bu ekran mevcut programı değiştirmez.
-              </p>
-            </div>
-
-            {canEdit ? (
-              <div className="flex shrink-0 gap-2">
-                <button
-                  type="button"
-                  onClick={() => void save(selectedProfile?.status === 'ACTIVE' ? 'ACTIVE' : 'DRAFT')}
-                  disabled={busy || name.trim().length === 0}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[10px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                >
-                  {selectedProfile?.status === 'ACTIVE'
-                    ? 'Değişiklikleri kaydet'
-                    : 'Taslak kaydet'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void save('ACTIVE')}
-                  disabled={!canActivate}
-                  className="rounded-xl bg-[#A63D48] px-4 py-2.5 text-[10px] font-black text-white hover:bg-[#8F3340] disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  Bu ayarları kullan
-                </button>
-              </div>
-            ) : (
-              <span className="text-[10px] font-semibold text-slate-400">
-                Salt okunur
-              </span>
-            )}
-          </div>
         </div>
       </div>
     </section>
