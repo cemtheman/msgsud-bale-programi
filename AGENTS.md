@@ -5200,3 +5200,64 @@ Acceptance pending:
 9. redo => no timeout
 10. repeated undo/redo
 11. Programı kontrol et hard rules
+
+
+## 78. 30 Eylül 2026 — M33.4.3 Öncelikler UX kapanış paketi
+
+Kullanıcı M33.4.2 sonrasında proposal apply / undo / redo akışının düzeldiğini doğruladı.
+
+Kalan iki UX ihtiyacı:
+1. Öncelikler sayfasında Program sekmesine dönmeden son program işlemini geri alabilmek.
+2. `Bu tercihlerle seçenek oluştur` tıklandığında in-memory optimizer birkaç saniye
+   sürdüğü için kullanıcıya işlemin devam ettiğini görünür biçimde göstermek.
+
+### Öncelikler sayfası Geri Al
+
+Commit:
+```
+54a3a9f25d87c4a2ff16ea219eabd1dfb5619c35
+ux: add solver undo and visible optimization progress
+
+64a3a45be8dfa99fae7942ff6f23ff3cf1220c92
+feat: expose program undo on priorities page
+```
+
+`ManagementSolverWorkspacePanel` artık:
+- `undoAvailable`
+- `onUndo`
+props alır.
+
+Üst tercih ayarı kartında `↶ Geri Al` butonu yer alır.
+Buton global management history'deki mevcut root/bundle undo sözleşmesini kullanır;
+ayrı bir solver-history motoru yazılmaz.
+
+Buton:
+- undo yoksa disabled
+- command busy ise disabled
+- optimizer çalışırken disabled
+- data refresh sürerken parent tarafından unavailable gönderilir
+
+### Uzun optimizer işlemi için görünür feedback
+
+Kök UX nedeni:
+`runManagementObjectiveOptimization` browser main thread'de synchronous çalışır.
+Önceden `setOptimizationBusy(true)` ile optimizer aynı event içinde hemen
+başlatıldığı için React busy state'i ekrana boyayamadan thread bloklanabiliyordu.
+Bu nedenle kullanıcı tıklamanın algılanmadığını düşünebiliyordu.
+
+Yeni davranış:
+- `runOptimization` async wrapper
+- busy state set edilir
+- iki `requestAnimationFrame` ile browser'a paint fırsatı verilir
+- sonra existing in-memory optimizer çalıştırılır
+- buton `Seçenek aranıyor…` olur
+- görünür status kartı:
+  `Program seçenekleri karşılaştırılıyor…`
+  `Bu işlem birkaç saniye sürebilir. İşlem devam ediyor; tamamlandığında sonuç burada görünecek.`
+
+Bu değişiklik optimizer algoritmasını veya DB davranışını değiştirmez.
+
+Durum:
+- source implementation complete
+- Vercel / Codespaces / browser visual acceptance pending
+- M33.4 UX acceptance sonrası CLOSED yapılabilir
