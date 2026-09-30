@@ -711,3 +711,44 @@ Visual audit:
 Recommended next UX package:
 Management UI normalization without changing accepted page IA:
 typography floor, section headers, buttons, badges, radii, spacing.
+
+
+## 20. Management UI normalization
+
+Visual screenshots confirmed UI drift between tabs.
+
+Normalization commits:
+```
+310145deb1c067bcae8904b2bf28d2b44b7cfc74
+1612a533db553f2a7c46392f4b4d090a8947ee46
+aa8db2608af4b74ab828f1a0396546b9f4a3e8a5
+b5bf4a928abb3315717ecf21965b3a66904f1334
+f15fee41d61fad2a1b3f32a90c1cfad6545b9521
+```
+
+Vercel: PASS.
+
+Visual contract:
+```
+8799ac2224a95eaf5971db4f1f7f5b4a80733ca7
+docs/MANAGEMENT_UI_SYSTEM.md
+```
+
+Key rules:
+- no new 8/9px body/meta on content screens
+- normal content pages 1220px
+- Program intentionally full-width dense
+- Solver intentionally wider due sidebar
+- global undo/redo in top bar
+- common status colors / surfaces / spacing
+- long work must visibly show progress
+
+Next Codespaces:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
+```
+
+Then browser review all 5 tabs for clipping/overflow after typography growth.
