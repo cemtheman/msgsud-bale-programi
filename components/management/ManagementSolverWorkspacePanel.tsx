@@ -600,6 +600,12 @@ export function ManagementSolverWorkspacePanel({
                   Bu kontrol mevcut programı değiştirmeden kurallara uygunluğunu sınar.
                   Gerekirse yalnızca karşılaştırma için alternatif bir yerleşim hesaplar.
                 </p>
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  <p className="text-[9px] font-bold leading-4 text-slate-600">
+                    Buradaki öncelikler henüz bu kontrolün sonucunu değiştirmez.
+                    Önceliklere göre farklı program seçenekleri üretme özelliği bir sonraki aşamada devreye girecek.
+                  </p>
+                </div>
               </div>
 
               <button
