@@ -676,3 +676,38 @@ Browser:
 3. aynı Öncelikler ekranında Geri Al etkinleşmeli
 4. Geri Al tek adımda proposal bundle'ı geri almalı
 5. refresh sırasında buton çift tıklamaya izin vermemeli
+
+
+## 19. Global history + visual consistency
+
+History controls artık global top bar'da.
+
+Commits:
+```
+9e9fa54e35635a35c75501ed4ef217803f274704
+f0d3aac5b520dc9a561fbd48a34c06b6dbabac5f
+c22d98042ed81d8435db7ff4e888e37a112396ac
+964fd6263a6d976cf34cbbae0cfd52aac4cc04de
+```
+
+Visible on:
+- Program
+- Ders Planı
+- Kaynaklar
+- Öncelikler
+- Program Durumu
+
+Local duplicate history buttons removed.
+
+Important:
+resource edits themselves are not yet written to the management undo/redo history.
+Global buttons on Resources operate on the current undoable program history item.
+
+Visual audit:
+- Resources still has many 8/9px legacy text styles
+- Course Plan still has many 8/9px legacy text styles
+- Solver is now predominantly 11/12px
+
+Recommended next UX package:
+Management UI normalization without changing accepted page IA:
+typography floor, section headers, buttons, badges, radii, spacing.
