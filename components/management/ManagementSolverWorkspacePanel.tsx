@@ -12,7 +12,9 @@ import type {
 } from '@/lib/managementSolver';
 import {
   runManagementFeasibilityPrototype,
+  runManagementObjectiveOptimization,
   type ManagementFeasibilityResult,
+  type ManagementOptimizationResult,
 } from '@/lib/managementSolverPrototype';
 
 const PRIORITY_LEVELS = [
@@ -209,6 +211,8 @@ export function ManagementSolverWorkspacePanel({
   const [localError, setLocalError] = useState<string | null>(null);
   const [feasibilityResult, setFeasibilityResult] = useState<ManagementFeasibilityResult | null>(null);
   const [feasibilityBusy, setFeasibilityBusy] = useState(false);
+  const [optimizationResult, setOptimizationResult] = useState<ManagementOptimizationResult | null>(null);
+  const [optimizationBusy, setOptimizationBusy] = useState(false);
 
   const selectedProfile = useMemo(
     () => data?.profiles.find((profile) => profile.id === selectedProfileId) ?? null,
@@ -274,6 +278,37 @@ export function ManagementSolverWorkspacePanel({
       );
     } finally {
       setFeasibilityBusy(false);
+    }
+  };
+
+  const runOptimization = () => {
+    if (
+      !hardReady
+      || optimizationBusy
+      || positiveObjectiveCount === 0
+    ) {
+      return;
+    }
+
+    setOptimizationBusy(true);
+    setLocalError(null);
+
+    try {
+      setOptimizationResult(
+        runManagementObjectiveOptimization(
+          data.preview,
+          weights,
+        ),
+      );
+    } catch (reason: unknown) {
+      setOptimizationResult(null);
+      setLocalError(
+        reason instanceof Error
+          ? reason.message
+          : 'Program seçeneği oluşturulamadı.',
+      );
+    } finally {
+      setOptimizationBusy(false);
     }
   };
 
@@ -602,8 +637,8 @@ export function ManagementSolverWorkspacePanel({
                 </p>
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                   <p className="text-[9px] font-bold leading-4 text-slate-600">
-                    Buradaki öncelikler henüz bu kontrolün sonucunu değiştirmez.
-                    Önceliklere göre farklı program seçenekleri üretme özelliği bir sonraki aşamada devreye girecek.
+                    “Programı kontrol et” yalnız zorunlu kuralları denetler.
+                    Öncelikleri kullanmak için aşağıdaki “Bu tercihlerle seçenek oluştur” işlemini kullanın.
                   </p>
                 </div>
               </div>
@@ -765,6 +800,167 @@ export function ManagementSolverWorkspacePanel({
               );
             })}
           </div>
+
+          <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-3xl">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
+                  Program seçeneği
+                </p>
+                <h2 className="mt-1 text-[15px] font-black text-slate-950">
+                  Bu tercihlere göre daha uygun bir yerleşim var mı?
+                </h2>
+                <p className="mt-2 text-[10px] font-medium leading-5 text-slate-600">
+                  Ekranda seçili öncelikleri kullanarak mevcut programa yakın alternatifleri karşılaştırır.
+                  Sonuç yalnızca öneridir; programı kendiliğinden değiştirmez.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={runOptimization}
+                disabled={
+                  !hardReady
+                  || optimizationBusy
+                  || positiveObjectiveCount === 0
+                }
+                className="shrink-0 rounded-xl bg-[#A63D48] px-4 py-2.5 text-[10px] font-black text-white hover:bg-[#8F3340] disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                {optimizationBusy
+                  ? 'Seçenek aranıyor…'
+                  : 'Bu tercihlerle seçenek oluştur'}
+              </button>
+            </div>
+
+            {positiveObjectiveCount === 0 && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[9px] font-bold text-amber-800">
+                Önce en az bir tercihe Düşük, Orta, Yüksek veya Çok yüksek öncelik verin.
+              </div>
+            )}
+
+            {optimizationResult && (
+              <div className="mt-4">
+                <div className={`rounded-2xl border px-4 py-3 ${
+                  optimizationResult.status === 'IMPROVED'
+                    ? 'border-emerald-200 bg-emerald-50'
+                    : optimizationResult.status === 'UNCHANGED'
+                      ? 'border-slate-200 bg-slate-50'
+                      : 'border-amber-200 bg-amber-50'
+                }`}>
+                  <p className={`text-[10px] font-black ${
+                    optimizationResult.status === 'IMPROVED'
+                      ? 'text-emerald-800'
+                      : optimizationResult.status === 'UNCHANGED'
+                        ? 'text-slate-800'
+                        : 'text-amber-800'
+                  }`}>
+                    {optimizationResult.status === 'IMPROVED'
+                      ? 'Bu tercihlere göre daha uygun bir seçenek bulundu'
+                      : optimizationResult.status === 'UNCHANGED'
+                        ? 'Mevcut programa yakın seçenekler içinde daha uygunu bulunamadı'
+                        : 'Bu tercihlerle seçenek oluşturulamadı'}
+                  </p>
+                  <p className="mt-1 text-[9px] font-medium leading-4 text-slate-600">
+                    {optimizationResult.status === 'IMPROVED'
+                      ? `${optimizationResult.changedCards.length} ders için farklı yerleşim öneriliyor.`
+                      : optimizationResult.status === 'UNCHANGED'
+                        ? 'Mevcut program korunuyor.'
+                        : 'Önce program kontrolünün temiz olduğundan ve en az bir tercihin açık olduğundan emin olun.'}
+                  </p>
+                  <p className="mt-2 text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+                    Bu işlem programı değiştirmedi
+                  </p>
+                </div>
+
+                {optimizationResult.status !== 'BLOCKED' && (
+                  <>
+                    <div className="mt-3 grid grid-cols-4 gap-2">
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <p className="text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">
+                          Değişen karar
+                        </p>
+                        <p className="mt-1 text-[11px] font-black text-slate-900">
+                          {optimizationResult.baselineMetrics.changeCost}
+                          {' → '}
+                          {optimizationResult.proposedMetrics.changeCost}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <p className="text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">
+                          Öğretmen değişimi
+                        </p>
+                        <p className="mt-1 text-[11px] font-black text-slate-900">
+                          {optimizationResult.baselineMetrics.preferredTeacherContinuityBreaks}
+                          {' → '}
+                          {optimizationResult.proposedMetrics.preferredTeacherContinuityBreaks}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <p className="text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">
+                          Öğretmen boşluğu
+                        </p>
+                        <p className="mt-1 text-[11px] font-black text-slate-900">
+                          {optimizationResult.baselineMetrics.teacherIdleGapPeriods}
+                          {' → '}
+                          {optimizationResult.proposedMetrics.teacherIdleGapPeriods}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <p className="text-[8px] font-black uppercase tracking-[0.08em] text-slate-400">
+                          Salon değişimi
+                        </p>
+                        <p className="mt-1 text-[11px] font-black text-slate-900">
+                          {optimizationResult.baselineMetrics.roomStabilityBreaks}
+                          {' → '}
+                          {optimizationResult.proposedMetrics.roomStabilityBreaks}
+                        </p>
+                      </div>
+                    </div>
+
+                    {optimizationResult.changedCards.length > 0 && (
+                      <div className="mt-3 grid gap-2">
+                        {optimizationResult.changedCards.slice(0, 12).map((item) => (
+                          <div
+                            key={item.cardId}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
+                          >
+                            <p className="text-[9px] font-black text-slate-900">
+                              {displayGroupName(item.groupName)} · {item.subjectName} · {item.blockIndex}. bölüm
+                            </p>
+                            <p className="mt-1 text-[8px] font-medium text-slate-500">
+                              Mevcut: {placementSummary(
+                                item.baseline.dayOfWeek,
+                                item.baseline.startPeriod,
+                                item.baseline.teacherName,
+                                item.baseline.roomName,
+                              )}
+                            </p>
+                            <p className="mt-0.5 text-[8px] font-bold text-slate-700">
+                              Öneri: {placementSummary(
+                                item.proposed.dayOfWeek,
+                                item.proposed.startPeriod,
+                                item.proposed.teacherName,
+                                item.proposed.roomName,
+                              )}
+                            </p>
+                          </div>
+                        ))}
+
+                        {optimizationResult.changedCards.length > 12 && (
+                          <p className="text-[8px] font-bold text-slate-400">
+                            Ayrıca {optimizationResult.changedCards.length - 12} ders daha değişiyor.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </section>
 
           <section className="rounded-[22px] border border-dashed border-slate-300 bg-slate-50 p-4">
             <p className="text-[10px] font-black text-slate-700">
