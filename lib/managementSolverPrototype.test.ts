@@ -295,7 +295,7 @@ describe('M33.2 in-memory feasibility prototype', () => {
     ).toBe(true);
   });
 
-  it('explains a valid manual baseline teacher outside the planning pool', () => {
+  it('keeps an active manual baseline teacher outside the planning pool', () => {
     const base = snapshot();
     const result = runManagementFeasibilityPrototype(snapshot({
       teachers: [
@@ -316,21 +316,101 @@ describe('M33.2 in-memory feasibility prototype', () => {
     }));
 
     expect(result.status).toBe('FEASIBLE');
+    expect(result.baselineWasFeasible).toBe(true);
+    expect(result.metrics.visitedNodeCount).toBe(0);
+    expect(result.metrics.baselineReuseCount).toBe(1);
+    expect(result.baselineIssues).toEqual([]);
+    expect(result.changedCards).toEqual([]);
+    expect(result.placements[0].teacherId).toBe('manual-teacher');
+  });
+
+  it('keeps an active manual baseline room outside the planning pool', () => {
+    const base = snapshot();
+    const result = runManagementFeasibilityPrototype(snapshot({
+      rooms: [
+        ...base.rooms,
+        {
+          id: 'manual-room',
+          name: 'B Salon',
+          canonicalRoomId: null,
+          capabilities: [],
+          knowledgeStatus: 'CONFIRMED',
+          operationalStatus: 'ACTIVE',
+        },
+      ],
+      baselinePlacements: [{
+        cardId: 'c1',
+        dayOfWeek: 1,
+        startPeriod: 1,
+        teacherId: 't1',
+        roomId: 'manual-room',
+      }],
+    }));
+
+    expect(result.status).toBe('FEASIBLE');
+    expect(result.baselineWasFeasible).toBe(true);
+    expect(result.metrics.visitedNodeCount).toBe(0);
+    expect(result.metrics.baselineReuseCount).toBe(1);
+    expect(result.baselineIssues).toEqual([]);
+    expect(result.changedCards).toEqual([]);
+    expect(result.placements[0].roomId).toBe('manual-room');
+  });
+
+  it('still rejects a real max-consecutive baseline violation', () => {
+    const base = snapshot();
+    const requirement = {
+      ...base.requirements[0],
+      weeklyLoad: 2,
+      maxConsecutivePeriods: 1,
+    };
+
+    const result = runManagementFeasibilityPrototype(snapshot({
+      requirements: [requirement],
+      cards: [
+        {
+          id: 'c1',
+          requirementId: 'r1',
+          blockIndex: 1,
+          durationPeriods: 1,
+          locked: false,
+        },
+        {
+          id: 'c2',
+          requirementId: 'r1',
+          blockIndex: 2,
+          durationPeriods: 1,
+          locked: false,
+        },
+      ],
+      baselinePlacements: [
+        {
+          cardId: 'c1',
+          dayOfWeek: 1,
+          startPeriod: 1,
+          teacherId: 't1',
+          roomId: 'room1',
+        },
+        {
+          cardId: 'c2',
+          dayOfWeek: 1,
+          startPeriod: 2,
+          teacherId: 't1',
+          roomId: 'room1',
+        },
+      ],
+      baselineMetrics: {
+        ...base.baselineMetrics,
+        cardCount: 2,
+        placedCardCount: 2,
+      },
+    }));
+
+    expect(result.status).toBe('FEASIBLE');
     expect(result.baselineWasFeasible).toBe(false);
     expect(
-      result.baselineIssues?.[0]?.codes,
-    ).toContain('BASELINE_TEACHER_OUTSIDE_PLANNING_POOL');
-    expect(result.changedCards).toHaveLength(1);
-    expect(result.changedCards?.[0]).toMatchObject({
-      subjectName: 'Matematik',
-      groupName: '5A',
-      baseline: {
-        teacherName: 'Manuel Öğretmen',
-      },
-      proposed: {
-        teacherName: 'Matematik Öğretmeni',
-      },
-    });
+      result.baselineIssues?.some((issue) =>
+        issue.codes.includes('BASELINE_MAX_CONSECUTIVE_PERIODS')),
+    ).toBe(true);
   });
 
   it('keeps UNKNOWN room mode provisional instead of treating it as a blocker', () => {
