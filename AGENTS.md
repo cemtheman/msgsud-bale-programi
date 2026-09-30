@@ -12,11 +12,11 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `e89d69414fb482932fcbfa3a4dc53101997f81c9` |
-| Implementation commit | `M33.2 manual-override baseline fix + Turkish UI cleanup — Vercel build PASS; production rerun pending` |
+| Son doğrulanmış implementation checkpoint | `a581a0eeef306125916a64a0b5b155483a91dc60` |
+| Implementation commit | `M33.2 plain-Turkish priorities UI + nav/help cleanup — Vercel build PASS` |
 | Son documentation checkpoint | `c67a57b0a071049de536f6aadb8a39c89a57a719` |
-| Son kullanıcı/QA kabulü | M33.1 CLOSED/PASS; M33.2 diagnostic proved one planning-pool false positive plus real hard-rule warnings |
-| Sıradaki iş paketi | Production rerun after manual-override fix; inspect remaining real hard-rule warnings; Vitest; then M33.3 |
+| Son kullanıcı/QA kabulü | M33.1 CLOSED/PASS; M33.2 manual-override false positive fixed; remaining issue isolated to Cuma ek dersi consecutive-limit rule |
+| Sıradaki iş paketi | Classify/fix Cuma ek dersi max-consecutive rule source + Vitest; then M33.3 |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -3730,3 +3730,105 @@ Purpose of next rerun:
 4. do not relax/remove the rule without evidence
 
 M33.2 remains OPEN until this remaining hard-rule issue is classified and Vitest passes.
+
+
+## 59. 30 Eylül 2026 — M33.2 third production rerun / rule mismatch isolated / plain-language rewrite
+
+Kullanıcı production diagnostic ekranını yeniden doğruladı.
+
+### Kalan kural uyuşmazlığı kesinleşti
+
+Production sonucu:
+- FEASIBLE alternatif bulundu
+- mevcut yerleşim korundu: 296/300
+- provisional room card count: 54
+- changed card count: 4
+- current program warning count: 2
+
+Değişen dersler:
+- 5A BALLET · K. Bale · 1. blok — direct issue yok; zincirleme move
+- 5A BALLET · Point/Dans T. · 1. blok — direct issue yok; zincirleme move
+- 5A BALLET · V. Kondisyon · 1. blok — direct issue yok; zincirleme move
+- STANDARD · 5A BALLET · Cuma ek dersi · K. Bale · 1. blok
+  - current: Cum 7. ders · E. Gemalmaz
+  - alternative: Pzt 5. ders · E. Gemalmaz
+  - BASELINE_MAX_CONSECUTIVE_PERIODS
+
+Yerinde kalan ikinci uyarılı ders:
+- STANDARD · 5A BALLET · Cuma ek dersi · K. Bale · 2. blok
+  - current: Cum 8. ders · E. Gemalmaz
+  - BASELINE_MAX_CONSECUTIVE_PERIODS
+
+Snapshot requirement contract ekranda:
+- maxConsecutivePeriods = 1
+
+Dolayısıyla kalan problem solver algoritması değildir:
+- aynı requirement'ın iki 1-period kartı mevcut programda Cuma 7 + 8 olarak peş peşe
+- requirement kuralı ise aynı gün en fazla 1 consecutive period diyor
+- mevcut schedule ile requirement structural rule birbirine aykırı
+- bu kuralın iş gereği gerçekten 1 mi olması gerektiği kanıtlanmadan DB değeri değiştirilmemeli
+
+M33.2 bu kural sınıflandırılana kadar OPEN.
+
+### Kullanıcı dili geri bildirimi
+
+Kullanıcı mevcut Optimizasyon UI dilini hâlâ fazla teknik buldu ve İngilizce kaynak isimlerin
+kullanıcı yüzünde görünmemesini istedi.
+
+Karar:
+- internal code/schema/type isimleri değişmez
+- kullanıcı yüzü sade yönetici Türkçesi kullanır
+- teknik motor/DB kavramları normal kullanıcı ekranından çıkarılır
+- source group adları sadece display aşamasında normalize edilir; DB değeri mutate edilmez
+
+Yeni plain-language commits:
+```
+ec12dbbbb3d9dfca26b1253168e5f581ebf8980b
+polish: rewrite program preferences in plain Turkish
+
+a581a0eeef306125916a64a0b5b155483a91dc60
+polish: simplify priorities navigation messages
+
+a6d991a98f4097a143eb6e19c1372b5f65635c35
+polish: rewrite priorities help in plain Turkish
+```
+
+Vercel build:
+- ec12dbbb PASS
+- a581a0ee PASS
+- a6d991a9 PASS
+
+User-facing terminology changes:
+- top nav: Optimizasyon -> Öncelikler
+- Hedef profilleri -> Kayıtlı ayarlar
+- Profil adı -> Ayar adı
+- Etkin profil -> Kullanılıyor / Bu ayarları kullan
+- hedef -> tercih
+- Program uygunluk denetimi -> Program kontrolü
+- Uygunluğu kontrol et -> Programı kontrol et
+- technical snapshot/browser-memory/database explanation removed
+- search-node metric removed from normal UI
+- changed-card language -> ders / alternatif yerleşim
+- Blok -> bölüm (diagnostic display)
+- STANDARD prefix hidden in diagnostic display
+- BALLET -> BALE, MUSIC -> MÜZİK, SECTION -> ŞUBE in display only
+- baseline/current technical wording replaced by current-program language
+- provisional room -> salonu henüz kesinleşmeyen/belirlenmeyen ders
+- max-consecutive warning -> Aynı gün peş peşe fazla ders var
+- detail -> “Bu ders aynı gün en fazla N ders saati peş peşe yapılabilir.”
+
+Objective cards plain language:
+- Mevcut programı mümkün olduğunca koru
+- Aynı öğretmeni mümkün olduğunca koru
+- Öğretmen boşluklarını azalt
+- Aynı dersi mümkün olduğunca aynı salonda tut
+
+Normal UI no longer shows visited search node count.
+
+Sıradaki adım:
+1. production refresh ile plain-language UI browser smoke
+2. Cuma ek dersi requirement rule source'unu belirle
+3. intended rule gerçekten 2 consecutive periods ise additive migration/UI edit path ile düzelt
+4. intended rule 1 ise mevcut schedule gerçek kural ihlalidir ve program tarafı düzeltilmeli
+5. M33.2 Vitest
+6. sonra M33.3
