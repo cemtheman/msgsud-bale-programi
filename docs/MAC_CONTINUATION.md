@@ -346,3 +346,30 @@ Expanded görünüm:
 
 Aynı anda yalnız bir tercih açık.
 Dirty/save/use/preview semantiği değişmedi.
+
+
+## 11. Öncelikler sayfası tekrar azaltma
+
+Commit:
+```
+94eb8b34a9aa359aec4fb453b597d15a7a87686b
+refactor: remove repeated state from preferences page
+```
+
+Tekrarlanan UI kaldırıldı:
+- top status badges
+- ayrı Durum field
+- active+clean save bar
+- profile/status/count repetition
+- separate future-preferences card
+- duplicate Program kontrolü info box
+
+Yeni davranış:
+- active/taslak state yalnız sidebar'da
+- active+dirty -> compact Kaydedilmemiş değişiklikler + Kaydet
+- active+clean -> action bar yok
+- draft/new -> yalnız save/use buttons
+- future preferences -> Tercihler footer'ında tek satır
+- hard-ready success badge yok; yalnız problem varsa hata görünür
+
+Production smoke pending.
