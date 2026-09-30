@@ -552,3 +552,40 @@ Sonra browser:
 - proposal apply -> undo -> redo
 - Programı kontrol et
 - typography kontrol
+
+
+## 16. M33.4 remote migration verification required
+
+Second browser acceptance:
+- first proposal apply timeout
+- later apply success
+- undo works
+- redo still shows old `Seçtiğiniz yer artık uygun değil` error
+
+This exact message indicates old single-root redo path is still being hit.
+Before further redo code changes, verify remote DB migration:
+
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npx supabase migration list | tail -25
+npx supabase db push --dry-run
+```
+
+Required remote migration:
+```
+20260930160000_management_m33_4_1_bundle_redo.sql
+```
+
+If dry-run shows only that migration:
+```bash
+npx supabase db push
+```
+
+Additional UI safety fix:
+```
+a55b0023fc7f44bba3daadea7a648070321a02f9
+fix: invalidate applied and stale solver proposals
+```
+
+Successful apply now clears the proposal/confirmation; workspace hash changes clear stale proposals.
