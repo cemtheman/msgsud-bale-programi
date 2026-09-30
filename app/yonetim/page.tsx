@@ -1379,6 +1379,10 @@ export default function ManagementPage() {
           await undoManagement(session.accessToken, descriptor.transactionId);
         }
       }
+      // The descriptor used for this click is now stale. Clear history
+      // actions immediately so a fast second click cannot target the same
+      // root while the workspace refresh is still in flight.
+      setCommandState({ undo: null, redo: null });
       setCommandNotice({
         kind: 'success',
         text: completedCommandMessage(descriptor, board, 'undo'),
@@ -1419,6 +1423,9 @@ export default function ManagementPage() {
       } else {
         await redoManagement(session.accessToken, descriptor.transactionId);
       }
+      // REDO also invalidates the descriptor that was just used. Keep both
+      // history buttons disabled until fresh server state arrives.
+      setCommandState({ undo: null, redo: null });
       setCommandNotice({
         kind: 'success',
         text: completedCommandMessage(descriptor, board, 'redo'),
@@ -1757,7 +1764,7 @@ export default function ManagementPage() {
                 <button
                   type="button"
                   onClick={() => void runUndo()}
-                  disabled={!commandState.undo || commandBusy}
+                  disabled={!commandState.undo || commandBusy || dataLoading}
                   className="flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30 max-[1280px]:w-9 max-[1280px]:px-0"
                   title={commandState.undo
                     ? `${commandContextLabel(commandState.undo, board)} geri al`
@@ -1772,7 +1779,7 @@ export default function ManagementPage() {
                 <button
                   type="button"
                   onClick={() => void runRedo()}
-                  disabled={!commandState.redo || commandBusy}
+                  disabled={!commandState.redo || commandBusy || dataLoading}
                   className="flex h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30 max-[1280px]:w-9 max-[1280px]:px-0"
                   title={commandState.redo
                     ? `${commandContextLabel(commandState.redo, board)} yeniden uygula`
@@ -1820,14 +1827,14 @@ export default function ManagementPage() {
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-black text-slate-900">
+              <p className="text-xs font-black text-slate-900">
                 {commandNotice.kind === 'success'
                   ? 'İşlem tamamlandı'
                   : commandNotice.kind === 'error'
                     ? 'İşlem tamamlanamadı'
                     : 'Bilgi'}
               </p>
-              <p className="mt-1 text-[10px] font-medium leading-5 text-slate-600">
+              <p className="mt-1 text-[11px] font-medium leading-5 text-slate-600">
                 {commandNotice.text}
               </p>
 
@@ -2568,6 +2575,9 @@ export default function ManagementPage() {
                 plan.items,
               );
 
+              // The old history descriptor predates this proposal bundle.
+              // Disable it until the refreshed transaction state is loaded.
+              setCommandState({ undo: null, redo: null });
               setCommandNotice({
                 kind: 'success',
                 text: `${plan.items.length} ders için önerilen yerleşim uygulandı. İşlem Geri Al ile tek adımda geri alınabilir.`,
