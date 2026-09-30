@@ -4624,3 +4624,36 @@ Amaç:
 - kullanıcıya önce mevcut seçim durumunu göstermek
 - ayrıntıyı yalnız gerektiğinde açmak
 - 1. Tercih ayarı bölümünü daha kompakt hale getirmek
+
+
+## 70. 30 Eylül 2026 — Tercih akordeonu dropdown ile sadeleştirildi
+
+Kullanıcı accordion yerine doğrudan dropdown kullanımının daha sade olacağını belirtti.
+
+Karar:
+- accordion tamamen kaldırıldı
+- her tercih tek satır:
+  - tercih adı
+  - küçük mevcut-program metriği
+  - sağda native select
+- seçenekler:
+  - Kapalı
+  - Düşük
+  - Orta
+  - Yüksek
+  - Çok yüksek
+- açıklama metinleri sürekli gösterilmez
+- extra open/close state kaldırıldı
+- dirty/save/preview davranışı değişmez
+
+Commit:
+```
+68902c7fe208643b12a215b8d4ba2772e8b6047b
+polish: replace preference accordion with dropdowns
+```
+
+Amaç:
+- tek hamlede seçim
+- daha az dikey alan
+- daha az etkileşim adımı
+- daha doğrudan ayar ekranı
