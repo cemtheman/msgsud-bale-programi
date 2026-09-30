@@ -12,11 +12,11 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `831c3e4bd582d9d5509e6b69f0927f9511fa7489` |
-| Implementation commit | `M33.2 feasibility baseline diagnostics — build PASS; production diagnostic rerun pending` |
-| Son documentation checkpoint | `605b989422d08922a852d27075e2d8d051a89a54` |
-| Son kullanıcı/QA kabulü | M33.1 browser smoke CLOSED/PASS; M33.2 feasibility found solution but baseline changed 6/300 |
-| Sıradaki iş paketi | M33.2 baseline deviation diagnosis (6 cards) + Vitest; only then M33.3 objective optimization |
+| Son doğrulanmış implementation checkpoint | `e89d69414fb482932fcbfa3a4dc53101997f81c9` |
+| Implementation commit | `M33.2 manual-override baseline fix + Turkish UI cleanup — Vercel build PASS; production rerun pending` |
+| Son documentation checkpoint | `c67a57b0a071049de536f6aadb8a39c89a57a719` |
+| Son kullanıcı/QA kabulü | M33.1 CLOSED/PASS; M33.2 diagnostic proved one planning-pool false positive plus real hard-rule warnings |
+| Sıradaki iş paketi | Production rerun after manual-override fix; inspect remaining real hard-rule warnings; Vitest; then M33.3 |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -3570,3 +3570,111 @@ Sıradaki adım:
 5. yalnız kanıta göre M33.2 semantiğini düzelt veya gerçek baseline rule violation olarak kabul et
 
 M33.2 henüz CLOSED değildir.
+
+
+## 57. 30 Eylül 2026 — M33.2 manual override false-positive fix / UI language cleanup
+
+Kullanıcı yeni production diagnostic panelini gönderdi.
+
+Observed changed cards:
+- 5A BALLET · K. Bale · Blok 1 — zincirleme taşındı; direct card reason yok
+- 5A BALLET · Point/Dans T. · Blok 1 — zincirleme taşındı; direct card reason yok
+- 5A BALLET · V. Kondisyon · Blok 1 — zincirleme taşındı; direct card reason yok
+- 8A BALLET · B. Uygulama · Blok 1 — mevcut öğretmen planning pool dışında
+- 8A BALLET · K. Bale · Blok 1 — zincirleme taşındı; direct card reason yok
+- STANDARD · 5A BALLET · Cuma ek dersi · K. Bale · Blok 1 — max consecutive periods ihlali
+
+Diagnostic badge toplam 5 mevcut-program uyarısı gösterdi; bu sayı changed-card sayısı değildir.
+Requirement-level max-consecutive uyarısı aynı requirement'ın yerinde kalan başka bloklarını da işaretleyebilir.
+
+### Kök neden — manual override false positive
+
+M29.4 / M32.4.2 sözleşmesi yeniden doğrulandı:
+- manual teacher change için planning-pool üyeliği hard şart değildir
+- selected teacher ACTIVE olmalıdır ve conflict üretmemelidir
+- manual room change için planning-pool üyeliği hard şart değildir
+- selected room ACTIVE olmalıdır; CAPABILITY mode ise capability/knowledge doğrulanır
+- placement override planning pool'u mutate etmez
+
+M33.2 baseline validator ise unlocked kartlarda baseline teacher/room'u planning pool membership ile doğruluyordu.
+Bu, geçerli manual placement override'ı yanlışlıkla hard-invalid yapıyordu.
+
+Fix:
+```
+bbcb7528ccde73b83122d1902d11c33a29792d0c
+fix: honor manual resource overrides in feasibility baseline
+
+79206cb6ca228525f0d0b24917a7f2a989c797dd
+refactor: remove obsolete baseline pool check
+```
+
+Yeni baseline semantics:
+- yeni alternatif teacher/room domain'leri planning pool'dan türetilir
+- mevcut baseline'daki ACTIVE manual teacher/room, yalnız pool dışında olduğu için reddedilmez
+- required teacher missing, inactive resource, capability mismatch, overlap,
+  continuity ve structural limits hâlâ hard rule'dur
+- full-search sırasında manual baseline candidate da önce denenir; yalnız gerektiğinde değiştirilir
+
+Test güncellemesi:
+```
+74c8060da30fc45bebf0d7c9e9b3379c39ead691
+test: preserve manual overrides in feasibility baseline
+```
+
+Ek test contract:
+- active manual teacher outside pool => baseline FEASIBLE / zero-search
+- active manual room outside pool => baseline FEASIBLE / zero-search
+- real maxConsecutive violation => baseline hâlâ rejected
+
+### Kullanıcı dili temizliği
+
+Kullanıcı Optimizasyon ekranındaki teknik/geliştirici dilinin düzeltilmesini istedi.
+
+Commits:
+```
+3d3028111725fe2a34e26161e6e4783481c5a375
+polish: simplify optimization UI language
+
+ce20ffc3b076c522c2b6a2bbb144195107a82a74
+polish: remove developer jargon from optimization copy
+
+e89d69414fb482932fcbfa3a4dc53101997f81c9
+polish: keep diagnostic tooltips user-facing
+```
+
+UI değişiklikleri:
+- hard rules → zorunlu kurallar
+- solver hazırlığı → program çözümleme hazırlığı
+- provisional salon → salon bilgisi henüz kesin değil / salonu belirsiz kart
+- snapshot → programın anlık kopyası
+- Supabase → veritabanı
+- baseline → mevcut program / mevcut yerleşim
+- reason code → kullanıcıya görünen neden etiketi
+- arama düğümü → incelenen seçenek
+- M33.2 internal label kullanıcı yüzünden kaldırıldı
+- tooltip'te raw reason code gösterilmiyor
+
+Architecture doc:
+```
+c67a57b0a071049de536f6aadb8a39c89a57a719
+docs: align feasibility baseline with manual overrides
+```
+
+Build:
+- bbcb7528 PASS
+- 79206cb6 PASS
+- 74c8060d PASS
+- 3d302811 PASS
+- ce20ffc3 PASS
+- e89d6941 production build sonucu ayrıca kontrol edilecek
+
+Sıradaki production acceptance:
+1. sayfayı yenile
+2. Uygunluğu kontrol et
+3. 8A B. Uygulama için planning-pool uyarısı artık görünmemeli
+4. bu kart mümkünse mevcut I. K. Alataş placement'ını korumalı
+5. kalan uyarılar yalnız gerçek hard-rule nedenleri olmalı
+6. özellikle STANDARD · 5A BALLET · Cuma ek dersi max-consecutive uyarısının devam edip etmediğine bak
+7. changed-card / mevcut-program-uyarısı / incelenen-seçenek sayılarını kaydet
+
+M33.2 bu rerun ve Vitest PASS olmadan CLOSED değildir.
