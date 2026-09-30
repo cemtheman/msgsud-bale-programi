@@ -352,10 +352,10 @@ export function ManagementSolverWorkspacePanel({
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#A63D48]">
-                Optimizasyon
+                Öncelikler
               </p>
               <h2 className="mt-1 text-[15px] font-black text-slate-950">
-                Hedef profilleri
+                Kayıtlı ayarlar
               </h2>
             </div>
             {canEdit && (
