@@ -16,8 +16,8 @@
 | Son doğrulanmış implementation checkpoint | `94eb8b34a9aa359aec4fb453b597d15a7a87686b` |
 | Implementation commit | `M33.3 objective optimization + simplified priorities workflow/UI — browser A/B PASS; final Codespaces test/build pending` |
 | Son documentation checkpoint | `eca67486ba753e7227545b96c0c96deea1f31a85` |
-| Son kullanıcı/QA kabulü | M33.3 browser A/B PASS; multi-seed priorities materially affect solution; Öncelikler UI current layout accepted/frozen |
-| Sıradaki iş paketi | M33.3 final Codespaces Vitest/build; then define M33.4 explicit proposal review/apply package |
+| Son kullanıcı/QA kabulü | **M33.3 CLOSED/PASS** — browser A/B PASS; Codespaces 15/15 test files, 77/77 tests PASS; Next/TypeScript production build PASS; Öncelikler UI frozen |
+| Sıradaki iş paketi | M33.4 explicit proposal review/apply — reuse existing atomic transaction + undo/redo infrastructure; no auto-apply |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -4766,3 +4766,67 @@ M33.3 kapanınca önerilen sıradaki paket:
 - auto apply kesinlikle yok
 
 M33.4 kapsamı M33.3 kapanışından sonra kesinleştirilecek.
+
+
+## 73. 30 Eylül 2026 — M33.3 CLOSED/PASS
+
+Final Codespaces acceptance:
+
+```
+Test Files 15 passed (15)
+Tests 77 passed (77)
+```
+
+Optimizer:
+- `lib/managementObjectiveOptimizer.test.ts`: 5/5 PASS
+- `lib/managementSolverPrototype.test.ts`: 8/8 PASS
+
+Production build:
+- Next.js 16.3.4 webpack compile PASS
+- TypeScript PASS
+- static generation PASS
+- `/yonetim` route PASS
+
+Browser acceptance daha önce:
+- preference weights solution selection'ı materially değiştiriyor
+- teacher-gap-only vs preserve-current + teacher-gap A/B PASS
+- equal gap benefit'te preserve-current disruption'ı 12 -> 10 düşürüyor
+- multi-seed local-optimum hardening production PASS
+- read-only / no auto-apply
+- responsive UI
+- localized group labels PASS
+
+### M33.3 karar
+
+**CLOSED / PASS**
+
+M33.3 tamamlanan sözleşme:
+- weighted objective vector
+- deterministic local improvement
+- multi-seed candidate selection
+- hard-feasible move guard
+- baseline comparison
+- read-only proposal
+- current-vs-proposed changed lesson explanation
+- no Supabase trial-and-error writes
+- no automatic apply
+
+### UI freeze
+
+Öncelikler sayfasının mevcut görünümü kullanıcı tarafından kabul edildi.
+Kullanıcı açıkça istemedikçe layout/hiyerarşi değiştirilmez.
+
+### M33.4 açılışı
+
+Sıradaki paket:
+**M33.4 explicit proposal review/apply**
+
+İlk zorunlu iş:
+- mevcut placement transaction / undo / redo altyapısını incele
+- yeni paralel apply sistemi yazma
+- proposal apply mümkünse mevcut atomic transaction sisteminden geçir
+- current snapshot/baseline hash stale ise apply reddedilsin
+- apply yalnız explicit human confirmation ile
+- apply sonrası hard-rule validation
+- undo/redo aynı işlem kaydını geri alabilmeli
+- auto-apply kesinlikle yok
