@@ -4592,3 +4592,35 @@ Acceptance:
 - preview without save
 - saved/unsaved provenance badge
 - no schedule mutation
+
+
+## 69. 30 Eylül 2026 — Öncelik kartları akordeonlaştırıldı
+
+Kullanıcı Öncelikler ekranındaki dört tercih kartının açıklama + seviye seçimlerinin sürekli açık olmasının sayfayı gereksiz uzattığını belirtti.
+
+UX kararı:
+- dört ayrı büyük kart kaldırıldı
+- tek bir `Tercihler` paneli içinde dört satırlık accordion kullanıldı
+- kapalı satırda yalnız:
+  - tercih başlığı
+  - mevcut seviye (Kapalı / Düşük / Orta / Yüksek / Çok yüksek)
+  - aç/kapa işareti
+- satır açıldığında:
+  - açıklama
+  - mevcut program metriği
+  - 5 seviye düğmesi
+görünür
+- aynı anda yalnız bir tercih açık kalır
+- seviye değişikliği mevcut dirty/save/preview davranışını değiştirmez
+
+Commit:
+```
+c8830c24171ac560a49868ed0a282beeda018926
+polish: collapse preference controls into accordion
+```
+
+Amaç:
+- vertical scroll azaltmak
+- kullanıcıya önce mevcut seçim durumunu göstermek
+- ayrıntıyı yalnız gerektiğinde açmak
+- 1. Tercih ayarı bölümünü daha kompakt hale getirmek
