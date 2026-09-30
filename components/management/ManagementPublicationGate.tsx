@@ -106,7 +106,7 @@ export function ManagementPublicationGate({
     ].join(' ')}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
             Yayın öncesi güvenlik kontrolü
           </p>
           <h3 className="mt-1 text-base font-bold text-slate-900">
@@ -116,13 +116,13 @@ export function ManagementPublicationGate({
             Bu kontrol bütün taslağı birlikte değerlendirir. Yalnız seçili Ortaokul
             veya Lise görünümüne bakılarak yayın açılamaz.
           </p>
-          <span className="mt-2 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-black text-slate-600">
+          <span className="mt-2 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-600">
             Kapsam: Tüm program · Ortaokul + Lise
           </span>
         </div>
 
         <span className={[
-          'shrink-0 rounded-full border px-3 py-1.5 text-[9px] font-black',
+          'shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-black',
           blocked
             ? 'border-rose-200 bg-rose-50 text-rose-700'
             : 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -133,37 +133,37 @@ export function ManagementPublicationGate({
 
       <div className="mt-4 grid grid-cols-4 gap-2">
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-[8px] font-black uppercase tracking-wide text-slate-400">
+          <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
             Taslak
           </p>
           <p className="mt-1 text-lg font-black text-slate-900">
             {data.placedCards} / {data.totalCards}
           </p>
-          <p className="text-[8px] font-medium text-slate-500">
+          <p className="text-[11px] font-medium text-slate-500">
             kart yerleşmiş
           </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-[8px] font-black uppercase tracking-wide text-slate-400">
+          <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
             Yayınlanacak oturum
           </p>
           <p className="mt-1 text-lg font-black text-slate-900">
             {data.projectedSessionCount}
           </p>
-          <p className="text-[8px] font-medium text-slate-500">
+          <p className="text-[11px] font-medium text-slate-500">
             oturum
           </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-          <p className="text-[8px] font-black uppercase tracking-wide text-slate-400">
+          <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
             Sınıf / grup eşleşmesi
           </p>
           <p className="mt-1 text-lg font-black text-slate-900">
             {data.projectedGroupCount}
           </p>
-          <p className="text-[8px] font-medium text-slate-500">
+          <p className="text-[11px] font-medium text-slate-500">
             grup kaydı
           </p>
         </div>
@@ -175,7 +175,7 @@ export function ManagementPublicationGate({
             : 'border-rose-200 bg-rose-50',
         ].join(' ')}>
           <p className={[
-            'text-[8px] font-black uppercase tracking-wide',
+            'text-[11px] font-black uppercase tracking-wide',
             data.baseline.healthy ? 'text-emerald-600' : 'text-rose-600',
           ].join(' ')}>
             Mevcut yayınla tutarlılık
@@ -186,7 +186,7 @@ export function ManagementPublicationGate({
           ].join(' ')}>
             {data.baseline.healthy ? 'Sağlam' : 'Fark var'}
           </p>
-          <p className="text-[8px] font-medium text-slate-500">
+          <p className="text-[11px] font-medium text-slate-500">
             {baselineCurrentSessions}/{baselineExpectedSessions} oturum ·{' '}
             {baselineCurrentGroups}/{baselineExpectedGroups} grup
           </p>
@@ -195,7 +195,7 @@ export function ManagementPublicationGate({
 
       <div className="mt-3 flex flex-wrap gap-2">
         <span className={[
-          'rounded-full border px-2.5 py-1 text-[9px] font-bold',
+          'rounded-full border px-2.5 py-1 text-[11px] font-bold',
           data.runtimeAdjustmentsReconciled
             ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
             : 'border-rose-200 bg-rose-50 text-rose-700',
@@ -203,18 +203,18 @@ export function ManagementPublicationGate({
           Son program değişiklikleri: {data.runtimeAdjustmentsReconciled ? 'işlendi' : 'bekliyor'}
         </span>
 
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-bold text-slate-600">
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">
           Karşılaştırma kaynağı: mevcut yayın
         </span>
 
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-bold text-slate-600">
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-600">
           Taslak sürümü v{data.revisionVersion}
         </span>
       </div>
 
       {data.blockReasons.length > 0 && (
         <div className="mt-4">
-          <p className="text-[9px] font-black uppercase tracking-wide text-rose-600">
+          <p className="text-[11px] font-black uppercase tracking-wide text-rose-600">
             Yayını şu anda engelleyenler
           </p>
           <div className="mt-2 grid gap-2 md:grid-cols-2">
@@ -231,10 +231,10 @@ export function ManagementPublicationGate({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-black text-rose-900">
+                      <p className="text-[11px] font-black text-rose-900">
                         {meta.title}
                       </p>
-                      <p className="mt-1 text-[9px] font-medium leading-4 text-rose-700">
+                      <p className="mt-1 text-[11px] font-medium leading-4 text-rose-700">
                         {meta.detail}
                       </p>
                     </div>
@@ -251,7 +251,7 @@ export function ManagementPublicationGate({
 
       {data.warningReasons.length > 0 && (
         <div className="mt-4">
-          <p className="text-[9px] font-black uppercase tracking-wide text-amber-600">
+          <p className="text-[11px] font-black uppercase tracking-wide text-amber-600">
             Yayın öncesi uyarılar
           </p>
           <div className="mt-2 grid gap-2 md:grid-cols-2">
@@ -268,10 +268,10 @@ export function ManagementPublicationGate({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-black text-amber-900">
+                      <p className="text-[11px] font-black text-amber-900">
                         {meta.title}
                       </p>
-                      <p className="mt-1 text-[9px] font-medium leading-4 text-amber-800">
+                      <p className="mt-1 text-[11px] font-medium leading-4 text-amber-800">
                         {meta.detail}
                       </p>
                     </div>
@@ -294,7 +294,7 @@ export function ManagementPublicationGate({
             : 'border-amber-200 bg-amber-50',
         ].join(' ')}>
           <p className={[
-            'text-[10px] font-black',
+            'text-[11px] font-black',
             data.canCurrentUserPublish ? 'text-emerald-900' : 'text-amber-900',
           ].join(' ')}>
             {data.canCurrentUserPublish
@@ -302,7 +302,7 @@ export function ManagementPublicationGate({
               : 'Program kontrolleri tamam; yayın işlemi için yönetici yetkisi gerekir.'}
           </p>
           <p className={[
-            'mt-1 text-[10px] font-medium leading-5',
+            'mt-1 text-[11px] font-medium leading-5',
             data.canCurrentUserPublish ? 'text-emerald-800' : 'text-amber-800',
           ].join(' ')}>
             Bu ekranda henüz yayınlama düğmesi yok. Gerçek yayınlama özelliği ayrı ve
