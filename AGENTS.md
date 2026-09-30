@@ -5261,3 +5261,102 @@ Durum:
 - source implementation complete
 - Vercel / Codespaces / browser visual acceptance pending
 - M33.4 UX acceptance sonrası CLOSED yapılabilir
+
+
+## 79. 30 Eylül 2026 — Global history controls + UI consistency audit
+
+Kullanıcı:
+- Öncelikler'de Geri Al varsa Yinele de olmalı
+- Kaynaklar ve gerekli diğer sekmelerde de history actions erişilebilir olmalı
+- feature geliştikçe görsel bütünlüğün azaldığını gözlemledi
+
+### History UX kararı
+
+Undo/redo sekmeye özel değil, yönetim çalışma alanının global işlem geçmişidir.
+
+Bu nedenle:
+- Program toolbar içindeki yerel Geri Al/Yinele kaldırıldı
+- Öncelikler içindeki yerel Geri Al kaldırıldı
+- ortak `ManagementHistoryActions` bileşeni eklendi
+- ana üst bar içine taşındı
+- Program / Ders Planı / Kaynaklar / Öncelikler / Program Durumu boyunca aynı yerde görünür
+- dar genişliklerde label gizlenip ikon moduna geçer
+- gerçek command descriptor context'i tooltip/aria-label olarak korunur
+- quick-tour `history-actions` target global bileşene taşındı
+
+Commits:
+```
+9e9fa54e35635a35c75501ed4ef217803f274704
+ui: add shared management history controls
+
+f0d3aac5b520dc9a561fbd48a34c06b6dbabac5f
+refactor: make history controls global across management tabs
+
+c22d98042ed81d8435db7ff4e888e37a112396ac
+refactor: remove duplicated solver history button
+
+964fd6263a6d976cf34cbbae0cfd52aac4cc04de
+fix: keep quick-tour target on global history controls
+```
+
+Not:
+Current management command history placement/structure/solver program mutationsını kapsar.
+Kaynak adı, kaynak durumu, kaynak profili gibi M18 resource mutations henüz bu history engine'e
+ROOT_UNDO/ROOT_REDO olarak yazılmaz. Global history butonları Kaynaklar sekmesinde erişilebilir
+olur ancak mevcut commandState'in temsil ettiği son undoable program işlemini yönetir.
+Universal resource undo ayrı backend paketi gerektirir; UI'da yanlış şekilde "resource edit undo"
+olarak varsayılmamalı.
+
+### Görsel bütünlük audit
+
+Kullanıcı gözlemi doğrulandı.
+
+Current explicit typography counts:
+- ManagementResources:
+  - 8px: 6
+  - 9px: 40
+  - 10px: 41
+  - 11px: 5
+  - 12px: 2
+- ManagementCoursePlan:
+  - 8px: 12
+  - 9px: 17
+  - 10px: 30
+  - 11px: 4
+  - 12px: 1
+- ManagementProgramStatus:
+  - 9px: 5
+  - 10px: 16
+  - 11px: 3
+- ManagementSolverWorkspacePanel:
+  - 8px/9px/10px: 0
+  - 11px: 42
+  - 12px: 43
+
+Sonuç:
+Öncelikler readability turu sonrası 11–12px tabanına geçmişken eski Kaynaklar/Ders Planı
+ekranları 8–10px legacy density taşımaya devam ediyor. Visual drift gerçek.
+
+### Sıradaki önerilen UX paketi
+
+Yeni feature eklemeden kısa bir `Management UI normalization` turu:
+
+1. typography floor:
+   - body/helper >= 11px
+   - compact meta >= 10px
+   - labels 10–11px
+2. common history/header/action components
+3. common section header hierarchy
+4. primary / secondary / destructive button semantics
+5. card radii/border/shadow token normalization
+6. spacing rhythm:
+   - 4 / 8 / 12 / 16 / 20 / 24
+7. status badge semantics:
+   - emerald success/active
+   - amber warning/pending
+   - rose destructive/error
+   - slate neutral
+8. avoid redesign; preserve accepted page information architecture
+
+Goal:
+görsel yeniden tasarım değil, existing screens'i aynı product family'ye döndürmek.
