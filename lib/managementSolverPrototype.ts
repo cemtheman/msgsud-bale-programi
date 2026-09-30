@@ -5,6 +5,7 @@ import type {
   ManagementSolverRequirement,
   ManagementSolverRoom,
   ManagementSolverSnapshotPreview,
+  ManagementSolverTeacher,
 } from '@/lib/managementSolver';
 
 export type ManagementFeasibilityStatus =
@@ -33,6 +34,36 @@ export interface ManagementFeasibilityMetrics {
   elapsedMs: number;
 }
 
+export interface ManagementFeasibilityBaselineIssue {
+  cardId: string;
+  requirementId: string;
+  subjectName: string;
+  groupName: string;
+  blockIndex: number;
+  codes: string[];
+}
+
+export interface ManagementFeasibilityChangedCard {
+  cardId: string;
+  requirementId: string;
+  subjectName: string;
+  groupName: string;
+  blockIndex: number;
+  baseline: {
+    dayOfWeek: number | null;
+    startPeriod: number | null;
+    teacherName: string | null;
+    roomName: string | null;
+  };
+  proposed: {
+    dayOfWeek: number;
+    startPeriod: number;
+    teacherName: string | null;
+    roomName: string | null;
+  };
+  baselineIssueCodes: string[];
+}
+
 export interface ManagementFeasibilityResult {
   engineVersion: 'M33.2-v0';
   status: ManagementFeasibilityStatus;
@@ -44,6 +75,8 @@ export interface ManagementFeasibilityResult {
   placements: ManagementFeasibilityPlacement[];
   reasons: string[];
   metrics: ManagementFeasibilityMetrics;
+  baselineIssues?: ManagementFeasibilityBaselineIssue[];
+  changedCards?: ManagementFeasibilityChangedCard[];
 }
 
 export interface ManagementFeasibilityOptions {
@@ -65,6 +98,7 @@ interface SolverContext {
   cards: Map<string, ManagementSolverCard>;
   baseline: Map<string, ManagementSolverBaselinePlacement>;
   activeTeacherIds: Set<string>;
+  teachers: Map<string, ManagementSolverTeacher>;
   rooms: Map<string, ManagementSolverRoom>;
   activeRoomIds: Set<string>;
   teacherPools: Map<string, string[]>;
@@ -663,6 +697,9 @@ function createContext(
       .filter((teacher) => teacher.operationalStatus === 'ACTIVE')
       .map((teacher) => teacher.id),
   );
+  const teachers = new Map(
+    snapshot.teachers.map((teacher) => [teacher.id, teacher]),
+  );
   const rooms = new Map(
     snapshot.rooms.map((room) => [room.id, room]),
   );
@@ -693,6 +730,7 @@ function createContext(
     cards,
     baseline,
     activeTeacherIds,
+    teachers,
     rooms,
     activeRoomIds,
     teacherPools,
@@ -701,6 +739,370 @@ function createContext(
     groupDescendants: groupTree.memo,
     maxCandidatesPerCard,
   };
+}
+
+function addBaselineIssue(
+  issueMap: Map<string, Set<string>>,
+  cardId: string,
+  code: string,
+) {
+  const current = issueMap.get(cardId) ?? new Set<string>();
+  current.add(code);
+  issueMap.set(cardId, current);
+}
+
+function baselineAudit(
+  cards: ManagementSolverCard[],
+  context: SolverContext,
+): ManagementFeasibilityBaselineIssue[] {
+  const issueMap = new Map<string, Set<string>>();
+  const materialized = new Map<string, {
+    card: ManagementSolverCard;
+    requirement: ManagementSolverRequirement;
+    placement: ManagementSolverBaselinePlacement & {
+      dayOfWeek: number;
+      startPeriod: number;
+    };
+    endPeriod: number;
+    roomConflictKey: string | null;
+  }>();
+
+  for (const card of cards) {
+    const requirement = context.requirements.get(card.requirementId);
+    const baseline = context.baseline.get(card.id);
+
+    if (!requirement) {
+      addBaselineIssue(issueMap, card.id, 'CARD_REQUIREMENT_MISSING');
+      continue;
+    }
+
+    if (!baselinePlacementIsMaterialized(baseline)) {
+      addBaselineIssue(issueMap, card.id, 'BASELINE_PLACEMENT_MISSING');
+      continue;
+    }
+
+    const periods = context.snapshot.hardConstraintContract.periods;
+    const days = context.snapshot.hardConstraintContract.days;
+
+    if (
+      !days.includes(baseline.dayOfWeek)
+      || !periods.includes(baseline.startPeriod)
+      || !validTimeStart(
+        baseline.startPeriod,
+        card.durationPeriods,
+        periods,
+      )
+    ) {
+      addBaselineIssue(issueMap, card.id, 'BASELINE_TIME_INVALID');
+    }
+
+    if (
+      requirement.teacherRequirement === 'REQUIRED'
+      && baseline.teacherId == null
+    ) {
+      addBaselineIssue(issueMap, card.id, 'REQUIRED_TEACHER_MISSING');
+    }
+
+    if (
+      baseline.teacherId != null
+      && !context.activeTeacherIds.has(baseline.teacherId)
+    ) {
+      addBaselineIssue(issueMap, card.id, 'BASELINE_TEACHER_INACTIVE');
+    }
+
+    if (!card.locked) {
+      const teachers = teacherChoices(
+        requirement,
+        baseline,
+        false,
+        context,
+      );
+
+      if (!baselineDimensionAllowed(baseline.teacherId, teachers)) {
+        addBaselineIssue(
+          issueMap,
+          card.id,
+          baseline.teacherId != null
+            ? 'BASELINE_TEACHER_OUTSIDE_PLANNING_POOL'
+            : 'BASELINE_TEACHER_NOT_ALLOWED',
+        );
+      }
+    }
+
+    if (
+      baseline.roomId != null
+      && !context.activeRoomIds.has(baseline.roomId)
+    ) {
+      addBaselineIssue(issueMap, card.id, 'BASELINE_ROOM_INACTIVE');
+    }
+
+    if (!card.locked && requirement.resourceMode !== 'UNKNOWN') {
+      const rooms = roomChoices(
+        requirement,
+        baseline,
+        false,
+        context,
+      );
+
+      if (!baselineDimensionAllowed(baseline.roomId, rooms)) {
+        addBaselineIssue(
+          issueMap,
+          card.id,
+          requirement.resourceMode === 'CAPABILITY'
+            ? 'BASELINE_ROOM_CAPABILITY_MISMATCH'
+            : 'BASELINE_ROOM_OUTSIDE_PLANNING_POOL',
+        );
+      }
+    }
+
+    materialized.set(card.id, {
+      card,
+      requirement,
+      placement: baseline,
+      endPeriod: baseline.startPeriod + card.durationPeriods - 1,
+      roomConflictKey: roomConflictKey(baseline.roomId, context),
+    });
+  }
+
+  const rows = [...materialized.values()];
+  for (let leftIndex = 0; leftIndex < rows.length; leftIndex += 1) {
+    const left = rows[leftIndex];
+
+    for (
+      let rightIndex = leftIndex + 1;
+      rightIndex < rows.length;
+      rightIndex += 1
+    ) {
+      const right = rows[rightIndex];
+
+      if (
+        left.placement.dayOfWeek !== right.placement.dayOfWeek
+        || !overlaps(
+          left.placement.startPeriod,
+          left.endPeriod,
+          right.placement.startPeriod,
+          right.endPeriod,
+        )
+      ) {
+        continue;
+      }
+
+      if (
+        left.placement.teacherId != null
+        && left.placement.teacherId === right.placement.teacherId
+      ) {
+        addBaselineIssue(issueMap, left.card.id, 'BASELINE_TEACHER_CONFLICT');
+        addBaselineIssue(issueMap, right.card.id, 'BASELINE_TEACHER_CONFLICT');
+      }
+
+      if (
+        left.roomConflictKey != null
+        && left.roomConflictKey === right.roomConflictKey
+      ) {
+        addBaselineIssue(issueMap, left.card.id, 'BASELINE_ROOM_CONFLICT');
+        addBaselineIssue(issueMap, right.card.id, 'BASELINE_ROOM_CONFLICT');
+      }
+
+      if (groupsConflict(
+        left.requirement.groupId,
+        right.requirement.groupId,
+        context,
+      )) {
+        addBaselineIssue(issueMap, left.card.id, 'BASELINE_GROUP_CONFLICT');
+        addBaselineIssue(issueMap, right.card.id, 'BASELINE_GROUP_CONFLICT');
+      }
+    }
+  }
+
+  for (const requirement of context.requirements.values()) {
+    const requirementRows = rows.filter(
+      (row) => row.requirement.id === requirement.id,
+    );
+    if (requirementRows.length === 0) continue;
+
+    if (
+      requirement.teacherAssignmentScope === 'REQUIREMENT'
+      && requirement.teacherContinuity === 'REQUIRED'
+    ) {
+      const teachers = unique(
+        requirementRows
+          .map((row) => row.placement.teacherId)
+          .filter((teacherId): teacherId is string => teacherId != null),
+      );
+
+      if (teachers.length > 1) {
+        for (const row of requirementRows) {
+          addBaselineIssue(
+            issueMap,
+            row.card.id,
+            'BASELINE_REQUIREMENT_TEACHER_CONTINUITY',
+          );
+        }
+      }
+    }
+
+    if (requirement.minDistinctDays != null) {
+      const distinctDays = new Set(
+        requirementRows.map((row) => row.placement.dayOfWeek),
+      ).size;
+
+      if (distinctDays < requirement.minDistinctDays) {
+        for (const row of requirementRows) {
+          addBaselineIssue(
+            issueMap,
+            row.card.id,
+            'BASELINE_MIN_DISTINCT_DAYS',
+          );
+        }
+      }
+    }
+
+    for (const dayOfWeek of context.snapshot.hardConstraintContract.days) {
+      const dayRows = requirementRows.filter(
+        (row) => row.placement.dayOfWeek === dayOfWeek,
+      );
+      if (dayRows.length === 0) continue;
+
+      if (
+        requirement.maxBlocksPerDay != null
+        && dayRows.length > requirement.maxBlocksPerDay
+      ) {
+        for (const row of dayRows) {
+          addBaselineIssue(
+            issueMap,
+            row.card.id,
+            'BASELINE_MAX_BLOCKS_PER_DAY',
+          );
+        }
+      }
+
+      if (requirement.maxConsecutivePeriods != null) {
+        const occupied = new Set<number>();
+
+        for (const row of dayRows) {
+          for (
+            let period = row.placement.startPeriod;
+            period <= row.endPeriod;
+            period += 1
+          ) {
+            occupied.add(period);
+          }
+        }
+
+        if (
+          longestConsecutiveRun(occupied)
+          > requirement.maxConsecutivePeriods
+        ) {
+          for (const row of dayRows) {
+            addBaselineIssue(
+              issueMap,
+              row.card.id,
+              'BASELINE_MAX_CONSECUTIVE_PERIODS',
+            );
+          }
+        }
+      }
+    }
+  }
+
+  return [...issueMap.entries()]
+    .map(([cardId, codes]) => {
+      const card = context.cards.get(cardId);
+      const requirement = card
+        ? context.requirements.get(card.requirementId)
+        : null;
+
+      return {
+        cardId,
+        requirementId: card?.requirementId ?? '',
+        subjectName: requirement?.subjectName ?? 'Bilinmeyen ders',
+        groupName: requirement?.groupName ?? 'Bilinmeyen grup',
+        blockIndex: card?.blockIndex ?? 0,
+        codes: [...codes].sort(),
+      };
+    })
+    .sort((left, right) => (
+      left.groupName.localeCompare(right.groupName, 'tr')
+      || left.subjectName.localeCompare(right.subjectName, 'tr')
+      || left.blockIndex - right.blockIndex
+      || left.cardId.localeCompare(right.cardId)
+    ));
+}
+
+function resourceName(
+  id: string | null,
+  values: Map<string, { name: string }>,
+) {
+  return id == null ? null : values.get(id)?.name ?? id;
+}
+
+function changedCardDiagnostics(
+  assignments: Candidate[],
+  baselineIssues: ManagementFeasibilityBaselineIssue[],
+  context: SolverContext,
+): ManagementFeasibilityChangedCard[] {
+  const issues = new Map(
+    baselineIssues.map((issue) => [issue.cardId, issue.codes]),
+  );
+
+  return assignments
+    .filter((assignment) => {
+      const baseline = context.baseline.get(assignment.cardId);
+      if (!baselinePlacementIsMaterialized(baseline)) return true;
+
+      return (
+        baseline.dayOfWeek !== assignment.dayOfWeek
+        || baseline.startPeriod !== assignment.startPeriod
+        || baseline.teacherId !== assignment.teacherId
+        || baseline.roomId !== assignment.roomId
+      );
+    })
+    .map((assignment) => {
+      const card = context.cards.get(assignment.cardId);
+      const requirement = card
+        ? context.requirements.get(card.requirementId)
+        : null;
+      const baseline = context.baseline.get(assignment.cardId);
+
+      return {
+        cardId: assignment.cardId,
+        requirementId: assignment.requirementId,
+        subjectName: requirement?.subjectName ?? 'Bilinmeyen ders',
+        groupName: requirement?.groupName ?? 'Bilinmeyen grup',
+        blockIndex: card?.blockIndex ?? 0,
+        baseline: {
+          dayOfWeek: baseline?.dayOfWeek ?? null,
+          startPeriod: baseline?.startPeriod ?? null,
+          teacherName: resourceName(
+            baseline?.teacherId ?? null,
+            context.teachers,
+          ),
+          roomName: resourceName(
+            baseline?.roomId ?? null,
+            context.rooms,
+          ),
+        },
+        proposed: {
+          dayOfWeek: assignment.dayOfWeek,
+          startPeriod: assignment.startPeriod,
+          teacherName: resourceName(
+            assignment.teacherId,
+            context.teachers,
+          ),
+          roomName: resourceName(
+            assignment.roomId,
+            context.rooms,
+          ),
+        },
+        baselineIssueCodes: issues.get(assignment.cardId) ?? [],
+      };
+    })
+    .sort((left, right) => (
+      left.groupName.localeCompare(right.groupName, 'tr')
+      || left.subjectName.localeCompare(right.subjectName, 'tr')
+      || left.blockIndex - right.blockIndex
+      || left.cardId.localeCompare(right.cardId)
+    ));
 }
 
 function baselineCandidateForCard(
@@ -948,6 +1350,7 @@ export function runManagementFeasibilityPrototype(
     };
   }
 
+  const baselineIssues = baselineAudit(cards, context);
   const materializedBaselineCount = cards.filter((card) => (
     baselinePlacementIsMaterialized(context.baseline.get(card.id))
   )).length;
@@ -965,6 +1368,8 @@ export function runManagementFeasibilityPrototype(
         objectiveProfileUsed: false,
         placements: baselineAssignments.map(toPublicPlacement),
         reasons: [],
+        baselineIssues: [],
+        changedCards: [],
         metrics: resultMetrics(
           cards.length,
           baselineAssignments,
@@ -1132,6 +1537,12 @@ export function runManagementFeasibilityPrototype(
     objectiveProfileUsed: false,
     placements: assignments.map(toPublicPlacement),
     reasons: [],
+    baselineIssues,
+    changedCards: changedCardDiagnostics(
+      assignments,
+      baselineIssues,
+      context,
+    ),
     metrics: resultMetrics(
       cards.length,
       assignments,
