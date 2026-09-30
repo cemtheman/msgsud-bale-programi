@@ -522,6 +522,19 @@ export function ManagementSolverWorkspacePanel({
                         const requirement = data.preview.requirements.find(
                           (item) => item.id === issue.requirementId,
                         );
+                        const placement = data.preview.baselinePlacements.find(
+                          (item) => item.cardId === issue.cardId,
+                        );
+                        const teacherName = placement?.teacherId
+                          ? data.preview.teachers.find(
+                            (item) => item.id === placement.teacherId,
+                          )?.name ?? null
+                          : null;
+                        const roomName = placement?.roomId
+                          ? data.preview.rooms.find(
+                            (item) => item.id === placement.roomId,
+                          )?.name ?? null
+                          : null;
 
                         return (
                           <div
@@ -530,6 +543,14 @@ export function ManagementSolverWorkspacePanel({
                           >
                             <p className="text-[9px] font-black text-slate-900">
                               {issue.groupName} · {issue.subjectName} · Blok {issue.blockIndex}
+                            </p>
+                            <p className="mt-1 text-[8px] font-medium text-slate-500">
+                              Mevcut: {placementSummary(
+                                placement?.dayOfWeek ?? null,
+                                placement?.startPeriod ?? null,
+                                teacherName,
+                                roomName,
+                              )}
                             </p>
                             <div className="mt-1.5 flex flex-wrap gap-1.5">
                               {issue.codes.map((code) => (
