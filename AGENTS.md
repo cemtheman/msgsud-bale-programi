@@ -4287,3 +4287,101 @@ Next:
 `git pull --ff-only && npm test`
 Expected: 76/76 PASS.
 Build already passed before this test-only hotfix; rerun build optional unless full acceptance is desired.
+
+
+## 66. 30 Eylül 2026 — M33.3 production A/B smoke exposed local optimum weakness
+
+Kullanıcı production'da önerilen iki öncelik kombinasyonunu çalıştırdı.
+
+Chronological screenshots:
+- 14:16:22
+  - changed decision cost: 0 -> 11
+  - preferred teacher continuity: 0 -> 0
+  - teacher idle gaps: 97 -> 67
+  - room stability breaks: 40 -> 39
+  - changed lessons shown: 8
+- 14:16:53
+  - changed decision cost: 0 -> 12
+  - preferred teacher continuity: 0 -> 0
+  - teacher idle gaps: 97 -> 67
+  - room stability breaks: 40 -> 40
+  - changed lessons shown: 8
+
+Test intent:
+A. teacherIdleGaps only
+B. changeCost + teacherIdleGaps
+
+Observed problem:
+- B, which includes "preserve current program", produced MORE changed decisions (12 vs 11)
+- gap improvement stayed identical (97 -> 67)
+- room metric also became worse (40 vs 39)
+
+Interpretation:
+- objective weights are now actually affecting search
+- but single-start greedy local improvement can converge to a weaker local optimum
+- this is not acceptable for M33.3 acceptance because a combined-priority run must not ignore an already-discovered solution that scores better under the same combined weights
+
+### Multi-seed search hardening
+
+Core:
+```
+d656b22cc679bf09576388319636e28ee833cfd0
+feat: add multi-seed objective search
+```
+
+New behavior:
+1. baseline remains a candidate
+2. combined-weight greedy local search runs
+3. for each active supported non-changeCost objective, a single-objective local search seed is also generated
+4. every seed is re-scored with the user's actual combined weights
+5. candidate solutions are sorted by:
+   - combined total score
+   - changeCost
+   - teacher continuity breaks
+   - teacher idle gaps
+   - room stability breaks
+   - deterministic source key
+6. lowest combined score is returned
+
+This means:
+- if teacher-gap-only search found 11 changes / 67 gaps,
+- and combined greedy found 12 changes / 67 gaps,
+- combined run will now select the former when changeCost is also active, because it has the lower combined score.
+
+Search remains read-only and in-memory.
+
+Regression:
+```
+b05860c4f27e0bbf65350a5cb6f36339ea878d17
+test: guard combined search against weaker local optimum
+```
+
+Regression invariant:
+- combined-weight result must have combined cost <= a relevant single-objective seed evaluated under those same combined weights
+
+Vercel:
+- d656b22c PASS
+- b05860c4 PASS
+
+### Remaining display-language cleanup
+
+Production result list exposed remaining English source group labels:
+- PARALELL
+- SHARED
+
+Display-only normalization:
+```
+21c87adb28f77625ccab77132b08fb3de91f8eff
+polish: localize remaining group labels
+```
+
+Display:
+- PARALELL / PARALLEL -> PARALEL
+- SHARED -> ORTAK
+- underlying DB values unchanged
+
+M33.3 remains OPEN pending:
+- Codespaces full Vitest after tie-case + multi-seed regression
+- production A/B rerun with same two preference scenarios
+- verify combined scenario no longer returns a worse combined score than gap-only seed
+- no schedule mutation
