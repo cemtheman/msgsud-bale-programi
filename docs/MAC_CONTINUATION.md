@@ -249,3 +249,76 @@ Beklenen:
 - 77 tests PASS (multi-seed regression dahil)
 
 Bu da PASS olursa M33.3-v0 CLOSED.
+
+
+## 9. Öncelikler sayfası seçim/onay/çalışma akışı refactor
+
+Yeni UX sırası:
+1. Tercih ayarı
+2. Program kontrolü
+3. Program seçeneği
+
+Selection safety:
+- dirty edit varken başka kayıt/+Yeni seçimi confirmation ister
+- `Burada kal`
+- `Değişiklikleri bırak ve geç`
+
+Activation safety:
+- başka saved/new ayar ACTIVE yapılacaksa mevcut active profile'ın yerini alacağı açıkça gösterilir
+- `Vazgeç`
+- `Onayla ve kullan`
+
+Save semantics:
+- active + dirty -> Değişiklikleri kaydet
+- active + clean -> Kaydedildi · kullanımda
+- draft/new -> Taslak olarak kaydet
+- draft/new -> Kaydet ve kullan
+- clean saved draft -> Kullanıma al
+
+Preview semantics:
+- `Bu tercihlerle seçenek oluştur` save gerektirmez
+- local ekran weights kullanılır
+- result badge source'u söyler:
+  - Kaydedilmemiş tercihlerle hesaplandı
+  - Kullanımdaki ayarla hesaplandı
+  - Kayıtlı taslakla hesaplandı
+  - Ekrandaki tercihlerle hesaplandı
+
+Layout:
+- sticky saved-settings sidebar
+- responsive 1-column / desktop sidebar+main
+- objective cards preference edit altında
+- unavailable preferences compact
+- save/use bar preferences'tan hemen sonra
+- UNKNOWN room status + hard diagnostics Program kontrolü altında
+- optimizer Program seçeneği altında
+
+Commits:
+```
+688f8df683f083d4c47dafd2a26795addb38cb12
+a0384694695f8be2e3b88f819e4f78e1a591e7a6
+24543f0bf380a477dd5c72ad168b1922b3bef59c
+c97b9ab07e0a898a27552a0c06ce53756ba55e76
+f3342697d679dcfdc9d53d539408ee6ec469fd6b
+283290f73f2617dc33e4dfa9ef263afc7267e769
+```
+
+Production acceptance pending.
+
+Codespaces after pull:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
+```
+
+Browser smoke:
+1. aktif bir ayarı değiştir; kaydetmeden başka kayda tıkla -> warning
+2. warning'de Burada kal -> edit korunmalı
+3. tekrar başka kayda tıkla -> Değişiklikleri bırak ve geç -> target yüklenmeli
+4. bir draft seç -> Kullanıma al -> replacement confirmation
+5. Vazgeç -> active değişmemeli
+6. tekrar onay -> yeni ayar Kullanımda olmalı
+7. yeni/draft preference'ı kaydetmeden değiştir -> seçenek oluştur -> provenance = Kaydedilmemiş tercihlerle hesaplandı
+8. Program ekranına geç -> schedule unchanged
