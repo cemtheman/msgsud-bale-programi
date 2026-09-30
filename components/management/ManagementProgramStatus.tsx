@@ -243,9 +243,11 @@ export function ManagementProgramStatus({
                     Programı tamamlamak için
                   </h3>
                 </div>
-                <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
-                  {snapshot.blockers.length} başlık
-                </span>
+                {snapshot.blockers.length > 0 && (
+                  <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
+                    {snapshot.blockers.length} başlık
+                  </span>
+                )}
               </div>
 
               <div className="mt-4 space-y-2">
@@ -271,9 +273,11 @@ export function ManagementProgramStatus({
                     Eksik veya doğrulanmamış bilgiler
                   </h3>
                 </div>
-                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-black text-amber-700">
-                  {snapshot.warnings.length} başlık
-                </span>
+                {snapshot.warnings.length > 0 && (
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-black text-amber-700">
+                    {snapshot.warnings.length} başlık
+                  </span>
+                )}
               </div>
 
               <div className="mt-4 space-y-2">
