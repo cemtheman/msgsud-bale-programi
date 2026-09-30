@@ -1580,7 +1580,7 @@ export default function ManagementPage() {
                     : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
                 }
               >
-                Optimizasyon
+                Öncelikler
               </button>
               <button
                 type="button"
@@ -2509,8 +2509,8 @@ export default function ManagementPage() {
             setCommandBusy(true);
             setCommandActivity(
               input.status === 'ACTIVE'
-                ? 'Optimizasyon hedef profili etkinleştiriliyor.'
-                : 'Optimizasyon hedef profili kaydediliyor.',
+                ? 'Tercih ayarları kullanıma alınıyor.'
+                : 'Tercih ayarları kaydediliyor.',
             );
 
             try {
@@ -2521,8 +2521,8 @@ export default function ManagementPage() {
               setCommandNotice({
                 kind: 'success',
                 text: result.status === 'ACTIVE'
-                  ? `“${result.name}” optimizasyon hedef profili etkinleştirildi.`
-                  : `“${result.name}” optimizasyon hedef profili taslak olarak kaydedildi.`,
+                  ? `“${result.name}” ayarları kullanıma alındı.`
+                  : `“${result.name}” ayarları taslak olarak kaydedildi.`,
               });
               setRefreshToken((value) => value + 1);
             } finally {
