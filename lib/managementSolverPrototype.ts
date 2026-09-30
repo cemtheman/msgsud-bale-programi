@@ -702,14 +702,71 @@ function baselineCandidateForCard(
   card: ManagementSolverCard,
   context: SolverContext,
 ) {
+  const requirement = context.requirements.get(card.requirementId);
   const baseline = context.baseline.get(card.id);
-  if (!baselinePlacementIsMaterialized(baseline)) {
+
+  if (!requirement || !baselinePlacementIsMaterialized(baseline)) {
     return null;
   }
 
-  return rawCandidatesForCard(card, context).find(
-    (candidate) => candidate.baseline,
-  ) ?? null;
+  const days = context.snapshot.hardConstraintContract.days;
+  const periods = context.snapshot.hardConstraintContract.periods;
+  if (
+    !days.includes(baseline.dayOfWeek)
+    || !periods.includes(baseline.startPeriod)
+    || !validTimeStart(
+      baseline.startPeriod,
+      card.durationPeriods,
+      periods,
+    )
+  ) {
+    return null;
+  }
+
+  const teachers = teacherChoices(
+    requirement,
+    baseline,
+    card.locked,
+    context,
+  );
+  const rooms = roomChoices(
+    requirement,
+    baseline,
+    card.locked,
+    context,
+  );
+
+  const teacherAllowed = card.locked
+    ? (
+      baseline.teacherId == null
+      || context.activeTeacherIds.has(baseline.teacherId)
+    )
+    : baselineDimensionAllowed(baseline.teacherId, teachers);
+  const roomAllowed = card.locked
+    ? (
+      baseline.roomId == null
+      || context.activeRoomIds.has(baseline.roomId)
+    )
+    : baselineDimensionAllowed(baseline.roomId, rooms);
+
+  if (!teacherAllowed || !roomAllowed) {
+    return null;
+  }
+
+  return {
+    cardId: card.id,
+    requirementId: card.requirementId,
+    groupId: requirement.groupId,
+    durationPeriods: card.durationPeriods,
+    dayOfWeek: baseline.dayOfWeek,
+    startPeriod: baseline.startPeriod,
+    endPeriod: baseline.startPeriod + card.durationPeriods - 1,
+    teacherId: baseline.teacherId,
+    roomId: baseline.roomId,
+    roomConflictKey: roomConflictKey(baseline.roomId, context),
+    provisionalRoom: requirement.resourceMode === 'UNKNOWN',
+    baseline: true,
+  } satisfies Candidate;
 }
 
 function tryBaseline(
