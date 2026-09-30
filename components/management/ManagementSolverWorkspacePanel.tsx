@@ -31,6 +31,51 @@ const EMPTY_WEIGHTS: ManagementSolverObjectiveWeights = {
   subjectTimePreference: 0,
 };
 
+const DAY_NAMES: Record<number, string> = {
+  1: 'Pzt',
+  2: 'Sal',
+  3: 'Çar',
+  4: 'Per',
+  5: 'Cum',
+};
+
+const BASELINE_ISSUE_LABELS: Record<string, string> = {
+  CARD_REQUIREMENT_MISSING: 'Ders kuralı bulunamadı',
+  BASELINE_PLACEMENT_MISSING: 'Mevcut yerleşim eksik',
+  BASELINE_TIME_INVALID: 'Mevcut gün/saat hard kurala uymuyor',
+  REQUIRED_TEACHER_MISSING: 'Zorunlu öğretmen eksik',
+  BASELINE_TEACHER_INACTIVE: 'Mevcut öğretmen aktif değil',
+  BASELINE_TEACHER_OUTSIDE_PLANNING_POOL: 'Mevcut öğretmen planlama havuzu dışında',
+  BASELINE_TEACHER_NOT_ALLOWED: 'Mevcut öğretmen seçimi solver alanında değil',
+  BASELINE_ROOM_INACTIVE: 'Mevcut salon aktif değil',
+  BASELINE_ROOM_OUTSIDE_PLANNING_POOL: 'Mevcut salon planlama havuzu dışında',
+  BASELINE_ROOM_CAPABILITY_MISMATCH: 'Mevcut salon gerekli yeteneğe uymuyor',
+  BASELINE_TEACHER_CONFLICT: 'Mevcut programda öğretmen çakışması',
+  BASELINE_ROOM_CONFLICT: 'Mevcut programda salon çakışması',
+  BASELINE_GROUP_CONFLICT: 'Mevcut programda öğrenci grubu çakışması',
+  BASELINE_REQUIREMENT_TEACHER_CONTINUITY: 'Zorunlu öğretmen devamlılığı bozuluyor',
+  BASELINE_MIN_DISTINCT_DAYS: 'Ders yeterli farklı güne yayılmıyor',
+  BASELINE_MAX_BLOCKS_PER_DAY: 'Aynı gün blok sınırı aşılıyor',
+  BASELINE_MAX_CONSECUTIVE_PERIODS: 'Ardışık ders sınırı aşılıyor',
+};
+
+function placementSummary(
+  dayOfWeek: number | null,
+  startPeriod: number | null,
+  teacherName: string | null,
+  roomName: string | null,
+) {
+  const time = dayOfWeek != null && startPeriod != null
+    ? `${DAY_NAMES[dayOfWeek] ?? dayOfWeek} · ${startPeriod}. ders`
+    : 'Yerleşmemiş';
+  const resources = [
+    teacherName,
+    roomName,
+  ].filter(Boolean).join(' · ');
+
+  return resources ? `${time} · ${resources}` : time;
+}
+
 const OBJECTIVES: Array<{
   key: ManagementSolverObjectiveKey;
   title: string;
@@ -336,6 +381,76 @@ export function ManagementSolverWorkspacePanel({
                   mevcut programdan salon kanıtı var; {unknownRooms.withoutBaselineRoomEvidence ?? 0} derste
                   salon kimliği henüz bilinmiyor. Partisyon bunları sabit salon kuralına dönüştürmüyor.
                 </p>
+              </div>
+            )}
+
+            {feasibilityResult?.changedCards && feasibilityResult.changedCards.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black text-amber-950">
+                      Mevcut programdan {feasibilityResult.changedCards.length} kart farklı çözüldü
+                    </p>
+                    <p className="mt-1 max-w-4xl text-[9px] font-medium leading-4 text-amber-800">
+                      Aşağıdaki karşılaştırma yalnız teşhistir; hiçbir değişiklik programa uygulanmadı.
+                      Reason code&apos;lar mevcut baseline&apos;ın neden aynen kullanılamadığını gösterir.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[8px] font-black text-amber-700">
+                    {feasibilityResult.baselineIssues?.length ?? 0} baseline uyarısı
+                  </span>
+                </div>
+
+                <div className="mt-3 grid gap-2">
+                  {feasibilityResult.changedCards.map((item) => (
+                    <div
+                      key={item.cardId}
+                      className="rounded-xl border border-amber-100 bg-white px-3 py-3"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="text-[10px] font-black text-slate-900">
+                            {item.groupName} · {item.subjectName} · Blok {item.blockIndex}
+                          </p>
+                          <p className="mt-1 text-[9px] font-medium text-slate-500">
+                            Önce: {placementSummary(
+                              item.baseline.dayOfWeek,
+                              item.baseline.startPeriod,
+                              item.baseline.teacherName,
+                              item.baseline.roomName,
+                            )}
+                          </p>
+                          <p className="mt-0.5 text-[9px] font-bold text-slate-700">
+                            Bellekte çözüm: {placementSummary(
+                              item.proposed.dayOfWeek,
+                              item.proposed.startPeriod,
+                              item.proposed.teacherName,
+                              item.proposed.roomName,
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      {item.baselineIssueCodes.length > 0 ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {item.baselineIssueCodes.map((code) => (
+                            <span
+                              key={code}
+                              className="rounded-full bg-amber-100 px-2 py-1 text-[8px] font-black text-amber-800"
+                              title={code}
+                            >
+                              {BASELINE_ISSUE_LABELS[code] ?? code}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-[8px] font-bold text-slate-400">
+                          Bu kart başka bir hard çakışmayı çözebilmek için taşındı; doğrudan kart-level reason code yok.
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </section>
