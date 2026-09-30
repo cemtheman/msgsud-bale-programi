@@ -758,7 +758,7 @@ export function deriveManagementCommandState(
     : typeof undoCardIdValue === 'string'
       ? [undoCardIdValue]
       : [];
-  const undo = undoRow
+  const undo: ManagementCommandDescriptor | null = undoRow
     ? {
       transactionId: undoRow.id,
       action: undoRow.action as ManagementRootAction,
