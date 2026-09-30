@@ -35,6 +35,10 @@ select
   (value -> 'readiness' ->> 'solverPrototypeReady')::boolean
     as solver_prototype_ready,
   value -> 'readiness' -> 'hardBlockers' as hard_blockers,
+  value -> 'readiness' -> 'provisionalInputs'
+    as provisional_inputs,
+  value -> 'readiness' ->> 'resourceUnknownSemantics'
+    as resource_unknown_semantics,
   value -> 'readiness' -> 'missingOptionalModelInputs'
     as missing_optional_model_inputs,
   value -> 'baselineMetrics' as baseline_metrics,
