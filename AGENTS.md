@@ -721,3 +721,65 @@ Yeni oturum başlangıcı:
 
 Not: 26 Eylül testleri sırasında eski M29.1–M29.3 davranışları bazı derslerin öğretmen havuzuna yanlış/deneysel kayıtlar eklemiş olabilir. Yeni oturumda Ders Planı / Öğretmen havuzu verileri üzerinde çalışma yapılacaksa önce veri teşhisi yap; körlemesine silme yapma.
 
+## 21. 30 Eylül 2026 — Local-first geliştirme ve Vercel maliyet kontrolü
+
+Vercel kullanım analizi, geliştirme sırasında her Git push'unun build tetiklemesinin
+gereksiz Build CPU maliyeti ürettiğini gösterdi. Fatura döneminde
+`msgsud-bale-programi` yaklaşık 55 saat 4 dakika Build CPU kullanımıyla toplamın
+%61,5'ini oluşturdu. 30 Eylül 2026 akşamında dahil kredi kullanımı
+`$19.27 / $20.00` seviyesindeydi; yaklaşık `$0.73` kredi kalmıştı.
+
+Kalıcı çalışma kararı:
+
+- Vercel geliştirme sunucusu değil, preview/production yayın katmanıdır.
+- Günlük geliştirme ve görsel/işlevsel test öncelikle yerelde yapılır.
+- macOS/iMac üzerinde standart akış:
+  - `npm ci` veya mevcut kurulumda `npm install`
+  - `npm run dev`
+  - `http://localhost:3000`
+- Windows iş bilgisayarında Node/NPM yoksa GitHub Codespaces kullanılır; uygulama
+  Codespaces içinde `npm run dev` ile çalıştırılır ve port 3000 preview/webview
+  üzerinden incelenir.
+- Aynı ağdaki fiziksel cihaz testi gerektiğinde geliştirme sunucusu
+  `0.0.0.0` üzerinde açılabilir.
+- Normal feature-branch commit/push GitHub'a gider ancak Vercel build'i
+  tetiklememelidir.
+- Vercel preview gerçekten gerektiğinde commit mesajına `[deploy]` eklenir.
+- Production deployment yalnız anlamlı checkpoint/promotion anlarında yapılır.
+
+Vercel proje ayarları 30 Eylül 2026'da şu şekilde güncellendi:
+
+- Build Machine: **Basic — 2 vCPU / 8 GB**
+- On-Demand Concurrent Builds: **Disable on-demand concurrent builds**
+- Prioritize Production Builds: **Enabled**
+- System Environment Variables erişimi: **Enabled**
+- Ignored Build Step: **Custom**
+- Custom kural:
+  - `VERCEL_ENV=production` ise build devam eder.
+  - Feature branch commit mesajında `[deploy]` varsa build devam eder.
+  - Diğer feature-branch push'ları build edilmez.
+
+Kullanılan Ignored Build Step komutu:
+
+```sh
+if [ "$VERCEL_ENV" = "production" ]; then exit 1; elif printf '%s' "$VERCEL_GIT_COMMIT_MESSAGE" | grep -qi '\[deploy\]'; then exit 1; else exit 0; fi
+```
+
+Team Spend Management:
+
+- On-demand budget: **$5**
+- Pause: **On**
+- Dahil kredi bittikten sonra on-demand kullanım $5'e ulaşırsa projelerin
+  durması kabul edilmiştir.
+
+Bundan sonraki varsayılan geliştirme sözleşmesi:
+
+1. Kodla.
+2. Localhost/Codespaces'ta test et.
+3. Gerekirse düzelt ve tekrar yerelde test et.
+4. Normal commit + push yap; Vercel preview üretme.
+5. Dış URL ile preview gerektiğinde yalnız o checkpoint'te `[deploy]` kullan.
+6. Production'a yalnız kabul edilmiş checkpoint'i promote et.
+
+Bu politika maliyet kontrolü sağlarken GitHub checkpoint sıklığını azaltmaz.
+
