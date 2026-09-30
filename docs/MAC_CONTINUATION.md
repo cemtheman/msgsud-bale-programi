@@ -1,37 +1,31 @@
 # MSGSÜ Ders Programı — Mac Devam Handoff
 
-Tarih: 26 Eylül 2026
+Tarih: 30 Eylül 2026
 
-Bu dosya yeni sohbet oturumunda projeyi yeniden keşfetmeden kaldığımız yerden devam etmek içindir.
+Bu dosya güncel continuation özetidir. Ayrıntılı tarihçe için önce AGENTS.md okunur.
 
-## 1. Güvenilir durum
+## 1. Güvenilir çalışma noktası
 
-Repository:
+Repository: cemtheman/msgsud-bale-programi
+Production branch: main
 
-```
-https://github.com/cemtheman/msgsud-bale-programi.git
-```
-
-Production branch:
+Son implementation checkpoint:
 
 ```
-main
+7b24a138a53e9df48268bc42292c0eee83f58c7f
+feat: expose read-only feasibility check
 ```
 
-M29 implementation production checkpoint:
+Son journal checkpoint:
 
 ```
-ff2654c3dfbe354f2535a88d6b187a5bdf1ec8be
-fix: stabilize placement resource overrides
+bae22eb78c59efb2de5d7fe7864cd37e119747d3
+docs: checkpoint M33.2 feasibility prototype
 ```
 
-Bu checkpoint hem `main` hem `feat/management-m20-placement-recovery` üzerine promote edildi.
+Yeni oturumda SHA'ya reset atma; remote HEAD'i çek.
 
-26 Eylül kapanışında ayrıca dokümantasyon günlüğü güncellendi; bu nedenle yeni oturumda **hard-code edilmiş SHA'ya reset atma**. Önce remote HEAD'i çek.
-
-## 2. Yeni oturum başlangıcı
-
-Mac Terminal:
+## 2. Başlangıç
 
 ```bash
 cd ~/msgsud-bale-programi
@@ -40,136 +34,122 @@ git switch main
 git pull --ff-only
 git rev-parse HEAD
 git status --short
-```
-
-Beklenti:
-
-- branch: `main`
-- working tree: CLEAN
-- HEAD: remote `main` güncel HEAD'i
-
-Ardından mutlaka:
-
-```bash
 cat AGENTS.md
 cat docs/MAC_CONTINUATION.md
 ```
 
-## 3. Son tamamlanan iş — M29.1–M29.5
+Working tree temiz değilse kaynağı anlaşılmadan reset/restore yapma.
 
-M29 resource edit akışı tamamlandı ve production/browser acceptance geçti.
+## 3. Tamamlanan foundation
 
-Kalıcı mimari karar:
+M32.5 CLOSED/PASS:
+- candidate-domain persisted REQUIRED teacher policy
+- forward-impact preview
+- M32.5.1 summary ownership race düzeltmesi
+- rollback QA PASS
 
-- Yerleşimde öğretmen/salon değişikliği, ders planı kaynak havuzunu değiştirmez.
-- `course_requirement_teachers` ve `course_requirement_rooms` otomatik genişletilmez.
-- `teacher_mode` / `resource_mode` placement override yüzünden değiştirilmez.
-- Gün/saat aynı kalırken yalnız placement teacher/room kaynağı değiştirilebilir.
-- Preview aktiflik, slot conflict ve gerekli güvenlik kontrollerini yapar.
-- MOVE history korunur.
-- Geri Al / Yinele çalışır.
-- Override redo candidate havuz üyeliğine bağlı değildir.
-- Ayrıntılar panelinde plan öğretmeni/salonu ile gerçek placement aynı anda gösterilmez.
-- Kullanıcıya gösterilen öğretmen/salon için tek güncel kaynak gerçek `Yerleşim` kartıdır.
-- `Ders Planı Kaynakları` kutusu ayrıntılar ekranından kaldırıldı.
+M33 CLOSED/PASS:
+- deterministic immutable solver snapshot
+- current placements baseline/change-cost input
+- candidate assessments global solver truth olarak snapshot dışında
+- M22 UNKNOWN room semantics PROVISIONAL_UNKNOWN
+- hardInputReady=true
+- snapshot rollback QA PASS
 
-Migrations:
+M33.1 DB/UX contract:
+- human-readable objective profiles
+- supported: changeCost, preferredTeacherContinuity, teacherIdleGaps, roomStability
+- unsupported/disabled: teacherLoadBalance, subjectTimePreference
+- DRAFT / explicit ACTIVE
+- rollback-only objective profile QA PASS
+- browser smoke henüz pending
 
-```
-20260926113000_management_m29_1_resource_preview_card_id_fix.sql
-20260926121500_management_m29_2_remove_redundant_pre_move_refresh.sql
-20260926123000_management_m29_3_direct_resource_bundle_apply.sql
-20260926124500_management_m29_4_placement_resource_override.sql
-20260926130000_management_m29_5_override_redo.sql
-```
+## 4. M33.2 — in-memory feasibility
 
-M29.1–M29.5 uygulanmış migration'lardır. **Geriye dönük düzenleme yapma.** Yeni DB davranışı gerekiyorsa yeni timestamp'li migration yaz.
+Yeni motor: lib/managementSolverPrototype.ts
 
-## 4. Acceptance sonucu
+Temel ilke:
+- snapshot bir kez okunur
+- tüm deneme/hesap geçici bellekte yapılır
+- Supabase placement/candidate/history üzerinde solver deneme yazması yok
+- feasibility sonucu otomatik apply edilmez
+- objective profile henüz solver seçimi için kullanılmaz
 
-Production'da doğrulananlar:
+Hard rules:
+- time/day bounds
+- lunch crossing yok
+- teacher overlap yok
+- canonical room overlap yok
+- participant group CONTAINS/OVERLAPS
+- locked baseline pin
+- REQUIREMENT+REQUIRED teacher continuity
+- minDistinctDays
+- maxBlocksPerDay
+- maxConsecutivePeriods
 
-- Öğretmen değişikliği çalışıyor.
-- Salon değişikliği çalışıyor.
-- Öğretmen havuzunda bulunmayan öğretmene placement override yapılabiliyor.
-- Önceki statement timeout problemi kritik apply akışından kaldırıldı.
-- Geri Al çalışıyor.
-- Yinele çalışıyor.
-- Ayrıntılar panelindeki eski plan/placement öğretmen tutarsızlığı kaldırıldı.
-- Kullanıcı M29 akışını "çözdük" diyerek kabul etti.
+M22 UNKNOWN room:
+- hard blocker değil
+- null room provisional kabul edilebilir
+- baseline room evidence kart bazında tutulabilir
+- planning room policy inference yapılmaz
 
-M29'u yeni oturumda yeniden açma; yalnız yeni bir regression kanıtı varsa geri dön.
+Production build:
+- ca8c2129 core build PASS
+- 7b24a138 UI build PASS
 
-## 5. Bilinen takip konusu
+Vitest ve production browser acceptance henüz pending; M33.2 CLOSED değildir.
 
-M29.1–M29.3 testleri sırasında eski davranış bazı derslerin `course_requirement_teachers` havuzuna deneysel/yanlış öğretmenler eklemiş olabilir.
+## 5. Optimizasyon browser acceptance — sıradaki iş
 
-Özellikle Ders Planı / Öğretmen havuzu konusu yeniden ele alınırsa:
+1. Yönetim > Optimizasyon.
+2. Profil yoksa + Yeni.
+3. Profil adı gir; supported hedeflerden en az birini Düşük/Orta/Yüksek/Çok yüksek yap.
+4. Taslak kaydet.
+5. Etkin profil yap.
+6. Etkin hedef profili hazır göstergesini doğrula.
+7. Provisional salon kutusunu doğrula.
+8. Uygunluğu kontrol et.
 
-1. Önce mevcut veriyi teşhis et.
-2. Hangi kayıtların gerçekten ders planı kuralı, hangilerinin M29 test yan ürünü olduğunu ayır.
-3. Körlemesine DELETE yapma.
-4. Temizlik gerekiyorsa yeni, denetlenebilir migration / yönetim işlemi tasarla.
+Güncel 300 kart baseline için beklenen ilk sonuç:
+- Geçerli yerleşim bulundu
+- mevcut program hard kurallar açısından zaten geçerli başlangıç çözümü
+- Başlangıç korundu 300/300
+- Arama düğümü 0
+- Program değişmedi · yazma işlemi yok
 
-Öğretmen havuzu ekranının ürün anlamı ayrıca yeniden değerlendirilebilir; placement override ile aynı kavram değildir.
+Program ekranına dön ve placement state'in değişmediğini doğrula.
 
-## 6. Çalışma yöntemi
+## 6. Test
 
-Kalıcı çalışma sözleşmesi:
-
-- Önce mevcut remote HEAD ve çalışma ağacını doğrula.
-- Proje tarihçesini baştan keşfetme; önce `AGENTS.md` oku.
-- Focused diagnostic → minimum düzeltme.
-- Applied migration geriye dönük değiştirilmez.
-- DB değişikliğinde:
-  - `npm run build`
-  - `npx supabase migration list`
-  - `npx supabase db push --dry-run`
-  - yalnız beklenen migration varsa `npx supabase db push`
-- Force push yapma.
-- Production promotion öncesi remote branch HEAD'i yeniden doğrula.
-- Oturum sonunda `AGENTS.md` ve bu handoff dosyasını güncelle.
-- Terminal komutlarında sade fenced code kullan; code fence içine metadata/id ekleme.
-
-## 7. Node / build
-
-Temiz kurulum gerekiyorsa:
+Node ortamı varsa:
 
 ```bash
-npm ci
+npm test
 npm run build
 ```
 
-26 Eylül son doğrulamasında:
+Özellikle lib/managementSolverPrototype.test.ts PASS beklenir.
 
-- Next.js 16.3.4 build PASS
-- TypeScript PASS
-- static generation PASS
+## 7. Sonraki paket
 
-## 8. Sonraki oturum — karar verilmiş yol haritası
+M33.1 browser smoke + M33.2 Vitest/browser PASS sonrası:
 
-Yeni oturumun görevi M29'u tekrar düzeltmek değil. M29 ancak yeni bir regression kanıtı varsa yeniden açılır.
+M33.3 explainable objective optimization:
+- objective metric vector
+- baseline delta
+- weighted optimization search
+- açıklanabilir alternatif çözüm karşılaştırması
+- otomatik apply yok
+- human review ve explicit commit daha sonraki ayrı aşama
 
-Kullanıcıyla sıradaki çalışma sırası kararlaştırıldı:
+## 8. Değişmez çalışma yöntemi
 
-1. **Öğretmen havuzu read-only veri teşhisi**
-   - M29.1–M29.3 test yan ürünü olabilecek `course_requirement_teachers` kayıtlarını tespit et.
-   - Gerçek Ders Planı kuralı ile deneysel kaydı ayır.
-   - Körlemesine silme yapma; önce kanıt üret.
-2. **Otomatik / yarı otomatik yerleştirme**
-   - Mevcut candidate/conflict altyapısını kullan.
-   - En kısıtlı kartları önce ele alan “solitaire” yaklaşımını geliştir.
-3. **Müfredat / zorunlu ders saat denetimi**
-   - M23 curriculum compliance altyapısını yönetim uyarılarına dönüştür.
-4. **Dönem yaşam döngüsü**
-   - 1. dönem arşivleme, 2. dönem oluşturma, şablon/kopya ve DRAFT/PUBLISHED/ARCHIVED akışı.
-5. **Yönetim Programı son UX turu**
-   - Kompaktlık, bilgi yoğunluğu ve sağ panel sadeleştirmesi.
-6. **Yayın akışı**
-   - Yönetim çizelgesinden gerçek öğrenci/öğretmen programına kontrollü publish.
-
-### Şimdi başlanacak iş
-
-İlk implementation paketi **öğretmen havuzu read-only veri teşhisidir**.
-
-Bu teşhis tamamlanmadan otomatik yerleştirme için yeni veri-mutating davranış ekleme.
+- Applied migration geriye dönük düzenlenmez.
+- DB değişikliğinde migration list + dry-run + yalnız beklenen migration apply.
+- Remote mutation öncesi HEAD doğrulanır.
+- Force push yok.
+- Küçük, tek amaçlı commitler.
+- Runtime/browser kanıtı varsayımdan üstündür.
+- M32.4.2: planning pool != manual placement override.
+- M22: UNKNOWN != ABSENT != UNAVAILABLE.
+- Solver hesapları mümkün olduğunca snapshot + in-memory yapılır.
