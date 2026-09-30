@@ -106,6 +106,7 @@ import {
   placeManagementCardBundle,
   previewManagementPlacementResourceChange,
   applyManagementPlacementResourceChange,
+  applyManagementSolverProposalBundle,
   previewManagementCandidateForwardImpacts,
   redoManagement,
   redoManagementBundle,
@@ -2570,9 +2571,12 @@ export default function ManagementPage() {
                 `${plan.items.length} ders tek işlem olarak güncelleniyor.`,
               );
 
-              await moveManagementCardBundle(
+              await applyManagementSolverProposalBundle(
                 session.accessToken,
-                plan.items,
+                {
+                  items: plan.items,
+                  expectedBaselineHash: proposal.baselineHash,
+                },
               );
 
               // The old history descriptor predates this proposal bundle.
