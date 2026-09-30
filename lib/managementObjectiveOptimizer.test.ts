@@ -329,6 +329,147 @@ describe('M33.3 weighted objective optimization', () => {
     expect(result.proposedMetrics.changeCost).toBe(1);
   });
 
+  it('does not miss a better single-priority seed under combined weights', () => {
+    const data = baseSnapshot();
+
+    data.requirements = [
+      {
+        ...data.requirements[0],
+        id: 'r1',
+        subjectId: 's1',
+        subjectName: 'Ders 1',
+        groupId: 'g1',
+      },
+      {
+        ...data.requirements[1],
+        id: 'r2',
+        subjectId: 's2',
+        subjectName: 'Ders 2',
+        groupId: 'g2',
+      },
+      {
+        ...data.requirements[1],
+        id: 'r3',
+        subjectId: 's3',
+        subjectName: 'Ders 3',
+        groupId: 'g3',
+      },
+    ];
+    data.cards = [
+      {
+        id: 'c1',
+        requirementId: 'r1',
+        blockIndex: 1,
+        durationPeriods: 1,
+        locked: false,
+      },
+      {
+        id: 'c2',
+        requirementId: 'r2',
+        blockIndex: 1,
+        durationPeriods: 1,
+        locked: false,
+      },
+      {
+        id: 'c3',
+        requirementId: 'r3',
+        blockIndex: 1,
+        durationPeriods: 1,
+        locked: false,
+      },
+    ];
+    data.instructionalGroups = [
+      data.instructionalGroups[0],
+      data.instructionalGroups[1],
+      {
+        id: 'g3',
+        classGroupId: 'cg3',
+        name: '7A',
+        groupType: 'SECTION',
+        termStatus: 'ACTIVE',
+        knowledgeStatus: 'CONFIRMED',
+      },
+    ];
+    data.teacherPools = [
+      { requirementId: 'r1', teacherId: 't1' },
+      { requirementId: 'r2', teacherId: 't1' },
+      { requirementId: 'r3', teacherId: 't1' },
+    ];
+    data.roomPools = [
+      { requirementId: 'r1', roomId: 'room1' },
+      { requirementId: 'r2', roomId: 'room2' },
+      { requirementId: 'r3', roomId: 'room1' },
+    ];
+    data.baselinePlacements = [
+      {
+        cardId: 'c1',
+        dayOfWeek: 1,
+        startPeriod: 1,
+        teacherId: 't1',
+        roomId: 'room1',
+      },
+      {
+        cardId: 'c2',
+        dayOfWeek: 1,
+        startPeriod: 4,
+        teacherId: 't1',
+        roomId: 'room2',
+      },
+      {
+        cardId: 'c3',
+        dayOfWeek: 1,
+        startPeriod: 7,
+        teacherId: 't1',
+        roomId: 'room1',
+      },
+    ];
+    data.baselineMetrics = {
+      ...data.baselineMetrics,
+      cardCount: 3,
+      placedCardCount: 3,
+      teacherIdleGapPeriods: 4,
+    };
+
+    const gapOnly = runManagementObjectiveOptimization(
+      data,
+      {
+        ...ZERO_WEIGHTS,
+        teacherIdleGaps: 1000,
+      },
+      {
+        maxIterations: 4,
+        maxNeighborsPerCard: 40,
+      },
+    );
+
+    const combined = runManagementObjectiveOptimization(
+      data,
+      {
+        ...ZERO_WEIGHTS,
+        changeCost: 1000,
+        teacherIdleGaps: 1000,
+      },
+      {
+        maxIterations: 4,
+        maxNeighborsPerCard: 40,
+      },
+    );
+
+    const gapSeedCombinedCost = (
+      gapOnly.proposedMetrics.changeCost
+      + gapOnly.proposedMetrics.teacherIdleGapPeriods
+    );
+    const combinedCost = (
+      combined.proposedMetrics.changeCost
+      + combined.proposedMetrics.teacherIdleGapPeriods
+    );
+
+    expect(combinedCost).toBeLessThanOrEqual(
+      gapSeedCombinedCost,
+    );
+    expect(combined.writesPerformed).toBe(false);
+  });
+
   it('blocks optimization when no supported priority is active', () => {
     const result = runManagementObjectiveOptimization(
       baseSnapshot(),
