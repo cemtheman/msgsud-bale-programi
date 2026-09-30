@@ -10,15 +10,16 @@
 | Alan | Değer |
 |---|---|
 | Repository | `cemtheman/msgsud-bale-programi` |
-| Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
+| Aktif çalışma ortamı | `GitHub Codespaces` |
+| Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `main` |
 | Son doğrulanmış implementation checkpoint | `1383862c95c75a11ba4d8dbf5995c8545d1b74ce` |
 | Implementation commit | `M33.2 Friday K. Bale rule fix migration + priorities disclaimer` |
 | Son documentation checkpoint | `5a310106a4848446100259a8dd01b6dace1f8c11` |
-| Son kullanıcı/QA kabulü | M33.1 CLOSED/PASS; M33.2 remaining conflict traced to stale maxConsecutivePeriods=1 against confirmed Friday 7+8 rule |
-| Sıradaki iş paketi | Apply M33.2.1 migration + QA + browser rerun + Vitest; then M33.3 objective optimization |
+| Son kullanıcı/QA kabulü | M33.2.1 migration uygulandı; Friday K. Bale QA PASS: maxConsecutivePeriods=2, 2 kart, Cuma 7–8, E. Gemalmaz korundu |
+| Sıradaki iş paketi | Production browser rerun + M33.2 Vitest; ardından M33.2 CLOSED ve M33.3 objective optimization |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
-| Build | `npm.cmd run build` → `next build --webpack` |
+| Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
 
 Not: Bu dosyanın kendisini ekleyen documentation commit, yukarıdaki implementation SHA'nın yalnızca dokümantasyon çocuğudur. Yeni oturumda branch HEAD ayrıca `git rev-parse HEAD` ile doğrulanmalıdır.
@@ -29,24 +30,26 @@ Kullanıcı patch uygulamaz. Kod değişikliği gerekiyorsa asistan GitHub üzer
 
 Remote mutation öncesinde branch HEAD mutlaka tekrar okunur. Beklenen SHA değişmişse eski HEAD üzerine körlemesine commit atılmaz; önce yeni durum incelenir. Force push yapılmaz. Değişiklikler küçük, tek amaçlı ve geri alınabilir commitler halinde tutulur.
 
-Veritabanı davranışı değişmiyorsa migration yazılmaz. Migration gerekiyorsa yeni timestamp'li migration oluşturulur; daha önce uygulanmış migration dosyaları geriye dönük düzenlenmez. Kullanıcıya önce `npx.cmd supabase migration list`, sonra `npx.cmd supabase db push --dry-run`, yalnızca beklenen migration görünüyorsa `npx.cmd supabase db push` akışı verilir.
+Veritabanı davranışı değişmiyorsa migration yazılmaz. Migration gerekiyorsa yeni timestamp'li migration oluşturulur; daha önce uygulanmış migration dosyaları geriye dönük düzenlenmez. Aktif ortam Codespaces olduğu sürece kullanıcıya önce `npx supabase migration list`, sonra `npx supabase db push --dry-run`, yalnızca beklenen migration görünüyorsa `npx supabase db push` akışı verilir.
 
 Sorun teşhisinde ekran görüntüsü/video ve gerçek runtime davranışı kaynak koddaki varsayımlardan önce gelir. Görselde bir şeyi “browser ghost”, “cache”, “gerçek conflict” vb. diye ilan etmeden önce kanıt aranır. Spekülatif SQL migration eklemekten kaçınılır; reason code veya gerçek blocker gerekirse önce read-only diagnostic eklenir.
 
-Yanıt dili Türkçedir. Komutlar Windows PowerShell uyumlu verilir. Kullanıcı teknik olarak yetkindir; gereksiz temel anlatım yapılmaz.
+Yanıt dili Türkçedir. **Aktif ortam GitHub Codespaces'tir. Kullanıcı ortam değişikliğini açıkça bildirene kadar bütün terminal komutları Codespaces/Linux biçiminde verilir.** Kullanıcı ortam değiştirdiğinde bunu asistanla paylaşacak; asistan da aynı oturumda AGENTS.md ve continuation handoff içindeki aktif ortam bilgisini güncelleyecek. Kullanıcı teknik olarak yetkindir; gereksiz temel anlatım yapılmaz.
 
 ## 3. Yeni oturum başlangıç protokolü
 
-Yeni oturumda ilk iş bu dosya okunur. Ardından aşağıdaki durum doğrulanır:
+Yeni oturumda ilk iş bu dosya okunur. Aktif ortam burada `GitHub Codespaces` olarak kayıtlıysa ve kullanıcı ortam değişikliği bildirmediyse aşağıdaki akış kullanılır:
 
-```powershell
-cd C:\Users\chodo\msgsud-bale-programi
+```bash
+cd /workspaces/msgsud-bale-programi
 git fetch origin
 git switch main
 git pull --ff-only
 git rev-parse HEAD
 git status --short
 ```
+
+**Ortam sürekliliği sözleşmesi:** Son bildirilen çalışma ortamı yeni bir bildirim gelene kadar geçerlidir. Asistan eski Windows/Mac komutlarına kendiliğinden dönmez. Kullanıcı ortam değişikliğini bildirdiğinde bu bölüm ve continuation handoff aynı oturumda güncellenir.
 
 Working tree temiz değilse değişikliklerin kaynağı anlaşılmadan restore/reset yapılmaz. Branch HEAD bu dosyadaki son implementation checkpoint'ten ilerideyse `git log --oneline --decorate -n 20` ile yeni commitler okunur ve dosya güncellenir. Eski proje tarihçesi baştan keşfedilmez.
 
@@ -3979,3 +3982,55 @@ uygun.
 Sıradaki adım:
 - repo güncellendikten sonra migration dry-run/push yeniden çalıştır
 - ardından docs/sql/m33_2_1_friday_k_bale_rule_qa.sql
+
+
+## 62. 30 Eylül 2026 — Codespaces çalışma ortamı + M33.2.1 QA PASS
+
+### Aktif çalışma ortamı sözleşmesi
+
+Kullanıcı projenin bir süredir GitHub Codespaces üzerinde yürütüldüğünü ve ortam değişikliklerini
+bundan sonra açıkça bildireceğini belirtti.
+
+Kalıcı çalışma kuralı:
+- aktif ortam: **GitHub Codespaces**
+- çalışma dizini: `/workspaces/msgsud-bale-programi`
+- terminal: Linux/bash
+- npm/npx komutları: `npm`, `npx`
+- **`npm.cmd` / `npx.cmd` kullanılmaz**
+- build: `npm run build`
+- test: `npm test`
+- Supabase CLI: `npx supabase ...`
+- kullanıcı yeni bir ortam bildirmedikçe Codespaces geçerli kabul edilir
+- ortam değişikliğinde kullanıcı haber verir; asistan aynı oturumda AGENTS.md ve continuation handoff'u günceller
+
+### M33.2.1 migration + QA sonucu
+
+UUID aggregate hotfix sonrasında migration başarıyla uygulandı.
+
+Kullanıcının read-only QA çıktısı:
+```
+requirement_id = bf0f82f8-e370-4426-9ea3-56b9e8462bf0
+max_consecutive_periods = 2
+card_count = 2
+one_period_card_count = 2
+friday_placed_count = 2
+friday_min_period = 7
+friday_max_period = 8
+teacher_names = ["E. Gemalmaz"]
+qa_status = PASS
+```
+
+Sonuç:
+- M33.2.1 DB düzeltmesi PASS
+- Cuma ek dersi structural rule artık confirmed schedule ile uyumlu
+- iki 1-saatlik kart korunmuş
+- Cuma 7 ve 8. ders korunmuş
+- E. Gemalmaz korunmuş
+- migration placement/teacher/room'u bozmadı
+
+M33.2 kapanış için kalan:
+1. production Öncelikler > Programı kontrol et browser rerun
+2. beklenen: mevcut program artık hard-rule açısından baseline-feasible
+3. ideal smoke: 300/300 yerinde kalan ders, kural uyuşmazlığı yok
+4. Codespaces'te `npm test` ile Vitest PASS
+5. ardından M33.2 CLOSED ve M33.3'e geçiş
