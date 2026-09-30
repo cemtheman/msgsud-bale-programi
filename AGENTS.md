@@ -16,7 +16,7 @@
 | Implementation commit | `M32.5.1 candidate summary ownership — rollback QA PASS` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M33 — solver snapshot + soft-objective foundation |
+| Sıradaki iş paketi | M33 — solver snapshot/objective foundation production + rollback QA doğrulaması; ardından M33.1 objective profile UX |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -2884,3 +2884,199 @@ Sıradaki mimari paket M33:
   time-of-day preference ve change penalty için explicit objective model
 - objective ağırlıkları kullanıcı/kurum kararı olmadan sessizce “en iyi” seçmeyecek
 - feasibility → optimize → explain → human review → commit akışının foundation'ı
+
+
+## 50. 30 Eylül 2026 — M33 solver snapshot + objective foundation
+
+M32.5 CLOSED/PASS sonrası solver mimarisinin ilk kalıcı katmanı oluşturuldu.
+
+Yeni migration:
+```
+20260930071500_management_m33_solver_snapshot_objectives.sql
+```
+
+Amaç:
+- henüz solver çalıştırmak değil
+- solver'a verilecek girdiyi deterministic ve immutable hale getirmek
+- mevcut programı solver truth değil baseline/change-cost girdisi yapmak
+- hard constraints ile soft objectives'i açıkça ayırmak
+- kurum objective ağırlıkları tanımlanmadan sessiz “en iyi” seçimi yapmamak
+
+### Objective profile modeli
+
+Yeni tablo:
+`management_solver_objective_profiles`
+
+Desteklenen objective key'ler:
+- changeCost
+- preferredTeacherContinuity
+- teacherIdleGaps
+- roomStability
+
+Ayrılmış ama henüz desteklenmeyen:
+- teacherLoadBalance → explicit teacher load target verisi eksik
+- subjectTimePreference → explicit subject/day/time preference verisi eksik
+
+Ağırlık aralığı: 0..1000.
+
+Kurallar:
+- unknown key reddedilir
+- non-integer / out-of-range value reddedilir
+- unsupported objective >0 olamaz
+- ACTIVE profile en az bir positive supported objective ister
+- sistem otomatik active profile yaratmaz/seçmez
+- explicit ACTIVE seçildiğinde aynı requirement set içindeki eski ACTIVE profile DRAFT'a döner
+
+RPC:
+- management_validate_solver_objective_weights(jsonb)
+- management_upsert_solver_objective_profile(uuid,uuid,text,text,jsonb,text)
+- management_list_solver_objective_profiles(uuid)
+
+### Immutable solver snapshot
+
+Yeni tablo:
+`management_solver_snapshots`
+
+Snapshot:
+- active requirements
+- materialized schedule cards
+- instructional groups + relations
+- planning teacher pools
+- room pools
+- teacher/room operational state
+- teacher requirement/scope/continuity
+- requirement structural rules
+- locked card state
+- current placements as ayrı baseline
+- objective profile yalnız explicit id verilirse
+
+Önemli mimari karar:
+`schedule_card_candidate_assessments` snapshot'a ALINMIYOR.
+
+Neden:
+candidate rows current placement occupancy'ye göre generated.
+Global optimizer bu row'ları immutable domain kabul ederse, başka kart taşındığında açılacak
+alternatifleri yanlışlıkla kapatmış olur.
+Solver kendi simultaneous domains'ini structural inputs'tan türetecek.
+Interactive workbench/M32.5 forward impact candidate rows'u kullanmaya devam eder.
+
+Snapshot hard constraint contract:
+- day 1..5 / period 1..12
+- no block across lunch boundary
+- teacher overlap yok
+- room overlap yok
+- participant-group overlap yok
+- locked card pin
+- REQUIREMENT+REQUIRED teacher continuity
+- declared minDistinctDays
+- declared maxBlocksPerDay
+- declared maxConsecutivePeriods
+
+Readiness hard blockers:
+- teacher requirement unspecified
+- teacher-bearing assignment scope unspecified
+- required teacher active pool empty
+- required continuity violation
+- room/resource mode unknown
+- fixed/pool room active option missing
+- capability room unavailable
+- inactive baseline teacher/room
+- baseline time out of bounds/lunch crossing
+
+Readiness flags:
+- hardInputReady
+- objectiveProfileReady
+- solverPrototypeReady
+
+`hardInputReady` feasibility proof değildir; yalnız solver input modelinin coherent olduğunu
+söyler.
+
+### Baseline semantics
+
+Current placements:
+- ground truth değildir
+- unlocked placement hard constraint değildir
+- changeCost objective pozitif ise korunması tercih edilir
+- locked cards hard pin olarak kalır
+
+Baseline metrics:
+- card / placed / unplaced / locked count
+- changeCost = 0
+- preferred teacher continuity breaks
+- teacher idle-gap periods
+- room stability breaks
+
+Snapshot deterministic hash + baseline hash üretir.
+
+RPC:
+- management_preview_solver_snapshot(uuid,uuid)
+- management_capture_solver_snapshot(uuid,uuid)
+- management_get_solver_snapshot(uuid)
+
+Capture:
+- yalnız DRAFT
+- hardInputReady=false ise capture blocked
+- objective profile null olabilir (feasibility development)
+- immutable app-level: update/delete RPC yok
+- aynı revision+snapshot hash yeniden capture edilirse duplicate row yerine existing snapshot döner
+
+Migration commit:
+```
+e9123320febd57f22143efa0845a3c6cf0f2f038 feat: add solver snapshot and objective foundation
+```
+
+Read-only readiness diagnostic:
+```
+docs/sql/m33_solver_snapshot_preview.sql
+```
+Commit:
+```
+db203ada5b8d33ff8d485eeacbbd319948d665d1
+```
+
+Rollback-only snapshot QA:
+```
+docs/sql/m33_solver_snapshot_rollback_qa.sql
+```
+Commit:
+```
+5518b4a2ea9b1c4da7df6cd60ad2a5b7c0119a1f
+```
+
+QA:
+1. active DRAFT snapshot preview iki kez
+2. snapshotHash deterministic
+3. baselineHash deterministic
+4. candidateDomainIncluded=false
+5. hardInputReady beklenir
+6. null objective profile → objectiveProfileReady=false
+7. snapshot capture
+8. stored hash/payload preview ile aynı
+9. ROLLBACK
+
+Architecture doc:
+```
+docs/SOLVER_SNAPSHOT_AND_OBJECTIVE_FOUNDATION.md
+```
+Commit:
+```
+e0720a516402ea764d12034788feb4df0c56b7be
+```
+
+M33 validation batch:
+1. pull / HEAD / clean status
+2. npm test
+3. npm run build
+4. migration list + dry-run
+5. yalnız M33 migration expected
+6. db push
+7. m33_solver_snapshot_preview.sql
+8. hardInputReady sonucunu incele
+9. hardInputReady=true ise rollback QA
+10. snapshot QA PASS sonrası M33.1 objective profile UX
+
+M33 sonrası plan:
+- M33.1 user-facing objective profile editor (ham JSON değil anlaşılır hedefler)
+- sonra immutable snapshot consumer feasibility solver prototype
+- solver output explainable metric vector + baseline delta üretmeli
+- solver implementation library-agnostic kalmalı
