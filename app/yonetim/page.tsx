@@ -248,7 +248,17 @@ function commandContextLabel(
   const audience = bundleAudience
     || (card.classCodes.length > 0 ? card.classCodes.join(', ') : card.groupName);
 
-  return `${audience} ${card.subjectName} ${actionNoun(descriptor.action)}`;
+  const placement = card.placement;
+  const placementContext = placement
+    ? [
+      DAY_LONG[placement.dayOfWeek],
+      `${placement.startPeriod}. ders`,
+      placement.teacherName,
+      placement.roomName,
+    ].filter(Boolean).join(' · ')
+    : '';
+
+  return `${audience} ${card.subjectName} ${actionNoun(descriptor.action)}${placementContext ? ` · ${placementContext}` : ''}`;
 }
 
 function completedCommandMessage(
