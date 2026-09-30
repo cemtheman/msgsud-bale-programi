@@ -360,13 +360,6 @@ function roomChoices(
   return [null];
 }
 
-function baselineDimensionAllowed<T>(
-  baselineValue: T | null,
-  choices: Array<T | null>,
-) {
-  return choices.some((choice) => choice === baselineValue);
-}
-
 function baselineResourceDimensionsAllowed(
   requirement: ManagementSolverRequirement,
   baseline: ManagementSolverBaselinePlacement,
