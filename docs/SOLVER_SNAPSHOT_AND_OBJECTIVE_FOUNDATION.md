@@ -38,3 +38,20 @@ No objective profile is implicitly selected and no hidden default ranking exists
 Validate → Feasibility → Optimize → Explain → Human Review → Commit
 
 The snapshot contract is solver-library agnostic.
+
+
+## M33.0.1 provisional room readiness
+
+M33 originally treated every `resource_mode=UNKNOWN` requirement as a hard
+solver-input blocker. That contradicted the established M22 resource model:
+unknown room identity is schedulable as `PROVISIONAL_UNKNOWN`; it is not the
+same thing as an absent or unavailable room.
+
+The corrected readiness contract therefore keeps UNKNOWN room strategy inside
+the snapshot as an explicit provisional input warning. It does not rewrite the
+requirement to FIXED/ELIGIBLE_POOL and it does not infer room eligibility from a
+single observed baseline room.
+
+Hard readiness is blocked only by genuinely contradictory or unavailable input.
+The snapshot exposes provisional counts separately so solver output can retain
+and explain unresolved room identity.
