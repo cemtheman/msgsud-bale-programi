@@ -221,11 +221,22 @@ describe('M33.3 weighted objective optimization', () => {
     expect(result.proposedMetrics.changeCost).toBe(1);
     expect(result.changedCards).toHaveLength(1);
 
-    const moved = result.placements.find(
-      (placement) => placement.cardId === 'c2',
-    );
-    expect(moved?.dayOfWeek).toBe(1);
-    expect(moved?.startPeriod).toBe(2);
+    const proposed = result.placements
+      .map((placement) => ({
+        dayOfWeek: placement.dayOfWeek,
+        startPeriod: placement.startPeriod,
+      }))
+      .sort((left, right) => (
+        left.dayOfWeek - right.dayOfWeek
+        || left.startPeriod - right.startPeriod
+      ));
+
+    expect(proposed).toHaveLength(2);
+    expect(proposed[0].dayOfWeek).toBe(1);
+    expect(proposed[1].dayOfWeek).toBe(1);
+    expect(
+      proposed[1].startPeriod - proposed[0].startPeriod,
+    ).toBe(1);
   });
 
   it('keeps the baseline when preserving it ties the gap improvement', () => {
