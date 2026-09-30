@@ -5068,3 +5068,52 @@ Sıradaki acceptance:
 9. proposal apply -> undo -> redo
 10. post-redo Programı kontrol et / hard-rule validity
 11. typography browser review
+
+
+## 76. 30 Eylül 2026 — M33.4 second browser acceptance
+
+Kullanıcı ikinci browser turunda:
+- ilk proposal apply denemesinde timeout gördü
+- sonraki apply başarı toast'ı verdi
+- Geri Al çalıştı
+- Yinele yine `Seçtiğiniz yer artık uygun değil` ile başarısız oldu
+- büyütülen Öncelikler yazıları okunabilir bulundu
+
+Önemli teşhis:
+`Seçtiğiniz yer artık uygun değil` çevirisi eski M26.1 single-root redo
+`target candidate no longer exists / target invalid` yoluna karşılık gelir.
+M33.4.1 bundle-redo migration aktif olduğunda ordinary MOVE bundle bu eski
+single-root candidate replay yoluna girmemelidir.
+
+Bu nedenle remote DB'de
+`20260930160000_management_m33_4_1_bundle_redo.sql`
+uygulama durumu doğrulanmadan yeni redo algoritması eklenmeyecek.
+
+Proposal apply ilk timeout da eski M26.8 remote fonksiyonunun halen aktif olmasıyla
+uyumlu olabilir; M33.4.1 per-member exact candidate revalidation'ı kaldırır.
+
+Ek UI fix:
+```
+a55b0023fc7f44bba3daadea7a648070321a02f9
+fix: invalidate applied and stale solver proposals
+```
+
+Davranış:
+- successful proposal apply sonrası confirmation kapanır
+- applied proposal result temizlenir; aynı stale öneri tekrar uygulanamaz
+- workspace snapshotHash/baselineHash değişirse mevcut proposal otomatik temizlenir
+- eski proposal error state temizlenir
+
+Sıradaki zorunlu teşhis:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npx supabase migration list | tail -25
+npx supabase db push --dry-run
+```
+
+Beklenti:
+- remote migration list içinde 20260930160000 görünmeli
+- görünmüyorsa dry-run yalnız M33.4.1 migration göstermeli ve push edilmelidir
+
+Migration aktif olduğu doğrulandıktan sonra proposal apply/undo/redo yeniden test edilir.
