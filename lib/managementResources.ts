@@ -468,7 +468,7 @@ export function updateManagementTeacherDisplayName(
   displayName: string,
 ) {
   return authedRpc<ManagementResourceNameUpdateResult>(
-    'management_set_teacher_display_name',
+    'management_set_teacher_display_name_v2',
     accessToken,
     {
       p_schedule_revision_id: revisionId,
@@ -485,7 +485,7 @@ export function updateManagementRoomDisplayName(
   displayName: string,
 ) {
   return authedRpc<ManagementResourceNameUpdateResult>(
-    'management_set_room_display_name',
+    'management_set_room_display_name_v2',
     accessToken,
     {
       p_schedule_revision_id: revisionId,
@@ -579,7 +579,7 @@ export function applyManagementRoomProfile(
   expectedStateToken: string,
 ) {
   return authedRpc<ManagementRoomProfileApplyResult>(
-    'management_apply_room_profile',
+    'management_apply_room_profile_v2',
     accessToken,
     {
       p_schedule_revision_id: revisionId,
@@ -663,7 +663,7 @@ export function applyManagementRoomOperationalStatus(
   expectedStateToken: string,
 ) {
   return authedRpc<ManagementRoomStatusApplyResult>(
-    'management_apply_room_operational_status',
+    'management_apply_room_operational_status_v2',
     accessToken,
     {
       p_schedule_revision_id: revisionId,
@@ -698,23 +698,31 @@ export interface ManagementTeacherStatusResult {
 
 export function createManagementTeacherResource(
   accessToken: string,
+  revisionId: string,
   name: string,
 ) {
   return authedRpc<ManagementResourceCreateResult>(
-    'management_create_teacher_resource',
+    'management_create_teacher_resource_v2',
     accessToken,
-    { p_name: name },
+    {
+      p_schedule_revision_id: revisionId,
+      p_name: name,
+    },
   );
 }
 
 export function createManagementRoomResource(
   accessToken: string,
+  revisionId: string,
   name: string,
 ) {
   return authedRpc<ManagementResourceCreateResult>(
-    'management_create_room_resource',
+    'management_create_room_resource_v2',
     accessToken,
-    { p_name: name },
+    {
+      p_schedule_revision_id: revisionId,
+      p_name: name,
+    },
   );
 }
 
@@ -725,7 +733,7 @@ export function setManagementTeacherOperationalStatus(
   operationalStatus: ManagementTeacherOperationalStatus,
 ) {
   return authedRpc<ManagementTeacherStatusResult>(
-    'management_set_teacher_operational_status',
+    'management_set_teacher_operational_status_v2',
     accessToken,
     {
       p_schedule_revision_id: revisionId,
@@ -737,22 +745,30 @@ export function setManagementTeacherOperationalStatus(
 
 export function deleteManagementTeacherResource(
   accessToken: string,
+  revisionId: string,
   teacherId: string,
 ) {
   return authedRpc<ManagementResourceDeleteResult>(
-    'management_delete_teacher_resource',
+    'management_delete_teacher_resource_v2',
     accessToken,
-    { p_teacher_id: teacherId },
+    {
+      p_schedule_revision_id: revisionId,
+      p_teacher_id: teacherId,
+    },
   );
 }
 
 export function deleteManagementRoomResource(
   accessToken: string,
+  revisionId: string,
   roomId: string,
 ) {
   return authedRpc<ManagementResourceDeleteResult>(
-    'management_delete_room_resource',
+    'management_delete_room_resource_v2',
     accessToken,
-    { p_room_id: roomId },
+    {
+      p_schedule_revision_id: revisionId,
+      p_room_id: roomId,
+    },
   );
 }
