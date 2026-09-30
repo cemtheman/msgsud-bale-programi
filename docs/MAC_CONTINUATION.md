@@ -589,3 +589,47 @@ fix: invalidate applied and stale solver proposals
 ```
 
 Successful apply now clears the proposal/confirmation; workspace hash changes clear stale proposals.
+
+
+## 17. M33.4.2 fast apply/redo
+
+Latest browser result:
+- redo now hits statement timeout rather than old single-card invalid-candidate error
+- interpreted as M33.4.1 path active but too heavy
+
+New migration:
+```
+20260930164500_management_m33_4_2_fast_solver_apply_redo.sql
+b7697ca0a18780ad17354563256cf12b8392d28a
+```
+
+Client:
+```
+aa964985e5074a397415e421c66bbddb98117a64
+bc92faf394b7789ad8082f7dd4e94153c4030aa7
+```
+
+M33.4.2 removes occupancy-relative candidate-domain refresh from solver apply
+and MOVE redo critical transactions.
+
+Safety retained:
+- baseline hash stale guard
+- DRAFT/revision/lock checks
+- external + internal time/resource/group overlap validation
+- atomic history bundle
+- undo/redo audit semantics
+
+Interactive candidate data remains lazy; drag/assistant already refresh selected groups.
+
+Codespaces:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
+npx supabase migration list | tail -30
+npx supabase db push --dry-run
+```
+
+Then push expected pending migrations and browser test:
+proposal -> apply -> undo -> redo -> undo -> redo.
