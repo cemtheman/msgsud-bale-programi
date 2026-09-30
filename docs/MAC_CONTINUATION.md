@@ -752,3 +752,27 @@ npm run build
 ```
 
 Then browser review all 5 tabs for clipping/overflow after typography growth.
+
+
+## 21. UI normalization visual acceptance
+
+Post-normalization screenshots reviewed.
+
+Accepted:
+- Program
+- Ders Planı
+- Kaynaklar
+- Öncelikler
+- Program Durumu overall hierarchy
+- global history placement
+
+No visible clipping/overflow regressions.
+
+Small follow-up:
+```
+2b7a2a7b2f11da1c6a29f27bc00c470e8d6b0f76
+ui: hide zero issue badges on program status
+```
+
+Optional later:
+make publication comparison list collapsible/shorter; not required for current acceptance.
