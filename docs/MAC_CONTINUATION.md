@@ -151,3 +151,46 @@ npm run build
 Yeni oturumun görevi M29'u tekrar düzeltmek değil.
 
 Önce kullanıcıyla yönetim modülünde sıradaki ürün/UX iş paketini belirle ve mevcut `main` üzerinden devam et. Öğretmen havuzu konusu açılırsa yukarıdaki veri-teşhis notunu uygula.
+
+## 9. 30 Eylül 2026 — Yeni local-first çalışma politikası
+
+Vercel Build CPU tüketimi nedeniyle geliştirme akışı değiştirildi. Bundan sonra
+MSGSÜ İDK'da ana geliştirme/test ortamı localhost veya Codespaces'tır; Vercel
+yalnız preview/production yayın katmanıdır.
+
+Günlük macOS akışı:
+
+```bash
+cd ~/msgsud-bale-programi
+git fetch origin
+git switch feat/management-m20-placement-recovery
+git pull --ff-only
+npm install
+npm run dev
+```
+
+Tarayıcı:
+
+```text
+http://localhost:3000
+```
+
+Windows iş bilgisayarında Node/NPM yoksa GitHub Codespaces kullan ve port 3000
+preview/webview üzerinden çalış.
+
+Git/Vercel kuralı:
+
+- normal commit/push: GitHub checkpoint, Vercel build yok
+- preview gerekiyorsa commit mesajına `[deploy]`
+- production: anlamlı/accepted checkpoint'te promotion
+- build makinesi: Basic 2 vCPU / 8 GB
+- concurrent builds: disabled
+- production builds: prioritized
+- Team Spend Management: $5 on-demand budget, Pause On
+
+Ignored Build Step'in kalıcı mantığı: production her zaman build edilir;
+feature branch yalnız commit mesajında `[deploy]` varsa build edilir.
+
+Bu handoff'tan sonra kullanıcıya gereksiz Vercel preview önermeyin. Önce
+localhost/Codespaces doğrulaması yapın.
+
