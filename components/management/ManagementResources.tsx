@@ -118,6 +118,7 @@ export function ManagementResources({
   onApplyRoomProfile,
   onPreviewRoomStatus,
   onApplyRoomStatus,
+  onOpenProgramResource,
 }: {
   data: ManagementResourceInventoryData | null;
   canEdit: boolean;
@@ -151,6 +152,7 @@ export function ManagementResources({
     operationalStatus: ManagementRoomOperationalStatus,
     expectedStateToken: string,
   ) => Promise<void>;
+  onOpenProgramResource: (kind: 'TEACHER' | 'ROOM', resourceId: string) => void;
 }) {
   const [tab, setTab] = useState<ResourceTab>('TEACHERS');
   const [query, setQuery] = useState('');
@@ -781,7 +783,7 @@ export function ManagementResources({
             </div>
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(240px,1fr)_105px_120px_105px_190px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="grid grid-cols-[minmax(240px,1fr)_105px_120px_105px_235px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
                 <span>Öğretmen</span>
                 <span className="text-right">Aktif ders</span>
                 <span className="text-right">Programdaki blok</span>
@@ -828,6 +830,15 @@ export function ManagementResources({
                       </div>
 
                       <div className="flex justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => onOpenProgramResource('TEACHER', row.id)}
+                          disabled={row.placedBlockCount === 0}
+                          className="rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-[11px] font-bold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-30"
+                          title={row.placedBlockCount > 0 ? 'Bu öğretmenin programdaki derslerini aç' : 'Programda kullanım yok'}
+                        >
+                          Program
+                        </button>
                         <button
                           type="button"
                           onClick={() => openEditor('TEACHER', row)}
@@ -936,7 +947,7 @@ export function ManagementResources({
             )}
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(170px,0.8fr)_90px_125px_minmax(250px,1.35fr)_82px_92px_195px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="grid grid-cols-[minmax(170px,0.8fr)_90px_125px_minmax(250px,1.35fr)_82px_92px_245px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
                 <span>Salon</span>
                 <span>Tür</span>
                 <span>Durum</span>
@@ -1022,6 +1033,15 @@ export function ManagementResources({
                       </p>
 
                       <div className="flex justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onOpenProgramResource('ROOM', row.id)}
+                          disabled={row.placedBlockCount === 0}
+                          className="rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-30"
+                          title={row.placedBlockCount > 0 ? 'Bu salonun programdaki derslerini aç' : 'Programda kullanım yok'}
+                        >
+                          Program
+                        </button>
                         <button
                           type="button"
                           onClick={() => openEditor('ROOM', row)}
