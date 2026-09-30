@@ -249,6 +249,31 @@ export function upsertManagementSolverProfile(
   );
 }
 
+interface SolverRevisionRow {
+  id: string;
+}
+
+async function authedSolverGet<T>(
+  path: string,
+  accessToken: string,
+): Promise<T> {
+  const { url, key } = getSupabaseConfig();
+
+  const response = await fetch(`${url}/rest/v1/${path}`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${accessToken}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error('Optimizasyon taslak bilgisi alınamadı.');
+  }
+
+  return response.json() as Promise<T>;
+}
+
 export async function fetchManagementSolverWorkspace(
   accessToken: string,
   revisionId: string,
@@ -280,4 +305,19 @@ export async function fetchManagementSolverWorkspace(
     activeProfileId: activeProfile?.id ?? null,
     preview,
   };
+}
+
+
+export async function fetchLatestManagementSolverWorkspace(
+  accessToken: string,
+): Promise<ManagementSolverWorkspace | null> {
+  const revisions = await authedSolverGet<SolverRevisionRow[]>(
+    'schedule_revisions?select=id&status=eq.DRAFT&order=version_number.desc&limit=1',
+    accessToken,
+  );
+
+  const revision = revisions[0];
+  if (!revision) return null;
+
+  return fetchManagementSolverWorkspace(accessToken, revision.id);
 }
