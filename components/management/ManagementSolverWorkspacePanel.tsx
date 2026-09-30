@@ -259,7 +259,6 @@ export function ManagementSolverWorkspacePanel({
   }
 
   const hardReady = data.preview.readiness.hardInputReady;
-  const objectiveReady = data.preview.readiness.objectiveProfileReady;
   const provisionalInputs = data.preview.readiness.provisionalInputs ?? [];
   const unknownRooms = provisionalInputs.find(
     (item) => item.code === 'RESOURCE_MODE_UNKNOWN',
@@ -466,7 +465,7 @@ export function ManagementSolverWorkspacePanel({
             {canEdit && (
               <button
                 type="button"
-                onClick={() => loadProfile(null)}
+                onClick={() => requestLoadProfile(null)}
                 disabled={busy}
                 className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-[9px] font-black text-slate-600 hover:bg-slate-50 disabled:opacity-40"
               >
@@ -493,7 +492,7 @@ export function ManagementSolverWorkspacePanel({
                   <button
                     key={profile.id}
                     type="button"
-                    onClick={() => loadProfile(profile)}
+                    onClick={() => requestLoadProfile(profile)}
                     className={`w-full rounded-2xl border p-3 text-left transition ${
                       selected
                         ? 'border-slate-950 bg-slate-950 text-white'
@@ -518,6 +517,33 @@ export function ManagementSolverWorkspacePanel({
               })
             )}
           </div>
+
+          {pendingSelectionId != null && (
+            <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+              <p className="text-[9px] font-black text-amber-900">
+                Kaydedilmemiş değişiklikler var
+              </p>
+              <p className="mt-1 text-[8px] font-medium leading-4 text-amber-800">
+                Başka bir ayara geçerseniz bu değişiklikler kaybolacak.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPendingSelectionId(null)}
+                  className="rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-[8px] font-black text-amber-800"
+                >
+                  Burada kal
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmPendingSelection}
+                  className="rounded-lg bg-amber-700 px-2.5 py-1.5 text-[8px] font-black text-white"
+                >
+                  Değişiklikleri bırak ve geç
+                </button>
+              </div>
+            </div>
+          )}
         </aside>
 
         <div className="min-w-0 space-y-4">
@@ -536,7 +562,7 @@ export function ManagementSolverWorkspacePanel({
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
                 <span className={`rounded-full px-3 py-1.5 text-[9px] font-black ${
                   hardReady
                     ? 'bg-emerald-100 text-emerald-700'
@@ -544,13 +570,16 @@ export function ManagementSolverWorkspacePanel({
                 }`}>
                   {hardReady ? 'Kurallar hazır' : 'Kural bilgileri eksik'}
                 </span>
-                <span className={`rounded-full px-3 py-1.5 text-[9px] font-black ${
-                  objectiveReady
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {objectiveReady ? 'Tercihler hazır' : 'Kullanılacak tercihler seçilmedi'}
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[9px] font-black text-slate-600">
+                  {activeProfile
+                    ? `Kullanımda: ${activeProfile.name}`
+                    : 'Kullanımda olan ayar yok'}
                 </span>
+                {isDirty && (
+                  <span className="rounded-full bg-amber-100 px-3 py-1.5 text-[9px] font-black text-amber-700">
+                    Kaydedilmemiş değişiklikler
+                  </span>
+                )}
               </div>
             </div>
 
@@ -827,7 +856,7 @@ export function ManagementSolverWorkspacePanel({
                 </span>
                 <input
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  onChange={(event) => updateName(event.target.value)}
                   disabled={!canEdit || busy}
                   placeholder="Örn. Dengeli dönem programı"
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-bold text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white disabled:opacity-50"
@@ -854,7 +883,7 @@ export function ManagementSolverWorkspacePanel({
               </span>
               <input
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                onChange={(event) => updateDescription(event.target.value)}
                 disabled={!canEdit || busy}
                 placeholder="Bu ayar ne zaman veya hangi amaçla kullanılacak?"
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[10px] font-medium text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white disabled:opacity-50"
@@ -887,10 +916,10 @@ export function ManagementSolverWorkspacePanel({
                         key={level.value}
                         type="button"
                         disabled={!canEdit || busy}
-                        onClick={() => setWeights((value) => ({
-                          ...value,
-                          [objective.key]: level.value,
-                        }))}
+                        onClick={() => updateWeight(
+                          objective.key,
+                          level.value,
+                        )}
                         className={`rounded-lg px-1 py-2 text-[8px] font-black transition ${
                           current === level.value
                             ? 'bg-slate-950 text-white'
