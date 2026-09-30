@@ -228,6 +228,7 @@ export function ManagementSolverWorkspacePanel({
   const [optimizationBusy, setOptimizationBusy] = useState(false);
   const [pendingSelectionId, setPendingSelectionId] = useState<string | '__NEW__' | null>(null);
   const [activationPending, setActivationPending] = useState(false);
+  const [expandedObjectiveKey, setExpandedObjectiveKey] = useState<ManagementSolverObjectiveKey | null>(null);
 
   const selectedProfile = useMemo(
     () => data?.profiles.find((profile) => profile.id === selectedProfileId) ?? null,
@@ -639,49 +640,95 @@ export function ManagementSolverWorkspacePanel({
             </label>
           </section>
 
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {OBJECTIVES.map((objective) => {
-              const current = weights[objective.key];
+          <section className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <p className="text-[10px] font-black text-slate-900">
+                Tercihler
+              </p>
+              <p className="mt-1 text-[8px] font-medium text-slate-400">
+                Bir tercihi açarak açıklamasını görebilir ve önem düzeyini değiştirebilirsiniz.
+              </p>
+            </div>
 
-              return (
-                <section
-                  key={objective.key}
-                  className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <h3 className="text-[12px] font-black text-slate-950">
-                    {objective.title}
-                  </h3>
-                  <p className="mt-1 text-[9px] font-medium leading-4 text-slate-500">
-                    {objective.summary}
-                  </p>
-                  <p className="mt-2 text-[9px] font-bold text-slate-400">
-                    {objective.baseline(data)}
-                  </p>
+            <div className="divide-y divide-slate-100">
+              {OBJECTIVES.map((objective) => {
+                const current = weights[objective.key];
+                const currentLevel = PRIORITY_LEVELS.find(
+                  (level) => level.value === current,
+                ) ?? PRIORITY_LEVELS[0];
+                const expanded = expandedObjectiveKey === objective.key;
 
-                  <div className="mt-4 grid grid-cols-5 gap-1">
-                    {PRIORITY_LEVELS.map((level) => (
-                      <button
-                        key={level.value}
-                        type="button"
-                        disabled={!canEdit || busy}
-                        onClick={() => updateWeight(
-                          objective.key,
-                          level.value,
-                        )}
-                        className={`rounded-lg px-1 py-2 text-[8px] font-black transition ${
-                          current === level.value
+                return (
+                  <div key={objective.key}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedObjectiveKey(
+                        expanded ? null : objective.key,
+                      )}
+                      className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-slate-50"
+                      aria-expanded={expanded}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[11px] font-black text-slate-950">
+                          {objective.title}
+                        </p>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className={`rounded-full px-2.5 py-1 text-[8px] font-black ${
+                          current > 0
                             ? 'bg-slate-950 text-white'
-                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                        } disabled:opacity-50`}
-                      >
-                        {level.label}
-                      </button>
-                    ))}
+                            : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {currentLevel.label}
+                        </span>
+                        <span
+                          aria-hidden="true"
+                          className={`text-[11px] font-black text-slate-400 transition-transform ${
+                            expanded ? 'rotate-180' : ''
+                          }`}
+                        >
+                          ▾
+                        </span>
+                      </div>
+                    </button>
+
+                    {expanded && (
+                      <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-4">
+                        <p className="text-[9px] font-medium leading-4 text-slate-600">
+                          {objective.summary}
+                        </p>
+                        <p className="mt-2 text-[9px] font-bold text-slate-400">
+                          {objective.baseline(data)}
+                        </p>
+
+                        <div className="mt-4 grid grid-cols-5 gap-1.5">
+                          {PRIORITY_LEVELS.map((level) => (
+                            <button
+                              key={level.value}
+                              type="button"
+                              disabled={!canEdit || busy}
+                              onClick={() => updateWeight(
+                                objective.key,
+                                level.value,
+                              )}
+                              className={`rounded-lg px-1.5 py-2.5 text-[8px] font-black transition ${
+                                current === level.value
+                                  ? 'bg-slate-950 text-white'
+                                  : 'bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 hover:bg-slate-100'
+                              } disabled:opacity-50`}
+                            >
+                              {level.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </section>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </section>
 
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3">
             <p className="text-[9px] font-black text-slate-600">
