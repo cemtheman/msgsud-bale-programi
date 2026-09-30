@@ -4385,3 +4385,58 @@ M33.3 remains OPEN pending:
 - production A/B rerun with same two preference scenarios
 - verify combined scenario no longer returns a worse combined score than gap-only seed
 - no schedule mutation
+
+
+## 67. 30 Eylül 2026 — M33.3 multi-seed production A/B PASS
+
+Kullanıcı multi-seed düzeltmesi production'a çıktıktan sonra aynı A/B smoke'u yeniden çalıştırdı.
+
+Chronological screenshots:
+- 14:26:46 — scenario A: yalnız `Öğretmen boşluklarını azalt = Çok yüksek`
+  - changeCost: 0 -> 12
+  - preferredTeacherContinuityBreaks: 0 -> 0
+  - teacherIdleGapPeriods: 97 -> 67
+  - roomStabilityBreaks: 40 -> 40
+  - changed lesson list: 8 visible
+- 14:27:40 — scenario B:
+  `Mevcut programı mümkün olduğunca koru = Çok yüksek`
+  +
+  `Öğretmen boşluklarını azalt = Çok yüksek`
+  - changeCost: 0 -> 10
+  - preferredTeacherContinuityBreaks: 0 -> 0
+  - teacherIdleGapPeriods: 97 -> 67
+  - roomStabilityBreaks: 40 -> 40
+  - changed lesson list: 8 visible
+
+Acceptance interpretation:
+- same teacher-gap improvement: 30 periods removed in both scenarios
+- preserve-current-program priority reduced changeCost from 12 to 10
+- combined-priority run is now more conservative, as intended
+- previous local-optimum pathology (combined 12 vs single 11) is no longer present
+- weights demonstrably affect returned solution
+- result remains read-only; UI still states program was not changed
+
+Display-language acceptance:
+- `PARALELL/PARALLEL` now appears as `PARALEL`
+- `SHARED` now appears as `ORTAK`
+- production screenshot confirms display-only localization
+
+### M33.3-v0 browser acceptance
+
+**PASS**
+
+Confirmed:
+1. different priority combinations return materially different solutions
+2. preserve-current-program priority decreases disruption at equal teacher-gap benefit
+3. teacher continuity metric remains unchanged where not affected
+4. room stability metric remains stable in this A/B pair
+5. no auto-apply
+6. UI remains responsive in production
+7. localized group labels render correctly
+
+Remaining before M33.3-v0 CLOSED:
+- Codespaces full Vitest after:
+  - tie-case hotfix `74f1b66d`
+  - multi-seed regression `b05860c4`
+- expected current suite: 15 test files, 77 tests if the new regression is included
+- production build evidence already PASS for core and regression; browser runtime also confirms deployed code
