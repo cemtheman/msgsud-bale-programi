@@ -12,15 +12,15 @@ Production branch: main
 Son implementation checkpoint:
 
 ```
-7b24a138a53e9df48268bc42292c0eee83f58c7f
-feat: expose read-only feasibility check
+831c3e4bd582d9d5509e6b69f0927f9511fa7489
+feat: show feasibility baseline diagnostics
 ```
 
 Son journal checkpoint:
 
 ```
-bae22eb78c59efb2de5d7fe7864cd37e119747d3
-docs: checkpoint M33.2 feasibility prototype
+841e1fd525014236ccbc0b3cf5c99f67830ae851
+docs: record M33.1 browser pass and M33.2 deviation
 ```
 
 Yeni oturumda SHA'ya reset atma; remote HEAD'i çek.
@@ -62,7 +62,8 @@ M33.1 DB/UX contract:
 - unsupported/disabled: teacherLoadBalance, subjectTimePreference
 - DRAFT / explicit ACTIVE
 - rollback-only objective profile QA PASS
-- browser smoke henüz pending
+- browser smoke PASS
+- M33.1 CLOSED
 
 ## 4. M33.2 — in-memory feasibility
 
@@ -97,27 +98,18 @@ Production build:
 - ca8c2129 core build PASS
 - 7b24a138 UI build PASS
 
-Vitest ve production browser acceptance henüz pending; M33.2 CLOSED değildir.
+Production browser feasibility çalıştı: FEASIBLE, 294/300 baseline reuse, 395 search node, 54 provisional room card. Beklenen 300/300 olmadığı için baseline deviation diagnostic eklendi. M33.2 CLOSED değildir.
 
-## 5. Optimizasyon browser acceptance — sıradaki iş
+## 5. M33.2 baseline diagnostic — sıradaki iş
 
-1. Yönetim > Optimizasyon.
-2. Profil yoksa + Yeni.
-3. Profil adı gir; supported hedeflerden en az birini Düşük/Orta/Yüksek/Çok yüksek yap.
-4. Taslak kaydet.
-5. Etkin profil yap.
-6. Etkin hedef profili hazır göstergesini doğrula.
-7. Provisional salon kutusunu doğrula.
-8. Uygunluğu kontrol et.
-
-Güncel 300 kart baseline için beklenen ilk sonuç:
-- Geçerli yerleşim bulundu
-- mevcut program hard kurallar açısından zaten geçerli başlangıç çözümü
-- Başlangıç korundu 300/300
-- Arama düğümü 0
-- Program değişmedi · yazma işlemi yok
-
-Program ekranına dön ve placement state'in değişmediğini doğrula.
+1. Production sayfasını yenile.
+2. Yönetim > Optimizasyon.
+3. Uygunluğu kontrol et.
+4. Sonuç altındaki amber diagnostic panelini incele.
+5. Değişen 6 kartın sınıf/ders/blok, önceki yerleşim, bellekteki çözüm ve reason code bilgilerini kaydet.
+6. Özellikle BASELINE_TEACHER_OUTSIDE_PLANNING_POOL / BASELINE_ROOM_OUTSIDE_PLANNING_POOL varsa M29/M32.4.2 semantiğiyle karşılaştır.
+7. Gerçek conflict reason code varsa mevcut baseline rule violation olarak ele al.
+8. Kanıt olmadan solver policy değiştirme.
 
 ## 6. Test
 
