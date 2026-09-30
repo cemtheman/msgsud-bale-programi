@@ -95,6 +95,9 @@ function baselineIssueDetail(
 function displayGroupName(value: string) {
   return value
     .replace(/^STANDARD\s*·\s*/i, '')
+    .replace(/\bPARALELL\b/gi, 'PARALEL')
+    .replace(/\bPARALLEL\b/gi, 'PARALEL')
+    .replace(/\bSHARED\b/gi, 'ORTAK')
     .replace(/\bBALLET\b/gi, 'BALE')
     .replace(/\bMUSIC\b/gi, 'MÜZİK')
     .replace(/\bSECTION\b/gi, 'ŞUBE');
