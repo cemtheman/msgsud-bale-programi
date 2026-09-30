@@ -55,3 +55,32 @@ single observed baseline room.
 Hard readiness is blocked only by genuinely contradictory or unavailable input.
 The snapshot exposes provisional counts separately so solver output can retain
 and explain unresolved room identity.
+
+
+## M33.1 objective profile UX
+
+Partisyon now exposes objective profiles as a human-readable management
+workspace instead of raw JSON.
+
+The supported objectives are shown as explicit relative priorities:
+
+- Kapalı
+- Düşük
+- Orta
+- Yüksek
+- Çok yüksek
+
+These map to normalized weights 0 / 250 / 500 / 750 / 1000. The numeric values
+are implementation weights, not grades or claims of program quality.
+
+The UI supports multiple named profiles. A profile may remain DRAFT while the
+institution discusses priorities. Making a profile ACTIVE is an explicit editor
+action; Partisyon never activates a profile automatically.
+
+The workspace also shows current baseline metrics and M22 provisional room
+inputs so the user sees what the objective settings are comparing against.
+Unsupported future objectives remain visible but disabled until their source
+data exists.
+
+M33.1 changes objective configuration only. It does not run the solver and does
+not mutate timetable placements.
