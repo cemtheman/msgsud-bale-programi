@@ -137,7 +137,7 @@ export interface ManagementForwardImpact {
   engineVersion: string;
 }
 
-interface RootTransactionRow {
+export interface ManagementHistoryRootTransactionRow {
   id: string;
   action: 'PLACE' | 'MOVE' | 'REMOVE' | 'STRUCTURE' | 'RESOURCE';
   payload: {
@@ -689,38 +689,9 @@ export function redoManagementBundle(
   });
 }
 
-export async function fetchManagementCommandState(
-  accessToken: string,
-  revisionId: string,
-): Promise<ManagementCommandState> {
-  const { url, key } = getSupabaseConfig();
-
-  const path = [
-    'move_transactions',
-    '?select=id,action,payload,reverted_at,redone_at,history_sequence,root_transaction_id,parent_transaction_id',
-    `&schedule_revision_id=eq.${revisionId}`,
-    '&actor_type=eq.USER',
-    '&root_transaction_id=is.null',
-    '&parent_transaction_id=is.null',
-    '&order=history_sequence.desc',
-  ].join('');
-
-  const response = await fetch(`${url}/rest/v1/${path}`, {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${accessToken}`,
-    },
-    cache: 'no-store',
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      await readRpcError(response, 'İşlem geçmişi alınamadı.'),
-    );
-  }
-
-  const rows = await response.json() as RootTransactionRow[];
-
+export function deriveManagementCommandState(
+  rows: ManagementHistoryRootTransactionRow[],
+): ManagementCommandState {
   const latestStructureRow = rows.find((row) => (
     row.action === 'STRUCTURE'
     && (
@@ -890,4 +861,39 @@ export async function fetchManagementCommandState(
   }
 
   return { undo, redo };
+}
+
+export async function fetchManagementCommandState(
+  accessToken: string,
+  revisionId: string,
+): Promise<ManagementCommandState> {
+  const { url, key } = getSupabaseConfig();
+
+  const path = [
+    'move_transactions',
+    '?select=id,action,payload,reverted_at,redone_at,history_sequence,root_transaction_id,parent_transaction_id',
+    `&schedule_revision_id=eq.${revisionId}`,
+    '&actor_type=eq.USER',
+    '&root_transaction_id=is.null',
+    '&parent_transaction_id=is.null',
+    '&order=history_sequence.desc',
+  ].join('');
+
+  const response = await fetch(`${url}/rest/v1/${path}`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${accessToken}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await readRpcError(response, 'İşlem geçmişi alınamadı.'),
+    );
+  }
+
+  const rows = await response.json() as ManagementHistoryRootTransactionRow[];
+
+  return deriveManagementCommandState(rows);
 }
