@@ -322,3 +322,27 @@ Browser smoke:
 6. tekrar onay -> yeni ayar Kullanımda olmalı
 7. yeni/draft preference'ı kaydetmeden değiştir -> seçenek oluştur -> provenance = Kaydedilmemiş tercihlerle hesaplandı
 8. Program ekranına geç -> schedule unchanged
+
+
+## 10. Öncelik kontrolleri accordion
+
+Tercih kartları compact accordion'a çevrildi.
+
+Commit:
+```
+c8830c24171ac560a49868ed0a282beeda018926
+polish: collapse preference controls into accordion
+```
+
+Collapsed görünüm:
+- tercih başlığı
+- mevcut seviye badge
+- chevron
+
+Expanded görünüm:
+- açıklama
+- mevcut program metriği
+- Kapalı / Düşük / Orta / Yüksek / Çok yüksek seçimleri
+
+Aynı anda yalnız bir tercih açık.
+Dirty/save/use/preview semantiği değişmedi.
