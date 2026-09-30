@@ -553,6 +553,7 @@ export function ManagementBoardGrid({
   onDragEnd,
   onDropCandidates,
   onDropNeedsAttention,
+  onCardContextMenu,
 }: {
   rows: ManagementBoardRow[];
   cards: ManagementBoardCard[];
@@ -569,6 +570,12 @@ export function ManagementBoardGrid({
   onDragEnd: () => void;
   onDropCandidates: (candidates: ManagementGroupDropCandidate[]) => void;
   onDropNeedsAttention: (target: ManagementDropTarget) => void;
+  onCardContextMenu: (
+    cardId: string,
+    sourceCardIds: string[],
+    x: number,
+    y: number,
+  ) => void;
 }) {
   const dayCards = cards.filter(
     (card) => card.placement?.dayOfWeek === activeDay,
@@ -742,6 +749,15 @@ export function ManagementBoardGrid({
                             }}
                             onDragEnd={onDragEnd}
                             onClick={() => onSelect(card.id, displayCard.sourceCardIds)}
+                            onContextMenu={(event) => {
+                              event.preventDefault();
+                              onCardContextMenu(
+                                card.id,
+                                displayCard.sourceCardIds,
+                                event.clientX,
+                                event.clientY,
+                              );
+                            }}
                             className={`absolute overflow-hidden rounded-md border px-2 py-1 text-left shadow-sm transition ${
                               draggable
                                 ? 'cursor-grab active:cursor-grabbing'
