@@ -188,6 +188,16 @@ function profileWeights(
     : { ...EMPTY_WEIGHTS };
 }
 
+function weightsEqual(
+  left: ManagementSolverObjectiveWeights,
+  right: ManagementSolverObjectiveWeights,
+) {
+  return Object.keys(EMPTY_WEIGHTS).every((key) => (
+    left[key as ManagementSolverObjectiveKey]
+    === right[key as ManagementSolverObjectiveKey]
+  ));
+}
+
 export function ManagementSolverWorkspacePanel({
   data,
   canEdit,
@@ -216,10 +226,26 @@ export function ManagementSolverWorkspacePanel({
   const [feasibilityBusy, setFeasibilityBusy] = useState(false);
   const [optimizationResult, setOptimizationResult] = useState<ManagementOptimizationResult | null>(null);
   const [optimizationBusy, setOptimizationBusy] = useState(false);
+  const [pendingSelectionId, setPendingSelectionId] = useState<string | '__NEW__' | null>(null);
+  const [activationPending, setActivationPending] = useState(false);
 
   const selectedProfile = useMemo(
     () => data?.profiles.find((profile) => profile.id === selectedProfileId) ?? null,
     [data?.profiles, selectedProfileId],
+  );
+  const activeProfile = useMemo(
+    () => data?.profiles.find((profile) => profile.id === data.activeProfileId) ?? null,
+    [data?.activeProfileId, data?.profiles],
+  );
+  const savedWeights = profileWeights(selectedProfile);
+  const isDirty = (
+    name !== (selectedProfile?.name ?? '')
+    || description !== (selectedProfile?.description ?? '')
+    || !weightsEqual(weights, savedWeights)
+  );
+  const selectedIsActive = (
+    selectedProfile != null
+    && selectedProfile.id === data?.activeProfileId
   );
 
   if (!data) {
@@ -259,7 +285,69 @@ export function ManagementSolverWorkspacePanel({
     setName(profile?.name ?? '');
     setDescription(profile?.description ?? '');
     setWeights(profileWeights(profile));
+    setOptimizationResult(null);
+    setActivationPending(false);
+    setPendingSelectionId(null);
     setLocalError(null);
+  };
+
+  const requestLoadProfile = (
+    profile: ManagementSolverObjectiveProfile | null,
+  ) => {
+    const targetId = profile?.id ?? '__NEW__';
+
+    if (
+      targetId === (selectedProfileId ?? '__NEW__')
+      && pendingSelectionId == null
+    ) {
+      return;
+    }
+
+    if (isDirty) {
+      setPendingSelectionId(targetId);
+      return;
+    }
+
+    loadProfile(profile);
+  };
+
+  const confirmPendingSelection = () => {
+    if (pendingSelectionId == null) return;
+
+    if (pendingSelectionId === '__NEW__') {
+      loadProfile(null);
+      return;
+    }
+
+    loadProfile(
+      data.profiles.find(
+        (profile) => profile.id === pendingSelectionId,
+      ) ?? null,
+    );
+  };
+
+  const updateName = (value: string) => {
+    setName(value);
+    setOptimizationResult(null);
+    setActivationPending(false);
+  };
+
+  const updateDescription = (value: string) => {
+    setDescription(value);
+    setOptimizationResult(null);
+    setActivationPending(false);
+  };
+
+  const updateWeight = (
+    key: ManagementSolverObjectiveKey,
+    value: number,
+  ) => {
+    setWeights((current) => ({
+      ...current,
+      [key]: value,
+    }));
+    setOptimizationResult(null);
+    setActivationPending(false);
   };
 
   const runFeasibility = () => {
@@ -313,6 +401,20 @@ export function ManagementSolverWorkspacePanel({
     } finally {
       setOptimizationBusy(false);
     }
+  };
+
+  const requestActivate = () => {
+    if (!canActivate) return;
+
+    if (
+      activeProfile
+      && activeProfile.id !== selectedProfile?.id
+    ) {
+      setActivationPending(true);
+      return;
+    }
+
+    void save('ACTIVE');
   };
 
   const save = async (status: ManagementSolverProfileStatus) => {
