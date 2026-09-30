@@ -373,3 +373,49 @@ Yeni davranış:
 - hard-ready success badge yok; yalnız problem varsa hata görünür
 
 Production smoke pending.
+
+
+## 12. Öncelikler UI freeze / M33.3 kapanış kapısı
+
+Kullanıcı mevcut Öncelikler görünümünü şimdilik koruma kararı verdi.
+
+UI freeze:
+- kullanıcı istemedikçe layout/hiyerarşi değiştirilmez
+- yeni teknik paketler mevcut sade yapıyı büyütmez
+- yalnız gerekli işlevsel eklemeler minimal biçimde yapılır
+
+Frozen order:
+1. Kayıtlı ayarlar
+2. Tercih ayarı
+3. Ayar adı / not
+4. preference dropdown rows
+5. dirty ise compact save
+6. Program kontrolü
+7. Program seçeneği
+
+M33.3 browser acceptance PASS:
+- weights sonucu gerçekten değiştiriyor
+- multi-seed A/B PASS
+- same teacher-gap improvement'ta preserve-current objective changeCost'u 12 -> 10 düşürdü
+- no auto apply
+
+M33.3 CLOSED için kalan:
+
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
+```
+
+PASS sonrası M33.3 CLOSED.
+
+Sonraki paket için öneri:
+M33.4 explicit proposal review/apply
+- current vs proposed full diff
+- human confirmation
+- fresh snapshot/hash guard
+- atomic apply
+- undo/redo
+- hard-rule revalidation
+- no automatic apply
