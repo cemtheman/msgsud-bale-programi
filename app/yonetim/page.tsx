@@ -662,6 +662,8 @@ export default function ManagementPage() {
     setCandidateFocus(null);
     setSelectedCardId(cardId);
     setSelectedCardIds(ids);
+    setInspectorIntent('DETAILS');
+    setInspectorIntentNonce((value) => value + 1);
     setInspectorOpen(true);
   };
 
