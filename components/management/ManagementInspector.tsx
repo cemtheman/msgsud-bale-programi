@@ -101,6 +101,8 @@ export function ManagementInspector({
   canEdit,
   commandBusy,
   commandNotice,
+  openIntent,
+  openIntentNonce,
   onCandidateAction,
   onPreviewPlacementResource,
   onApplyPlacementResource,
@@ -129,6 +131,8 @@ export function ManagementInspector({
   canEdit: boolean;
   commandBusy: boolean;
   commandNotice: { kind: 'success' | 'error' | 'info'; text: string } | null;
+  openIntent: 'DETAILS' | 'CANDIDATES' | 'TEACHER' | 'ROOM';
+  openIntentNonce: number;
   onCandidateAction: (candidate: ManagementCandidateAssessment) => void;
   onPreviewPlacementResource: (
     cardIds: string[],
@@ -174,6 +178,25 @@ export function ManagementInspector({
   const [planTeacherIds, setPlanTeacherIds] = useState<string[]>([]);
   const [planSaving, setPlanSaving] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (openIntent === 'CANDIDATES') {
+      setShowGeneralCandidates(true);
+      setPlacementEditMode(null);
+      return;
+    }
+
+    if (openIntent === 'TEACHER' || openIntent === 'ROOM') {
+      setPlacementEditMode(openIntent);
+      setPlacementChoiceId(null);
+      setPlacementResourcePreview(null);
+      setPlacementResourceError(null);
+      return;
+    }
+
+    setPlacementEditMode(null);
+  }, [openIntent, openIntentNonce]);
+
 
   const focusCandidatesForTeacher = useMemo(
     () => (
@@ -1101,6 +1124,22 @@ export function ManagementInspector({
               fazla nedenle elenebildiği için aşağıdaki sayıların toplamı “Uygun değil” sayısını aşabilir.
             </p>
 
+            {candidateDetail.reasonCounts.length > 0 && (
+              <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                <p className="text-[10px] font-black text-slate-700">
+                  En sık engel: {translateCandidateReason(candidateDetail.reasonCounts[0].code)}
+                </p>
+                <p className="mt-0.5 text-[10px] font-medium leading-4 text-slate-500">
+                  {candidateDetail.reasonCounts[0].count} aday bu nedenle elendi.
+                  {card.validCount > 0
+                    ? ` Buna rağmen ${card.validCount} uygun seçenek var.`
+                    : card.unresolvedCount > 0
+                      ? ` ${card.unresolvedCount} seçenek bilgi tamamlanırsa değerlendirilebilir.`
+                      : ' Şu anda doğrudan kullanılabilir seçenek yok.'}
+                </p>
+              </div>
+            )}
+
             {candidateDetail.reasonCounts.length === 0 ? (
               <div className="mt-2 rounded-2xl bg-emerald-50 p-3 text-xs font-bold text-emerald-800">
                 Bu kartın aday alanında açıklanması gereken bir engel yok.
@@ -1124,7 +1163,7 @@ export function ManagementInspector({
             )}
           </div>
 
-          {!placement && !candidateFocus && candidateDetail.validCandidates.length > 0 && (
+          {!candidateFocus && candidateDetail.validCandidates.length > 0 && (
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
