@@ -3678,3 +3678,55 @@ Sıradaki production acceptance:
 7. changed-card / mevcut-program-uyarısı / incelenen-seçenek sayılarını kaydet
 
 M33.2 bu rerun ve Vitest PASS olmadan CLOSED değildir.
+
+
+## 58. 30 Eylül 2026 — M33.2 second production rerun
+
+Manual override baseline fix production'a çıktıktan sonra kullanıcı uygunluk denetimini yeniden çalıştırdı.
+
+Observed:
+- changed cards: 4
+- current-program warnings: 2
+- 8A BALLET · B. Uygulama manual teacher override artık diagnostic listede yok
+- planning-pool false positive kaldırıldı
+- kalan changed cards:
+  - 5A BALLET · K. Bale · Blok 1 — doğrudan kural ihlali yok, zincirleme move
+  - 5A BALLET · Point/Dans T. · Blok 1 — doğrudan kural ihlali yok, zincirleme move
+  - 5A BALLET · V. Kondisyon · Blok 1 — doğrudan kural ihlali yok, zincirleme move
+  - STANDARD · 5A BALLET · Cuma ek dersi · K. Bale · Blok 1 — BASELINE_MAX_CONSECUTIVE_PERIODS
+- visible placement for Cuma ek dersi:
+  - baseline: Cum · 7. ders · E. Gemalmaz
+  - temporary solution: Pzt · 5. ders · E. Gemalmaz
+
+Interpretation:
+- manual override semantics fix confirmed in production
+- 4 changed cards are now driven by remaining real hard-rule warnings, not planning-pool membership
+- badge shows 2 current-program warnings but changed-card list exposed only 1 direct warning; second warning is on a card that remained in place
+- baselineAudit requirement-level max-consecutive check can mark multiple cards belonging to the violating requirement/day
+
+UI diagnostic completeness fix:
+```
+3fba56e83f62422e9b582ddb8cf8b72971ef7f8d
+feat: show complete feasibility warning sources
+
+1c0cabe9449f3c8bcbf7f2a053b05f26324de607
+polish: show placement for unchanged rule warnings
+```
+
+New UI behavior:
+- changed cards remain in comparison list
+- baseline issues belonging to unchanged cards are shown in separate
+  `Yer değiştirmeyen ancak uyarı taşıyan dersler` section
+- structural rule details show declared values where available:
+  - maxConsecutivePeriods
+  - maxBlocksPerDay
+  - minDistinctDays
+- unchanged warning cards also show current day/period/teacher/room
+
+Purpose of next rerun:
+1. identify exact second warning card
+2. display declared maxConsecutivePeriods value for the affected requirement
+3. decide whether the rule data itself is wrong or the current schedule really violates an intended rule
+4. do not relax/remove the rule without evidence
+
+M33.2 remains OPEN until this remaining hard-rule issue is classified and Vitest passes.
