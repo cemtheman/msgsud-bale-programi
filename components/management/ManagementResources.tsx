@@ -661,11 +661,11 @@ export function ManagementResources({
 
   return (
     <section className="management-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
-      <div className="mx-auto max-w-[1180px] space-y-4">
+      <div className="mx-auto max-w-[1220px] space-y-4">
         <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-5">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
                 Kaynaklar
               </p>
               <h2 className="mt-1 text-2xl font-black text-slate-950">
@@ -678,7 +678,7 @@ export function ManagementResources({
             </div>
 
             <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right">
-              <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+              <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
                 Salon özellikleri
               </p>
               <p className="mt-1 text-[11px] font-bold text-slate-700">
@@ -693,7 +693,7 @@ export function ManagementResources({
             <button
               type="button"
               onClick={() => setTab('TEACHERS')}
-              className={`rounded-lg px-4 py-2 text-[10px] font-black transition ${
+              className={`rounded-lg px-4 py-2 text-[11px] font-black transition ${
                 tab === 'TEACHERS'
                   ? 'bg-white text-slate-950 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800'
@@ -704,7 +704,7 @@ export function ManagementResources({
             <button
               type="button"
               onClick={() => setTab('ROOMS')}
-              className={`rounded-lg px-4 py-2 text-[10px] font-black transition ${
+              className={`rounded-lg px-4 py-2 text-[11px] font-black transition ${
                 tab === 'ROOMS'
                   ? 'bg-white text-slate-950 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800'
@@ -719,7 +719,7 @@ export function ManagementResources({
               <button
                 type="button"
                 onClick={() => setShowInactiveTeachers((value) => !value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50"
               >
                 {showInactiveTeachers ? 'Atamaya kapalıları gizle' : 'Atamaya kapalıları göster'}
               </button>
@@ -732,7 +732,7 @@ export function ManagementResources({
                 setResourceActionError(null);
               }}
               disabled={!canEdit}
-              className="rounded-xl bg-slate-950 px-3 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:opacity-35"
+              className="rounded-xl bg-slate-950 px-3 py-2.5 text-[11px] font-black text-white hover:bg-slate-800 disabled:opacity-35"
             >
               + {tab === 'TEACHERS' ? 'Öğretmen' : 'Salon'}
             </button>
@@ -753,7 +753,7 @@ export function ManagementResources({
           <>
             <div className="grid grid-cols-3 gap-3">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
                   Öğretmen kaydı
                 </p>
                 <p className="mt-2 text-2xl font-black text-slate-900">
@@ -762,7 +762,7 @@ export function ManagementResources({
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
                   Aktif derse atanmış
                 </p>
                 <p className="mt-2 text-2xl font-black text-slate-900">
@@ -771,7 +771,7 @@ export function ManagementResources({
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
                   Programda kullanılan
                 </p>
                 <p className="mt-2 text-2xl font-black text-slate-900">
@@ -781,7 +781,7 @@ export function ManagementResources({
             </div>
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(240px,1fr)_105px_120px_105px_190px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="grid grid-cols-[minmax(240px,1fr)_105px_120px_105px_190px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
                 <span>Öğretmen</span>
                 <span className="text-right">Aktif ders</span>
                 <span className="text-right">Programdaki blok</span>
@@ -803,11 +803,11 @@ export function ManagementResources({
                           {row.name}
                         </p>
                         {row.nameOverridden ? (
-                          <p className="mt-0.5 truncate text-[9px] font-semibold text-blue-600">
+                          <p className="mt-0.5 truncate text-[11px] font-semibold text-blue-600">
                             Taslak ad · Yayınlanan: {row.baseName}
                           </p>
                         ) : (
-                          <p className="mt-0.5 text-[9px] font-medium text-slate-400">
+                          <p className="mt-0.5 text-[11px] font-medium text-slate-400">
                             Öğretmen kaydı
                           </p>
                         )}
@@ -822,7 +822,7 @@ export function ManagementResources({
                       </p>
 
                       <div className="text-right">
-                        <span className={`inline-flex rounded-full px-2 py-1 text-[9px] font-black ${state.className}`}>
+                        <span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-black ${state.className}`}>
                           {state.label}
                         </span>
                       </div>
@@ -832,7 +832,7 @@ export function ManagementResources({
                           type="button"
                           onClick={() => openEditor('TEACHER', row)}
                           disabled={!canEdit || resourceActionBusy}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-35"
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-35"
                         >
                           Ad
                         </button>
@@ -846,7 +846,7 @@ export function ManagementResources({
                             row.operationalStatus === 'ACTIVE'
                             && row.placedBlockCount > 0
                           )}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-35"
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-35"
                         >
                           {row.operationalStatus === 'ACTIVE' ? 'Atamaya kapat' : 'Atamaya aç'}
                         </button>
@@ -859,7 +859,7 @@ export function ManagementResources({
                             || row.activeRequirementCount > 0
                             || row.placedBlockCount > 0
                           }
-                          className="rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-[9px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-30"
+                          className="rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-30"
                         >
                           Sil
                         </button>
@@ -878,7 +878,7 @@ export function ManagementResources({
           <>
             <div className="grid grid-cols-4 gap-3">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
                   Ana salon
                 </p>
                 <p className="mt-2 text-2xl font-black text-slate-900">
@@ -887,7 +887,7 @@ export function ManagementResources({
               </div>
 
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-wide text-emerald-700">
+                <p className="text-[11px] font-black uppercase tracking-wide text-emerald-700">
                   Aktif
                 </p>
                 <p className="mt-2 text-2xl font-black text-emerald-900">
@@ -896,7 +896,7 @@ export function ManagementResources({
               </div>
 
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-wide text-amber-700">
+                <p className="text-[11px] font-black uppercase tracking-wide text-amber-700">
                   Tadilatta
                 </p>
                 <p className="mt-2 text-2xl font-black text-amber-900">
@@ -905,7 +905,7 @@ export function ManagementResources({
               </div>
 
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
-                <p className="text-[9px] font-black uppercase tracking-wide text-rose-700">
+                <p className="text-[11px] font-black uppercase tracking-wide text-rose-700">
                   Kullanım dışı
                 </p>
                 <p className="mt-2 text-2xl font-black text-rose-900">
@@ -917,10 +917,10 @@ export function ManagementResources({
             {missingRoomProfileCount > 0 && (
               <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
                 <div>
-                  <p className="text-[10px] font-bold text-amber-900">
+                  <p className="text-[11px] font-bold text-amber-900">
                     {missingRoomProfileCount} salonun kullanım özellikleri henüz tanımlanmadı.
                   </p>
-                  <p className="mt-1 text-[9px] font-medium text-amber-700">
+                  <p className="mt-1 text-[11px] font-medium text-amber-700">
                     Sihirbaz eksik salonları sırayla açar; bilmediğiniz salonu şimdilik atlayabilirsiniz.
                   </p>
                 </div>
@@ -928,7 +928,7 @@ export function ManagementResources({
                   type="button"
                   onClick={openProfileWizard}
                   disabled={!canEdit}
-                  className="shrink-0 rounded-xl bg-amber-900 px-4 py-2.5 text-[10px] font-black text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="shrink-0 rounded-xl bg-amber-900 px-4 py-2.5 text-[11px] font-black text-white hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Profilleri tamamla
                 </button>
@@ -936,7 +936,7 @@ export function ManagementResources({
             )}
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(170px,0.8fr)_90px_125px_minmax(250px,1.35fr)_82px_92px_195px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="grid grid-cols-[minmax(170px,0.8fr)_90px_125px_minmax(250px,1.35fr)_82px_92px_195px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
                 <span>Salon</span>
                 <span>Tür</span>
                 <span>Durum</span>
@@ -958,23 +958,23 @@ export function ManagementResources({
                           {row.name}
                         </p>
                         {row.canonicalRoomName && (
-                          <p className="mt-0.5 truncate text-[9px] font-medium text-slate-400">
+                          <p className="mt-0.5 truncate text-[11px] font-medium text-slate-400">
                             → {row.canonicalRoomName}
                           </p>
                         )}
                         {row.nameOverridden && (
-                          <p className="mt-0.5 truncate text-[9px] font-semibold text-blue-600">
+                          <p className="mt-0.5 truncate text-[11px] font-semibold text-blue-600">
                             Taslak ad · Yayınlanan: {row.baseName}
                           </p>
                         )}
                         {!row.canonicalRoomId && row.aliasCount > 0 && (
-                          <p className="mt-0.5 text-[9px] font-medium text-slate-400">
+                          <p className="mt-0.5 text-[11px] font-medium text-slate-400">
                             {row.aliasCount} takma ad bağlı
                           </p>
                         )}
                       </div>
 
-                      <p className="text-[10px] font-bold text-slate-600">
+                      <p className="text-[11px] font-bold text-slate-600">
                         {roomType(row)}
                       </p>
 
@@ -983,7 +983,7 @@ export function ManagementResources({
                           type="button"
                           onClick={() => openStatusEditor(row)}
                           disabled={!canEdit}
-                          className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] font-black transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45 ${
+                          className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45 ${
                             roomStatusMeta(row.operationalStatus).className
                           }`}
                         >
@@ -996,18 +996,18 @@ export function ManagementResources({
                           row.capabilities.slice(0, 4).map((capability) => (
                             <span
                               key={capability}
-                              className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-bold text-slate-600"
+                              className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600"
                             >
                               {capabilityLabel(capability)}
                             </span>
                           ))
                         ) : (
-                          <span className="rounded-full bg-amber-50 px-2 py-1 text-[8px] font-black text-amber-700">
+                          <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700">
                             Profil tamamlanmalı
                           </span>
                         )}
                         {row.capabilities.length > 4 && (
-                          <span className="rounded-full bg-slate-50 px-2 py-1 text-[8px] font-bold text-slate-400">
+                          <span className="rounded-full bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-400">
                             +{row.capabilities.length - 4}
                           </span>
                         )}
@@ -1026,7 +1026,7 @@ export function ManagementResources({
                           type="button"
                           onClick={() => openEditor('ROOM', row)}
                           disabled={!canEdit}
-                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
                         >
                           Ad
                         </button>
@@ -1034,7 +1034,7 @@ export function ManagementResources({
                           type="button"
                           onClick={() => openProfileEditor(row)}
                           disabled={!canEdit}
-                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
+                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
                         >
                           {row.capabilities.length === 0 ? 'Tanımla' : 'Düzenle'}
                         </button>
@@ -1048,7 +1048,7 @@ export function ManagementResources({
                             || row.placedBlockCount > 0
                             || row.aliasCount > 0
                           }
-                          className="rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-[9px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-30"
+                          className="rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-30"
                         >
                           Sil
                         </button>
@@ -1066,10 +1066,10 @@ export function ManagementResources({
         )}
 
         <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-blue-700">
+          <p className="text-[11px] font-black uppercase tracking-[0.12em] text-blue-700">
             Taslak adlar yayınlanan programı değiştirmez
           </p>
-          <p className="mt-1 text-[10px] font-medium leading-5 text-blue-800">
+          <p className="mt-1 text-[11px] font-medium leading-5 text-blue-800">
             Salon özelliği değişiklikleri etki önizlemesinden geçer. Tadilatta veya kullanım dışı
             salonlar yeni program adaylarından çıkarılır; salonda mevcut yerleşim varsa durum
             değişikliği önce bu derslerin Program ekranında taşınmasını veya kaldırılmasını ister.
@@ -1078,7 +1078,7 @@ export function ManagementResources({
       </div>
 
       {resourceActionError && (
-        <div className="fixed bottom-4 right-4 z-[118] max-w-[430px] rounded-2xl border border-rose-200 bg-white px-4 py-3 text-[10px] font-bold text-rose-700 shadow-xl">
+        <div className="fixed bottom-4 right-4 z-[118] max-w-[430px] rounded-2xl border border-rose-200 bg-white px-4 py-3 text-[11px] font-bold text-rose-700 shadow-xl">
           {resourceActionError}
         </div>
       )}
@@ -1086,7 +1086,7 @@ export function ManagementResources({
       {createKind && (
         <div className="fixed inset-0 z-[116] flex items-center justify-center bg-slate-950/30 p-4">
           <div className="w-full max-w-[460px] rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_30px_100px_rgba(15,23,42,0.25)]">
-            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
               Yeni kaynak
             </p>
             <h3 className="mt-1 text-lg font-black text-slate-950">
@@ -1107,7 +1107,7 @@ export function ManagementResources({
                 type="button"
                 onClick={() => setCreateKind(null)}
                 disabled={resourceActionBusy}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-600"
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-bold text-slate-600"
               >
                 Vazgeç
               </button>
@@ -1115,7 +1115,7 @@ export function ManagementResources({
                 type="button"
                 onClick={() => void createResource()}
                 disabled={resourceActionBusy || !createName.trim()}
-                className="rounded-xl bg-slate-950 px-4 py-2 text-[10px] font-black text-white disabled:opacity-35"
+                className="rounded-xl bg-slate-950 px-4 py-2 text-[11px] font-black text-white disabled:opacity-35"
               >
                 {resourceActionBusy ? 'Ekleniyor…' : 'Ekle'}
               </button>
@@ -1129,13 +1129,13 @@ export function ManagementResources({
           <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-[620px] flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_30px_100px_rgba(15,23,42,0.25)]">
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
                   Salon durumu
                 </p>
                 <h3 className="mt-1 text-lg font-black text-slate-950">
                   {statusTarget.name}
                 </h3>
-                <p className="mt-1 text-[10px] font-medium text-slate-500">
+                <p className="mt-1 text-[11px] font-medium text-slate-500">
                   Aktif olmayan salonlar Program’ın uygun yer hesabından çıkarılır.
                 </p>
               </div>
@@ -1183,10 +1183,10 @@ export function ManagementResources({
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                     }`}
                   >
-                    <span className="block text-[10px] font-black">
+                    <span className="block text-[11px] font-black">
                       {item.label}
                     </span>
-                    <span className={`mt-1 block text-[9px] font-medium leading-4 ${
+                    <span className={`mt-1 block text-[11px] font-medium leading-4 ${
                       statusSelection === item.id
                         ? 'text-slate-300'
                         : 'text-slate-400'
@@ -1198,7 +1198,7 @@ export function ManagementResources({
               </div>
 
               {statusError && (
-                <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-semibold text-rose-700">
+                <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">
                   {statusError}
                 </p>
               )}
@@ -1212,7 +1212,7 @@ export function ManagementResources({
                         ? 'border-amber-200 bg-amber-50'
                         : 'border-slate-200 bg-slate-50'
                   }`}>
-                    <p className={`text-[10px] font-black ${
+                    <p className={`text-[11px] font-black ${
                       statusPreview.canApply
                         ? 'text-emerald-800'
                         : statusPreview.hasChanges
@@ -1225,14 +1225,14 @@ export function ManagementResources({
                           ? 'Önce mevcut program yerleşimleri çözülmeli.'
                           : 'Durum değişikliği yok.'}
                     </p>
-                    <p className="mt-1 text-[10px] font-medium leading-5 text-slate-600">
+                    <p className="mt-1 text-[11px] font-medium leading-5 text-slate-600">
                       {statusPreview.affectedRequirementCount} ders tanımı · {statusPreview.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirilecek.
                     </p>
                   </div>
 
                   {statusPreview.placedImpacts.length > 0 && (
                     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                      <p className="text-[10px] font-black text-amber-900">
+                      <p className="text-[11px] font-black text-amber-900">
                         Bu salon şu anda programda kullanılıyor
                       </p>
                       <div className="mt-3 space-y-2">
@@ -1241,10 +1241,10 @@ export function ManagementResources({
                             key={impact.cardId}
                             className="rounded-xl border border-amber-200 bg-white/70 px-3 py-2"
                           >
-                            <p className="text-[10px] font-bold text-slate-800">
+                            <p className="text-[11px] font-bold text-slate-800">
                               {impact.subjectName} · {impact.groupName}
                             </p>
-                            <p className="mt-0.5 text-[9px] font-medium text-slate-500">
+                            <p className="mt-0.5 text-[11px] font-medium text-slate-500">
                               Gün {impact.dayOfWeek}, {impact.startPeriod}. ders
                             </p>
                           </div>
@@ -1257,7 +1257,7 @@ export function ManagementResources({
             </div>
 
             <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-4">
-              <p className="text-[9px] font-medium text-slate-400">
+              <p className="text-[11px] font-medium text-slate-400">
                 Önizleme hiçbir değişiklik yapmaz.
               </p>
               <div className="flex gap-2">
@@ -1265,7 +1265,7 @@ export function ManagementResources({
                   type="button"
                   onClick={() => setStatusTarget(null)}
                   disabled={statusPreviewing || statusApplying}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                 >
                   Kapat
                 </button>
@@ -1273,7 +1273,7 @@ export function ManagementResources({
                   type="button"
                   onClick={() => void previewStatus()}
                   disabled={statusPreviewing || statusApplying}
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[10px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-35"
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[11px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-35"
                 >
                   {statusPreviewing
                     ? 'Etki hesaplanıyor…'
@@ -1286,7 +1286,7 @@ export function ManagementResources({
                     type="button"
                     onClick={() => void applyStatus()}
                     disabled={statusPreviewing || statusApplying}
-                    className="rounded-xl bg-slate-950 px-4 py-2 text-[10px] font-black text-white hover:bg-slate-800 disabled:opacity-35"
+                    className="rounded-xl bg-slate-950 px-4 py-2 text-[11px] font-black text-white hover:bg-slate-800 disabled:opacity-35"
                   >
                     {statusApplying ? 'Uygulanıyor…' : 'Durumu uygula'}
                   </button>
@@ -1303,11 +1303,11 @@ export function ManagementResources({
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
                     Salon özellikleri
                   </p>
                   {profileWizardActive && (
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-600">
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black text-slate-600">
                       {Math.min(
                         profileWizardCompletedIds.length
                         + profileWizardSkippedIds.length
@@ -1320,7 +1320,7 @@ export function ManagementResources({
                 <h3 className="mt-1 text-lg font-black text-slate-950">
                   {profileTarget.name}
                 </h3>
-                <p className="mt-1 text-[10px] font-medium text-slate-500">
+                <p className="mt-1 text-[11px] font-medium text-slate-500">
                   Bu salonun kullanım özelliklerini tanımlar. Kaydedilen bilgiler doğrulanmış salon bilgisi olarak kullanılır; Programı yalnız Ders Planı’nda salonu özelliğine göre seçilen dersler varsa etkiler.
                 </p>
               </div>
@@ -1336,7 +1336,7 @@ export function ManagementResources({
 
             <div className="management-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-4">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
                   Salon özellikleri
                 </p>
                   <div className="mt-2 grid grid-cols-2 gap-2">
@@ -1349,13 +1349,13 @@ export function ManagementResources({
                           type="button"
                           onClick={() => toggleCapability(capability)}
                           disabled={profilePreviewing || profileApplying}
-                          className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[10px] font-bold transition ${
+                          className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-[11px] font-bold transition ${
                             selected
                               ? 'border-blue-300 bg-blue-50 text-blue-800'
                               : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                           }`}
                         >
-                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[9px] ${
+                          <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[11px] ${
                             selected
                               ? 'border-blue-500 bg-blue-500 text-white'
                               : 'border-slate-300 bg-white text-transparent'
@@ -1371,14 +1371,14 @@ export function ManagementResources({
 
               {profileWizardActive && profileCapabilities.length === 0 && (
                 <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
-                  <p className="text-[10px] font-bold text-amber-900">
+                  <p className="text-[11px] font-bold text-amber-900">
                     En az bir salon özelliği seçin veya “Şimdilik atla” ile sıradaki salona geçin.
                   </p>
                 </div>
               )}
 
                             {profileError && (
-                <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-semibold text-rose-700">
+                <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">
                   {profileError}
                 </p>
               )}
@@ -1392,7 +1392,7 @@ export function ManagementResources({
                         ? 'border-amber-200 bg-amber-50'
                         : 'border-slate-200 bg-slate-50'
                   }`}>
-                    <p className={`text-[10px] font-black ${
+                    <p className={`text-[11px] font-black ${
                       profilePreview.canApply
                         ? 'text-emerald-800'
                         : profilePreview.hasChanges
@@ -1407,7 +1407,7 @@ export function ManagementResources({
                           ? 'Bu değişiklik mevcut program yerleşimini etkiliyor.'
                           : 'Değişiklik yok.'}
                     </p>
-                    <p className="mt-1 text-[10px] font-medium leading-5 text-slate-600">
+                    <p className="mt-1 text-[11px] font-medium leading-5 text-slate-600">
                       {profilePreview.affectedRequirementCount === 0
                         ? 'Şu an salon özelliğine göre yerleştirilen ders yok. Programın uygun yer hesabı değişmeyecek.'
                         : `${profilePreview.affectedRequirementCount} ders tanımı · ${profilePreview.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirilecek.`}
@@ -1418,32 +1418,32 @@ export function ManagementResources({
                     || profilePreview.removedCapabilities.length > 0) && (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-xl border border-slate-200 bg-white p-3">
-                        <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                        <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
                           Eklenecek
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1">
                           {profilePreview.addedCapabilities.length > 0
                             ? profilePreview.addedCapabilities.map((value) => (
-                              <span key={value} className="rounded-full bg-emerald-50 px-2 py-1 text-[8px] font-bold text-emerald-700">
+                              <span key={value} className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
                                 {capabilityLabel(value)}
                               </span>
                             ))
-                            : <span className="text-[9px] font-semibold text-slate-400">Yok</span>}
+                            : <span className="text-[11px] font-semibold text-slate-400">Yok</span>}
                         </div>
                       </div>
 
                       <div className="rounded-xl border border-slate-200 bg-white p-3">
-                        <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                        <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
                           Kaldırılacak
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1">
                           {profilePreview.removedCapabilities.length > 0
                             ? profilePreview.removedCapabilities.map((value) => (
-                              <span key={value} className="rounded-full bg-rose-50 px-2 py-1 text-[8px] font-bold text-rose-700">
+                              <span key={value} className="rounded-full bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-700">
                                 {capabilityLabel(value)}
                               </span>
                             ))
-                            : <span className="text-[9px] font-semibold text-slate-400">Yok</span>}
+                            : <span className="text-[11px] font-semibold text-slate-400">Yok</span>}
                         </div>
                       </div>
                     </div>
@@ -1451,19 +1451,19 @@ export function ManagementResources({
 
                   {profilePreview.placedImpacts.length > 0 && (
                     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                      <p className="text-[10px] font-black text-amber-900">
+                      <p className="text-[11px] font-black text-amber-900">
                         Önce Program’da müdahale gerekiyor
                       </p>
-                      <p className="mt-1 text-[10px] font-medium leading-5 text-amber-800">
+                      <p className="mt-1 text-[11px] font-medium leading-5 text-amber-800">
                         Bu salonu kullanan yerleşmiş bloklardan bazıları yeni özelliklerle artık geçerli olmayacak.
                       </p>
                       <div className="mt-3 space-y-2">
                         {profilePreview.placedImpacts.map((impact) => (
                           <div key={impact.cardId} className="rounded-xl border border-amber-200 bg-white/70 px-3 py-2">
-                            <p className="text-[10px] font-bold text-slate-800">
+                            <p className="text-[11px] font-bold text-slate-800">
                               {impact.subjectName} · {impact.groupName}
                             </p>
-                            <p className="mt-0.5 text-[9px] font-medium text-slate-500">
+                            <p className="mt-0.5 text-[11px] font-medium text-slate-500">
                               Gereken özellik: {capabilityLabel(impact.requiredCapability)} · Gün {impact.dayOfWeek}, {impact.startPeriod}. ders
                             </p>
                           </div>
@@ -1476,7 +1476,7 @@ export function ManagementResources({
             </div>
 
             <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-4">
-              <p className="text-[9px] font-medium text-slate-400">
+              <p className="text-[11px] font-medium text-slate-400">
                 Önizleme hiçbir değişiklik yapmaz.
               </p>
               <div className="flex gap-2">
@@ -1484,7 +1484,7 @@ export function ManagementResources({
                   type="button"
                   onClick={closeProfileEditor}
                   disabled={profilePreviewing || profileApplying}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                 >
                   {profileWizardActive ? 'Sihirbazdan çık' : 'Kapat'}
                 </button>
@@ -1493,7 +1493,7 @@ export function ManagementResources({
                     type="button"
                     onClick={skipProfileWizardRoom}
                     disabled={profilePreviewing || profileApplying}
-                    className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-[10px] font-black text-amber-800 hover:bg-amber-100 disabled:opacity-35"
+                    className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-[11px] font-black text-amber-800 hover:bg-amber-100 disabled:opacity-35"
                   >
                     Şimdilik atla
                   </button>
@@ -1509,7 +1509,7 @@ export function ManagementResources({
                       && profileCapabilities.length === 0
                     )
                   }
-                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[10px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-35"
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[11px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-35"
                 >
                   {profilePreviewing
                     ? 'Etki hesaplanıyor…'
@@ -1522,7 +1522,7 @@ export function ManagementResources({
                     type="button"
                     onClick={() => void applyProfile()}
                     disabled={profilePreviewing || profileApplying}
-                    className="rounded-xl bg-slate-950 px-4 py-2 text-[10px] font-black text-white hover:bg-slate-800 disabled:opacity-35"
+                    className="rounded-xl bg-slate-950 px-4 py-2 text-[11px] font-black text-white hover:bg-slate-800 disabled:opacity-35"
                   >
                     {profileApplying
                       ? 'Uygulanıyor…'
@@ -1542,7 +1542,7 @@ export function ManagementResources({
           <div className="w-full max-w-[480px] rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_30px_100px_rgba(15,23,42,0.25)]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
                   {editTarget.kind === 'TEACHER' ? 'Öğretmen adı' : 'Salon adı'}
                 </p>
                 <h3 className="mt-1 text-lg font-black text-slate-950">
@@ -1560,14 +1560,14 @@ export function ManagementResources({
             </div>
 
             <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5">
-              <p className="text-[10px] font-semibold leading-5 text-blue-800">
+              <p className="text-[11px] font-semibold leading-5 text-blue-800">
                 Bu ad yalnız Yönetim taslağında kullanılır. Öğrenci / öğretmen programında
                 yayınlanan ad şimdilik <strong>{editTarget.baseName}</strong> olarak kalır.
               </p>
             </div>
 
             <label className="mt-4 block">
-              <span className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+              <span className="text-[11px] font-black uppercase tracking-wide text-slate-400">
                 Taslak ad
               </span>
               <input
@@ -1591,7 +1591,7 @@ export function ManagementResources({
             </label>
 
             {editError && (
-              <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-semibold text-rose-700">
+              <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">
                 {editError}
               </p>
             )}
@@ -1603,7 +1603,7 @@ export function ManagementResources({
                     type="button"
                     onClick={() => void saveName(editTarget.baseName)}
                     disabled={saving}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                   >
                     Orijinal ada dön
                   </button>
@@ -1615,7 +1615,7 @@ export function ManagementResources({
                   type="button"
                   onClick={() => setEditTarget(null)}
                   disabled={saving}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                 >
                   Vazgeç
                 </button>
@@ -1627,7 +1627,7 @@ export function ManagementResources({
                     || editName.trim().length === 0
                     || editName.trim() === editTarget.currentName
                   }
-                  className="rounded-xl bg-slate-950 px-4 py-2 text-[10px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+                  className="rounded-xl bg-slate-950 px-4 py-2 text-[11px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   {saving ? 'Kaydediliyor…' : 'Kaydet'}
                 </button>
