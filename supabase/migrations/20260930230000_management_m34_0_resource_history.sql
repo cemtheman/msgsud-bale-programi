@@ -80,7 +80,21 @@ begin
       'name', teacher.name,
       'operationalStatus', teacher.operational_status,
       'nameOverridden', override_row.teacher_id is not null,
-      'displayName', coalesce(override_row.display_name, teacher.name)
+      'displayName', coalesce(override_row.display_name, teacher.name),
+      'nameOverrides', (
+        select coalesce(
+          jsonb_agg(
+            jsonb_build_object(
+              'scheduleRevisionId', all_override.schedule_revision_id,
+              'displayName', all_override.display_name
+            )
+            order by all_override.schedule_revision_id
+          ),
+          '[]'::jsonb
+        )
+        from public.management_teacher_name_overrides all_override
+        where all_override.teacher_id = teacher.id
+      )
     )
     into v_state
     from public.teachers teacher
@@ -104,7 +118,21 @@ begin
       'knowledgeStatus', room.knowledge_status,
       'operationalStatus', room.operational_status,
       'nameOverridden', override_row.room_id is not null,
-      'displayName', coalesce(override_row.display_name, room.name)
+      'displayName', coalesce(override_row.display_name, room.name),
+      'nameOverrides', (
+        select coalesce(
+          jsonb_agg(
+            jsonb_build_object(
+              'scheduleRevisionId', all_override.schedule_revision_id,
+              'displayName', all_override.display_name
+            )
+            order by all_override.schedule_revision_id
+          ),
+          '[]'::jsonb
+        )
+        from public.management_room_name_overrides all_override
+        where all_override.room_id = room.id
+      )
     )
     into v_state
     from public.rooms room
@@ -259,30 +287,27 @@ begin
         p_target ->> 'operationalStatus'
       );
 
-      if coalesce(
-        (p_target ->> 'nameOverridden')::boolean,
-        false
-      ) then
-        insert into public.management_teacher_name_overrides (
-          schedule_revision_id,
-          teacher_id,
-          display_name,
-          updated_by,
-          updated_at
-        )
-        values (
-          p_schedule_revision_id,
-          p_resource_id,
-          p_target ->> 'displayName',
-          auth.uid(),
-          clock_timestamp()
-        )
-        on conflict (schedule_revision_id, teacher_id)
-        do update set
-          display_name = excluded.display_name,
-          updated_by = excluded.updated_by,
-          updated_at = excluded.updated_at;
-      end if;
+      insert into public.management_teacher_name_overrides (
+        schedule_revision_id,
+        teacher_id,
+        display_name,
+        updated_by,
+        updated_at
+      )
+      select
+        (item.value ->> 'scheduleRevisionId')::uuid,
+        p_resource_id,
+        item.value ->> 'displayName',
+        auth.uid(),
+        clock_timestamp()
+      from jsonb_array_elements(
+        coalesce(p_target -> 'nameOverrides', '[]'::jsonb)
+      ) item(value)
+      on conflict (schedule_revision_id, teacher_id)
+      do update set
+        display_name = excluded.display_name,
+        updated_by = excluded.updated_by,
+        updated_at = excluded.updated_at;
     else
       perform public.management_delete_teacher_resource(
         p_resource_id
@@ -337,30 +362,27 @@ begin
         p_target ->> 'operationalStatus'
       );
 
-      if coalesce(
-        (p_target ->> 'nameOverridden')::boolean,
-        false
-      ) then
-        insert into public.management_room_name_overrides (
-          schedule_revision_id,
-          room_id,
-          display_name,
-          updated_by,
-          updated_at
-        )
-        values (
-          p_schedule_revision_id,
-          p_resource_id,
-          p_target ->> 'displayName',
-          auth.uid(),
-          clock_timestamp()
-        )
-        on conflict (schedule_revision_id, room_id)
-        do update set
-          display_name = excluded.display_name,
-          updated_by = excluded.updated_by,
-          updated_at = excluded.updated_at;
-      end if;
+      insert into public.management_room_name_overrides (
+        schedule_revision_id,
+        room_id,
+        display_name,
+        updated_by,
+        updated_at
+      )
+      select
+        (item.value ->> 'scheduleRevisionId')::uuid,
+        p_resource_id,
+        item.value ->> 'displayName',
+        auth.uid(),
+        clock_timestamp()
+      from jsonb_array_elements(
+        coalesce(p_target -> 'nameOverrides', '[]'::jsonb)
+      ) item(value)
+      on conflict (schedule_revision_id, room_id)
+      do update set
+        display_name = excluded.display_name,
+        updated_by = excluded.updated_by,
+        updated_at = excluded.updated_at;
     else
       perform public.management_delete_room_resource(
         p_resource_id
