@@ -22,12 +22,8 @@ declare
   v_friday_min_period integer;
   v_friday_max_period integer;
 begin
-  select
-    count(*)::integer,
-    min(requirement.id)
-  into
-    v_requirement_count,
-    v_requirement_id
+  select count(*)::integer
+  into v_requirement_count
   from public.course_requirements requirement
   join public.requirement_sets requirement_set
     on requirement_set.id = requirement.requirement_set_id
@@ -41,6 +37,25 @@ begin
     and subject.name = 'K. Bale'
     and instructional_group.name =
       'STANDARD • 5A BALLET • Cuma ek dersi';
+
+  if v_requirement_count = 1 then
+    select requirement.id
+    into v_requirement_id
+    from public.course_requirements requirement
+    join public.requirement_sets requirement_set
+      on requirement_set.id = requirement.requirement_set_id
+    join public.subjects subject
+      on subject.id = requirement.subject_id
+    join public.instructional_groups instructional_group
+      on instructional_group.id = requirement.instructional_group_id
+    where requirement_set.academic_year = '2026-2027'
+      and requirement_set.term = 1
+      and requirement.term_status = 'ACTIVE'
+      and subject.name = 'K. Bale'
+      and instructional_group.name =
+        'STANDARD • 5A BALLET • Cuma ek dersi'
+    limit 1;
+  end if;
 
   if v_requirement_count <> 1 or v_requirement_id is null then
     raise exception
