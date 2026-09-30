@@ -13,11 +13,11 @@
 | Aktif çalışma ortamı | `GitHub Codespaces` |
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `00525899ec3e519ee7f356d949f327cfbd89958a` |
-| Implementation commit | `M33.3 weighted in-memory objective optimization + read-only option preview — Vercel build PASS` |
-| Son documentation checkpoint | `51024660122838a3f45e6c0b3c93c0cfabf59688` |
-| Son kullanıcı/QA kabulü | **M33.2 CLOSED/PASS** — production 300/300 baseline reuse, 0 hard-rule warning; Codespaces Vitest 14/14 files, 72/72 tests PASS; production build PASS |
-| Sıradaki iş paketi | M33.3 Codespaces Vitest/build + production preference-difference smoke; then tune/search hardening |
+| Son doğrulanmış implementation checkpoint | `94eb8b34a9aa359aec4fb453b597d15a7a87686b` |
+| Implementation commit | `M33.3 objective optimization + simplified priorities workflow/UI — browser A/B PASS; final Codespaces test/build pending` |
+| Son documentation checkpoint | `eca67486ba753e7227545b96c0c96deea1f31a85` |
+| Son kullanıcı/QA kabulü | M33.3 browser A/B PASS; multi-seed priorities materially affect solution; Öncelikler UI current layout accepted/frozen |
+| Sıradaki iş paketi | M33.3 final Codespaces Vitest/build; then define M33.4 explicit proposal review/apply package |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -4697,3 +4697,72 @@ Amaç:
 - status yerine actionable UI göstermek
 - 1. Tercih ayarı bölümünü belirgin şekilde kısaltmak
 - Program kontrolü metnini tek açıklamaya indirmek
+
+
+## 72. 30 Eylül 2026 — Öncelikler UI freeze / M33.3 closure gate
+
+Kullanıcı mevcut sadeleştirilmiş Öncelikler görünümünü şimdilik koruma kararı verdi.
+
+### UI freeze
+
+Bu görünüm **checkpoint/freeze** kabul edilir.
+
+Kural:
+- kullanıcı açıkça istemedikçe Öncelikler sayfasının yerleşimi, hiyerarşisi ve temel görsel yapısı değiştirilmez
+- sonraki teknik paketlerde yalnız işlevsel gereksinim varsa minimal ekleme yapılır
+- yeni özellik sırf eklendi diye mevcut sade düzen yeniden büyütülmez
+
+Frozen structure:
+1. sol Kayıtlı ayarlar
+2. 1 · Tercih ayarı
+3. Ayar adı / isteğe bağlı not
+4. compact preference dropdown rows
+5. dirty ise compact save action
+6. 2 · Program kontrolü
+7. 3 · Program seçeneği
+
+No-repeat principle:
+- active/taslak status tek kaynak: sidebar
+- clean active state için action/status tekrarı yok
+- success readiness badge yok
+- yalnız sorun/eylem varsa ek UI gösterilir
+
+### M33.3 closure gate
+
+Browser acceptance zaten PASS:
+- weights solution selection'ı değiştiriyor
+- multi-seed fix production A/B PASS
+- preserve-current objective eşit teacher-gap benefit'te disruption'ı 12 -> 10 düşürdü
+- no auto apply
+- production responsive
+
+M33.3 CLOSED olmadan önce kalan zorunlu kanıt:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
+```
+
+Beklenen:
+- full Vitest PASS
+- Next/TypeScript build PASS
+
+Bu kanıt geldikten sonra M33.3 CLOSED/PASS.
+
+### Sonraki paket
+
+AGENTS tarihinde M33.4 için daha önce bağlayıcı bir kapsam yok.
+
+M33.3 kapanınca önerilen sıradaki paket:
+**M33.4 explicit proposal review/apply**
+- generated proposal kalıcı schedule state değildir
+- current vs proposed full diff review
+- explicit human confirmation
+- apply öncesi fresh snapshot/hash guard
+- atomic apply
+- undo/redo integration
+- apply sonrası hard-rule revalidation
+- auto apply kesinlikle yok
+
+M33.4 kapsamı M33.3 kapanışından sonra kesinleştirilecek.
