@@ -12,11 +12,11 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `a581a0eeef306125916a64a0b5b155483a91dc60` |
-| Implementation commit | `M33.2 plain-Turkish priorities UI + nav/help cleanup — Vercel build PASS` |
-| Son documentation checkpoint | `c67a57b0a071049de536f6aadb8a39c89a57a719` |
-| Son kullanıcı/QA kabulü | M33.1 CLOSED/PASS; M33.2 manual-override false positive fixed; remaining issue isolated to Cuma ek dersi consecutive-limit rule |
-| Sıradaki iş paketi | Classify/fix Cuma ek dersi max-consecutive rule source + Vitest; then M33.3 |
+| Son doğrulanmış implementation checkpoint | `1383862c95c75a11ba4d8dbf5995c8545d1b74ce` |
+| Implementation commit | `M33.2 Friday K. Bale rule fix migration + priorities disclaimer` |
+| Son documentation checkpoint | `5a310106a4848446100259a8dd01b6dace1f8c11` |
+| Son kullanıcı/QA kabulü | M33.1 CLOSED/PASS; M33.2 remaining conflict traced to stale maxConsecutivePeriods=1 against confirmed Friday 7+8 rule |
+| Sıradaki iş paketi | Apply M33.2.1 migration + QA + browser rerun + Vitest; then M33.3 objective optimization |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -3832,3 +3832,108 @@ Sıradaki adım:
 4. intended rule 1 ise mevcut schedule gerçek kural ihlalidir ve program tarafı düzeltilmeli
 5. M33.2 Vitest
 6. sonra M33.3
+
+
+## 60. 30 Eylül 2026 — M33.2.1 Friday K. Bale rule source resolved
+
+Kullanıcı Öncelikler ekranında öncelik seviyelerini değiştirmenin
+`Programı kontrol et` sonucunu değiştirmediğini gözlemledi.
+
+Bu beklenen M33.2 davranışı:
+- feasibility motoru objective weights kullanmıyor
+- yalnız hard-rule geçerliliğini sınar
+- ilk feasible solution'da durur
+- objective weights M33.3'e kadar çözüm seçimini etkilemez
+
+UI açıklaması eklendi:
+```
+1383862c95c75a11ba4d8dbf5995c8545d1b74ce
+polish: clarify priorities are not used by program check yet
+```
+
+Normal kullanıcıya artık açıkça:
+“Buradaki öncelikler henüz bu kontrolün sonucunu değiştirmez.
+Önceliklere göre farklı program seçenekleri üretme özelliği bir sonraki aşamada devreye girecek.”
+mesajı gösteriliyor.
+
+### Cuma ek dersi maxConsecutivePeriods=1 kaynağı
+
+Repo geçmişi ve kalıcı proje kaydı birlikte incelendi.
+
+M2.2 observed bootstrap:
+`20260920021000_management_m2_2_observed_requirement_bootstrap.sql`
+- min_distinct_days = NULL
+- max_blocks_per_day = NULL
+- max_consecutive_periods = NULL
+- dolayısıyla stale `1` ilk requirement bootstrap'tan gelmiyor
+
+M25 clean effective schedule bootstrap:
+`20260923030000_management_m25_clean_effective_schedule_bootstrap.sql`
+explicit runtime adjustment olarak:
+- subject = K. Bale
+- group = STANDARD • 5A BALLET • Cuma ek dersi
+- block 1 => Friday period 7
+- block 2 => Friday period 8
+- teacher = E. Gemalmaz
+yerleşimini authoritative clean draft'a materialize ediyor.
+
+Kalıcı ürün kuralı AGENTS.md §5'te zaten:
+`5A Cuma K. Bale | 13:50'den itibaren 2 ders · E. Gemalmaz`
+
+Bu üç kanıt birlikte current `max_consecutive_periods=1` değerinin
+güncel iş kuralıyla uyumsuz stale structural constraint olduğunu gösteriyor.
+
+Fix yaklaşımı:
+- solver hard rule gevşetilmedi
+- current placement değiştirilmedi
+- yalnız hedef requirement structural rule'u 1 -> 2 düzeltiliyor
+- additive migration
+- migration exact target + current state guard'ları taşıyor
+
+Migration:
+```
+20260930110000_management_m33_2_1_friday_k_bale_consecutive_rule.sql
+8c0fd2723c4842f04c3035f08c01626cf2793bfe
+fix: align Friday K Bale consecutive lesson rule
+```
+
+Migration safety:
+- 2026-2027 / term 1
+- ACTIVE
+- K. Bale
+- exact group STANDARD • 5A BALLET • Cuma ek dersi
+- exactly one requirement
+- current max_consecutive_periods must be 1
+- active DRAFT must exist
+- exactly 2 cards
+- both cards must be 1 period
+- both placements must be Friday
+- min/max period must be 7/8
+- only then update max_consecutive_periods=2
+- placements/teacher/room unchanged
+- affected candidate subset refreshed
+
+Read-only verification:
+```
+docs/sql/m33_2_1_friday_k_bale_rule_qa.sql
+5a310106a4848446100259a8dd01b6dace1f8c11
+test: add Friday K Bale rule verification
+```
+
+Expected QA:
+- max_consecutive_periods = 2
+- card_count = 2
+- one_period_card_count = 2
+- friday_placed_count = 2
+- friday_min_period = 7
+- friday_max_period = 8
+- teacher_names = {E. Gemalmaz}
+- qa_status = PASS
+
+Migration/QA sonrası production `Programı kontrol et` beklenen:
+- Cuma ek dersi warning yok
+- changed card diagnostic kaybolur
+- baseline feasible ise 300/300 reuse
+- program mutation yok
+
+M33.2 bu apply + QA + browser rerun + Vitest sonrası CLOSED kabul edilecek.
