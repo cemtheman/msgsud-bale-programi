@@ -287,6 +287,50 @@ describe('M33.2 in-memory feasibility prototype', () => {
       left.dayOfWeek !== right.dayOfWeek
       || left.startPeriod !== right.startPeriod,
     ).toBe(true);
+    expect(result.changedCards?.length).toBeGreaterThan(0);
+    expect(
+      result.baselineIssues?.some(
+        (issue) => issue.codes.includes('BASELINE_GROUP_CONFLICT'),
+      ),
+    ).toBe(true);
+  });
+
+  it('explains a valid manual baseline teacher outside the planning pool', () => {
+    const base = snapshot();
+    const result = runManagementFeasibilityPrototype(snapshot({
+      teachers: [
+        ...base.teachers,
+        {
+          id: 'manual-teacher',
+          name: 'Manuel Öğretmen',
+          operationalStatus: 'ACTIVE',
+        },
+      ],
+      baselinePlacements: [{
+        cardId: 'c1',
+        dayOfWeek: 1,
+        startPeriod: 1,
+        teacherId: 'manual-teacher',
+        roomId: 'room1',
+      }],
+    }));
+
+    expect(result.status).toBe('FEASIBLE');
+    expect(result.baselineWasFeasible).toBe(false);
+    expect(
+      result.baselineIssues?.[0]?.codes,
+    ).toContain('BASELINE_TEACHER_OUTSIDE_PLANNING_POOL');
+    expect(result.changedCards).toHaveLength(1);
+    expect(result.changedCards?.[0]).toMatchObject({
+      subjectName: 'Matematik',
+      groupName: '5A',
+      baseline: {
+        teacherName: 'Manuel Öğretmen',
+      },
+      proposed: {
+        teacherName: 'Matematik Öğretmeni',
+      },
+    });
   });
 
   it('keeps UNKNOWN room mode provisional instead of treating it as a blocker', () => {
