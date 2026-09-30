@@ -1802,7 +1802,9 @@ export default function ManagementPage() {
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
               }`}
             >
-              Ders Havuzu · {visibleUnplacedCount}
+              {dragCard?.placement
+                ? 'Havuza bırak · programdan kaldır'
+                : `Ders Havuzu · ${visibleUnplacedCount}`}
             </button>
   
             <div className="flex rounded-xl border border-slate-200 bg-white p-1">
@@ -2078,7 +2080,7 @@ export default function ManagementPage() {
             <div
               ref={inspectorPanelRef}
               tabIndex={-1}
-              className="min-h-0 outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+              className="h-full min-h-0 outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
               aria-label="Ders ayrıntıları"
             >
             <ManagementInspector
