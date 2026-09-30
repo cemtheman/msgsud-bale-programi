@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-type ManagementSection = 'PROGRAM' | 'PLAN' | 'RESOURCES' | 'STATUS';
+type ManagementSection = 'PROGRAM' | 'PLAN' | 'RESOURCES' | 'SOLVER' | 'STATUS';
 
 const SECTION_GUIDES: Record<
   ManagementSection,
@@ -54,6 +54,20 @@ const SECTION_GUIDES: Record<
       'Ad, atama durumu veya salon özelliği gibi gerekli alanı değiştirin.',
       'Etkisi olan işlemlerde önizlemeyi kontrol edin.',
       'Kullanımda olan kaynakları silmek yerine durumunu yönetmeyi tercih edin.',
+    ],
+  },
+  SOLVER: {
+    eyebrow: 'Optimizasyon',
+    title: 'Geçerli çözümler arasında hangi tercihlerin önemli olduğunu tanımlayın',
+    summary:
+      'Hard kurallar programın geçerli olup olmadığını belirler. Bu bölüm ise birden fazla geçerli program arasından seçim yapılırken hangi hedeflerin ne kadar önemli olduğunu açıkça tanımlar.',
+    detail:
+      'Partisyon optimizasyon hedeflerini kendiliğinden belirlemez. Mevcut programa sadakat, esnek derslerde öğretmen devamlılığı, öğretmen boşluklarını azaltma ve salon istikrarı gibi ölçütlere siz öncelik verirsiniz. Bu ekran programı doğrudan değiştirmez; gelecekteki solver için açık bir karar profili oluşturur.',
+    steps: [
+      'Yeni bir hedef profili oluşturun veya mevcut profili seçin.',
+      'Her hedef için Kapalı / Düşük / Orta / Yüksek / Çok yüksek önceliklerinden birini seçin.',
+      'Profil taslakken değişiklikleri deneyebilir; hazır olduğunda Etkin profil yapabilirsiniz.',
+      'Etkin profil solver için tercih ölçütlerini tanımlar; hard program kurallarını değiştirmez.',
     ],
   },
   STATUS: {
@@ -216,7 +230,7 @@ export function ManagementHelpCenter({
             <div className="flex items-end justify-between gap-3 px-1">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                  Dört ana bölüm
+                  Beş ana bölüm
                 </p>
                 <p className="mt-0.5 text-[9px] font-medium text-slate-400">
                   Bölüme gitmek için kartı seçin.
