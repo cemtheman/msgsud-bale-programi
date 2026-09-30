@@ -1881,90 +1881,33 @@ function metricDelta(
   };
 }
 
-export function runManagementObjectiveOptimization(
-  snapshot: ManagementSolverSnapshotPreview,
+interface LocalObjectiveSearchResult {
+  assignments: Candidate[];
+  metrics: ManagementOptimizationMetricVector;
+  score: ManagementOptimizationScore;
+  evaluatedMoveCount: number;
+  acceptedMoveCount: number;
+}
+
+function runLocalObjectiveSearch(
+  startAssignments: Candidate[],
   weights: ManagementSolverObjectiveWeights,
-  options: ManagementOptimizationOptions = {},
-): ManagementOptimizationResult {
-  const startedAt = Date.now();
-  const maxIterations = options.maxIterations
-    ?? DEFAULT_OPTIMIZATION_ITERATIONS;
-  const maxNeighborsPerCard = options.maxNeighborsPerCard
-    ?? DEFAULT_OPTIMIZATION_NEIGHBORS_PER_CARD;
-  const maxCandidatesPerCard = options.maxCandidatesPerCard
-    ?? DEFAULT_OPTIMIZATION_CANDIDATES_PER_CARD;
-
-  const context = createContext(snapshot, maxCandidatesPerCard);
-  const cards = [...snapshot.cards].sort(
-    (left, right) => left.id.localeCompare(right.id),
-  );
-
-  const emptyMetrics: ManagementOptimizationMetricVector = {
-    changeCost: 0,
-    preferredTeacherContinuityBreaks: 0,
-    teacherIdleGapPeriods: 0,
-    roomStabilityBreaks: 0,
-  };
-  const emptyScore = objectiveScore(
-    emptyMetrics,
-    weights,
-    Math.max(cards.length, 1),
-  );
-
-  const blocked = (
-    reason: string,
-  ): ManagementOptimizationResult => ({
-    engineVersion: 'M33.3-v0',
-    status: 'BLOCKED',
-    snapshotHash: snapshot.snapshotHash,
-    baselineHash: snapshot.baselineHash,
-    writesPerformed: false,
-    objectiveProfileUsed: true,
-    weights: { ...weights },
-    baselineMetrics: emptyMetrics,
-    proposedMetrics: emptyMetrics,
-    delta: emptyMetrics,
-    baselineScore: emptyScore,
-    proposedScore: emptyScore,
-    placements: [],
-    changedCards: [],
-    evaluatedMoveCount: 0,
-    acceptedMoveCount: 0,
-    elapsedMs: Date.now() - startedAt,
-    reasons: [reason],
-  });
-
-  if (!snapshot.readiness.hardInputReady) {
-    return blocked('HARD_INPUT_NOT_READY');
-  }
-
-  if (supportedPositiveWeightCount(weights) === 0) {
-    return blocked('NO_ACTIVE_SUPPORTED_PRIORITIES');
-  }
-
-  const baselineAssignments = tryBaseline(cards, context);
-  if (!baselineAssignments) {
-    return blocked('BASELINE_NOT_FEASIBLE');
-  }
-
-  const domains = new Map<string, Candidate[]>();
-  for (const card of cards) {
-    domains.set(card.id, rawCandidatesForCard(card, context));
-  }
-
-  const baselineMetrics = objectiveMetricVector(
-    baselineAssignments,
+  cards: ManagementSolverCard[],
+  domains: Map<string, Candidate[]>,
+  context: SolverContext,
+  maxIterations: number,
+  maxNeighborsPerCard: number,
+): LocalObjectiveSearchResult {
+  let currentAssignments = [...startAssignments];
+  let currentMetrics = objectiveMetricVector(
+    currentAssignments,
     context,
   );
-  const baselineScore = objectiveScore(
-    baselineMetrics,
+  let currentScore = objectiveScore(
+    currentMetrics,
     weights,
     cards.length,
   );
-
-  let currentAssignments = [...baselineAssignments];
-  let currentMetrics = baselineMetrics;
-  let currentScore = baselineScore;
   let evaluatedMoveCount = 0;
   let acceptedMoveCount = 0;
 
@@ -2053,12 +1996,223 @@ export function runManagementObjectiveOptimization(
     acceptedMoveCount += 1;
   }
 
-  currentAssignments.sort(
+  return {
+    assignments: currentAssignments,
+    metrics: currentMetrics,
+    score: currentScore,
+    evaluatedMoveCount,
+    acceptedMoveCount,
+  };
+}
+
+function singleObjectiveSeedWeights(
+  weights: ManagementSolverObjectiveWeights,
+) {
+  const seeds: ManagementSolverObjectiveWeights[] = [];
+
+  const add = (
+    key:
+      | 'preferredTeacherContinuity'
+      | 'teacherIdleGaps'
+      | 'roomStability',
+  ) => {
+    if (weights[key] <= 0) return;
+    seeds.push({
+      changeCost: 0,
+      preferredTeacherContinuity: 0,
+      teacherIdleGaps: 0,
+      roomStability: 0,
+      teacherLoadBalance: 0,
+      subjectTimePreference: 0,
+      [key]: 1000,
+    });
+  };
+
+  add('preferredTeacherContinuity');
+  add('teacherIdleGaps');
+  add('roomStability');
+
+  return seeds;
+}
+
+function targetScoreForAssignments(
+  assignments: Candidate[],
+  weights: ManagementSolverObjectiveWeights,
+  cardCount: number,
+  context: SolverContext,
+) {
+  const metrics = objectiveMetricVector(assignments, context);
+  return {
+    metrics,
+    score: objectiveScore(metrics, weights, cardCount),
+  };
+}
+
+export function runManagementObjectiveOptimization(
+  snapshot: ManagementSolverSnapshotPreview,
+  weights: ManagementSolverObjectiveWeights,
+  options: ManagementOptimizationOptions = {},
+): ManagementOptimizationResult {
+  const startedAt = Date.now();
+  const maxIterations = options.maxIterations
+    ?? DEFAULT_OPTIMIZATION_ITERATIONS;
+  const maxNeighborsPerCard = options.maxNeighborsPerCard
+    ?? DEFAULT_OPTIMIZATION_NEIGHBORS_PER_CARD;
+  const maxCandidatesPerCard = options.maxCandidatesPerCard
+    ?? DEFAULT_OPTIMIZATION_CANDIDATES_PER_CARD;
+
+  const context = createContext(snapshot, maxCandidatesPerCard);
+  const cards = [...snapshot.cards].sort(
+    (left, right) => left.id.localeCompare(right.id),
+  );
+
+  const emptyMetrics: ManagementOptimizationMetricVector = {
+    changeCost: 0,
+    preferredTeacherContinuityBreaks: 0,
+    teacherIdleGapPeriods: 0,
+    roomStabilityBreaks: 0,
+  };
+  const emptyScore = objectiveScore(
+    emptyMetrics,
+    weights,
+    Math.max(cards.length, 1),
+  );
+
+  const blocked = (
+    reason: string,
+  ): ManagementOptimizationResult => ({
+    engineVersion: 'M33.3-v0',
+    status: 'BLOCKED',
+    snapshotHash: snapshot.snapshotHash,
+    baselineHash: snapshot.baselineHash,
+    writesPerformed: false,
+    objectiveProfileUsed: true,
+    weights: { ...weights },
+    baselineMetrics: emptyMetrics,
+    proposedMetrics: emptyMetrics,
+    delta: emptyMetrics,
+    baselineScore: emptyScore,
+    proposedScore: emptyScore,
+    placements: [],
+    changedCards: [],
+    evaluatedMoveCount: 0,
+    acceptedMoveCount: 0,
+    elapsedMs: Date.now() - startedAt,
+    reasons: [reason],
+  });
+
+  if (!snapshot.readiness.hardInputReady) {
+    return blocked('HARD_INPUT_NOT_READY');
+  }
+
+  if (supportedPositiveWeightCount(weights) === 0) {
+    return blocked('NO_ACTIVE_SUPPORTED_PRIORITIES');
+  }
+
+  const baselineAssignments = tryBaseline(cards, context);
+  if (!baselineAssignments) {
+    return blocked('BASELINE_NOT_FEASIBLE');
+  }
+
+  const domains = new Map<string, Candidate[]>();
+  for (const card of cards) {
+    domains.set(card.id, rawCandidatesForCard(card, context));
+  }
+
+  const baselineMetrics = objectiveMetricVector(
+    baselineAssignments,
+    context,
+  );
+  const baselineScore = objectiveScore(
+    baselineMetrics,
+    weights,
+    cards.length,
+  );
+
+  const candidateSolutions: Array<{
+    assignments: Candidate[];
+    metrics: ManagementOptimizationMetricVector;
+    score: ManagementOptimizationScore;
+    sourceKey: string;
+    evaluatedMoveCount: number;
+    acceptedMoveCount: number;
+  }> = [{
+    assignments: [...baselineAssignments],
+    metrics: baselineMetrics,
+    score: baselineScore,
+    sourceKey: 'baseline',
+    evaluatedMoveCount: 0,
+    acceptedMoveCount: 0,
+  }];
+
+  const combined = runLocalObjectiveSearch(
+    baselineAssignments,
+    weights,
+    cards,
+    domains,
+    context,
+    maxIterations,
+    maxNeighborsPerCard,
+  );
+
+  candidateSolutions.push({
+    ...combined,
+    sourceKey: 'combined',
+  });
+
+  const seedWeights = singleObjectiveSeedWeights(weights);
+  for (let index = 0; index < seedWeights.length; index += 1) {
+    const seed = runLocalObjectiveSearch(
+      baselineAssignments,
+      seedWeights[index],
+      cards,
+      domains,
+      context,
+      maxIterations,
+      maxNeighborsPerCard,
+    );
+    const target = targetScoreForAssignments(
+      seed.assignments,
+      weights,
+      cards.length,
+      context,
+    );
+
+    candidateSolutions.push({
+      assignments: seed.assignments,
+      metrics: target.metrics,
+      score: target.score,
+      sourceKey: `seed-${index}`,
+      evaluatedMoveCount: seed.evaluatedMoveCount,
+      acceptedMoveCount: seed.acceptedMoveCount,
+    });
+  }
+
+  candidateSolutions.sort((left, right) => (
+    left.score.total - right.score.total
+    || left.metrics.changeCost - right.metrics.changeCost
+    || left.metrics.preferredTeacherContinuityBreaks
+      - right.metrics.preferredTeacherContinuityBreaks
+    || left.metrics.teacherIdleGapPeriods
+      - right.metrics.teacherIdleGapPeriods
+    || left.metrics.roomStabilityBreaks
+      - right.metrics.roomStabilityBreaks
+    || left.sourceKey.localeCompare(right.sourceKey)
+  ));
+
+  const selected = candidateSolutions[0];
+  const evaluatedMoveCount = candidateSolutions.reduce(
+    (sum, candidate) => sum + candidate.evaluatedMoveCount,
+    0,
+  );
+  const acceptedMoveCount = selected.acceptedMoveCount;
+
+  const selectedAssignments = [...selected.assignments].sort(
     (left, right) => left.cardId.localeCompare(right.cardId),
   );
 
   const improved = (
-    currentScore.total < baselineScore.total - SCORE_EPSILON
+    selected.score.total < baselineScore.total - SCORE_EPSILON
   );
 
   return {
@@ -2070,13 +2224,13 @@ export function runManagementObjectiveOptimization(
     objectiveProfileUsed: true,
     weights: { ...weights },
     baselineMetrics,
-    proposedMetrics: currentMetrics,
-    delta: metricDelta(baselineMetrics, currentMetrics),
+    proposedMetrics: selected.metrics,
+    delta: metricDelta(baselineMetrics, selected.metrics),
     baselineScore,
-    proposedScore: currentScore,
-    placements: currentAssignments.map(toPublicPlacement),
+    proposedScore: selected.score,
+    placements: selectedAssignments.map(toPublicPlacement),
     changedCards: changedCardDiagnostics(
-      currentAssignments,
+      selectedAssignments,
       [],
       context,
     ),
