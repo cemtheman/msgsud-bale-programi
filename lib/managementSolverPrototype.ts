@@ -6,6 +6,7 @@ import type {
   ManagementSolverRoom,
   ManagementSolverSnapshotPreview,
   ManagementSolverTeacher,
+  ManagementSolverObjectiveWeights,
 } from '@/lib/managementSolver';
 
 export type ManagementFeasibilityStatus =
@@ -1542,5 +1543,546 @@ export function runManagementFeasibilityPrototype(
       backtrackCount,
       elapsedMs,
     ),
+  };
+}
+
+
+export interface ManagementOptimizationMetricVector {
+  changeCost: number;
+  preferredTeacherContinuityBreaks: number;
+  teacherIdleGapPeriods: number;
+  roomStabilityBreaks: number;
+}
+
+export interface ManagementOptimizationScoreComponent {
+  rawValue: number;
+  normalizedValue: number;
+  weight: number;
+  contribution: number;
+}
+
+export interface ManagementOptimizationScore {
+  total: number;
+  components: {
+    changeCost: ManagementOptimizationScoreComponent;
+    preferredTeacherContinuity: ManagementOptimizationScoreComponent;
+    teacherIdleGaps: ManagementOptimizationScoreComponent;
+    roomStability: ManagementOptimizationScoreComponent;
+  };
+}
+
+export type ManagementOptimizationStatus =
+  | 'IMPROVED'
+  | 'UNCHANGED'
+  | 'BLOCKED';
+
+export interface ManagementOptimizationResult {
+  engineVersion: 'M33.3-v0';
+  status: ManagementOptimizationStatus;
+  snapshotHash: string;
+  baselineHash: string;
+  writesPerformed: false;
+  objectiveProfileUsed: true;
+  weights: ManagementSolverObjectiveWeights;
+  baselineMetrics: ManagementOptimizationMetricVector;
+  proposedMetrics: ManagementOptimizationMetricVector;
+  delta: ManagementOptimizationMetricVector;
+  baselineScore: ManagementOptimizationScore;
+  proposedScore: ManagementOptimizationScore;
+  placements: ManagementFeasibilityPlacement[];
+  changedCards: ManagementFeasibilityChangedCard[];
+  evaluatedMoveCount: number;
+  acceptedMoveCount: number;
+  elapsedMs: number;
+  reasons: string[];
+}
+
+export interface ManagementOptimizationOptions {
+  maxIterations?: number;
+  maxNeighborsPerCard?: number;
+  maxCandidatesPerCard?: number;
+}
+
+const DEFAULT_OPTIMIZATION_ITERATIONS = 8;
+const DEFAULT_OPTIMIZATION_NEIGHBORS_PER_CARD = 24;
+const DEFAULT_OPTIMIZATION_CANDIDATES_PER_CARD = 400;
+const SCORE_EPSILON = 1e-9;
+
+function objectiveMetricVector(
+  assignments: Candidate[],
+  context: SolverContext,
+): ManagementOptimizationMetricVector {
+  let changeCost = 0;
+
+  for (const assignment of assignments) {
+    const baseline = context.baseline.get(assignment.cardId);
+    if (!baselinePlacementIsMaterialized(baseline)) {
+      changeCost += 4;
+      continue;
+    }
+
+    if (assignment.dayOfWeek !== baseline.dayOfWeek) changeCost += 1;
+    if (assignment.startPeriod !== baseline.startPeriod) changeCost += 1;
+    if (assignment.teacherId !== baseline.teacherId) changeCost += 1;
+    if (assignment.roomId !== baseline.roomId) changeCost += 1;
+  }
+
+  const byRequirement = new Map<string, Candidate[]>();
+  const byTeacherDay = new Map<string, Candidate[]>();
+
+  for (const assignment of assignments) {
+    const requirementAssignments = byRequirement.get(
+      assignment.requirementId,
+    ) ?? [];
+    requirementAssignments.push(assignment);
+    byRequirement.set(
+      assignment.requirementId,
+      requirementAssignments,
+    );
+
+    if (assignment.teacherId != null) {
+      const key = `${assignment.teacherId}|${assignment.dayOfWeek}`;
+      const teacherAssignments = byTeacherDay.get(key) ?? [];
+      teacherAssignments.push(assignment);
+      byTeacherDay.set(key, teacherAssignments);
+    }
+  }
+
+  let preferredTeacherContinuityBreaks = 0;
+  let roomStabilityBreaks = 0;
+
+  for (const requirement of context.requirements.values()) {
+    const assigned = byRequirement.get(requirement.id) ?? [];
+
+    if (
+      requirement.teacherAssignmentScope === 'BLOCK'
+      && requirement.teacherContinuity === 'PREFERRED'
+    ) {
+      const teachers = new Set(
+        assigned
+          .map((assignment) => assignment.teacherId)
+          .filter((teacherId): teacherId is string => teacherId != null),
+      );
+      preferredTeacherContinuityBreaks += Math.max(
+        teachers.size - 1,
+        0,
+      );
+    }
+
+    const rooms = new Set(
+      assigned
+        .map((assignment) => assignment.roomId)
+        .filter((roomId): roomId is string => roomId != null),
+    );
+    roomStabilityBreaks += Math.max(rooms.size - 1, 0);
+  }
+
+  let teacherIdleGapPeriods = 0;
+
+  for (const assigned of byTeacherDay.values()) {
+    if (assigned.length === 0) continue;
+
+    let firstPeriod = Number.POSITIVE_INFINITY;
+    let lastPeriod = Number.NEGATIVE_INFINITY;
+    let occupiedPeriods = 0;
+
+    for (const assignment of assigned) {
+      firstPeriod = Math.min(firstPeriod, assignment.startPeriod);
+      lastPeriod = Math.max(lastPeriod, assignment.endPeriod);
+      occupiedPeriods += assignment.durationPeriods;
+    }
+
+    teacherIdleGapPeriods += Math.max(
+      lastPeriod - firstPeriod + 1 - occupiedPeriods,
+      0,
+    );
+  }
+
+  return {
+    changeCost,
+    preferredTeacherContinuityBreaks,
+    teacherIdleGapPeriods,
+    roomStabilityBreaks,
+  };
+}
+
+function optimizationScoreComponent(
+  rawValue: number,
+  weight: number,
+  cardCount: number,
+): ManagementOptimizationScoreComponent {
+  const normalizedValue = rawValue / Math.max(cardCount, 1);
+  return {
+    rawValue,
+    normalizedValue,
+    weight,
+    contribution: normalizedValue * weight,
+  };
+}
+
+function objectiveScore(
+  metrics: ManagementOptimizationMetricVector,
+  weights: ManagementSolverObjectiveWeights,
+  cardCount: number,
+): ManagementOptimizationScore {
+  const changeCost = optimizationScoreComponent(
+    metrics.changeCost,
+    weights.changeCost,
+    cardCount,
+  );
+  const preferredTeacherContinuity = optimizationScoreComponent(
+    metrics.preferredTeacherContinuityBreaks,
+    weights.preferredTeacherContinuity,
+    cardCount,
+  );
+  const teacherIdleGaps = optimizationScoreComponent(
+    metrics.teacherIdleGapPeriods,
+    weights.teacherIdleGaps,
+    cardCount,
+  );
+  const roomStability = optimizationScoreComponent(
+    metrics.roomStabilityBreaks,
+    weights.roomStability,
+    cardCount,
+  );
+
+  return {
+    total:
+      changeCost.contribution
+      + preferredTeacherContinuity.contribution
+      + teacherIdleGaps.contribution
+      + roomStability.contribution,
+    components: {
+      changeCost,
+      preferredTeacherContinuity,
+      teacherIdleGaps,
+      roomStability,
+    },
+  };
+}
+
+function supportedPositiveWeightCount(
+  weights: ManagementSolverObjectiveWeights,
+) {
+  return [
+    weights.changeCost,
+    weights.preferredTeacherContinuity,
+    weights.teacherIdleGaps,
+    weights.roomStability,
+  ].filter((weight) => weight > 0).length;
+}
+
+function samePlacement(
+  left: Candidate,
+  right: Candidate,
+) {
+  return (
+    left.dayOfWeek === right.dayOfWeek
+    && left.startPeriod === right.startPeriod
+    && left.teacherId === right.teacherId
+    && left.roomId === right.roomId
+  );
+}
+
+function candidateKey(candidate: Candidate) {
+  return [
+    candidate.dayOfWeek,
+    candidate.startPeriod,
+    candidate.teacherId ?? '',
+    candidate.roomId ?? '',
+  ].join('|');
+}
+
+function candidateDistance(
+  candidate: Candidate,
+  current: Candidate,
+) {
+  let distance = (
+    Math.abs(candidate.dayOfWeek - current.dayOfWeek) * 12
+    + Math.abs(candidate.startPeriod - current.startPeriod)
+  );
+
+  if (candidate.teacherId !== current.teacherId) distance += 2;
+  if (candidate.roomId !== current.roomId) distance += 2;
+
+  return distance;
+}
+
+function optimizationNeighborhood(
+  domain: Candidate[],
+  current: Candidate,
+  maxNeighbors: number,
+) {
+  return domain
+    .filter((candidate) => !samePlacement(candidate, current))
+    .sort((left, right) => (
+      candidateDistance(left, current)
+      - candidateDistance(right, current)
+      || candidateKey(left).localeCompare(candidateKey(right))
+    ))
+    .slice(0, maxNeighbors);
+}
+
+function preserveUnknownRoomEvidence(
+  candidate: Candidate,
+  context: SolverContext,
+) {
+  const requirement = context.requirements.get(candidate.requirementId);
+  const baseline = context.baseline.get(candidate.cardId);
+
+  if (
+    requirement?.resourceMode !== 'UNKNOWN'
+    || baseline?.roomId == null
+  ) {
+    return true;
+  }
+
+  return candidate.roomId === baseline.roomId;
+}
+
+function moveIsHardFeasible(
+  candidate: Candidate,
+  assignments: Candidate[],
+  context: SolverContext,
+) {
+  const remainingByRequirement = new Map<string, number>();
+  remainingByRequirement.set(candidate.requirementId, 0);
+
+  if (!canAssign(
+    candidate,
+    assignments,
+    remainingByRequirement,
+    context,
+  )) {
+    return false;
+  }
+
+  return finalRequirementRulesHold(
+    [...assignments, candidate],
+    context,
+  );
+}
+
+function metricDelta(
+  baseline: ManagementOptimizationMetricVector,
+  proposed: ManagementOptimizationMetricVector,
+): ManagementOptimizationMetricVector {
+  return {
+    changeCost: proposed.changeCost - baseline.changeCost,
+    preferredTeacherContinuityBreaks:
+      proposed.preferredTeacherContinuityBreaks
+      - baseline.preferredTeacherContinuityBreaks,
+    teacherIdleGapPeriods:
+      proposed.teacherIdleGapPeriods
+      - baseline.teacherIdleGapPeriods,
+    roomStabilityBreaks:
+      proposed.roomStabilityBreaks
+      - baseline.roomStabilityBreaks,
+  };
+}
+
+export function runManagementObjectiveOptimization(
+  snapshot: ManagementSolverSnapshotPreview,
+  weights: ManagementSolverObjectiveWeights,
+  options: ManagementOptimizationOptions = {},
+): ManagementOptimizationResult {
+  const startedAt = Date.now();
+  const maxIterations = options.maxIterations
+    ?? DEFAULT_OPTIMIZATION_ITERATIONS;
+  const maxNeighborsPerCard = options.maxNeighborsPerCard
+    ?? DEFAULT_OPTIMIZATION_NEIGHBORS_PER_CARD;
+  const maxCandidatesPerCard = options.maxCandidatesPerCard
+    ?? DEFAULT_OPTIMIZATION_CANDIDATES_PER_CARD;
+
+  const context = createContext(snapshot, maxCandidatesPerCard);
+  const cards = [...snapshot.cards].sort(
+    (left, right) => left.id.localeCompare(right.id),
+  );
+
+  const emptyMetrics: ManagementOptimizationMetricVector = {
+    changeCost: 0,
+    preferredTeacherContinuityBreaks: 0,
+    teacherIdleGapPeriods: 0,
+    roomStabilityBreaks: 0,
+  };
+  const emptyScore = objectiveScore(
+    emptyMetrics,
+    weights,
+    Math.max(cards.length, 1),
+  );
+
+  const blocked = (
+    reason: string,
+  ): ManagementOptimizationResult => ({
+    engineVersion: 'M33.3-v0',
+    status: 'BLOCKED',
+    snapshotHash: snapshot.snapshotHash,
+    baselineHash: snapshot.baselineHash,
+    writesPerformed: false,
+    objectiveProfileUsed: true,
+    weights: { ...weights },
+    baselineMetrics: emptyMetrics,
+    proposedMetrics: emptyMetrics,
+    delta: emptyMetrics,
+    baselineScore: emptyScore,
+    proposedScore: emptyScore,
+    placements: [],
+    changedCards: [],
+    evaluatedMoveCount: 0,
+    acceptedMoveCount: 0,
+    elapsedMs: Date.now() - startedAt,
+    reasons: [reason],
+  });
+
+  if (!snapshot.readiness.hardInputReady) {
+    return blocked('HARD_INPUT_NOT_READY');
+  }
+
+  if (supportedPositiveWeightCount(weights) === 0) {
+    return blocked('NO_ACTIVE_SUPPORTED_PRIORITIES');
+  }
+
+  const baselineAssignments = tryBaseline(cards, context);
+  if (!baselineAssignments) {
+    return blocked('BASELINE_NOT_FEASIBLE');
+  }
+
+  const domains = new Map<string, Candidate[]>();
+  for (const card of cards) {
+    domains.set(card.id, rawCandidatesForCard(card, context));
+  }
+
+  const baselineMetrics = objectiveMetricVector(
+    baselineAssignments,
+    context,
+  );
+  const baselineScore = objectiveScore(
+    baselineMetrics,
+    weights,
+    cards.length,
+  );
+
+  let currentAssignments = [...baselineAssignments];
+  let currentMetrics = baselineMetrics;
+  let currentScore = baselineScore;
+  let evaluatedMoveCount = 0;
+  let acceptedMoveCount = 0;
+
+  for (let iteration = 0; iteration < maxIterations; iteration += 1) {
+    let best:
+      | {
+          assignments: Candidate[];
+          metrics: ManagementOptimizationMetricVector;
+          score: ManagementOptimizationScore;
+          key: string;
+        }
+      | null = null;
+
+    for (const card of cards) {
+      if (card.locked) continue;
+
+      const current = currentAssignments.find(
+        (assignment) => assignment.cardId === card.id,
+      );
+      if (!current) continue;
+
+      const others = currentAssignments.filter(
+        (assignment) => assignment.cardId !== card.id,
+      );
+      const neighborhood = optimizationNeighborhood(
+        domains.get(card.id) ?? [],
+        current,
+        maxNeighborsPerCard,
+      );
+
+      for (const candidate of neighborhood) {
+        if (!preserveUnknownRoomEvidence(candidate, context)) {
+          continue;
+        }
+
+        evaluatedMoveCount += 1;
+
+        if (!moveIsHardFeasible(candidate, others, context)) {
+          continue;
+        }
+
+        const proposedAssignments = [...others, candidate];
+        const proposedMetrics = objectiveMetricVector(
+          proposedAssignments,
+          context,
+        );
+        const proposedScore = objectiveScore(
+          proposedMetrics,
+          weights,
+          cards.length,
+        );
+
+        if (
+          proposedScore.total
+          >= currentScore.total - SCORE_EPSILON
+        ) {
+          continue;
+        }
+
+        const key = `${card.id}|${candidateKey(candidate)}`;
+
+        if (
+          best == null
+          || proposedScore.total < best.score.total - SCORE_EPSILON
+          || (
+            Math.abs(proposedScore.total - best.score.total)
+              <= SCORE_EPSILON
+            && key.localeCompare(best.key) < 0
+          )
+        ) {
+          best = {
+            assignments: proposedAssignments,
+            metrics: proposedMetrics,
+            score: proposedScore,
+            key,
+          };
+        }
+      }
+    }
+
+    if (!best) break;
+
+    currentAssignments = best.assignments;
+    currentMetrics = best.metrics;
+    currentScore = best.score;
+    acceptedMoveCount += 1;
+  }
+
+  currentAssignments.sort(
+    (left, right) => left.cardId.localeCompare(right.cardId),
+  );
+
+  const improved = (
+    currentScore.total < baselineScore.total - SCORE_EPSILON
+  );
+
+  return {
+    engineVersion: 'M33.3-v0',
+    status: improved ? 'IMPROVED' : 'UNCHANGED',
+    snapshotHash: snapshot.snapshotHash,
+    baselineHash: snapshot.baselineHash,
+    writesPerformed: false,
+    objectiveProfileUsed: true,
+    weights: { ...weights },
+    baselineMetrics,
+    proposedMetrics: currentMetrics,
+    delta: metricDelta(baselineMetrics, currentMetrics),
+    baselineScore,
+    proposedScore: currentScore,
+    placements: currentAssignments.map(toPublicPlacement),
+    changedCards: changedCardDiagnostics(
+      currentAssignments,
+      [],
+      context,
+    ),
+    evaluatedMoveCount,
+    acceptedMoveCount,
+    elapsedMs: Date.now() - startedAt,
+    reasons: improved ? [] : ['NO_LOCAL_IMPROVEMENT_FOUND'],
   };
 }
