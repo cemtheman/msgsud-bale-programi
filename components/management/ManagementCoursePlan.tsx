@@ -244,7 +244,7 @@ function requirementRow(
             <p className="text-[11px] font-black text-slate-900">
               {audienceLabel(row)}
             </p>
-            <p className="mt-0.5 truncate text-[9px] font-semibold text-slate-400">
+            <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">
               {row.groupName}
             </p>
           </>
@@ -254,11 +254,11 @@ function requirementRow(
               <p className="truncate text-[11px] font-black text-slate-900">
                 {row.subjectName}
               </p>
-              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[8px] font-bold text-slate-500">
+              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-500">
                 {knowledgeLabel(row.knowledgeStatus)}
               </span>
             </div>
-            <p className="mt-0.5 truncate text-[9px] font-semibold text-slate-400">
+            <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">
               {characterLabel(row.courseCharacter)} · {deliveryLabel(row.deliveryMode)}
             </p>
           </>
@@ -269,13 +269,13 @@ function requirementRow(
         <p className="text-[11px] font-black text-slate-900">
           {row.weeklyLoad} saat
         </p>
-        <p className="mt-1 text-[9px] font-semibold text-slate-500">
+        <p className="mt-1 text-[11px] font-semibold text-slate-500">
           Blok: {partitionLabel(row)}
         </p>
       </div>
 
       <div className="min-w-0">
-        <p className={`truncate text-[10px] font-semibold ${
+        <p className={`truncate text-[11px] font-semibold ${
           rowHasMissingTeacher(row)
             ? 'text-amber-700'
             : 'text-slate-700'
@@ -283,22 +283,22 @@ function requirementRow(
           {teacherLabel(row)}
         </p>
         {row.teacherMode === 'ELIGIBLE_POOL' && (
-          <p className="mt-1 text-[9px] font-medium text-slate-400">
+          <p className="mt-1 text-[11px] font-medium text-slate-400">
             Birden fazla seçenek
           </p>
         )}
         <p className={
           row.teacherRequirement !== 'NONE'
           && row.teacherAssignmentScope === 'UNSPECIFIED'
-            ? 'mt-1 text-[9px] font-bold text-amber-600'
-            : 'mt-1 text-[9px] font-medium text-slate-400'
+            ? 'mt-1 text-[11px] font-bold text-amber-600'
+            : 'mt-1 text-[11px] font-medium text-slate-400'
         }>
           {teacherPolicyLabel(row)}
         </p>
       </div>
 
       <div className="min-w-0">
-        <p className={`truncate text-[10px] font-semibold ${
+        <p className={`truncate text-[11px] font-semibold ${
           rowHasMissingRoom(row)
             ? 'text-amber-700'
             : 'text-slate-700'
@@ -306,14 +306,14 @@ function requirementRow(
           {roomLabel(row)}
         </p>
         {row.resourceMode === 'ELIGIBLE_POOL' && (
-          <p className="mt-1 text-[9px] font-medium text-slate-400">
+          <p className="mt-1 text-[11px] font-medium text-slate-400">
             Birden fazla seçenek
           </p>
         )}
       </div>
 
       <div>
-        <span className={`inline-flex rounded-full px-2 py-1 text-[8px] font-black ${term.className}`}>
+        <span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-black ${term.className}`}>
           {term.label}
         </span>
 
@@ -321,7 +321,7 @@ function requirementRow(
           <button
             type="button"
             onClick={() => onOpenProgram(row.requirementId, stage)}
-            className="mt-2 block text-[9px] font-bold text-blue-700 hover:text-blue-900"
+            className="mt-2 block text-[11px] font-bold text-blue-700 hover:text-blue-900"
           >
             Programda göster →
           </button>
@@ -335,7 +335,7 @@ function requirementRow(
                   <button
                     type="button"
                     onClick={() => onEditTeacher(row)}
-                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50"
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-50"
                   >
                     Öğretmen
                   </button>
@@ -346,8 +346,8 @@ function requirementRow(
                     onClick={() => onEditTeacherPolicy(row)}
                     className={
                       row.teacherAssignmentScope === 'UNSPECIFIED'
-                        ? 'rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[8px] font-bold text-amber-700 hover:bg-amber-100'
-                        : 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50'
+                        ? 'rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100'
+                        : 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-50'
                     }
                   >
                     Öğretmen kuralı
@@ -356,7 +356,7 @@ function requirementRow(
                 <button
                   type="button"
                   onClick={() => onEditRoom(row)}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[8px] font-bold text-slate-600 hover:bg-slate-50"
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-50"
                 >
                   Salon
                 </button>
@@ -365,7 +365,7 @@ function requirementRow(
             <button
               type="button"
               onClick={() => onEditStructure(row)}
-              className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[8px] font-bold text-blue-700 hover:bg-blue-100"
+              className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-700 hover:bg-blue-100"
             >
               Ders yapısı
             </button>
@@ -662,7 +662,7 @@ export function ManagementCoursePlan({
         <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-6">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
                 Ders Planı
               </p>
               <h2 className="mt-1 text-2xl font-black text-slate-950">
@@ -680,7 +680,7 @@ export function ManagementCoursePlan({
                   setStage('ORTAOKUL');
                   setClassFilter('TÜMÜ');
                 }}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
                   stage === 'ORTAOKUL'
                     ? 'bg-[#A63D48] text-white'
                     : 'text-slate-500 hover:bg-white'
@@ -694,7 +694,7 @@ export function ManagementCoursePlan({
                   setStage('LISE');
                   setClassFilter('TÜMÜ');
                 }}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
                   stage === 'LISE'
                     ? 'bg-[#A63D48] text-white'
                     : 'text-slate-500 hover:bg-white'
@@ -708,10 +708,10 @@ export function ManagementCoursePlan({
           {stageContinuityViolations.length > 0 && (
             <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3">
               <div>
-                <p className="text-[10px] font-black text-violet-900">
+                <p className="text-[11px] font-black text-violet-900">
                   {stageContinuityViolations.length} öğretmen sürekliliği sorunu
                 </p>
-                <p className="mt-1 text-[9px] font-medium text-violet-700">
+                <p className="mt-1 text-[11px] font-medium text-violet-700">
                   Aynı dersin haftalık bloklarında birden fazla öğretmen kullanılıyor.
                   Birbirini bloke eden kararlar birlikte çözülebilir.
                 </p>
@@ -720,7 +720,7 @@ export function ManagementCoursePlan({
                 <button
                   type="button"
                   onClick={() => setContinuityResolverOpen(true)}
-                  className="shrink-0 rounded-xl bg-violet-900 px-4 py-2.5 text-[10px] font-black text-white hover:bg-violet-800"
+                  className="shrink-0 rounded-xl bg-violet-900 px-4 py-2.5 text-[11px] font-black text-white hover:bg-violet-800"
                 >
                   Birlikte çöz
                 </button>
@@ -730,41 +730,41 @@ export function ManagementCoursePlan({
 
           <div className="mt-5 grid grid-cols-5 gap-3">
             <div className="rounded-2xl bg-slate-950 p-4 text-white">
-              <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+              <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
                 Ders
               </p>
               <p className="mt-2 text-2xl font-black">{subjectCount}</p>
-              <p className="mt-1 text-[10px] font-medium text-slate-300">
+              <p className="mt-1 text-[11px] font-medium text-slate-300">
                 aktif ders başlığı
               </p>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">
+              <p className="text-[11px] font-black uppercase tracking-wide text-slate-500">
                 Ders tanımı
               </p>
               <p className="mt-2 text-2xl font-black text-slate-900">{activeCount}</p>
-              <p className="mt-1 text-[10px] font-medium text-slate-500">
+              <p className="mt-1 text-[11px] font-medium text-slate-500">
                 aktif sınıf / grup kaydı
               </p>
             </div>
 
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-[9px] font-black uppercase tracking-wide text-amber-700">
+              <p className="text-[11px] font-black uppercase tracking-wide text-amber-700">
                 Öğretmen eksik
               </p>
               <p className="mt-2 text-2xl font-black text-amber-900">{missingTeacherCount}</p>
-              <p className="mt-1 text-[10px] font-medium text-amber-700">
+              <p className="mt-1 text-[11px] font-medium text-amber-700">
                 aktif ders tanımı
               </p>
             </div>
 
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-[9px] font-black uppercase tracking-wide text-amber-700">
+              <p className="text-[11px] font-black uppercase tracking-wide text-amber-700">
                 Salon eksik
               </p>
               <p className="mt-2 text-2xl font-black text-amber-900">{missingRoomCount}</p>
-              <p className="mt-1 text-[10px] font-medium text-amber-700">
+              <p className="mt-1 text-[11px] font-medium text-amber-700">
                 aktif ders tanımı
               </p>
             </div>
@@ -775,7 +775,7 @@ export function ManagementCoursePlan({
                 : 'rounded-2xl border border-emerald-200 bg-emerald-50 p-4'
             }>
               <p className={
-                'text-[9px] font-black uppercase tracking-wide '
+                'text-[11px] font-black uppercase tracking-wide '
                 + (unspecifiedTeacherPolicyCount > 0
                   ? 'text-amber-700'
                   : 'text-emerald-700')
@@ -791,7 +791,7 @@ export function ManagementCoursePlan({
                 {unspecifiedTeacherPolicyCount}
               </p>
               <p className={
-                'mt-1 text-[10px] font-medium '
+                'mt-1 text-[11px] font-medium '
                 + (unspecifiedTeacherPolicyCount > 0
                   ? 'text-amber-700'
                   : 'text-emerald-700')
@@ -811,7 +811,7 @@ export function ManagementCoursePlan({
                 <button
                   type="button"
                   onClick={() => setViewMode('SUBJECT')}
-                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                  className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
                     viewMode === 'SUBJECT'
                       ? 'bg-slate-950 text-white'
                       : 'text-slate-500 hover:bg-white'
@@ -822,7 +822,7 @@ export function ManagementCoursePlan({
                 <button
                   type="button"
                   onClick={() => setViewMode('CLASS')}
-                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                  className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
                     viewMode === 'CLASS'
                       ? 'bg-slate-950 text-white'
                       : 'text-slate-500 hover:bg-white'
@@ -835,7 +835,7 @@ export function ManagementCoursePlan({
               <button
                 type="button"
                 onClick={() => setFilter('ACTIVE')}
-                className={`rounded-full px-3 py-2 text-[10px] font-bold transition ${
+                className={`rounded-full px-3 py-2 text-[11px] font-bold transition ${
                   filter === 'ACTIVE'
                     ? 'bg-slate-950 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -846,7 +846,7 @@ export function ManagementCoursePlan({
               <button
                 type="button"
                 onClick={() => setFilter('INACTIVE')}
-                className={`rounded-full px-3 py-2 text-[10px] font-bold transition ${
+                className={`rounded-full px-3 py-2 text-[11px] font-bold transition ${
                   filter === 'INACTIVE'
                     ? 'bg-slate-950 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -857,7 +857,7 @@ export function ManagementCoursePlan({
               <button
                 type="button"
                 onClick={() => setFilter('ALL')}
-                className={`rounded-full px-3 py-2 text-[10px] font-bold transition ${
+                className={`rounded-full px-3 py-2 text-[11px] font-bold transition ${
                   filter === 'ALL'
                     ? 'bg-slate-950 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -872,13 +872,13 @@ export function ManagementCoursePlan({
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Ders, sınıf, öğretmen veya salon ara"
-                  className="w-[280px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-medium outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+                  className="w-[280px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-medium outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
                 />
 
                 <select
                   value={classFilter}
                   onChange={(event) => setClassFilter(event.target.value)}
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-semibold text-slate-600 outline-none transition focus:border-slate-400 focus:bg-white"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600 outline-none transition focus:border-slate-400 focus:bg-white"
                   aria-label="Sınıf filtresi"
                 >
                   <option value="TÜMÜ">Tüm sınıflar</option>
@@ -915,36 +915,36 @@ export function ManagementCoursePlan({
                           <h3 className="text-[13px] font-black text-slate-950">
                             {group.title}
                           </h3>
-                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[8px] font-black text-slate-500">
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-black text-slate-500">
                             {group.rows.length} {viewMode === 'SUBJECT' ? 'grup' : 'ders'}
                           </span>
-                          <span className="rounded-full bg-blue-50 px-2 py-1 text-[8px] font-black text-blue-700">
+                          <span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-black text-blue-700">
                             {group.totalWeeklyLoad} saat
                           </span>
                           {group.missingTeacherCount > 0 && (
-                            <span className="rounded-full bg-amber-50 px-2 py-1 text-[8px] font-black text-amber-700">
+                            <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700">
                               {group.missingTeacherCount} öğretmen eksik
                             </span>
                           )}
                           {group.missingRoomCount > 0 && (
-                            <span className="rounded-full bg-amber-50 px-2 py-1 text-[8px] font-black text-amber-700">
+                            <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-black text-amber-700">
                               {group.missingRoomCount} salon eksik
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 truncate text-[9px] font-medium text-slate-400">
+                        <p className="mt-1 truncate text-[11px] font-medium text-slate-400">
                           {group.subtitle}
                         </p>
                       </div>
 
-                      <span className="shrink-0 text-[9px] font-bold text-slate-400">
+                      <span className="shrink-0 text-[11px] font-bold text-slate-400">
                         {expanded ? 'Kapat' : 'Aç'}
                       </span>
                     </button>
 
                     {expanded && (
                       <div className="bg-slate-50/40">
-                        <div className="grid grid-cols-[minmax(170px,1.05fr)_150px_minmax(180px,1fr)_minmax(180px,1fr)_145px] gap-3 border-t border-slate-100 bg-slate-50 px-4 py-2 text-[8px] font-black uppercase tracking-[0.12em] text-slate-400">
+                        <div className="grid grid-cols-[minmax(170px,1.05fr)_150px_minmax(180px,1fr)_minmax(180px,1fr)_145px] gap-3 border-t border-slate-100 bg-slate-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
                           <span>{viewMode === 'SUBJECT' ? 'Sınıf / grup' : 'Ders'}</span>
                           <span>Haftalık plan</span>
                           <span>Öğretmen</span>
@@ -972,7 +972,7 @@ export function ManagementCoursePlan({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-[10px] font-medium leading-5 text-blue-800">
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-[11px] font-medium leading-5 text-blue-800">
           Öğretmen ve salon atamaları kontrollü biçimde düzenlenebilir. Haftalık saat, blok yapısı ve dönem durumu için “Ders yapısı” önizlemesi değişikliğin kartlara etkisini kaydetmeden gösterir.
         </div>
       </div>
@@ -1037,7 +1037,7 @@ export function ManagementCoursePlan({
           <div className="w-full max-w-[560px] rounded-[28px] border border-white/80 bg-white p-5 shadow-[0_28px_90px_rgba(15,23,42,0.24)]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">
+                <p className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-400">
                   Ders Planını Düzenle
                 </p>
                 <h3 className="mt-1 text-lg font-black text-slate-950">
@@ -1052,7 +1052,7 @@ export function ManagementCoursePlan({
                 type="button"
                 onClick={closeEditor}
                 disabled={saving}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-40"
               >
                 Kapat
               </button>
@@ -1063,7 +1063,7 @@ export function ManagementCoursePlan({
                 ? 'border-amber-200 bg-amber-50'
                 : 'border-emerald-200 bg-emerald-50'
             }`}>
-              <p className={`text-[10px] font-black ${
+              <p className={`text-[11px] font-black ${
                 editRow.placedBlockCount > 0
                   ? 'text-amber-800'
                   : 'text-emerald-800'
@@ -1072,7 +1072,7 @@ export function ManagementCoursePlan({
                   ? `${editRow.placedBlockCount} blok şu anda programda yerleşmiş.`
                   : 'Programda yerleşmiş blok yok.'}
               </p>
-              <p className="mt-1 text-[10px] font-medium leading-4 text-slate-600">
+              <p className="mt-1 text-[11px] font-medium leading-4 text-slate-600">
                 {editRow.placedBlockCount > 0
                   ? 'Mevcut programı sessizce geçersiz kılmamak için önce bu dersin yerleşimlerini Program ekranından kaldırın.'
                   : 'Değişiklik kaydedildiğinde yalnız bu dersin uygun yerleri yeniden hesaplanacak.'}
@@ -1085,7 +1085,7 @@ export function ManagementCoursePlan({
                     closeEditor();
                     onOpenProgram(editRow.requirementId, stage);
                   }}
-                  className="mt-2 text-[10px] font-black text-blue-700 hover:text-blue-900"
+                  className="mt-2 text-[11px] font-black text-blue-700 hover:text-blue-900"
                 >
                   Programda göster →
                 </button>
@@ -1093,10 +1093,10 @@ export function ManagementCoursePlan({
             </div>
 
             <div className="mt-4">
-              <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
                 Uygun öğretmenler
               </p>
-              <p className="mt-1 text-[10px] font-medium text-slate-500">
+              <p className="mt-1 text-[11px] font-medium text-slate-500">
                 Bir seçim sabit atama, birden fazla seçim seçilebilir havuz oluşturur. Hiç seçim yapmazsanız bilgi belirsiz olarak işaretlenir.
               </p>
 
@@ -1110,7 +1110,7 @@ export function ManagementCoursePlan({
                       type="button"
                       onClick={() => toggleSelectedId(option.id)}
                       disabled={saving || editRow.placedBlockCount > 0}
-                      className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-[10px] font-bold transition ${
+                      className={`flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-[11px] font-bold transition ${
                         selected
                           ? 'border-slate-950 bg-slate-950 text-white'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
@@ -1125,13 +1125,13 @@ export function ManagementCoursePlan({
             </div>
 
             {saveError && (
-              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700">
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700">
                 {saveError}
               </div>
             )}
 
             <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
-              <div className="text-[10px] font-medium text-slate-500">
+              <div className="text-[11px] font-medium text-slate-500">
                 {selectedIds.length === 0
                   ? 'Belirsiz bırakılacak'
                   : selectedIds.length === 1
@@ -1143,7 +1143,7 @@ export function ManagementCoursePlan({
                 type="button"
                 onClick={() => void saveAssignment()}
                 disabled={saving || editRow.placedBlockCount > 0}
-                className="rounded-xl bg-slate-950 px-4 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
+                className="rounded-xl bg-slate-950 px-4 py-2.5 text-[11px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
               >
                 {saving ? 'Kaydediliyor…' : 'Değişikliği kaydet'}
               </button>
