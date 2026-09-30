@@ -153,3 +153,55 @@ A'nın daha fazla değişiklik yapabilmesi; B'nin daha muhafazakâr kalması bek
 - Solver snapshot + in-memory
 - no automatic apply
 - kullanıcı yeni ortam bildirmedikçe Codespaces/Linux
+
+
+## 7. M33.3 production A/B smoke ve multi-seed düzeltmesi
+
+Production A/B smoke:
+- ilk koşu: changeCost 11, teacher gaps 67, room breaks 39
+- ikinci koşu: changeCost 12, teacher gaps 67, room breaks 40
+
+Birleşik öncelik koşusunun daha fazla değişiklik üretmesi local optimum zayıflığını gösterdi.
+
+Fix:
+```
+d656b22cc679bf09576388319636e28ee833cfd0
+feat: add multi-seed objective search
+
+b05860c4f27e0bbf65350a5cb6f36339ea878d17
+test: guard combined search against weaker local optimum
+```
+
+Yeni seçim:
+- baseline
+- combined-weight local search
+- aktif tek-hedef seed'leri
+aynı combined weights ile yeniden puanlanır; en düşük combined score seçilir.
+
+Vercel core + regression build PASS.
+
+Display cleanup:
+```
+21c87adb28f77625ccab77132b08fb3de91f8eff
+polish: localize remaining group labels
+```
+
+PARALELL/PARALLEL -> PARALEL
+SHARED -> ORTAK
+
+Sıradaki acceptance:
+
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+```
+
+Beklenen full suite PASS.
+
+Ardından production aynı iki koşu:
+A. yalnız Öğretmen boşluklarını azalt = Çok yüksek
+B. Mevcut programı mümkün olduğunca koru = Çok yüksek + Öğretmen boşluklarını azalt = Çok yüksek
+
+B sonucu, A'da bulunan çözümün combined score'undan daha kötü olmamalı.
+Özellikle aynı 67 boşluk seviyesinde changeCost 12 yerine 11 veya daha iyi beklenir.
