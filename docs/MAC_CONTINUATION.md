@@ -2,7 +2,7 @@
 
 Tarih: 30 Eylül 2026
 
-Bu dosya güncel continuation özetidir. Ayrıntılı tarihçe için önce AGENTS.md okunur.
+Bu dosya güncel continuation özetidir. Ayrıntılı tarihçe için AGENTS.md okunur.
 
 ## 1. Güvenilir çalışma noktası
 
@@ -12,15 +12,22 @@ Production branch: main
 Son implementation checkpoint:
 
 ```
-831c3e4bd582d9d5509e6b69f0927f9511fa7489
-feat: show feasibility baseline diagnostics
+a581a0eeef306125916a64a0b5b155483a91dc60
+polish: simplify priorities navigation messages
+```
+
+Son yardım/UI checkpoint:
+
+```
+a6d991a98f4097a143eb6e19c1372b5f65635c35
+polish: rewrite priorities help in plain Turkish
 ```
 
 Son journal checkpoint:
 
 ```
-841e1fd525014236ccbc0b3cf5c99f67830ae851
-docs: record M33.1 browser pass and M33.2 deviation
+76acb5d7de4a34b339cc2e93d2a398984ba3babb
+docs: record M33.2 rule mismatch and plain-language UI
 ```
 
 Yeni oturumda SHA'ya reset atma; remote HEAD'i çek.
@@ -38,110 +45,70 @@ cat AGENTS.md
 cat docs/MAC_CONTINUATION.md
 ```
 
-Working tree temiz değilse kaynağı anlaşılmadan reset/restore yapma.
+## 3. Tamamlananlar
 
-## 3. Tamamlanan foundation
+- M32.5 CLOSED/PASS.
+- M33 snapshot foundation CLOSED/PASS.
+- M33.1 objective/preference setup CLOSED/PASS.
+- M33.2 in-memory feasibility production'da çalışıyor.
+- Manual teacher/room override planning-pool false positive düzeltildi.
+- Solver hesapları snapshot + in-memory; programı otomatik mutate etmiyor.
 
-M32.5 CLOSED/PASS:
-- candidate-domain persisted REQUIRED teacher policy
-- forward-impact preview
-- M32.5.1 summary ownership race düzeltmesi
-- rollback QA PASS
+## 4. M33.2 kalan tek gerçek konu
 
-M33 CLOSED/PASS:
-- deterministic immutable solver snapshot
-- current placements baseline/change-cost input
-- candidate assessments global solver truth olarak snapshot dışında
-- M22 UNKNOWN room semantics PROVISIONAL_UNKNOWN
-- hardInputReady=true
-- snapshot rollback QA PASS
+Production diagnostic artık şu uyuşmazlığı kesin gösteriyor:
 
-M33.1 DB/UX contract:
-- human-readable objective profiles
-- supported: changeCost, preferredTeacherContinuity, teacherIdleGaps, roomStability
-- unsupported/disabled: teacherLoadBalance, subjectTimePreference
-- DRAFT / explicit ACTIVE
-- rollback-only objective profile QA PASS
-- browser smoke PASS
-- M33.1 CLOSED
+- STANDARD · 5A BALLET · Cuma ek dersi · K. Bale
+- 1. bölüm: Cuma 7. ders · E. Gemalmaz
+- 2. bölüm: Cuma 8. ders · E. Gemalmaz
+- requirement maxConsecutivePeriods = 1
+- iki bölüm peş peşe olduğundan her iki kart BASELINE_MAX_CONSECUTIVE_PERIODS uyarısı alıyor
 
-## 4. M33.2 — in-memory feasibility
+Bu nedenle current schedule ile structural requirement kuralı çelişiyor.
+Solver bu noktada beklenen şekilde davranıyor.
 
-Yeni motor: lib/managementSolverPrototype.ts
+Kanıt olmadan maxConsecutivePeriods değerini değiştirme.
+Önce bu 1 değerinin nereden geldiğini ve iş kuralının gerçekten ne olması gerektiğini belirle.
 
-Temel ilke:
-- snapshot bir kez okunur
-- tüm deneme/hesap geçici bellekte yapılır
-- Supabase placement/candidate/history üzerinde solver deneme yazması yok
-- feasibility sonucu otomatik apply edilmez
-- objective profile henüz solver seçimi için kullanılmaz
+## 5. Plain-language UI
 
-Hard rules:
-- time/day bounds
-- lunch crossing yok
-- teacher overlap yok
-- canonical room overlap yok
-- participant group CONTAINS/OVERLAPS
-- locked baseline pin
-- REQUIREMENT+REQUIRED teacher continuity
-- minDistinctDays
-- maxBlocksPerDay
-- maxConsecutivePeriods
+Production'a gönderilen sade dil:
+- nav Optimizasyon -> Öncelikler
+- Hedef profilleri -> Kayıtlı ayarlar
+- Profil adı -> Ayar adı
+- hedef -> tercih
+- Program uygunluk denetimi -> Program kontrolü
+- button -> Programı kontrol et
+- search-node metriği normal UI'dan kaldırıldı
+- Blok -> bölüm
+- STANDARD prefix diagnostic display'de gizlenir
+- BALLET/MUSIC/SECTION display-only Türkçeleştirilir
+- teknik snapshot/baseline/provisional/solver anlatımı kullanıcı yüzünden çıkarıldı
 
-M22 UNKNOWN room:
-- hard blocker değil
-- null room provisional kabul edilebilir
-- baseline room evidence kart bazında tutulabilir
-- planning room policy inference yapılmaz
-
-Production build:
-- ca8c2129 core build PASS
-- 7b24a138 UI build PASS
-
-Production browser feasibility çalıştı: FEASIBLE, 294/300 baseline reuse, 395 search node, 54 provisional room card. Beklenen 300/300 olmadığı için baseline deviation diagnostic eklendi. M33.2 CLOSED değildir.
-
-## 5. M33.2 baseline diagnostic — sıradaki iş
-
-1. Production sayfasını yenile.
-2. Yönetim > Optimizasyon.
-3. Uygunluğu kontrol et.
-4. Sonuç altındaki amber diagnostic panelini incele.
-5. Değişen 6 kartın sınıf/ders/blok, önceki yerleşim, bellekteki çözüm ve reason code bilgilerini kaydet.
-6. Özellikle BASELINE_TEACHER_OUTSIDE_PLANNING_POOL / BASELINE_ROOM_OUTSIDE_PLANNING_POOL varsa M29/M32.4.2 semantiğiyle karşılaştır.
-7. Gerçek conflict reason code varsa mevcut baseline rule violation olarak ele al.
-8. Kanıt olmadan solver policy değiştirme.
-
-## 6. Test
-
-Node ortamı varsa:
-
-```bash
-npm test
-npm run build
+Commits:
+```
+ec12dbbbb3d9dfca26b1253168e5f581ebf8980b
+a581a0eeef306125916a64a0b5b155483a91dc60
+a6d991a98f4097a143eb6e19c1372b5f65635c35
 ```
 
-Özellikle lib/managementSolverPrototype.test.ts PASS beklenir.
+Üçü de Vercel build PASS.
 
-## 7. Sonraki paket
+## 6. Sıradaki işler
 
-M33.1 browser smoke + M33.2 Vitest/browser PASS sonrası:
+1. Production refresh ile yeni Öncelikler ekranı browser smoke.
+2. Cuma ek dersi maxConsecutivePeriods=1 kaynağını belirle.
+3. Intended rule 2 ise additive migration veya yönetim UI edit yolu ile düzelt.
+4. Intended rule 1 ise programdaki Cuma 7+8 yerleşimi gerçek kural ihlalidir; programı düzelt.
+5. M33.2 Vitest çalıştır.
+6. M33.2 CLOSED sonrası M33.3 explainable objective optimization.
 
-M33.3 explainable objective optimization:
-- objective metric vector
-- baseline delta
-- weighted optimization search
-- açıklanabilir alternatif çözüm karşılaştırması
-- otomatik apply yok
-- human review ve explicit commit daha sonraki ayrı aşama
-
-## 8. Değişmez çalışma yöntemi
+## 7. Değişmez çalışma yöntemi
 
 - Applied migration geriye dönük düzenlenmez.
 - DB değişikliğinde migration list + dry-run + yalnız beklenen migration apply.
-- Remote mutation öncesi HEAD doğrulanır.
 - Force push yok.
-- Küçük, tek amaçlı commitler.
 - Runtime/browser kanıtı varsayımdan üstündür.
 - M32.4.2: planning pool != manual placement override.
 - M22: UNKNOWN != ABSENT != UNAVAILABLE.
-- Solver hesapları mümkün olduğunca snapshot + in-memory yapılır.
+- Solver hesapları snapshot + in-memory yapılır.
