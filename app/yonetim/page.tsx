@@ -46,6 +46,10 @@ import {
   type ManagementSolverWorkspace,
 } from '@/lib/managementSolver';
 import {
+  prepareManagementSolverProposalApply,
+  translateManagementSolverProposalApplyReason,
+} from '@/lib/managementSolverProposal';
+import {
   applyManagementRoomOperationalStatus,
   applyManagementRoomProfile,
   createManagementRoomResource,
@@ -2523,6 +2527,50 @@ export default function ManagementPage() {
                 text: result.status === 'ACTIVE'
                   ? `“${result.name}” ayarları kullanıma alındı.`
                   : `“${result.name}” ayarları taslak olarak kaydedildi.`,
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onApplyProposal={async (proposal) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Program önerisi güncel programla doğrulanıyor.');
+
+            try {
+              const currentWorkspace = await fetchLatestManagementSolverWorkspace(
+                session.accessToken,
+              );
+              const plan = prepareManagementSolverProposalApply(
+                proposal,
+                currentWorkspace,
+              );
+
+              if (!plan.canApply) {
+                throw new Error(
+                  translateManagementSolverProposalApplyReason(
+                    plan.reasons[0] ?? 'UNKNOWN',
+                  ),
+                );
+              }
+
+              setCommandActivity(
+                `${plan.items.length} ders tek işlem olarak güncelleniyor.`,
+              );
+
+              await moveManagementCardBundle(
+                session.accessToken,
+                plan.items,
+              );
+
+              setCommandNotice({
+                kind: 'success',
+                text: `${plan.items.length} ders için önerilen yerleşim uygulandı. İşlem Geri Al ile tek adımda geri alınabilir.`,
               });
               setRefreshToken((value) => value + 1);
             } finally {
