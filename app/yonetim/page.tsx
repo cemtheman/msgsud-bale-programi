@@ -428,6 +428,13 @@ export default function ManagementPage() {
   const [commandBusy, setCommandBusy] = useState(false);
   const [commandActivity, setCommandActivity] = useState<string | null>(null);
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const [cardContextMenu, setCardContextMenu] = useState<{
+    cardId: string;
+    cardIds: string[];
+    x: number;
+    y: number;
+  } | null>(null);
+  const inspectorPanelRef = useRef<HTMLDivElement | null>(null);
   const [commandNotice, setCommandNotice] = useState<{
     kind: 'success' | 'error' | 'info';
     text: string;
@@ -449,6 +456,29 @@ export default function ManagementPage() {
       // Local storage is optional; the tour can still be started from Help.
     }
   }, [session, status, tourChecked]);
+
+  useEffect(() => {
+    if (!cardContextMenu) return;
+
+    const closeMenu = () => setCardContextMenu(null);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMenu();
+    };
+
+    window.addEventListener('click', closeMenu);
+    window.addEventListener('blur', closeMenu);
+    window.addEventListener('resize', closeMenu);
+    window.addEventListener('scroll', closeMenu, true);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('click', closeMenu);
+      window.removeEventListener('blur', closeMenu);
+      window.removeEventListener('resize', closeMenu);
+      window.removeEventListener('scroll', closeMenu, true);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [cardContextMenu]);
 
   useEffect(() => {
     if (status !== 'ready' || !session) {
@@ -630,6 +660,30 @@ export default function ManagementPage() {
     setSelectedCardId(cardId);
     setSelectedCardIds(ids);
     setInspectorOpen(true);
+  };
+
+  const editCardFromContext = (cardId: string, sourceCardIds: string[]) => {
+    selectCard(cardId, sourceCardIds);
+    setCardContextMenu(null);
+    window.setTimeout(() => {
+      inspectorPanelRef.current?.focus();
+    }, 0);
+  };
+
+  const openCardContextMenu = (
+    cardId: string,
+    sourceCardIds: string[],
+    x: number,
+    y: number,
+  ) => {
+    const width = 168;
+    const height = 92;
+    setCardContextMenu({
+      cardId,
+      cardIds: Array.from(new Set(sourceCardIds.length ? sourceCardIds : [cardId])),
+      x: Math.max(8, Math.min(x, window.innerWidth - width - 8)),
+      y: Math.max(8, Math.min(y, window.innerHeight - height - 8)),
+    });
   };
 
   useEffect(() => {
@@ -1326,21 +1380,31 @@ export default function ManagementPage() {
     setRemoveConfirmOpen(true);
   };
 
-  const runRemove = async () => {
-    if (
-      !session
-      || !access?.canEdit
-      || selectedCards.length === 0
-      || !selectedCards.every((card) => Boolean(card.placement))
-      || commandBusy
-    ) {
-      return;
+  const removeCardsNow = async (cardIds: string[]) => {
+    if (!session || !access?.canEdit || !board || commandBusy) {
+      return false;
     }
 
-    const cardsBeingRemoved = [...selectedCards];
-    const primaryCard = cardsBeingRemoved[0];
+    const uniqueIds = Array.from(new Set(cardIds));
+    const cardsBeingRemoved = uniqueIds
+      .map((cardId) => board.cards.find((card) => card.id === cardId) ?? null)
+      .filter((card): card is ManagementBoardData['cards'][number] => Boolean(card));
 
-    setRemoveConfirmOpen(false);
+    if (
+      cardsBeingRemoved.length !== uniqueIds.length
+      || cardsBeingRemoved.length === 0
+      || !cardsBeingRemoved.every((card) => Boolean(card.placement))
+    ) {
+      return false;
+    }
+
+    const primaryCard = cardsBeingRemoved[0];
+    const classLabel = Array.from(new Set(
+      cardsBeingRemoved.flatMap((card) => card.classCodes),
+    ))
+      .sort((a, b) => a.localeCompare(b, 'tr', { numeric: true }))
+      .join(' + ');
+
     setCommandBusy(true);
     setCommandActivity(
       cardsBeingRemoved.length > 1
@@ -1361,18 +1425,31 @@ export default function ManagementPage() {
 
       setCommandNotice({
         kind: 'success',
-        text: `${selectedClassLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan kaldırıldı ve havuza geri döndü.`,
+        text: `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan kaldırıldı ve havuza geri döndü.`,
       });
       setRefreshToken((value) => value + 1);
+      return true;
     } catch (reason: unknown) {
       setCommandNotice({
         kind: 'error',
         text: reason instanceof Error ? reason.message : 'Kart kaldırılamadı.',
       });
+      return false;
     } finally {
       setCommandBusy(false);
       setCommandActivity(null);
     }
+  };
+
+  const runRemove = async () => {
+    setRemoveConfirmOpen(false);
+    await removeCardsNow(selectedCards.map((card) => card.id));
+  };
+
+  const returnDraggedCardsToPool = () => {
+    const cardIds = [...dragCardIds];
+    endDrag();
+    void removeCardsNow(cardIds);
   };
 
   const runUndo = async () => {
@@ -1707,10 +1784,22 @@ export default function ManagementPage() {
             <button
               type="button"
               onClick={() => setPoolOpen((value) => !value)}
+              onDragOver={(event) => {
+                if (!dragCard || !dragCard.placement || commandBusy) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+              }}
+              onDrop={(event) => {
+                if (!dragCard || !dragCard.placement || commandBusy) return;
+                event.preventDefault();
+                returnDraggedCardsToPool();
+              }}
               className={`rounded-xl border px-3 py-2 text-[10px] font-bold transition ${
-                poolOpen
-                  ? 'border-slate-950 bg-slate-950 text-white'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                dragCard?.placement
+                  ? 'border-[#A63D48] bg-[#A63D48]/10 text-[#A63D48] ring-2 ring-[#A63D48]/15'
+                  : poolOpen
+                    ? 'border-slate-950 bg-slate-950 text-white'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
               }`}
             >
               Ders Havuzu · {visibleUnplacedCount}
@@ -1881,6 +1970,45 @@ export default function ManagementPage() {
         </div>
       )}
 
+      {cardContextMenu && (
+        <div
+          className="fixed z-[120] w-[168px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-[0_18px_50px_rgba(15,23,42,0.22)]"
+          style={{ left: cardContextMenu.x, top: cardContextMenu.y }}
+          role="menu"
+          aria-label="Ders kartı işlemleri"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => editCardFromContext(
+              cardContextMenu.cardId,
+              cardContextMenu.cardIds,
+            )}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-slate-700 hover:bg-slate-50"
+          >
+            <span aria-hidden="true">✎</span>
+            Düzenle
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!access?.canEdit || commandBusy}
+            onClick={() => {
+              setSelectedCardId(cardContextMenu.cardId);
+              setSelectedCardIds(cardContextMenu.cardIds);
+              setCandidateFocus(null);
+              setCardContextMenu(null);
+              setRemoveConfirmOpen(true);
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span aria-hidden="true">×</span>
+            Kaldır
+          </button>
+        </div>
+      )}
+
       {activeSection === 'PROGRAM' ? (
         <section
           className="grid min-h-0 flex-1 gap-2.5 p-2.5"
@@ -1896,6 +2024,8 @@ export default function ManagementPage() {
               canEdit={access?.canEdit === true}
               onDragStart={beginDrag}
               onDragEnd={endDrag}
+              returnDropActive={Boolean(dragCard?.placement) && !commandBusy}
+              onReturnDrop={returnDraggedCardsToPool}
             />
           )}
   
@@ -1940,10 +2070,17 @@ export default function ManagementPage() {
                 endDrag();
                 void handleDropNeedsAttention(target);
               }}
+              onCardContextMenu={openCardContextMenu}
             />
           </div>
   
           {showInspector && (
+            <div
+              ref={inspectorPanelRef}
+              tabIndex={-1}
+              className="min-h-0 outline-none focus-visible:ring-2 focus-visible:ring-slate-400/60"
+              aria-label="Ders ayrıntıları"
+            >
             <ManagementInspector
               card={selectedCard}
               cardIds={selectedCardIds}
@@ -2076,6 +2213,7 @@ export default function ManagementPage() {
               onRemove={requestRemove}
               onClose={() => setInspectorOpen(false)}
             />
+            </div>
           )}
         </section>
       ) : activeSection === 'PLAN' ? (
