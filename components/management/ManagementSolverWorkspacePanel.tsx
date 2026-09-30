@@ -1140,9 +1140,24 @@ export function ManagementSolverWorkspacePanel({
                         ? 'Mevcut program korunuyor.'
                         : 'Önce program kontrolünün temiz olduğundan ve en az bir tercihin açık olduğundan emin olun.'}
                   </p>
-                  <p className="mt-2 text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
-                    Bu işlem programı değiştirmedi
-                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+                      Bu işlem programı değiştirmedi
+                    </p>
+                    <span className={`rounded-full px-2 py-0.5 text-[8px] font-black ${
+                      isDirty
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {isDirty
+                        ? 'Kaydedilmemiş tercihlerle hesaplandı'
+                        : selectedIsActive
+                          ? 'Kullanımdaki ayarla hesaplandı'
+                          : selectedProfile
+                            ? 'Kayıtlı taslakla hesaplandı'
+                            : 'Ekrandaki tercihlerle hesaplandı'}
+                    </span>
+                  </div>
                 </div>
 
                 {optimizationResult.status !== 'BLOCKED' && (
