@@ -61,15 +61,15 @@ function IssueCard({ issue }: { issue: ManagementHealthIssue }) {
             <span
               className={
                 isBlocker
-                  ? 'rounded-full bg-rose-100 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-rose-700'
-                  : 'rounded-full bg-amber-100 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-amber-700'
+                  ? 'rounded-full bg-rose-100 px-2 py-1 text-[11px] font-black uppercase tracking-wide text-rose-700'
+                  : 'rounded-full bg-amber-100 px-2 py-1 text-[11px] font-black uppercase tracking-wide text-amber-700'
               }
             >
               {isBlocker ? 'Tamamlanmalı' : 'Dikkat'}
             </span>
 
             {origin && (
-              <span className="rounded-full bg-white px-2 py-1 text-[9px] font-bold text-slate-500">
+              <span className="rounded-full bg-white px-2 py-1 text-[11px] font-bold text-slate-500">
                 {origin}
               </span>
             )}
@@ -128,10 +128,10 @@ export function ManagementProgramStatus({
 
   return (
     <section className="management-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
-      <div className="mx-auto max-w-[1120px] space-y-4">
+      <div className="mx-auto max-w-[1220px] space-y-4">
         <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
               Program durumu
             </p>
             <p className="mt-1 text-sm font-bold text-slate-900">
@@ -148,7 +148,7 @@ export function ManagementProgramStatus({
                 key={item.id}
                 type="button"
                 onClick={() => onStageChange(item.id)}
-                className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
                   stage === item.id
                     ? 'bg-[#A63D48] text-white'
                     : 'text-slate-500 hover:bg-slate-50'
@@ -163,7 +163,7 @@ export function ManagementProgramStatus({
         <div className={['rounded-[24px] border p-5 shadow-sm', meta.className].join(' ')}>
           <div className="flex items-start justify-between gap-5">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] opacity-70">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] opacity-70">
                 Programın durumu
               </p>
               <h2 className="mt-1 text-2xl font-black">
@@ -175,7 +175,7 @@ export function ManagementProgramStatus({
             </div>
 
             <div className="text-right">
-              <p className="text-[10px] font-bold uppercase tracking-wide opacity-60">
+              <p className="text-[11px] font-bold uppercase tracking-wide opacity-60">
                 Çalışılan taslak
               </p>
               <p className="mt-1 text-sm font-black">
@@ -187,37 +187,37 @@ export function ManagementProgramStatus({
 
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
+            <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
               Programlanan dersler
             </p>
             <p className="mt-2 text-2xl font-black text-slate-900">
               {snapshot.placedCount} / {snapshot.totalCards}
             </p>
-            <p className="mt-1 text-[10px] font-medium text-slate-500">
+            <p className="mt-1 text-[11px] font-medium text-slate-500">
               ders kartı yerleştirildi
             </p>
           </div>
 
           <div className="rounded-2xl border border-rose-200 bg-white p-4 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-wide text-rose-500">
+            <p className="text-[11px] font-black uppercase tracking-wide text-rose-500">
               Tamamlanması gereken
             </p>
             <p className="mt-2 text-2xl font-black text-rose-700">
               {blockerCount}
             </p>
-            <p className="mt-1 text-[10px] font-medium text-slate-500">
+            <p className="mt-1 text-[11px] font-medium text-slate-500">
               kayıt
             </p>
           </div>
 
           <div className="rounded-2xl border border-amber-200 bg-white p-4 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-wide text-amber-600">
+            <p className="text-[11px] font-black uppercase tracking-wide text-amber-600">
               Bilgi eksiği
             </p>
             <p className="mt-2 text-2xl font-black text-amber-700">
               {warningCount}
             </p>
-            <p className="mt-1 text-[10px] font-medium text-slate-500">
+            <p className="mt-1 text-[11px] font-medium text-slate-500">
               kontrol edilmesi önerilen kayıt
             </p>
           </div>
@@ -236,14 +236,14 @@ export function ManagementProgramStatus({
             <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
                     Önce tamamlanması gerekenler
                   </p>
                   <h3 className="mt-1 text-base font-bold text-slate-900">
                     Programı tamamlamak için
                   </h3>
                 </div>
-                <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[9px] font-black text-rose-700">
+                <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
                   {snapshot.blockers.length} başlık
                 </span>
               </div>
@@ -264,14 +264,14 @@ export function ManagementProgramStatus({
             <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
                     Kontrol edilmesi önerilenler
                   </p>
                   <h3 className="mt-1 text-base font-bold text-slate-900">
                     Eksik veya doğrulanmamış bilgiler
                   </h3>
                 </div>
-                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[9px] font-black text-amber-700">
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-black text-amber-700">
                   {snapshot.warnings.length} başlık
                 </span>
               </div>
@@ -290,9 +290,9 @@ export function ManagementProgramStatus({
             </div>
           </div>
 
-          <aside className="space-y-4">
+          <aside>
             <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
                 Bu sayfa neyi kontrol ediyor?
               </p>
               <div className="mt-3 space-y-2 text-[11px] font-medium leading-5 text-slate-600">
@@ -301,25 +301,26 @@ export function ManagementProgramStatus({
                 <p>✓ Düzenlenen derslerde eksik öğretmen veya salon bilgisi kaldı mı?</p>
                 <p>✓ Mevcut veriden gelen eksikler ayrı bir dikkat notu olarak gösterildi mi?</p>
               </div>
-            </div>
 
-            <div className="rounded-[22px] border border-blue-200 bg-blue-50 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-700">
-                Bu ekran taslağı kontrol eder
-              </p>
-              <p className="mt-2 text-[11px] font-medium leading-5 text-blue-800">
-                Burada yaptığınız kontroller henüz öğrenci ve öğretmen programlarını değiştirmez. Mevcut yayın ile taslak arasındaki farklar ayrı gösterilir; gerçek yayınlama ayrıca ve kontrollü biçimde yapılır.
-              </p>
-            </div>
+              <div className="my-4 border-t border-slate-100" />
 
-            <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-                Bu bilgi nereden geliyor?
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
+                Taslak ve yayın
               </p>
-              <div className="mt-3 space-y-2 text-[10px] font-medium leading-4 text-slate-500">
-                <p><strong className="text-slate-700">Mevcut veriden geliyor:</strong> bu taslak üzerinde çalışmaya başlamadan önce de eksik olan bilgi.</p>
-                <p><strong className="text-slate-700">Bu taslakta işlem gördü:</strong> önceden var olan eksik bilgiye bu taslakta müdahale edildi.</p>
-                <p><strong className="text-slate-700">Bu taslakta oluştu:</strong> ileride başlangıç durumu ile karşılaştırma kesinleştirildiğinde bu etiket kullanılacak.</p>
+              <p className="mt-2 text-[11px] font-medium leading-5 text-slate-600">
+                Bu ekran yalnız taslağı kontrol eder. Öğrenci ve öğretmen programları
+                burada değişmez; gerçek yayınlama ayrıca ve kontrollü biçimde yapılır.
+              </p>
+
+              <div className="my-4 border-t border-slate-100" />
+
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
+                Bilgi etiketleri
+              </p>
+              <div className="mt-3 space-y-2 text-[11px] font-medium leading-5 text-slate-500">
+                <p><strong className="text-slate-700">Mevcut veriden geliyor:</strong> taslak başlamadan önce de eksikti.</p>
+                <p><strong className="text-slate-700">Bu taslakta işlem gördü:</strong> mevcut eksikliğe bu taslakta müdahale edildi.</p>
+                <p><strong className="text-slate-700">Bu taslakta oluştu:</strong> taslak sırasında oluşan yeni eksikliği gösterir.</p>
               </div>
             </div>
           </aside>
