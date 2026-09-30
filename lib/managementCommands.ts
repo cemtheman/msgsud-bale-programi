@@ -21,10 +21,10 @@ export interface ManagementCommandDescriptor {
   autoCount: number;
   bundleId: string | null;
   bundleSize: number;
-  resourceOperation: ManagementResourceHistoryOperation | null;
-  resourceType: 'TEACHER' | 'ROOM' | null;
-  resourceId: string | null;
-  resourceName: string | null;
+  resourceOperation?: ManagementResourceHistoryOperation | null;
+  resourceType?: 'TEACHER' | 'ROOM' | null;
+  resourceId?: string | null;
+  resourceName?: string | null;
 }
 
 export interface ManagementCommandState {
@@ -250,6 +250,28 @@ function translateCommandError(message: string, fallback: string) {
 
   if (normalized.includes('lifo')) {
     return 'Önce en son yapılan işlemi geri almalısınız.';
+  }
+
+  if (
+    normalized.includes('m34 resource undo is stale')
+    || normalized.includes('m34 resource redo is stale')
+    || normalized.includes('m34 resource history replay did not reach the exact target state')
+  ) {
+    return 'Kaynak kaydı bu işlemden sonra değişmiş. Güvenli Geri Al/Yinele için veriyi yenileyin ve en güncel işlemi kontrol edin.';
+  }
+
+  if (
+    normalized.includes('m34 room profile history replay is no longer safe')
+    || normalized.includes('m34 room status history replay is no longer safe')
+  ) {
+    return 'Bu salon değişikliği mevcut program koşullarında artık güvenle geri alınamıyor veya yinelenemiyor.';
+  }
+
+  if (
+    normalized.includes('m34 teacher restore name is no longer available')
+    || normalized.includes('m34 room restore name is no longer available')
+  ) {
+    return 'Silinen kaynak aynı kimlikle geri yüklenemiyor; aynı ad şu anda başka bir kaynak tarafından kullanılıyor.';
   }
 
   if (
