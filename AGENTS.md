@@ -4657,3 +4657,43 @@ Amaç:
 - daha az dikey alan
 - daha az etkileşim adımı
 - daha doğrudan ayar ekranı
+
+
+## 71. 30 Eylül 2026 — Öncelikler sayfasındaki tekrarlar azaltıldı
+
+Kullanıcı production ekranında aynı durum bilgisinin birden fazla yerde tekrarlandığını gösterdi.
+
+Kaldırılan tekrarlar:
+- üst header'daki `Kurallar hazır` badge
+- üst header'daki `Kullanımda: <ayar>` badge
+- üst header'daki `Kaydedilmemiş değişiklikler` badge
+- Ayar adı kartındaki ayrı `Durum` alanı
+- active+clean durumda alttaki `Kaydedildi · kullanımda` action bar
+- action bar içindeki profile adı / kullanımda badge / açık tercih sayısı tekrarları
+- ayrı `Daha sonra açılacak tercihler` kartı
+- Program kontrolü içindeki ikinci açıklama/info kutusu
+
+Yeni tek-kaynak ilkesi:
+- active/taslak bilgisi: sol `Kayıtlı ayarlar` listesi
+- dirty state: yalnız gerçekten dirty ise compact amber save row
+- hard readiness: normal durumda gösterilmez; sorun varsa Program kontrolü altında error gösterilir
+- future objectives: Tercihler panelinin footer'ında tek satır `Yakında: ...`
+- Program kontrolü açıklaması: tek cümle
+
+Active + clean durumda save/action row hiç render edilmez.
+
+Draft/new durumda yalnız gerekli eylem düğmeleri görünür:
+- Taslak olarak kaydet
+- Kullanıma al / Kaydet ve kullan
+
+Commit:
+```
+94eb8b34a9aa359aec4fb453b597d15a7a87686b
+refactor: remove repeated state from preferences page
+```
+
+Amaç:
+- information duplication azaltmak
+- status yerine actionable UI göstermek
+- 1. Tercih ayarı bölümünü belirgin şekilde kısaltmak
+- Program kontrolü metnini tek açıklamaya indirmek
