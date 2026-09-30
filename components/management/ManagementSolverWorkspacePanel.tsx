@@ -203,11 +203,13 @@ export function ManagementSolverWorkspacePanel({
   canEdit,
   busy,
   onSave,
+  onApplyProposal,
 }: {
   data: ManagementSolverWorkspace | null;
   canEdit: boolean;
   busy: boolean;
   onSave: (input: ManagementSolverProfileInput) => Promise<void>;
+  onApplyProposal?: (result: ManagementOptimizationResult) => Promise<void>;
 }) {
   const initialProfile = data?.profiles.find((profile) => profile.status === 'ACTIVE')
     ?? data?.profiles.find((profile) => profile.status === 'DRAFT')
@@ -228,6 +230,8 @@ export function ManagementSolverWorkspacePanel({
   const [optimizationBusy, setOptimizationBusy] = useState(false);
   const [pendingSelectionId, setPendingSelectionId] = useState<string | '__NEW__' | null>(null);
   const [activationPending, setActivationPending] = useState(false);
+  const [proposalApplyPending, setProposalApplyPending] = useState(false);
+  const [proposalApplyError, setProposalApplyError] = useState<string | null>(null);
 
   const selectedProfile = useMemo(
     () => data?.profiles.find((profile) => profile.id === selectedProfileId) ?? null,
@@ -384,6 +388,8 @@ export function ManagementSolverWorkspacePanel({
     }
 
     setOptimizationBusy(true);
+    setProposalApplyPending(false);
+    setProposalApplyError(null);
     setLocalError(null);
 
     try {
@@ -1154,6 +1160,74 @@ export function ManagementSolverWorkspacePanel({
                           <p className="text-[8px] font-bold text-slate-400">
                             Ayrıca {optimizationResult.changedCards.length - 12} ders daha değişiyor.
                           </p>
+                        )}
+                      </div>
+                    )}
+
+                    {optimizationResult.status === 'IMPROVED'
+                      && canEdit
+                      && onApplyProposal && (
+                      <div className="mt-4 border-t border-slate-100 pt-3">
+                        {!proposalApplyPending ? (
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProposalApplyError(null);
+                                setProposalApplyPending(true);
+                              }}
+                              disabled={busy}
+                              className="rounded-xl bg-slate-950 px-4 py-2.5 text-[9px] font-black text-white hover:bg-slate-800 disabled:opacity-40"
+                            >
+                              Öneriyi uygula
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                            <p className="text-[9px] font-black text-amber-950">
+                              Bu öneri programa uygulansın mı?
+                            </p>
+                            <p className="mt-1 text-[8px] font-medium leading-4 text-amber-800">
+                              {optimizationResult.changedCards.length} dersin yerleşimi değişecek.
+                              Uygulamadan hemen önce programın hâlâ aynı olduğu doğrulanacak ve değişiklikler tek işlem olarak kaydedilecek.
+                            </p>
+                            <div className="mt-3 flex flex-wrap justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProposalApplyPending(false);
+                                  setProposalApplyError(null);
+                                }}
+                                disabled={busy}
+                                className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[8px] font-black text-amber-800 disabled:opacity-40"
+                              >
+                                Vazgeç
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProposalApplyError(null);
+                                  void onApplyProposal(optimizationResult)
+                                    .catch((reason: unknown) => {
+                                      setProposalApplyError(
+                                        reason instanceof Error
+                                          ? reason.message
+                                          : 'Öneri uygulanamadı.',
+                                      );
+                                    });
+                                }}
+                                disabled={busy}
+                                className="rounded-lg bg-[#A63D48] px-3 py-1.5 text-[8px] font-black text-white disabled:opacity-40"
+                              >
+                                Onayla ve uygula
+                              </button>
+                            </div>
+                            {proposalApplyError && (
+                              <p className="mt-2 text-[8px] font-bold text-rose-700">
+                                {proposalApplyError}
+                              </p>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
