@@ -797,3 +797,93 @@ Current closure:
 - Management UI normalization CLOSED/PASS
 
 Next session must not reopen these packages unless a regression is reproduced.
+
+## 23. M34 resource history + Program card actions + Codespaces local dev — PASS
+
+1 Ekim 2026 / GitHub Codespaces.
+
+Branch history:
+- M34 resource history: `feat/management-m34-resource-history`
+- Program card actions: `feat/management-program-card-actions`
+
+M34 migrations:
+```
+20260930230000_management_m34_0_resource_history.sql
+20260930230500_management_m34_1_resource_mutation_history.sql
+```
+
+Remote migration status:
+- both local/remote matched
+- applied successfully
+
+M34 result:
+- resource mutations are first-class global history roots
+- teacher/room create, delete, rename, status/profile edits enter global LIFO
+- undo/redo preserves exact resource UUIDs
+- structural epoch boundary retained
+- stale-state guards retained
+- schedule + resource history interleave correctly
+
+Regression proof:
+```
+Test Files  17 passed (17)
+Tests       84 passed (84)
+npm run build PASS
+TypeScript PASS
+```
+
+Program card actions:
+- placed card can be dragged directly back to Ders Havuzu
+- if pool is closed, top Ders Havuzu button acts as remove drop target
+- drop remove uses existing REMOVE / bundle REMOVE authority
+- right-click context menu:
+  - Düzenle
+  - Kaldır
+- Düzenle opens/focuses right inspector
+- Kaldır preserves confirmation flow
+- browser smoke PASS
+- undo after drag-remove PASS
+
+Codespaces local dev:
+- Vercel deployment is no longer required for daily MSGSÜ İDK work
+- dev server runs through forwarded port 3000
+- Next.js 16 Turbopack/webpack conflict fixed by:
+```
+"dev": "next dev --webpack"
+```
+- development env is provided locally via ignored `.env.local`
+- standard Supabase command form in Codespaces is always:
+```
+npx supabase ...
+```
+
+Local start:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+cp .env.production .env.local   # only if .env.local is missing
+npm run dev -- --hostname 0.0.0.0 --port 3000
+```
+
+Important:
+- do not re-open M33.4, UI normalization, or M34 unless a concrete regression is reproduced.
+- runtime/browser proof is accepted for M34 + Program card actions.
+
+## 24. M35 UX / operational safety — OPEN
+
+Working branch:
+```
+feat/management-m35-ux-safety
+```
+
+Goal: one consolidated UX/safety package without changing accepted solver/history authority.
+
+Planned scope:
+- more descriptive Undo/Redo labels
+- richer timetable card context actions
+- direct resource-aware Program navigation where existing data permits
+- clearer placement/candidate diagnostics
+- no new solver engine
+- no M33/M34 backend rewrite
+- no migration unless strictly necessary
+
