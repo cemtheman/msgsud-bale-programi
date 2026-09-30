@@ -500,3 +500,55 @@ Browser acceptance:
 7. Yinele one step
 8. stale proposal reject
 9. apply sonrası Programı kontrol et -> valid / 300/300
+
+
+## 15. M33.4 browser regression fixes
+
+User acceptance sonucu:
+- proposal apply: PASS
+- explicit confirmation: PASS
+- undo: çalışıyor
+- hızlı art arda undo: stale command-state race bulundu
+- redo: bundle sibling self-conflict nedeniyle FAIL
+- optimizer UI text: fazla küçük
+
+Fix commits:
+```
+ffe546b6a72ead9066fcf96e8fae5a869ec310bd
+fix: replay grouped moves as one bundle on redo
+
+5e5ac459ba5fcf608b88c26df6cd53aa3b740248
+fix: prevent stale history clicks during refresh
+
+b1338e8bdfc1d1aa560c32d99d7417e5d32846dd
+ux: increase priorities workspace text size
+```
+
+New migration:
+```
+20260930160000_management_m33_4_1_bundle_redo.sql
+```
+
+Codespaces:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
+npx supabase migration list
+npx supabase db push --dry-run
+```
+
+Dry-run yalnız `20260930160000_management_m33_4_1_bundle_redo.sql`
+gösterirse:
+```bash
+npx supabase db push
+```
+
+Sonra browser:
+- pending Yinele tekrar dene
+- undo/redo art arda dene
+- stale root hatası olmamalı
+- proposal apply -> undo -> redo
+- Programı kontrol et
+- typography kontrol
