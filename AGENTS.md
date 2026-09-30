@@ -12,11 +12,11 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Local Windows checkout | `C:\Users\chodo\msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `06bc06adaf94ea326ce613678a0608019277f295` |
-| Implementation commit | `M32.5.1 candidate summary ownership — rollback QA PASS` |
+| Son doğrulanmış implementation checkpoint | `32150f7b5855ac7011672cc8b16857399b685882` |
+| Implementation commit | `M33.0.1 solver snapshot foundation — readiness + rollback QA PASS` |
 | Production/documentation HEAD (28 Eylül kapanışı öncesi) | `3cab04b5d23dac767724f922d105988760503ae8` |
 | Son kullanıcı kabulü | M31 UX/help/tour/terminoloji ve Partisyon marka katmanı browser'da kabul edildi |
-| Sıradaki iş paketi | M33 — solver snapshot/objective foundation production + rollback QA doğrulaması; ardından M33.1 objective profile UX |
+| Sıradaki iş paketi | M33.1 — objective profile UX build + rollback QA + browser smoke; ardından feasibility solver prototype |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm.cmd run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -3209,3 +3209,122 @@ M33.0.1 provisional room semantics düzeltmesi production preview düzeyinde PAS
 Sıradaki doğrulama:
 docs/sql/m33_solver_snapshot_rollback_qa.sql
 Bu PASS olursa M33 snapshot foundation CLOSED ve M33.1 objective profile UX başlayacak.
+
+
+## 53. 30 Eylül 2026 — M33 rollback QA PASS / M33 CLOSED / M33.1 objective profile UX
+
+Kullanıcı M33.0.1 readiness PASS sonrası
+`docs/sql/m33_solver_snapshot_rollback_qa.sql`
+çalıştırdı.
+
+Sonuç:
+```
+Success. No rows returned
+```
+
+Böylece M33 solver snapshot foundation CLOSED/PASS:
+- hardInputReady=true
+- snapshot deterministic
+- baseline hash deterministic
+- candidate-domain global solver truth olarak snapshot'a alınmıyor
+- immutable capture/readback çalışıyor
+- M22 UNKNOWN room semantics provisional olarak korunuyor
+- QA writes rollback
+
+### M33.1 UX implementation
+
+Yeni üst seviye yönetim bölümü:
+`Optimizasyon`
+
+Yeni client:
+```
+lib/managementSolver.ts
+```
+
+Yeni component:
+```
+components/management/ManagementSolverWorkspacePanel.tsx
+```
+
+Yeni nav/help integration:
+- app/yonetim/page.tsx
+- ManagementHelpCenter: 5. ana bölüm Optimizasyon
+
+UI, ham JSON/0..1000 editörü göstermez.
+Kullanıcı desteklenen dört hedefi anlaşılır öncelik seviyeleriyle belirler:
+
+- Kapalı = 0
+- Düşük = 250
+- Orta = 500
+- Yüksek = 750
+- Çok yüksek = 1000
+
+Desteklenen:
+- Mevcut programa sadakat → changeCost
+- Esnek derslerde öğretmen devamlılığı → preferredTeacherContinuity
+- Öğretmen boşluklarını azalt → teacherIdleGaps
+- Salon istikrarını koru → roomStability
+
+UI baseline metriclerini gösterir:
+- preferred continuity breaks
+- teacher idle gap periods
+- room stability breaks
+
+M22 provisional room state ayrıca görünür:
+- count
+- baseline room evidence olan/olmayan sayıları
+- bu state solver hazırlığını hard-block etmez
+
+Future/unsupported objective'ler kullanıcıya görünür ama disabled:
+- Öğretmen yük dengesi
+- Ders-saat tercihleri
+
+Profil davranışı:
+- birden fazla named profile
+- yeni profil sıfır ağırlıklarla başlar; hidden default yok
+- DRAFT kaydedilebilir
+- ACTIVE explicit kullanıcı aksiyonudur
+- ACTIVE için en az bir positive supported objective gerekir
+- mevcut ACTIVE profile düzenlenirse status korunarak save edilir
+- yeni/başka DRAFT profil explicit “Etkin profil yap” ile ACTIVE olur
+- profile save program placement'larını mutate etmez
+- save sonrası yönetim data refresh
+
+Commits:
+```
+36a9876fd30d8ed4d8fecdd759330f21a6466496 feat: add solver objective workspace client
+e9eae21b8029b9d74880b8febc263b9bdf8d5e7b feat: add human-readable solver objective editor
+1880cf0d8c1eb4fa6b530ca0d95d7ea816c6280d feat: fetch latest solver objective workspace
+8b33c3a3397a5abe41cc6b68aae501769ad64a4a feat: add optimization objective workspace
+1b82bcfb281f65f8201beecc13c36fb56f74dd59 docs: add optimization workspace help
+cda35515ea3ed4a7eb8d9c7572ac5c2c553e95f1 test: add objective profile rollback QA
+0e2ac0d502fac29006da19b63de695e1d09dbd6a docs: describe objective profile UX
+```
+
+M33.1 rollback-only DB QA:
+```
+docs/sql/m33_1_objective_profile_rollback_qa.sql
+```
+
+QA:
+1. unsupported teacherLoadBalance >0 validation=false
+2. supported DRAFT profile create
+3. list RPC sees DRAFT
+4. same profile ACTIVE
+5. objectiveProfileReady=true
+6. current hard-ready input + ACTIVE profile → solverPrototypeReady=true
+7. weight round-trip
+8. ROLLBACK
+
+M33.1 doğrulama:
+- git pull
+- npm test
+- npm run build
+- rollback QA
+- browser Optimizasyon tab smoke:
+  - no profile state
+  - DRAFT create
+  - profile select
+  - ACTIVE explicit
+  - readiness badge objective-ready
+  - no schedule placement mutation
