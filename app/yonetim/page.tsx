@@ -2513,6 +2513,8 @@ export default function ManagementPage() {
           data={solverWorkspace}
           canEdit={access?.canEdit === true}
           busy={commandBusy}
+          undoAvailable={Boolean(commandState.undo) && !dataLoading}
+          onUndo={runUndo}
           onSave={async (input) => {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
