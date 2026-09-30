@@ -477,8 +477,8 @@ export function ManagementSolverWorkspacePanel({
             )}
           </div>
 
-          <p className="mt-2 text-[10px] font-medium leading-5 text-slate-500">
-            Birden fazla uygun program olduğunda hangisinin tercih edileceğini buradaki ayarlar belirler.
+          <p className="mt-2 text-[9px] font-medium text-slate-400">
+            Bir ayar seçin veya yeni bir ayar oluşturun.
           </p>
 
           <div className="mt-4 space-y-2">
@@ -551,79 +551,30 @@ export function ManagementSolverWorkspacePanel({
 
         <div className="min-w-0 space-y-4">
           <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
-                  1 · Tercih ayarı
-                </p>
-                <h1 className="mt-1 text-xl font-black tracking-tight text-slate-950">
-                  Program hazırlanırken nelere öncelik verilsin?
-                </h1>
-                <p className="mt-2 max-w-3xl text-[10px] font-medium leading-5 text-slate-600">
-                  Zorunlu kurallar değişmez. Buradaki tercihler, birden fazla uygun program olduğunda
-                  hangisinin öne çıkacağını belirler.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap justify-end gap-2">
-                <span className={`rounded-full px-3 py-1.5 text-[9px] font-black ${
-                  hardReady
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-rose-100 text-rose-700'
-                }`}>
-                  {hardReady ? 'Kurallar hazır' : 'Kural bilgileri eksik'}
-                </span>
-                <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[9px] font-black text-slate-600">
-                  {activeProfile
-                    ? `Kullanımda: ${activeProfile.name}`
-                    : 'Kullanımda olan ayar yok'}
-                </span>
-                {isDirty && (
-                  <span className="rounded-full bg-amber-100 px-3 py-1.5 text-[9px] font-black text-amber-700">
-                    Kaydedilmemiş değişiklikler
-                  </span>
-                )}
-              </div>
-            </div>
-
+            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">
+              1 · Tercih ayarı
+            </p>
+            <h1 className="mt-1 text-xl font-black tracking-tight text-slate-950">
+              Program hazırlanırken nelere öncelik verilsin?
+            </h1>
+            <p className="mt-2 max-w-3xl text-[10px] font-medium leading-5 text-slate-600">
+              Birden fazla uygun program olduğunda hangisinin öne çıkacağını belirleyin.
+            </p>
           </section>
 
-          <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-              <label className="block">
-                <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
-                  Ayar adı
-                </span>
-                <input
-                  value={name}
-                  onChange={(event) => updateName(event.target.value)}
-                  disabled={!canEdit || busy}
-                  placeholder="Örn. Dengeli dönem programı"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-bold text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white disabled:opacity-50"
-                />
-              </label>
-
-              <div>
-                <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
-                  Durum
-                </span>
-                <div className="flex h-[38px] items-center rounded-xl border border-slate-200 bg-slate-50 px-3">
-                  <span className="text-[10px] font-bold text-slate-600">
-                    {selectedProfile
-                      ? selectedIsActive
-                        ? isDirty
-                          ? 'Kullanımda · değiştirildi'
-                          : 'Kullanımda'
-                        : isDirty
-                          ? 'Taslak · değiştirildi'
-                          : statusMeta(selectedProfile.status).label
-                      : isDirty
-                        ? 'Yeni · kaydedilmedi'
-                        : 'Yeni ayar'}
-                  </span>
-                </div>
-              </div>
-            </div>
+          <section className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+            <label className="block">
+              <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
+                Ayar adı
+              </span>
+              <input
+                value={name}
+                onChange={(event) => updateName(event.target.value)}
+                disabled={!canEdit || busy}
+                placeholder="Örn. Dengeli dönem programı"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-bold text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white disabled:opacity-50"
+              />
+            </label>
 
             <label className="mt-3 block">
               <span className="mb-1.5 block text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
@@ -691,16 +642,10 @@ export function ManagementSolverWorkspacePanel({
                 );
               })}
             </div>
+            <div className="border-t border-slate-100 px-4 py-2.5 text-[8px] font-medium text-slate-400">
+              Yakında: Öğretmen yük dengesi · Derslerin tercih edilen gün ve saatleri
+            </div>
           </section>
-
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3">
-            <p className="text-[9px] font-black text-slate-600">
-              Daha sonra açılacak tercihler
-            </p>
-            <p className="mt-1 text-[8px] font-medium leading-4 text-slate-400">
-              Öğretmen yük dengesi · Derslerin tercih edilen gün ve saatleri
-            </p>
-          </div>
 
           {localError && (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[10px] font-bold text-rose-700">
@@ -708,119 +653,84 @@ export function ManagementSolverWorkspacePanel({
             </div>
           )}
 
-          <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-[10px] font-black text-slate-900">
-                    {selectedProfile
-                      ? selectedProfile.name
-                      : name.trim() || 'Yeni ayar'}
+          {canEdit && (
+            <>
+              {selectedIsActive && isDirty && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-[9px] font-bold text-amber-900">
+                    Kaydedilmemiş değişiklikler var.
                   </p>
-                  {isDirty && (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[8px] font-black text-amber-700">
-                      Kaydedilmedi
-                    </span>
-                  )}
-                  {selectedIsActive && !isDirty && (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[8px] font-black text-emerald-700">
-                      Kullanımda
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 text-[9px] font-medium leading-4 text-slate-500">
-                  {selectedIsActive
-                    ? isDirty
-                      ? 'Bu ayar kullanımda. Değişiklikler ancak kaydettiğinizde geçerli olur.'
-                      : 'Bu ayar şu anda yeni program seçeneklerinde varsayılan olarak kullanılıyor.'
-                    : 'İsterseniz kaydetmeden seçenek üretebilir; hazır olduğunda taslak olarak saklayabilir veya kullanıma alabilirsiniz.'}
-                </p>
-                <p className="mt-1 text-[8px] font-bold text-slate-400">
-                  {positiveObjectiveCount} tercih açık
-                </p>
-              </div>
-
-              {canEdit ? (
-                selectedIsActive ? (
                   <button
                     type="button"
                     onClick={() => void save('ACTIVE')}
                     disabled={
                       busy
-                      || !isDirty
                       || name.trim().length === 0
                       || positiveObjectiveCount === 0
                     }
-                    className="rounded-xl bg-[#A63D48] px-4 py-2.5 text-[10px] font-black text-white hover:bg-[#8F3340] disabled:cursor-not-allowed disabled:opacity-35"
+                    className="rounded-xl bg-[#A63D48] px-4 py-2 text-[9px] font-black text-white hover:bg-[#8F3340] disabled:opacity-35"
                   >
-                    {isDirty ? 'Değişiklikleri kaydet' : 'Kaydedildi · kullanımda'}
+                    Değişiklikleri kaydet
                   </button>
-                ) : (
-                  <div className="flex shrink-0 gap-2">
+                </div>
+              )}
+
+              {!selectedIsActive && (
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void save('DRAFT')}
+                    disabled={
+                      busy
+                      || !isDirty
+                      || name.trim().length === 0
+                    }
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[9px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                  >
+                    Taslak olarak kaydet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={requestActivate}
+                    disabled={!canActivate}
+                    className="rounded-xl bg-[#A63D48] px-4 py-2 text-[9px] font-black text-white hover:bg-[#8F3340] disabled:opacity-35"
+                  >
+                    {selectedProfile && !isDirty
+                      ? 'Kullanıma al'
+                      : 'Kaydet ve kullan'}
+                  </button>
+                </div>
+              )}
+
+              {activationPending && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-[9px] font-medium text-amber-900">
+                    “{activeProfile?.name}” yerine “{name.trim()}” kullanılacak.
+                  </p>
+                  <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => void save('DRAFT')}
-                      disabled={
-                        busy
-                        || !isDirty
-                        || name.trim().length === 0
-                      }
-                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[10px] font-black text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                      onClick={() => setActivationPending(false)}
+                      className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[8px] font-black text-amber-800"
                     >
-                      Taslak olarak kaydet
+                      Vazgeç
                     </button>
                     <button
                       type="button"
-                      onClick={requestActivate}
-                      disabled={!canActivate}
-                      className="rounded-xl bg-[#A63D48] px-4 py-2.5 text-[10px] font-black text-white hover:bg-[#8F3340] disabled:cursor-not-allowed disabled:opacity-35"
+                      onClick={() => {
+                        setActivationPending(false);
+                        void save('ACTIVE');
+                      }}
+                      className="rounded-lg bg-amber-700 px-3 py-1.5 text-[8px] font-black text-white"
                     >
-                      {selectedProfile && !isDirty
-                        ? 'Kullanıma al'
-                        : 'Kaydet ve kullan'}
+                      Onayla ve kullan
                     </button>
                   </div>
-                )
-              ) : (
-                <span className="text-[10px] font-semibold text-slate-400">
-                  Salt okunur
-                </span>
+                </div>
               )}
-            </div>
+            </>
+          )}
 
-            {activationPending && (
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3">
-                <div>
-                  <p className="text-[9px] font-black text-amber-900">
-                    Kullanımdaki ayar değiştirilecek
-                  </p>
-                  <p className="mt-1 text-[8px] font-medium leading-4 text-amber-800">
-                    “{activeProfile?.name}” yerine “{name.trim()}” kullanılacak.
-                    Mevcut program değişmez; yalnız bundan sonraki seçenek hesaplarında bu ayar varsayılan olur.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setActivationPending(false)}
-                    className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[8px] font-black text-amber-800"
-                  >
-                    Vazgeç
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActivationPending(false);
-                      void save('ACTIVE');
-                    }}
-                    className="rounded-lg bg-amber-700 px-3 py-1.5 text-[8px] font-black text-white"
-                  >
-                    Onayla ve kullan
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
           <section className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-3xl">
@@ -831,15 +741,8 @@ export function ManagementSolverWorkspacePanel({
                   Mevcut program kurallara uygun mu?
                 </h2>
                 <p className="mt-2 text-[10px] font-medium leading-5 text-slate-600">
-                  Bu kontrol mevcut programı değiştirmeden kurallara uygunluğunu sınar.
-                  Gerekirse yalnızca karşılaştırma için alternatif bir yerleşim hesaplar.
+                  Yalnız zorunlu kuralları kontrol eder; tercihler bu adımda kullanılmaz.
                 </p>
-                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                  <p className="text-[9px] font-bold leading-4 text-slate-600">
-                    “Programı kontrol et” yalnız zorunlu kuralları denetler.
-                    Öncelikleri kullanmak için aşağıdaki “Bu tercihlerle seçenek oluştur” işlemini kullanın.
-                  </p>
-                </div>
               </div>
 
               <button
