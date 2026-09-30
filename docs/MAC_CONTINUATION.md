@@ -26,58 +26,55 @@ cat AGENTS.md
 cat docs/MAC_CONTINUATION.md
 ```
 
-## 2. M33.2 — CLOSED / PASS
+## 2. Güncel doğrulanmış durum
 
-Production:
-- mevcut program hard-rule valid
-- 300/300 yerinde kalan ders
+### M33.2 — CLOSED / PASS
+- hard-rule valid
+- 300/300 placement
 - Cuma ek dersi warning yok
-- 54 UNKNOWN/provisional salon kartı blocker değil
+- provisional salon bilgileri blocker değil
 
-Codespaces:
-- 14/14 test files PASS
-- 72/72 tests PASS
-- production build PASS
+### M33.3 — CLOSED / PASS
+- weighted in-memory objective optimizer
+- browser A/B priorities materially affect output
+- no auto-apply
+- Codespaces önceki acceptance PASS
 
-## 3. M33.3-v0 — implementation hazır, acceptance pending
+### M33.4 — CLOSED / PASS
+- explicit proposal confirmation
+- DB-side baseline stale guard
+- fast atomic solver proposal apply
+- bundle Geri Al / Yinele
+- timeout fix M33.4.2
+- stale proposal auto invalidation
+- global history controls
 
-Core:
-```
-b14ca08089a47e0a4bc268107c0afe98b9884b33
-feat: add weighted in-memory objective optimizer
-```
+### Management UI normalization — CLOSED / PASS
+- Program deliberate full-width dense workbench
+- Ders Planı / Kaynaklar / Program Durumu normalized content family
+- Öncelikler accepted wider sidebar layout
+- typography floor / status color / action hierarchy contract frozen
+- `docs/MANAGEMENT_UI_SYSTEM.md`
 
-Tests:
+### Final Codespaces proof — 30 Eylül 2026
 ```
-f5f20f06881cd8b5ca86bb157a12e106caf6aef9
-test: cover weighted objective optimization
-```
-
-UI:
-```
-00525899ec3e519ee7f356d949f327cfbd89958a
-feat: expose preference-driven program option preview
-```
-
-Sidebar language:
-```
-507ca5a5c493b6b3f6ad0b86207f02b201b69c32
-polish: finish priorities sidebar terminology
+Test Files  16 passed (16)
+Tests       81 passed (81)
+npm run build PASS
 ```
 
-Contract:
+Latest implementation checkpoint:
 ```
-51024660122838a3f45e6c0b3c93c0cfabf59688
-docs: define M33.3 preference optimization contract
-```
-
-Journal:
-```
-4151c3d1c1db263fd0abed4cef7adb5f7960b312
-docs: checkpoint M33.3 objective optimization
+2b7a2a7b2f11da1c6a29f27bc00c470e8d6b0f76
+ui: hide zero issue badges on program status
 ```
 
-## 4. M33.3 davranışı
+Known limitation:
+Kaynak adı/durum/profil gibi resource mutations henüz global management history engine'e
+undoable root olarak yazılmıyor. Global history controls sekmeler arasında görünür, fakat
+resource-edit undo ayrı backend package gerektirir.
+
+## 3. M33.3 davranışı
 
 `Programı kontrol et`:
 - yalnız zorunlu kurallar
@@ -111,7 +108,7 @@ Search guard:
 
 Global optimum garantisi yok; local improvement.
 
-## 5. Sıradaki acceptance
+## 4. Tarihsel M33.3 acceptance notu
 
 Codespaces:
 
@@ -776,3 +773,27 @@ ui: hide zero issue badges on program status
 
 Optional later:
 make publication comparison list collapsible/shorter; not required for current acceptance.
+
+
+## 22. Final Codespaces acceptance
+
+30 Eylül 2026 / GitHub Codespaces:
+
+```
+Test Files  16 passed (16)
+Tests       81 passed (81)
+Duration    2.98s
+```
+
+`npm run build`:
+- compile PASS
+- TypeScript PASS
+- page generation PASS
+- build traces PASS
+- final optimization PASS
+
+Current closure:
+- M33.4 CLOSED/PASS
+- Management UI normalization CLOSED/PASS
+
+Next session must not reopen these packages unless a regression is reproduced.
