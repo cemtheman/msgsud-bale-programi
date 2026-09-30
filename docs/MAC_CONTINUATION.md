@@ -887,3 +887,59 @@ Planned scope:
 - no M33/M34 backend rewrite
 - no migration unless strictly necessary
 
+### M35 consolidated implementation — ready for Codespaces acceptance
+
+Commits after M34/program-card baseline:
+```
+551de5ef4297167c48d49d05a78e7e147a1b4b2b  docs: checkpoint M34 and open M35 UX package
+145bf705e52374accc63f3f165aff539e3751c4a  ux: add inspector intents and clearer candidate diagnostics
+66518744fe2cf22aea89433ced8243bec374c1d2  ux: link resources directly back to program usage
+f6213272ac9ad872487cf2923d0b4afac0757612  ux: consolidate M35 program navigation and context actions
+ed827d89efdcc51a2be7b4222964eccdacb1e2a2  fix: reset inspector intent on ordinary card selection
+79eac033804daaf5ae1b7bafd3d9f349d38ad6cd  ux: include current placement context in history labels
+```
+
+Implemented:
+- global history tooltips now include bundle/automatic counts and current placement context where available
+- resource history labels retain resource name + operation type
+- timetable right-click menu expanded:
+  - Düzenle
+  - Alternatif yerler
+  - Öğretmeni değiştir
+  - Salonu değiştir
+  - Kaldır
+- context actions reuse existing inspector / candidate / resource-preview authorities
+- placed cards can now display the existing valid-candidate list in inspector
+- candidate diagnostics surface the most frequent blocking reason and usable/unresolved summary
+- Resources rows with live program usage have a Program shortcut
+- resource Program shortcut switches to teacher/room Program view, finds a real placed card using that resource, opens the correct day/stage and focuses its inspector
+- ordinary card selection resets any previous context-menu inspector intent
+- no new backend authority
+- no new migration
+- M33/M34 algorithms untouched
+
+Static review:
+- modified TSX files have balanced braces/parentheses
+- new prop chains verified
+- branch is based directly on accepted Program-card-actions checkpoint
+- branch ahead of baseline: 6 commits / behind 0 at implementation checkpoint
+
+Acceptance gate:
+```bash
+git switch feat/management-m35-ux-safety
+git pull --ff-only
+npm test
+npm run build
+```
+
+Browser smoke:
+1. right-click a placed card -> all five menu actions visible
+2. Alternatif yerler -> inspector opens candidate list; current placement is marked Mevcut
+3. Öğretmeni değiştir -> inspector opens teacher change mode
+4. Salonu değiştir -> inspector opens room change mode
+5. Kaldır -> confirmation remains
+6. normal left-click another card -> previous special edit mode is cleared
+7. Kaynaklar -> a used teacher/room -> Program -> correct resource view/day/card opens
+8. candidate diagnostics -> En sık engel summary appears when blockers exist
+9. global Undo/Redo hover text -> subject/resource and available placement/bundle context is more descriptive
+
