@@ -409,6 +409,9 @@ export default function ManagementPage() {
     useState<ManagementCandidateDetail | null>(null);
   const [candidateLoading, setCandidateLoading] = useState(false);
   const [candidateError, setCandidateError] = useState<string | null>(null);
+  const [inspectorIntent, setInspectorIntent] =
+    useState<'DETAILS' | 'CANDIDATES' | 'TEACHER' | 'ROOM'>('DETAILS');
+  const [inspectorIntentNonce, setInspectorIntentNonce] = useState(0);
   const [candidateFocus, setCandidateFocus] = useState<{
     dayOfWeek: number;
     startPeriod: number;
@@ -662,8 +665,14 @@ export default function ManagementPage() {
     setInspectorOpen(true);
   };
 
-  const editCardFromContext = (cardId: string, sourceCardIds: string[]) => {
+  const openCardInspector = (
+    cardId: string,
+    sourceCardIds: string[],
+    intent: 'DETAILS' | 'CANDIDATES' | 'TEACHER' | 'ROOM' = 'DETAILS',
+  ) => {
     selectCard(cardId, sourceCardIds);
+    setInspectorIntent(intent);
+    setInspectorIntentNonce((value) => value + 1);
     setCardContextMenu(null);
     window.setTimeout(() => {
       inspectorPanelRef.current?.focus();
@@ -677,13 +686,39 @@ export default function ManagementPage() {
     y: number,
   ) => {
     const width = 168;
-    const height = 92;
+    const height = 228;
     setCardContextMenu({
       cardId,
       cardIds: Array.from(new Set(sourceCardIds.length ? sourceCardIds : [cardId])),
       x: Math.max(8, Math.min(x, window.innerWidth - width - 8)),
       y: Math.max(8, Math.min(y, window.innerHeight - height - 8)),
     });
+  };
+
+  const openResourceInProgram = (kind: 'TEACHER' | 'ROOM', resourceId: string) => {
+    const match = board?.cards.find((card) => (
+      Boolean(card.placement)
+      && (
+        kind === 'TEACHER'
+          ? card.placement?.teacherId === resourceId
+          : card.placement?.roomId === resourceId
+      )
+    )) ?? null;
+
+    setActiveSection('PROGRAM');
+    setResourceView(kind === 'TEACHER' ? 'ÖĞRETMENLER' : 'SALONLAR');
+    setAudienceFilter('ALL');
+
+    if (!match?.placement) return;
+
+    const firstGrade = match.classCodes
+      .map((code) => Number(code.match(/^(\d{1,2})/)?.[1] ?? NaN))
+      .find((grade) => Number.isFinite(grade));
+    if (firstGrade !== undefined) {
+      setStage(firstGrade <= 8 ? 'ORTAOKUL' : 'LISE');
+    }
+    setActiveDay(match.placement.dayOfWeek);
+    openCardInspector(match.id, [match.id], 'DETAILS');
   };
 
   useEffect(() => {
@@ -1744,10 +1779,10 @@ export default function ManagementPage() {
                 redoAvailable={Boolean(commandState.redo) && !dataLoading}
                 busy={commandBusy || dataLoading}
                 undoTitle={commandState.undo
-                  ? `${commandContextLabel(commandState.undo, board)} geri al`
+                  ? `${commandContextLabel(commandState.undo, board)}${commandState.undo.bundleSize > 1 ? ` · ${commandState.undo.bundleSize} kayıt` : ''}${commandState.undo.autoCount > 0 ? ` + ${commandState.undo.autoCount} otomatik` : ''} geri al`
                   : 'Geri alınabilecek işlem yok'}
                 redoTitle={commandState.redo
-                  ? `${commandContextLabel(commandState.redo, board)} yeniden uygula`
+                  ? `${commandContextLabel(commandState.redo, board)}${commandState.redo.bundleSize > 1 ? ` · ${commandState.redo.bundleSize} kayıt` : ''}${commandState.redo.autoCount > 0 ? ` + ${commandState.redo.autoCount} otomatik` : ''} yeniden uygula`
                   : 'Yinelenecek işlem yok'}
                 onUndo={() => void runUndo()}
                 onRedo={() => void runRedo()}
@@ -1983,14 +2018,56 @@ export default function ManagementPage() {
           <button
             type="button"
             role="menuitem"
-            onClick={() => editCardFromContext(
+            onClick={() => openCardInspector(
               cardContextMenu.cardId,
               cardContextMenu.cardIds,
+              'DETAILS',
             )}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-slate-700 hover:bg-slate-50"
           >
             <span aria-hidden="true">✎</span>
             Düzenle
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => openCardInspector(
+              cardContextMenu.cardId,
+              cardContextMenu.cardIds,
+              'CANDIDATES',
+            )}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-slate-700 hover:bg-slate-50"
+          >
+            <span aria-hidden="true">↔</span>
+            Alternatif yerler
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!access?.canEdit || commandBusy}
+            onClick={() => openCardInspector(
+              cardContextMenu.cardId,
+              cardContextMenu.cardIds,
+              'TEACHER',
+            )}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span aria-hidden="true">Ö</span>
+            Öğretmeni değiştir
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!access?.canEdit || commandBusy}
+            onClick={() => openCardInspector(
+              cardContextMenu.cardId,
+              cardContextMenu.cardIds,
+              'ROOM',
+            )}
+            className="flex w-full items-center gap-2 border-b border-slate-100 px-3 py-2 text-left text-[11px] font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span aria-hidden="true">S</span>
+            Salonu değiştir
           </button>
           <button
             type="button"
@@ -2106,6 +2183,8 @@ export default function ManagementPage() {
               canEdit={access?.canEdit === true}
               commandBusy={commandBusy}
               commandNotice={commandNotice}
+              openIntent={inspectorIntent}
+              openIntentNonce={inspectorIntentNonce}
               onCandidateAction={(candidate) => {
                 void runSelectedCandidateAction(candidate);
               }}
@@ -2626,6 +2705,7 @@ export default function ManagementPage() {
               setCommandActivity(null);
             }
           }}
+          onOpenProgramResource={openResourceInProgram}
           onPreviewRoomProfile={async (
             roomId,
             capabilities,
