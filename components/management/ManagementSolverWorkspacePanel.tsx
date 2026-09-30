@@ -291,8 +291,8 @@ export function ManagementSolverWorkspacePanel({
           </div>
 
           <p className="mt-2 text-[10px] font-medium leading-5 text-slate-500">
-            Partisyon bir hedefi kendiliğinden “en iyi” kabul etmez. Solver ancak burada açıkça
-            verdiğiniz öncelikleri kullanır.
+            Partisyon hangi hedefin daha önemli olduğuna kendiliğinden karar vermez. Yalnız burada
+            açıkça belirlediğiniz öncelikleri kullanır.
           </p>
 
           <div className="mt-4 space-y-2">
@@ -347,9 +347,9 @@ export function ManagementSolverWorkspacePanel({
                   Kurumun önceliklerini tanımlayın
                 </h1>
                 <p className="mt-2 max-w-3xl text-[10px] font-medium leading-5 text-slate-600">
-                  Hard kurallar programın geçerli olup olmadığını belirler. Buradaki hedefler ise
-                  birden fazla geçerli çözüm arasında neyin tercih edileceğini açıkça tanımlar.
-                  Ağırlıklar yalnız birbirine göre önceliktir; tek başına kalite puanı değildir.
+                  Zorunlu kurallar programın geçerli olup olmadığını belirler. Buradaki hedefler ise
+                  birden fazla geçerli çözüm arasından hangisinin tercih edileceğini tanımlar.
+                  Öncelik düzeyleri yalnız birbirine göre anlam taşır; tek başına kalite puanı değildir.
                 </p>
               </div>
 
@@ -377,9 +377,9 @@ export function ManagementSolverWorkspacePanel({
                   {unknownRooms.count} dersin salon bilgisi henüz kesin değil
                 </p>
                 <p className="mt-1 text-[9px] font-medium leading-4 text-blue-800">
-                  Bu durum solver hazırlığını engellemiyor. {unknownRooms.withBaselineRoomEvidence ?? 0} derste
-                  mevcut programdan salon kanıtı var; {unknownRooms.withoutBaselineRoomEvidence ?? 0} derste
-                  salon kimliği henüz bilinmiyor. Partisyon bunları sabit salon kuralına dönüştürmüyor.
+                  Bu durum çözüm aramayı engellemiyor. {unknownRooms.withBaselineRoomEvidence ?? 0} derste
+                  mevcut programda kullanılan bir salon var; {unknownRooms.withoutBaselineRoomEvidence ?? 0} derste
+                  salon henüz belirlenmemiş. Partisyon bu geçici bilgileri kendiliğinden sabit salon kuralına çevirmiyor.
                 </p>
               </div>
             )}
@@ -392,8 +392,8 @@ export function ManagementSolverWorkspacePanel({
                       Kontrol için {feasibilityResult.changedCards.length} ders kartında farklı yerleşim gerekti
                     </p>
                     <p className="mt-1 max-w-4xl text-[9px] font-medium leading-4 text-amber-800">
-                      Aşağıdaki karşılaştırma yalnız teşhistir; hiçbir değişiklik programa uygulanmadı.
-                      Reason code&apos;lar mevcut baseline&apos;ın neden aynen kullanılamadığını gösterir.
+                      Aşağıdaki karşılaştırma yalnızca açıklama amaçlıdır; programa hiçbir değişiklik uygulanmadı.
+                      Etiketler mevcut yerleşimin neden aynen korunamadığını gösterir.
                     </p>
                   </div>
                   <span className="rounded-full bg-white px-2.5 py-1 text-[8px] font-black text-amber-700">
@@ -465,9 +465,9 @@ export function ManagementSolverWorkspacePanel({
                   Program zorunlu kurallara uygun mu?
                 </h2>
                 <p className="mt-2 text-[10px] font-medium leading-5 text-slate-600">
-                  Bu kontrol snapshot verisini tarayıcı belleğine alır ve yalnız geçerli bir yerleşim
-                  bulunup bulunamadığını sınar. Supabase&apos;e yerleşim yazmaz, mevcut programı değiştirmez
-                  ve hedef profilinden “en iyi” çözüm seçmez.
+                  Bu denetim programın anlık kopyasını tarayıcı belleğinde inceler ve bütün dersler için
+                  geçerli bir yerleşim bulunup bulunamadığını kontrol eder. Veritabanına yerleşim yazmaz,
+                  mevcut programı değiştirmez ve tercih hedeflerine göre seçim yapmaz.
                 </p>
               </div>
 
