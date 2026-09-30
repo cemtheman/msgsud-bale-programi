@@ -4440,3 +4440,155 @@ Remaining before M33.3-v0 CLOSED:
   - multi-seed regression `b05860c4`
 - expected current suite: 15 test files, 77 tests if the new regression is included
 - production build evidence already PASS for core and regression; browser runtime also confirms deployed code
+
+
+## 68. 30 Eylül 2026 — Öncelikler sayfası seçim/onay/çalışma akışı refactor
+
+Kullanıcı Öncelikler sayfasında üç ayrı UX problemi bildirdi:
+- kayıtlı ayar seçme/değiştirme mantığı belirsiz
+- hangi işlemin kaydettiği / hangisinin sadece deneme yaptığı belirsiz
+- program kontrolü, tercih düzenleme ve seçenek üretme bölümlerinin sayfa sırası ters
+
+### Kalıcı UX kararı
+
+Sayfa artık üç aşamalı okunur:
+1. **Tercih ayarı**
+2. **Program kontrolü**
+3. **Program seçeneği**
+
+Anlam:
+- Tercih ayarı: kullanıcı neyi önemsediğini düzenler
+- Program kontrolü: yalnız zorunlu kuralları kontrol eder
+- Program seçeneği: ekrandaki tercihlerle read-only alternatif üretir
+
+### Seçim güvenliği
+
+Commit:
+```
+688f8df683f083d4c47dafd2a26795addb38cb12
+feat: guard preference selection and activation flow
+```
+
+Davranış:
+- kaydedilmemiş değişiklik varken başka profile / +Yeni'ye geçiş sessizce veri kaybettirmez
+- sidebar uyarısı:
+  - Burada kal
+  - Değişiklikleri bırak ve geç
+- profile değişince eski optimization preview temizlenir
+- edit devam ederse pending profile switch iptal edilir
+
+### Editor state görünürlüğü
+
+Commit:
+```
+a0384694695f8be2e3b88f819e4f78e1a591e7a6
+feat: make preference editor state explicit
+```
+
+UI:
+- aktif profile adı header'da `Kullanımda: ...`
+- dirty state `Kaydedilmemiş değişiklikler`
+- durum:
+  - Kullanımda
+  - Kullanımda · değiştirildi
+  - Taslak
+  - Taslak · değiştirildi
+  - Yeni · kaydedilmedi
+
+### Save / activate semantics
+
+Commit:
+```
+24543f0bf380a477dd5c72ad168b1922b3bef59c
+refactor: align preferences page with save-use-run workflow
+```
+
+Active profile:
+- değişiklik yoksa `Kaydedildi · kullanımda`
+- dirty ise `Değişiklikleri kaydet`
+- same active profile save ACTIVE kalır
+
+Draft/new:
+- `Taslak olarak kaydet`
+- `Kaydet ve kullan`
+- saved draft için `Kullanıma al`
+
+Başka profile ACTIVE yapılacaksa explicit confirmation gerekir:
+- mevcut active profile adı
+- yeni profile adı
+- `Vazgeç`
+- `Onayla ve kullan`
+
+Bu işlem yalnız preference default'unu değiştirir; schedule placement state'ini değiştirmez.
+
+### Sayfa sırası
+
+Commit:
+```
+c97b9ab07e0a898a27552a0c06ce53756ba55e76
+refactor: place preference feedback in the correct workflow step
+```
+
+Yeni sıra:
+- header / profile state
+- ayar adı + not
+- objective priority cards
+- henüz kullanılamayan preference özeti
+- save/use action bar
+- 2 · Program kontrolü
+- hard-rule result + diagnostic
+- 3 · Program seçeneği
+- weighted suggestion result
+
+Hard-rule diagnostic artık 1. adımda değil, 2. Program kontrolü altında.
+
+### Hiyerarşi / responsive cleanup
+
+Commit:
+```
+f3342697d679dcfdc9d53d539408ee6ec469fd6b
+polish: simplify preferences page hierarchy
+```
+
+- saved settings sidebar sticky
+- desktop sidebar 260px
+- smaller viewport'ta tek kolon
+- objective cards responsive 1 -> 2 columns
+- metric cards responsive 2 -> 4 columns
+- UNKNOWN room notice Program kontrolü bölümüne taşındı
+- unavailable preference cards tek compact bilgi satırına indirildi
+
+### Preview provenance
+
+Commit:
+```
+283290f73f2617dc33e4dfa9ef263afc7267e769
+polish: label preference preview provenance
+```
+
+Program seçeneği sonucu artık hangi state ile hesaplandığını söyler:
+- Kaydedilmemiş tercihlerle hesaplandı
+- Kullanımdaki ayarla hesaplandı
+- Kayıtlı taslakla hesaplandı
+- Ekrandaki tercihlerle hesaplandı
+
+Optimization preview için save zorunlu değildir.
+Profile save / activation ile preview birbirinden bağımsızdır.
+
+### Build
+
+- 688f8df6 Vercel PASS
+- a0384694 Vercel PASS
+- 24543f0b Vercel PASS
+- c97b9ab0 Vercel PASS
+- f3342697 deployment pending/smoke required at journal time
+- 283290f7 deployment pending/smoke required at journal time
+
+Acceptance:
+- production refresh
+- dirty profile switch warning
+- activation replacement confirmation
+- 1 -> 2 -> 3 section order
+- preview without save
+- saved/unsaved provenance badge
+- no schedule mutation
