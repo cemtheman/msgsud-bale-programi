@@ -633,3 +633,46 @@ npx supabase db push --dry-run
 
 Then push expected pending migrations and browser test:
 proposal -> apply -> undo -> redo -> undo -> redo.
+
+
+## 18. M33.4.3 Öncelikler UX
+
+M33.4.2 apply/undo/redo kullanıcı tarafından düzeldi olarak doğrulandı.
+
+Kalan UX paketi:
+
+```
+54a3a9f25d87c4a2ff16ea219eabd1dfb5619c35
+ux: add solver undo and visible optimization progress
+
+64a3a45be8dfa99fae7942ff6f23ff3cf1220c92
+feat: expose program undo on priorities page
+```
+
+Öncelikler:
+- üst kartta `↶ Geri Al`
+- global management undo kullanır
+- fresh history yokken disabled
+
+Program seçeneği:
+- click sonrası önce busy UI browser'a paint edilir
+- sonra synchronous in-memory optimizer başlar
+- `Seçenek aranıyor…`
+- mavi status kartı:
+  `Program seçenekleri karşılaştırılıyor…`
+  `Bu işlem birkaç saniye sürebilir. İşlem devam ediyor; tamamlandığında sonuç burada görünecek.`
+
+Codespaces acceptance:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
+```
+
+Browser:
+1. Öncelikler -> seçenek oluştur -> progress mesajı anında görünmeli
+2. proposal apply
+3. aynı Öncelikler ekranında Geri Al etkinleşmeli
+4. Geri Al tek adımda proposal bundle'ı geri almalı
+5. refresh sırasında buton çift tıklamaya izin vermemeli
