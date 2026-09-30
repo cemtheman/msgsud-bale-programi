@@ -187,6 +187,18 @@ function translateCommandError(message: string, fallback: string) {
     return 'Bu aday henüz belirsiz olduğu için işlem yapılamıyor.';
   }
 
+  if (normalized.includes('m33.4.2 solver proposal baseline is stale')) {
+    return 'Program, öneri oluşturulduktan sonra değişti. Seçeneği yeniden hesaplayın.';
+  }
+
+  if (normalized.includes('m33.4.2 proposal conflicts with current external occupancy')) {
+    return 'Program öneriden sonra değişmiş veya önerilen derslerden biri artık başka bir dersle çakışıyor. Seçeneği yeniden hesaplayın.';
+  }
+
+  if (normalized.includes('m33.4.2 proposal contains internal teacher, room, or group conflicts')) {
+    return 'Önerinin kendi içinde bir öğretmen, salon veya öğrenci grubu çakışması oluştu. Seçeneği yeniden hesaplayın.';
+  }
+
   if (
     normalized.includes('m32.5 forward impact requires current valid complete candidates')
   ) {
@@ -388,6 +400,29 @@ async function callRpc(
   }
 
   return response.json() as Promise<string>;
+}
+
+export function applyManagementSolverProposalBundle(
+  accessToken: string,
+  input: {
+    items: ManagementBundleCandidateInput[];
+    expectedBaselineHash: string;
+  },
+) {
+  return callRpc(
+    'management_apply_solver_proposal_bundle',
+    accessToken,
+    {
+      p_items: input.items.map((item) => ({
+        card_id: item.cardId,
+        day_of_week: item.dayOfWeek,
+        start_period: item.startPeriod,
+        teacher_id: item.teacherId,
+        room_id: item.roomId,
+      })),
+      p_expected_baseline_hash: input.expectedBaselineHash,
+    },
+  );
 }
 
 export function placeManagementCard(
