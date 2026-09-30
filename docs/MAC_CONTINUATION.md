@@ -98,3 +98,30 @@ M33.2 migration + QA + browser rerun + Vitest PASS sonrası M33.3:
 - M32.4.2: planning pool != manual placement override.
 - M22: UNKNOWN != ABSENT != UNAVAILABLE.
 - Solver hesapları snapshot + in-memory yapılır.
+
+
+## 7. M33.2.1 UUID aggregate hotfix
+
+İlk migration denemesi `min(uuid)` nedeniyle UPDATE aşamasına gelmeden başarısız oldu.
+
+Hotfix:
+```
+9cf4df58ca647785352fd5147e5ef165e8ad1b64
+fix: avoid uuid aggregate in M33.2.1 migration
+```
+
+Migration uygulanmış sayılmaz; veri değişmedi.
+Aynı migration dosyası UUID seçimini ayrı `select id ... limit 1` ile yapacak şekilde düzeltildi.
+
+Yeniden:
+```
+git pull --ff-only
+npx.cmd supabase migration list
+npx.cmd supabase db push --dry-run
+npx.cmd supabase db push
+```
+
+Sonra:
+```
+docs/sql/m33_2_1_friday_k_bale_rule_qa.sql
+```
