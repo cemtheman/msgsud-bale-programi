@@ -1,10 +1,8 @@
 # MSGSÜ Ders Programı — Devam Handoff
 
-> Not: Dosya adı tarihsel olarak `MAC_CONTINUATION.md` kaldı. Aktif çalışma ortamı artık Mac değil, GitHub Codespaces'tir.
+> Not: Dosya adı tarihsel olarak `MAC_CONTINUATION.md` kaldı. Aktif çalışma ortamı GitHub Codespaces'tir.
 
 Tarih: 30 Eylül 2026
-
-Bu dosya güncel continuation özetidir. Ayrıntılı tarihçe için önce `AGENTS.md` okunur.
 
 ## 1. Aktif çalışma ortamı
 
@@ -12,9 +10,8 @@ Bu dosya güncel continuation özetidir. Ayrıntılı tarihçe için önce `AGEN
 - Çalışma dizini: `/workspaces/msgsud-bale-programi`
 - Shell: Linux/bash
 - Branch: `main`
-- Komut biçimi: `npm`, `npx`; **`npm.cmd` / `npx.cmd` kullanılmaz**
-- Kullanıcı yeni bir ortam değişikliği bildirmedikçe Codespaces geçerli kabul edilir.
-- Kullanıcı ortam değişikliğini bildirdiğinde AGENTS.md ve bu handoff aynı oturumda güncellenir.
+- Komut biçimi: `npm`, `npx`; `npm.cmd` / `npx.cmd` kullanılmaz
+- Kullanıcı yeni ortam bildirmedikçe Codespaces geçerli kabul edilir
 
 Başlangıç:
 
@@ -29,113 +26,80 @@ cat AGENTS.md
 cat docs/MAC_CONTINUATION.md
 ```
 
-Working tree temiz değilse kaynağı anlaşılmadan reset/restore yapma.
+## 2. M33.2 — CLOSED / PASS
 
-## 2. Güncel checkpoint
+Production browser smoke:
+- Kurallara uygun bir yerleşim bulundu
+- mevcut program bütün zorunlu kuralları karşılıyor
+- yerinde kalan ders: **300/300**
+- salonu henüz belirlenmeyen ders: 54
+- Cuma ek dersi uyarısı yok
+- changed-card diagnostic yok
+- program mutation yok
 
-Son workflow/journal checkpoint:
-
-```
-38ceab822e9c988464dff09fb9a2753ab58bc60c
-docs: persist Codespaces workflow and M33.2.1 QA pass
-```
-
-M33.2.1 hotfix:
-
-```
-9cf4df58ca647785352fd5147e5ef165e8ad1b64
-fix: avoid uuid aggregate in M33.2.1 migration
-```
-
-Program kontrolü açıklaması:
+Codespaces test:
 
 ```
-1383862c95c75a11ba4d8dbf5995c8545d1b74ce
-polish: clarify priorities are not used by program check yet
+Test Files 14 passed (14)
+Tests 72 passed (72)
 ```
 
-## 3. M33.2.1 durumu — PASS
-
-Migration uygulandı.
-
-QA sonucu:
+Production build:
 
 ```
-requirement_id = bf0f82f8-e370-4426-9ea3-56b9e8462bf0
-max_consecutive_periods = 2
-card_count = 2
-one_period_card_count = 2
-friday_placed_count = 2
-friday_min_period = 7
-friday_max_period = 8
-teacher_names = ["E. Gemalmaz"]
-qa_status = PASS
+Next.js 16.3.4
+Compiled successfully
+TypeScript PASS
+/yonetim PASS
 ```
 
-Doğrulananlar:
-- 5A Cuma K. Bale peş peşe ders sınırı artık 2
-- iki adet 1 saatlik kart korunmuş
-- Cuma 7 ve 8. ders korunmuş
-- E. Gemalmaz korunmuş
-- placement / teacher / room state'i bozulmamış
+Journal checkpoint:
 
-## 4. M33.2 kapanış adımları
-
-Production'da:
-
-1. Yönetim > Öncelikler
-2. `Programı kontrol et`
-3. Cuma ek dersi uyarısı artık görünmemeli
-4. ideal beklenen sonuç: mevcut program hard-rule açısından doğrudan geçerli
-5. ideal smoke: `300/300` yerinde kalan ders
-6. programda kalıcı yerleşim değişikliği olmamalı
-
-Codespaces'te:
-
-```bash
-cd /workspaces/msgsud-bale-programi
-git pull --ff-only
-npm test
-npm run build
+```
+d6f384bddce2267700905694171701f986d95ccb
+docs: close M33.2 and open M33.3
 ```
 
-Özellikle `lib/managementSolverPrototype.test.ts` PASS beklenir.
+## 3. M33.3 — aktif paket
 
-M33.2 browser + Vitest PASS sonrası **CLOSED**.
+Amaç: Öncelikler'deki değerler artık çözüm seçimini gerçekten etkileyecek.
 
-## 5. Öncelikler ekranı
+Supported objective metrics:
+- changeCost
+- preferredTeacherContinuityBreaks
+- teacherIdleGapPeriods
+- roomStabilityBreaks
 
-Şu an `Programı kontrol et` yalnız zorunlu kuralları kontrol eder.
+M33.3-v0 sözleşmesi:
+- current program baseline/referans
+- yalnız hard-feasible çözümler karşılaştırılır
+- active preference weights weighted score'a girer
+- weight=0 objective çözüm seçimini etkilemez
+- deterministic in-memory local improvement
+- locked cards değişmez
+- browser freeze guard
+- baseline/proposed metric delta açıklanır
+- program otomatik apply edilmez
+- Supabase placement mutation yok
 
-Öncelik seviyeleri:
-- mevcut programı koruma
-- aynı öğretmeni koruma
-- öğretmen boşluklarını azaltma
-- aynı dersi aynı salonda tutma
+300 kart üzerinde full combinatorial exhaustive search yapılmayacak.
 
-henüz M33.2 sonucunu değiştirmez.
+İlk implementation:
+1. metric vector evaluator
+2. weighted score
+3. feasible baseline üzerinde one-card neighborhood
+4. best-improvement loop
+5. explanation/result contract
+6. unit tests
+7. Öncelikler UI'da `Tercihlere göre seçenek oluştur`
 
-UI bunu açıkça söylüyor.
+## 4. Değişmez kurallar
 
-## 6. Sonraki paket — M33.3
-
-M33.2 CLOSED sonrası:
-
-- objective metric vector
-- ağırlıklı çözüm araması
-- farklı öncelik ayarlarının gerçekten farklı çözüm üretmesi
-- mevcut programa fark analizi
-- açıklanabilir alternatif çözüm karşılaştırması
-- otomatik apply yok
-- human review / explicit commit ayrı aşama
-
-## 7. Değişmez kurallar
-
-- Applied migration geriye dönük düzenlenmez.
-- DB değişikliğinde yeni additive migration kullanılır.
-- Force push yok.
-- Runtime/browser kanıtı varsayımdan üstündür.
-- M32.4.2: planning pool != manual placement override.
-- M22: UNKNOWN != ABSENT != UNAVAILABLE.
-- Solver hesapları snapshot + in-memory yapılır.
-- Kullanıcı yeni ortam bildirmedikçe Codespaces/Linux komutları kullanılır.
+- Applied migration geriye dönük düzenlenmez
+- DB değişikliğinde yeni additive migration
+- Force push yok
+- Runtime/browser kanıtı varsayımdan üstündür
+- M32.4.2: planning pool != manual placement override
+- M22: UNKNOWN != ABSENT != UNAVAILABLE
+- Solver hesapları snapshot + in-memory
+- kullanıcı yeni ortam bildirmedikçe Codespaces/Linux komutları
