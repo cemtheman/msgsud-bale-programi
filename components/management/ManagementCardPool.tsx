@@ -49,6 +49,8 @@ export function ManagementCardPool({
   canEdit,
   onDragStart,
   onDragEnd,
+  returnDropActive,
+  onReturnDrop,
 }: {
   cards: ManagementBoardCard[];
   totalUnplaced: number;
@@ -58,6 +60,8 @@ export function ManagementCardPool({
   canEdit: boolean;
   onDragStart: (cardId: string, sourceCardIds?: string[]) => void;
   onDragEnd: () => void;
+  returnDropActive: boolean;
+  onReturnDrop: () => void;
 }) {
   void totalUnplaced;
 
@@ -181,8 +185,28 @@ export function ManagementCardPool({
   return (
     <aside
       data-tour-target="pool"
-      className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+      onDragOver={(event) => {
+        if (!returnDropActive) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+      }}
+      onDrop={(event) => {
+        if (!returnDropActive) return;
+        event.preventDefault();
+        onReturnDrop();
+      }}
+      className={`relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition ${
+        returnDropActive
+          ? 'border-[#A63D48] ring-2 ring-[#A63D48]/20'
+          : 'border-slate-200'
+      }`}
     >
+      {returnDropActive && (
+        <div className="pointer-events-none absolute inset-x-3 top-3 z-20 rounded-xl border border-dashed border-[#A63D48]/50 bg-white/95 px-3 py-2 text-center text-[10px] font-black text-[#A63D48] shadow-sm backdrop-blur">
+          Programdan kaldırmak için buraya bırak
+        </div>
+      )}
+
       <div className="border-b border-slate-100 px-3.5 py-3">
         <div className="flex items-start justify-between gap-3">
           <div>
