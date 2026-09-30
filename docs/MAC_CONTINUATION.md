@@ -1,127 +1,141 @@
-# MSGSÜ Ders Programı — Mac Devam Handoff
+# MSGSÜ Ders Programı — Devam Handoff
+
+> Not: Dosya adı tarihsel olarak `MAC_CONTINUATION.md` kaldı. Aktif çalışma ortamı artık Mac değil, GitHub Codespaces'tir.
 
 Tarih: 30 Eylül 2026
 
-Bu dosya güncel continuation özetidir. Ayrıntılı tarihçe için AGENTS.md okunur.
+Bu dosya güncel continuation özetidir. Ayrıntılı tarihçe için önce `AGENTS.md` okunur.
 
-## 1. Güvenilir çalışma noktası
+## 1. Aktif çalışma ortamı
 
-Repository: cemtheman/msgsud-bale-programi
-Production branch: main
+- Ortam: **GitHub Codespaces**
+- Çalışma dizini: `/workspaces/msgsud-bale-programi`
+- Shell: Linux/bash
+- Branch: `main`
+- Komut biçimi: `npm`, `npx`; **`npm.cmd` / `npx.cmd` kullanılmaz**
+- Kullanıcı yeni bir ortam değişikliği bildirmedikçe Codespaces geçerli kabul edilir.
+- Kullanıcı ortam değişikliğini bildirdiğinde AGENTS.md ve bu handoff aynı oturumda güncellenir.
 
-Son implementation checkpoint:
+Başlangıç:
+
+```bash
+cd /workspaces/msgsud-bale-programi
+git fetch origin
+git switch main
+git pull --ff-only
+git rev-parse HEAD
+git status --short
+cat AGENTS.md
+cat docs/MAC_CONTINUATION.md
+```
+
+Working tree temiz değilse kaynağı anlaşılmadan reset/restore yapma.
+
+## 2. Güncel checkpoint
+
+Son workflow/journal checkpoint:
+
+```
+38ceab822e9c988464dff09fb9a2753ab58bc60c
+docs: persist Codespaces workflow and M33.2.1 QA pass
+```
+
+M33.2.1 hotfix:
+
+```
+9cf4df58ca647785352fd5147e5ef165e8ad1b64
+fix: avoid uuid aggregate in M33.2.1 migration
+```
+
+Program kontrolü açıklaması:
 
 ```
 1383862c95c75a11ba4d8dbf5995c8545d1b74ce
 polish: clarify priorities are not used by program check yet
 ```
 
-Yeni M33.2.1 migration:
+## 3. M33.2.1 durumu — PASS
+
+Migration uygulandı.
+
+QA sonucu:
 
 ```
-8c0fd2723c4842f04c3035f08c01626cf2793bfe
-fix: align Friday K Bale consecutive lesson rule
+requirement_id = bf0f82f8-e370-4426-9ea3-56b9e8462bf0
+max_consecutive_periods = 2
+card_count = 2
+one_period_card_count = 2
+friday_placed_count = 2
+friday_min_period = 7
+friday_max_period = 8
+teacher_names = ["E. Gemalmaz"]
+qa_status = PASS
 ```
 
-QA:
+Doğrulananlar:
+- 5A Cuma K. Bale peş peşe ders sınırı artık 2
+- iki adet 1 saatlik kart korunmuş
+- Cuma 7 ve 8. ders korunmuş
+- E. Gemalmaz korunmuş
+- placement / teacher / room state'i bozulmamış
 
-```
-5a310106a4848446100259a8dd01b6dace1f8c11
-test: add Friday K Bale rule verification
-```
+## 4. M33.2 kapanış adımları
 
-Journal:
+Production'da:
 
-```
-0f74328f502ed432dd356eb8d48b1f5cf5d5fa3a
-docs: record M33.2.1 Friday rule fix
-```
+1. Yönetim > Öncelikler
+2. `Programı kontrol et`
+3. Cuma ek dersi uyarısı artık görünmemeli
+4. ideal beklenen sonuç: mevcut program hard-rule açısından doğrudan geçerli
+5. ideal smoke: `300/300` yerinde kalan ders
+6. programda kalıcı yerleşim değişikliği olmamalı
 
-## 2. Kalan M33.2 işi
+Codespaces'te:
 
-Cuma ek dersi rule source çözüldü.
-
-Kanıt:
-- M2.2 bootstrap max_consecutive_periods=NULL.
-- M25 clean bootstrap 5A Cuma K. Bale'yi Friday period 7 + 8, E. Gemalmaz olarak authoritative runtime adjustment şeklinde kuruyor.
-- Kalıcı ürün kuralı: 5A Cuma K. Bale 13:50'den itibaren 2 ders · E. Gemalmaz.
-- Current max_consecutive_periods=1 bu programla çelişen stale structural constraint.
-
-Migration yalnız exact target requirement için max_consecutive_periods 1 -> 2 yapar.
-Yerleşim/öğretmen/salon değişmez.
-
-Dosya:
-```
-supabase/migrations/20260930110000_management_m33_2_1_friday_k_bale_consecutive_rule.sql
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
 ```
 
-## 3. Uygulama sonrası QA
+Özellikle `lib/managementSolverPrototype.test.ts` PASS beklenir.
 
-Çalıştır:
-```
-docs/sql/m33_2_1_friday_k_bale_rule_qa.sql
-```
+M33.2 browser + Vitest PASS sonrası **CLOSED**.
 
-Beklenen:
-- max_consecutive_periods=2
-- card_count=2
-- Friday periods 7 and 8
-- teacher_names={E. Gemalmaz}
-- qa_status=PASS
+## 5. Öncelikler ekranı
 
-Ardından production Öncelikler > Programı kontrol et:
-- Cuma ek dersi kural uyarısı yok
-- changed-card diagnostic kaybolmalı
-- baseline feasible ise 300/300 reuse beklenir
+Şu an `Programı kontrol et` yalnız zorunlu kuralları kontrol eder.
 
-## 4. Öncelikler ekranı
+Öncelik seviyeleri:
+- mevcut programı koruma
+- aynı öğretmeni koruma
+- öğretmen boşluklarını azaltma
+- aynı dersi aynı salonda tutma
 
-Programı kontrol et M33.2 feasibility'dir ve öncelik ağırlıklarını henüz kullanmaz.
-UI artık bunu açıkça söylüyor.
-M33.3'te öncelikler gerçek çözüm seçimini etkileyecek.
+henüz M33.2 sonucunu değiştirmez.
 
-## 5. Sonraki paket
+UI bunu açıkça söylüyor.
 
-M33.2 migration + QA + browser rerun + Vitest PASS sonrası M33.3:
+## 6. Sonraki paket — M33.3
+
+M33.2 CLOSED sonrası:
+
 - objective metric vector
-- weighted solution search
+- ağırlıklı çözüm araması
+- farklı öncelik ayarlarının gerçekten farklı çözüm üretmesi
 - mevcut programa fark analizi
 - açıklanabilir alternatif çözüm karşılaştırması
 - otomatik apply yok
+- human review / explicit commit ayrı aşama
 
-## 6. Değişmez çalışma yöntemi
+## 7. Değişmez kurallar
 
 - Applied migration geriye dönük düzenlenmez.
-- DB değişikliğinde yeni additive migration.
+- DB değişikliğinde yeni additive migration kullanılır.
 - Force push yok.
 - Runtime/browser kanıtı varsayımdan üstündür.
 - M32.4.2: planning pool != manual placement override.
 - M22: UNKNOWN != ABSENT != UNAVAILABLE.
 - Solver hesapları snapshot + in-memory yapılır.
-
-
-## 7. M33.2.1 UUID aggregate hotfix
-
-İlk migration denemesi `min(uuid)` nedeniyle UPDATE aşamasına gelmeden başarısız oldu.
-
-Hotfix:
-```
-9cf4df58ca647785352fd5147e5ef165e8ad1b64
-fix: avoid uuid aggregate in M33.2.1 migration
-```
-
-Migration uygulanmış sayılmaz; veri değişmedi.
-Aynı migration dosyası UUID seçimini ayrı `select id ... limit 1` ile yapacak şekilde düzeltildi.
-
-Yeniden:
-```
-git pull --ff-only
-npx.cmd supabase migration list
-npx.cmd supabase db push --dry-run
-npx.cmd supabase db push
-```
-
-Sonra:
-```
-docs/sql/m33_2_1_friday_k_bale_rule_qa.sql
-```
+- Kullanıcı yeni ortam bildirmedikçe Codespaces/Linux komutları kullanılır.
