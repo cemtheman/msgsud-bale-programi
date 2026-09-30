@@ -450,3 +450,53 @@ altyapısını reuse edecek yolu belirle.
 
 No auto-apply.
 Stale snapshot/hash apply reddedilmeli.
+
+
+## 14. M33.4-v0 explicit proposal apply hazır
+
+Implementation:
+```
+19e6c964f72d517d63970d7e344e7802add6e96d
+0669ab2f6f4ce96f9bd280a7880da17903ee7c93
+f4b44a345ef75ade776da0e0a8bc6793ef34bc68
+29b01fa94ede126eb62ab193dd85bdad4495efb6
+```
+
+Contract:
+```
+f5bac7ead73937f9566bbeb3a8996cace67f4a56
+docs/M33_4_PROPOSAL_APPLY.md
+```
+
+Vercel implementation commits PASS.
+
+Flow:
+- proposal IMPROVED
+- Öneriyi uygula
+- explicit Onayla ve uygula
+- fresh snapshotHash + baselineHash compare
+- stale ise reject
+- changed final placements -> existing M26.8 move bundle
+- atomic transaction
+- normal bundle undo/redo
+- no auto apply
+- no new migration
+
+Codespaces acceptance:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
+```
+
+Browser acceptance:
+1. proposal oluştur
+2. Öneriyi uygula
+3. Vazgeç -> unchanged
+4. tekrar Onayla ve uygula
+5. Program view changes
+6. Geri Al one step
+7. Yinele one step
+8. stale proposal reject
+9. apply sonrası Programı kontrol et -> valid / 300/300
