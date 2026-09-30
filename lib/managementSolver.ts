@@ -68,6 +68,91 @@ export interface ManagementSolverBaselineMetrics {
   roomStabilityBreaks: number;
 }
 
+export interface ManagementSolverRequirement {
+  id: string;
+  subjectId: string;
+  subjectName: string;
+  groupId: string;
+  groupName: string;
+  groupType: string;
+  weeklyLoad: number;
+  preferredPartition: number[] | null;
+  allowedPartitions: number[] | null;
+  minDistinctDays: number | null;
+  maxBlocksPerDay: number | null;
+  maxConsecutivePeriods: number | null;
+  courseCharacter: string | null;
+  deliveryMode: string | null;
+  teacherRequirement: string;
+  teacherMode: string;
+  teacherAssignmentScope: string;
+  teacherContinuity: string;
+  resourceMode: string;
+  requiredCapability: string | null;
+}
+
+export interface ManagementSolverCard {
+  id: string;
+  requirementId: string;
+  blockIndex: number;
+  durationPeriods: number;
+  locked: boolean;
+}
+
+export interface ManagementSolverInstructionalGroup {
+  id: string;
+  classGroupId: string | null;
+  name: string;
+  groupType: string;
+  termStatus: string;
+  knowledgeStatus: string | null;
+}
+
+export interface ManagementSolverInstructionalGroupRelation {
+  leftGroupId: string;
+  rightGroupId: string;
+  relation: string;
+}
+
+export interface ManagementSolverTeacherPoolEntry {
+  requirementId: string;
+  teacherId: string;
+}
+
+export interface ManagementSolverRoomPoolEntry {
+  requirementId: string;
+  roomId: string;
+}
+
+export interface ManagementSolverTeacher {
+  id: string;
+  name: string;
+  operationalStatus: string;
+}
+
+export interface ManagementSolverRoom {
+  id: string;
+  name: string;
+  canonicalRoomId: string | null;
+  capabilities: string[];
+  knowledgeStatus: string | null;
+  operationalStatus: string;
+}
+
+export interface ManagementSolverBaselinePlacement {
+  cardId: string;
+  dayOfWeek: number | null;
+  startPeriod: number | null;
+  teacherId: string | null;
+  roomId: string | null;
+}
+
+export interface ManagementSolverHardConstraintContract {
+  days: number[];
+  periods: number[];
+  rules: string[];
+}
+
 export interface ManagementSolverSnapshotPreview {
   snapshotVersion: string;
   solverEngineStatus: 'SNAPSHOT_ONLY' | string;
@@ -80,6 +165,16 @@ export interface ManagementSolverSnapshotPreview {
     academicYear: string;
     term: number;
   };
+  hardConstraintContract: ManagementSolverHardConstraintContract;
+  requirements: ManagementSolverRequirement[];
+  cards: ManagementSolverCard[];
+  instructionalGroups: ManagementSolverInstructionalGroup[];
+  instructionalGroupRelations: ManagementSolverInstructionalGroupRelation[];
+  teacherPools: ManagementSolverTeacherPoolEntry[];
+  roomPools: ManagementSolverRoomPoolEntry[];
+  teachers: ManagementSolverTeacher[];
+  rooms: ManagementSolverRoom[];
+  baselinePlacements: ManagementSolverBaselinePlacement[];
   baselineMetrics: ManagementSolverBaselineMetrics;
   objectiveProfile: {
     id: string;
