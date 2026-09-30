@@ -18,6 +18,7 @@ import { ManagementResources } from '@/components/management/ManagementResources
 import { ManagementHelpCenter } from '@/components/management/ManagementHelpCenter';
 import { ManagementQuickTour } from '@/components/management/ManagementQuickTour';
 import { ManagementPlacementAssistant } from '@/components/management/ManagementPlacementAssistant';
+import { ManagementSolverWorkspacePanel } from '@/components/management/ManagementSolverWorkspacePanel';
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   buildManagementRowDisplayCards,
@@ -39,6 +40,11 @@ import {
   fetchManagementOverview,
   type ManagementOverview,
 } from '@/lib/managementOverview';
+import {
+  fetchLatestManagementSolverWorkspace,
+  upsertManagementSolverProfile,
+  type ManagementSolverWorkspace,
+} from '@/lib/managementSolver';
 import {
   applyManagementRoomOperationalStatus,
   applyManagementRoomProfile,
@@ -316,6 +322,8 @@ export default function ManagementPage() {
   const [board, setBoard] = useState<ManagementBoardData | null>(null);
   const [coursePlan, setCoursePlan] = useState<ManagementCoursePlanData | null>(null);
   const [resources, setResources] = useState<ManagementResourceInventoryData | null>(null);
+  const [solverWorkspace, setSolverWorkspace] =
+    useState<ManagementSolverWorkspace | null>(null);
   const [publicationPreview, setPublicationPreview] =
     useState<ManagementPublicationPreviewData | null>(null);
   const [publicationGate, setPublicationGate] =
@@ -324,7 +332,8 @@ export default function ManagementPage() {
   const [dataLoading, setDataLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
 
-  const [activeSection, setActiveSection] = useState<'PROGRAM' | 'PLAN' | 'RESOURCES' | 'STATUS'>('PROGRAM');
+  const [activeSection, setActiveSection] =
+    useState<'PROGRAM' | 'PLAN' | 'RESOURCES' | 'SOLVER' | 'STATUS'>('PROGRAM');
   const [activeDay, setActiveDay] = useState(1);
   const [stage, setStage] = useState<ManagementStage>('ORTAOKUL');
   const [resourceView, setResourceView] =
@@ -402,6 +411,7 @@ export default function ManagementPage() {
       setBoard(null);
       setCoursePlan(null);
       setResources(null);
+      setSolverWorkspace(null);
       setPublicationPreview(null);
       setPublicationGate(null);
       return;
@@ -416,6 +426,7 @@ export default function ManagementPage() {
       fetchManagementBoard(session.accessToken),
       fetchManagementCoursePlan(session.accessToken),
       fetchManagementResources(session.accessToken),
+      fetchLatestManagementSolverWorkspace(session.accessToken),
       fetchManagementPublicationPreview(session.accessToken),
       fetchManagementPublicationGate(session.accessToken),
     ])
@@ -424,6 +435,7 @@ export default function ManagementPage() {
         nextBoard,
         nextCoursePlan,
         nextResources,
+        nextSolverWorkspace,
         nextPublicationPreview,
         nextPublicationGate,
       ]) => {
@@ -433,6 +445,7 @@ export default function ManagementPage() {
         setBoard(nextBoard);
         setCoursePlan(nextCoursePlan);
         setResources(nextResources);
+        setSolverWorkspace(nextSolverWorkspace);
         setPublicationPreview(nextPublicationPreview);
         setPublicationGate(nextPublicationGate);
 
@@ -1560,6 +1573,17 @@ export default function ManagementPage() {
               </button>
               <button
                 type="button"
+                onClick={() => setActiveSection('SOLVER')}
+                className={
+                  activeSection === 'SOLVER'
+                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
+                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                }
+              >
+                Optimizasyon
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveSection('STATUS')}
                 className={
                   activeSection === 'STATUS'
@@ -2463,6 +2487,42 @@ export default function ManagementPage() {
               setCommandNotice({
                 kind: 'success',
                 text: `Salon durumu “${statusLabel}” olarak güncellendi. ${result.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirildi.`,
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+        />
+      ) : activeSection === 'SOLVER' ? (
+        <ManagementSolverWorkspacePanel
+          key={`solver-${refreshToken}-${solverWorkspace?.preview.snapshotHash ?? 'empty'}`}
+          data={solverWorkspace}
+          canEdit={access?.canEdit === true}
+          busy={commandBusy}
+          onSave={async (input) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity(
+              input.status === 'ACTIVE'
+                ? 'Optimizasyon hedef profili etkinleştiriliyor.'
+                : 'Optimizasyon hedef profili kaydediliyor.',
+            );
+
+            try {
+              const result = await upsertManagementSolverProfile(
+                session.accessToken,
+                input,
+              );
+              setCommandNotice({
+                kind: 'success',
+                text: result.status === 'ACTIVE'
+                  ? `“${result.name}” optimizasyon hedef profili etkinleştirildi.`
+                  : `“${result.name}” optimizasyon hedef profili taslak olarak kaydedildi.`,
               });
               setRefreshToken((value) => value + 1);
             } finally {
