@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   ManagementSolverObjectiveKey,
   ManagementSolverObjectiveProfile,
@@ -251,6 +251,24 @@ export function ManagementSolverWorkspacePanel({
     selectedProfile != null
     && selectedProfile.id === data?.activeProfileId
   );
+
+  useEffect(() => {
+    if (!data || !optimizationResult) return;
+
+    const stale = (
+      optimizationResult.snapshotHash !== data.preview.snapshotHash
+      || optimizationResult.baselineHash !== data.preview.baselineHash
+    );
+
+    if (!stale) return;
+
+    setOptimizationResult(null);
+    setProposalApplyPending(false);
+    setProposalApplyError(null);
+  }, [
+    data,
+    optimizationResult,
+  ]);
 
   if (!data) {
     return (
@@ -1208,6 +1226,11 @@ export function ManagementSolverWorkspacePanel({
                                 onClick={() => {
                                   setProposalApplyError(null);
                                   void onApplyProposal(optimizationResult)
+                                    .then(() => {
+                                      setProposalApplyPending(false);
+                                      setProposalApplyError(null);
+                                      setOptimizationResult(null);
+                                    })
                                     .catch((reason: unknown) => {
                                       setProposalApplyError(
                                         reason instanceof Error
