@@ -13,11 +13,11 @@
 | Aktif çalışma ortamı | `GitHub Codespaces` |
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `1383862c95c75a11ba4d8dbf5995c8545d1b74ce` |
-| Implementation commit | `M33.2 Friday K. Bale rule fix migration + priorities disclaimer` |
-| Son documentation checkpoint | `5a310106a4848446100259a8dd01b6dace1f8c11` |
+| Son doğrulanmış implementation checkpoint | `00525899ec3e519ee7f356d949f327cfbd89958a` |
+| Implementation commit | `M33.3 weighted in-memory objective optimization + read-only option preview — Vercel build PASS` |
+| Son documentation checkpoint | `51024660122838a3f45e6c0b3c93c0cfabf59688` |
 | Son kullanıcı/QA kabulü | **M33.2 CLOSED/PASS** — production 300/300 baseline reuse, 0 hard-rule warning; Codespaces Vitest 14/14 files, 72/72 tests PASS; production build PASS |
-| Sıradaki iş paketi | M33.3 explainable objective optimization — objective metric vector + weighted in-memory search + no auto-apply |
+| Sıradaki iş paketi | M33.3 Codespaces Vitest/build + production preference-difference smoke; then tune/search hardening |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -4123,3 +4123,124 @@ M33.3 search güvenlik ilkesi:
 - objective weight = 0 ise ilgili metric çözüm seçimini etkilemez
 - score improvement yoksa baseline korunur
 - browser freeze riskine karşı move/iteration guard bulunur
+
+
+## 64. 30 Eylül 2026 — M33.3-v0 weighted objective optimization implemented
+
+M33.2 CLOSED sonrasında M33.3-v0 implementation başladı.
+
+Core:
+```
+b14ca08089a47e0a4bc268107c0afe98b9884b33
+feat: add weighted in-memory objective optimizer
+```
+
+Test:
+```
+f5f20f06881cd8b5ca86bb157a12e106caf6aef9
+test: cover weighted objective optimization
+```
+
+UI:
+```
+00525899ec3e519ee7f356d949f327cfbd89958a
+feat: expose preference-driven program option preview
+```
+
+Terminology:
+```
+507ca5a5c493b6b3f6ad0b86207f02b201b69c32
+polish: finish priorities sidebar terminology
+```
+
+Contract:
+```
+51024660122838a3f45e6c0b3c93c0cfabf59688
+docs: define M33.3 preference optimization contract
+```
+
+Vercel build:
+- core b14ca080 PASS
+- test commit f5f20f06 PASS
+- UI 00525899 PASS
+- terminology commit build pending at journal write time
+
+### M33.3-v0 metric vector
+
+Her solution için:
+- changeCost
+- preferredTeacherContinuityBreaks
+- teacherIdleGapPeriods
+- roomStabilityBreaks
+
+changeCost:
+- baseline'a göre değişen day/time/teacher/room kararlarının sayısı
+
+Ağırlıklı score:
+- her raw metric / cardCount
+- normalized metric * 0..1000 user weight
+- toplam düşükse tercih edilir
+- weight=0 ise metric score'a girmez
+
+### Search
+
+Global exhaustive optimum aranmaz.
+
+Deterministic local best-improvement:
+- feasible baseline start
+- locked cards immutable
+- structural domains cache
+- current placement'a en yakın candidate neighborhood
+- hard feasibility her move'da doğrulanır
+- strict score improvement dışında move kabul edilmez
+- max 8 accepted iterations
+- card başına 24 evaluated neighborhood candidate
+- card domain guard 400
+
+M22:
+- UNKNOWN requirement'ın baseline room evidence'i soft score uğruna null'a düşürülmez
+
+M32.4.2:
+- active manual override baseline'da korunur
+- alternatives planning pool'dan gelir
+- öneri auto-apply edilmez
+
+### User flow
+
+`Programı kontrol et`:
+- hard rules only
+- preferences kullanmaz
+
+`Bu tercihlerle seçenek oluştur`:
+- ekrandaki mevcut weights'i doğrudan kullanır
+- profile save zorunlu değildir
+- read-only öneri üretir
+
+UI sonucu:
+- IMPROVED / UNCHANGED / BLOCKED
+- changeCost baseline -> proposed
+- teacher continuity baseline -> proposed
+- teacher idle gaps baseline -> proposed
+- room stability baseline -> proposed
+- first 12 changed lessons current vs proposal
+- no database write
+
+### Unit test scenarios
+
+Yeni `lib/managementObjectiveOptimizer.test.ts`:
+1. teacherIdleGaps-only => gap 1 -> 0, one move
+2. equal changeCost + gap tradeoff => baseline preserved
+3. roomStability-only => room break 1 -> 0
+4. zero supported weights => BLOCKED
+
+M33.3 henüz CLOSED değil.
+
+Kalan acceptance:
+1. Codespaces git pull
+2. npm test
+3. npm run build
+4. production browser refresh
+5. at least two materially different priority combinations
+6. verify result changes or UNCHANGED changes consistently
+7. verify no schedule mutation
+8. measure browser responsiveness / elapsed time
