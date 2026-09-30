@@ -5117,3 +5117,86 @@ Beklenti:
 - görünmüyorsa dry-run yalnız M33.4.1 migration göstermeli ve push edilmelidir
 
 Migration aktif olduğu doğrulandıktan sonra proposal apply/undo/redo yeniden test edilir.
+
+
+## 77. 30 Eylül 2026 — M33.4.2 timeout kök nedeni ve fast apply/redo
+
+Üçüncü browser turunda Yinele artık eski "yer uygun değil" hatasına değil,
+doğrudan statement timeout'a düştü.
+
+Bu değişiklik M33.4.1 bundle-redo yolunun aktif olduğuna, fakat transaction'ın
+candidate-domain refresh maliyeti nedeniyle halen ağır olduğuna işaret eder.
+
+Kök mimari gözlem:
+- M33 global solver candidate assessments'ı solver truth olarak kullanmaz.
+- Interactive candidate rows current occupancy'ye göre görecelidir.
+- Buna rağmen M33.4.1 apply/redo M15/M26 candidate refresh zincirini transaction
+  içinde sürdürüyordu.
+- 8 kart için per-member delta refresh + bundle refresh + propagation path
+  statement timeout üretebiliyor.
+
+M33.4.2 kararı:
+- solver proposal apply ve MOVE bundle redo kritik transaction'ında
+  occupancy-relative candidate-domain write yapılmaz
+- placement stale guard korunur
+- direct time/teacher/room/group overlap validation korunur
+- history bundle atomic kalır
+- candidate rows drag/assistant gibi interactive kullanımda zaten on-demand
+  refresh edilir
+
+Migration:
+```
+20260930164500_management_m33_4_2_fast_solver_apply_redo.sql
+b7697ca0a18780ad17354563256cf12b8392d28a
+perf: remove candidate refresh from solver apply and redo
+```
+
+Yeni RPC:
+`management_apply_solver_proposal_bundle(jsonb,text)`
+
+DB-side stale guard:
+- exact M33 baseline hash formula
+- revision lock
+- expected baseline hash mismatch => reject
+
+DB direct safety:
+- day/period bounds
+- lunch crossing
+- external teacher/room/group conflict
+- internal proposal teacher/room/group conflict
+- locked/DRAFT/placed/one-revision guards
+
+MOVE bundle REDO:
+- all current placements must exactly match undone before-state
+- newer manual decision invalidates branch as before
+- replay direct atomic move roots
+- ROOT_REDO audit links preserved
+- no candidate-domain rebuild in redo transaction
+
+Client commits:
+```
+aa964985e5074a397415e421c66bbddb98117a64
+feat: call fast solver proposal apply RPC
+
+bc92faf394b7789ad8082f7dd4e94153c4030aa7
+perf: route solver proposals through fast apply
+```
+
+Candidate-domain consistency policy:
+- proposal apply does not mutate interactive candidate rows
+- beginDrag refreshes selected group before reading candidates
+- placement assistant refreshes each analyzed group before candidate evaluation
+- therefore stale interactive rows are not authoritative and are lazily refreshed
+
+Acceptance pending:
+1. git pull
+2. npm test
+3. npm run build
+4. migration list
+5. dry-run must show M33.4.2 (and M33.4.1 only if not yet remote)
+6. db push
+7. fresh proposal apply => no timeout
+8. undo => one step
+9. redo => no timeout
+10. repeated undo/redo
+11. Programı kontrol et hard rules
