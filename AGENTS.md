@@ -16,8 +16,8 @@
 | Son doğrulanmış implementation checkpoint | `1383862c95c75a11ba4d8dbf5995c8545d1b74ce` |
 | Implementation commit | `M33.2 Friday K. Bale rule fix migration + priorities disclaimer` |
 | Son documentation checkpoint | `5a310106a4848446100259a8dd01b6dace1f8c11` |
-| Son kullanıcı/QA kabulü | M33.2.1 migration uygulandı; Friday K. Bale QA PASS: maxConsecutivePeriods=2, 2 kart, Cuma 7–8, E. Gemalmaz korundu |
-| Sıradaki iş paketi | Production browser rerun + M33.2 Vitest; ardından M33.2 CLOSED ve M33.3 objective optimization |
+| Son kullanıcı/QA kabulü | **M33.2 CLOSED/PASS** — production 300/300 baseline reuse, 0 hard-rule warning; Codespaces Vitest 14/14 files, 72/72 tests PASS; production build PASS |
+| Sıradaki iş paketi | M33.3 explainable objective optimization — objective metric vector + weighted in-memory search + no auto-apply |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -4034,3 +4034,92 @@ M33.2 kapanış için kalan:
 3. ideal smoke: 300/300 yerinde kalan ders, kural uyuşmazlığı yok
 4. Codespaces'te `npm test` ile Vitest PASS
 5. ardından M33.2 CLOSED ve M33.3'e geçiş
+
+
+## 63. 30 Eylül 2026 — M33.2 CLOSED / production 300 of 300 + 72 tests PASS
+
+M33.2.1 migration + QA sonrasında kullanıcı production Öncelikler ekranında
+`Programı kontrol et` işlemini yeniden çalıştırdı.
+
+Browser smoke sonucu:
+- `Kurallara uygun bir yerleşim bulundu`
+- `Mevcut program bütün zorunlu kuralları karşılıyor`
+- `Yerinde kalan ders: 300/300`
+- `Salonu henüz belirlenmeyen ders: 54`
+- Cuma ek dersi kural uyuşmazlığı diagnostic'i yok
+- changed-card diagnostic yok
+- program mutation yok
+
+Bu, baseline fast-path'in production'da doğrulandığı anlamına gelir:
+- baselineWasFeasible=true
+- 300 kartın tamamı korunuyor
+- solver alternatif placement aramak zorunda kalmıyor
+
+Codespaces test:
+```
+npm test
+```
+
+Sonuç:
+- Test Files: 14 passed / 14
+- Tests: 72 passed / 72
+- `lib/managementSolverPrototype.test.ts`: 8 tests PASS
+
+Codespaces build:
+```
+npm run build
+```
+
+Sonuç:
+- Next.js 16.3.4 webpack production build PASS
+- TypeScript PASS
+- static generation PASS
+- `/yonetim` build PASS
+
+### M33.2 karar
+
+**M33.2 CLOSED / PASS**
+
+Doğrulanan invariantlar:
+- snapshot + in-memory feasibility
+- hard constraints
+- manual placement override semantiği
+- M22 UNKNOWN room provisional semantiği
+- baseline fast path
+- no placement writes
+- no automatic apply
+- diagnostic explanation
+- production 300/300 baseline reuse
+
+### M33.3 başlangıç kapsamı
+
+Sıradaki paket **M33.3 explainable objective optimization**.
+
+Amaç:
+- kullanıcı Öncelikler'deki ağırlıkları değiştirdiğinde sonuç gerçekten değişebilsin
+- birden fazla hard-feasible çözüm arasında tercih profiline göre seçim yapılsın
+- current schedule referans/baseline olarak kalsın
+- program otomatik değiştirilmesin
+
+M33.3-v0 hedefleri:
+1. solution objective metric vector:
+   - changeCost
+   - preferredTeacherContinuityBreaks
+   - teacherIdleGapPeriods
+   - roomStabilityBreaks
+2. normalized weighted objective score
+3. deterministic in-memory improvement/search
+4. baseline vs proposed metric delta
+5. changed-card explanation
+6. read-only preview UI
+7. no Supabase placement mutation
+8. no automatic apply
+
+M33.3 search güvenlik ilkesi:
+- 300-card full combinatorial exhaustive search yapılmayacak
+- feasible baseline'dan deterministic local-improvement neighborhood başlanacak
+- locked cards değişmez
+- hard constraints her candidate move'da korunur
+- objective weight = 0 ise ilgili metric çözüm seçimini etkilemez
+- score improvement yoksa baseline korunur
+- browser freeze riskine karşı move/iteration guard bulunur
