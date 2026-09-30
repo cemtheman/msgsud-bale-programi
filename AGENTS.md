@@ -4830,3 +4830,130 @@ Sıradaki paket:
 - apply sonrası hard-rule validation
 - undo/redo aynı işlem kaydını geri alabilmeli
 - auto-apply kesinlikle yok
+
+
+## 74. 30 Eylül 2026 — M33.4-v0 explicit proposal apply implementation
+
+M33.3 CLOSED sonrası mevcut management transaction altyapısı incelendi.
+
+### Reuse kararı
+
+Yeni solver apply transaction motoru yazılmadı.
+
+Mevcut:
+- M26.8 `management_move_card_bundle`
+- bundle root tagging
+- `management_undo_bundle`
+- `management_redo_bundle`
+- ManagementCommandState
+altyapısı proposal apply için yeterli.
+
+M33.3-v0 accepted move guard = 8.
+M26.8 bundle contract = 1..24 cards.
+Dolayısıyla current proposal boyutu mevcut atomic bundle sınırının içinde.
+
+### Safe apply preparation
+
+Commit:
+```
+19e6c964f72d517d63970d7e344e7802add6e96d
+feat: prepare safe solver proposal apply plan
+```
+
+Yeni helper:
+`lib/managementSolverProposal.ts`
+
+Apply guard:
+- proposal status IMPROVED
+- fresh workspace mevcut
+- fresh snapshotHash == proposal snapshotHash
+- fresh baselineHash == proposal baselineHash
+- changed final placement count >= 1
+- changed count <= 24
+
+Stale:
+`Program, öneri oluşturulduktan sonra değişti. Seçeneği yeniden hesaplayın.`
+
+### Unit tests
+
+Commit:
+```
+0669ab2f6f4ce96f9bd280a7880da17903ee7c93
+test: cover solver proposal freshness and bundle preparation
+```
+
+Coverage:
+- changed placements -> atomic bundle items
+- stale baseline reject
+- stale structural snapshot reject
+- non-improved / no-op reject
+
+### Explicit confirmation UI
+
+Commit:
+```
+f4b44a345ef75ade776da0e0a8bc6793ef34bc68
+feat: add explicit solver proposal apply confirmation
+```
+
+Frozen layout korunarak yalnız Program seçeneği sonucunun altına minimal action eklendi:
+- Öneriyi uygula
+- confirmation
+- Vazgeç
+- Onayla ve uygula
+
+Confirmation değişecek ders sayısını ve fresh-state check'i açıklar.
+
+### Atomic apply wiring
+
+Commit:
+```
+29b01fa94ede126eb62ab193dd85bdad4495efb6
+feat: apply fresh solver proposals through atomic bundle move
+```
+
+Flow:
+1. user confirms
+2. `fetchLatestManagementSolverWorkspace`
+3. snapshotHash + baselineHash freshness guard
+4. final changed placements bundle items
+5. existing `moveManagementCardBundle`
+6. M26.8 exact VALID+complete candidate validation
+7. one DB transaction
+8. normal bundle history
+9. refresh
+10. existing Geri Al / Yinele
+
+No new migration.
+No trial-and-error Supabase writes.
+No automatic apply.
+
+Success:
+`N ders için önerilen yerleşim uygulandı. İşlem Geri Al ile tek adımda geri alınabilir.`
+
+### Contract
+
+```
+f5bac7ead73937f9566bbeb3a8996cace67f4a56
+docs: define M33.4 explicit proposal apply contract
+```
+
+Vercel:
+- 19e6c964 PASS
+- 0669ab2f PASS
+- f4b44a34 PASS
+- 29b01fa9 PASS
+
+M33.4 henüz CLOSED değil.
+
+Acceptance:
+1. Codespaces npm test
+2. npm run build
+3. proposal üret
+4. apply confirmation / cancel
+5. confirmed apply
+6. Program view proposed placements
+7. Geri Al one-step
+8. Yinele one-step
+9. stale proposal rejection
+10. apply sonrası Programı kontrol et -> hard-rule valid / 300/300
