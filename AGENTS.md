@@ -3080,3 +3080,94 @@ M33 sonrası plan:
 - sonra immutable snapshot consumer feasibility solver prototype
 - solver output explainable metric vector + baseline delta üretmeli
 - solver implementation library-agnostic kalmalı
+
+
+## 51. 30 Eylül 2026 — M33 readiness diagnostic / M33.0.1 provisional room correction
+
+M33 readiness preview production sonucu:
+- snapshotVersion M33-v1
+- hardInputReady=false
+- tek hard blocker: RESOURCE_MODE_UNKNOWN count=41
+- objectiveProfileReady=false (beklenen; explicit profile yok)
+- solverPrototypeReady=false
+- baseline:
+  - cardCount 300
+  - placedCardCount 300
+  - unplacedCardCount 0
+  - lockedCardCount 0
+  - teacherIdleGapPeriods 97
+  - roomStabilityBreaks 40
+  - preferredTeacherContinuityBreaks 0
+- candidateDomainIncluded=false (tasarım gereği)
+- missing optional inputs:
+  TEACHER_LOAD_TARGETS, SUBJECT_TIME_PREFERENCES
+
+Unknown room audit sonucu:
+- 41 ACTIVE resource_mode=UNKNOWN requirement
+- yalnız 3 requirement'ta non-null baseline room evidence:
+  - 8A K. Bale: A Salon + B Salon
+  - 8A B. Uygulama: B Salon
+  - 9B Matematik: B1 105B
+- kalan 38 requirement NO_ROOM_EVIDENCE / placement room_id null
+- room pool count bu 41 kaydın tamamında 0
+- required_capability null
+- bu tabloyu FIXED/ELIGIBLE_POOL'a körlemesine çevirmek için yeterli planning-policy evidence yok
+
+Mimari düzeltme:
+M33'ün RESOURCE_MODE_UNKNOWN'ı hard blocker sayması M22 ile çelişiyordu.
+M22 invariantı:
+UNKNOWN != ABSENT != UNAVAILABLE.
+resource_mode=UNKNOWN schedulable PROVISIONAL_UNKNOWN room identity'dir.
+
+Yeni migration:
+```
+20260930073500_management_m33_0_1_provisional_room_readiness.sql
+```
+
+Davranış:
+- applied M33 preview function rename:
+  management_preview_solver_snapshot_m33_base
+- public management_preview_solver_snapshot wrapper:
+  RESOURCE_MODE_UNKNOWN blocker'ını hardBlockers'tan çıkarır
+- UNKNOWN requirement'ları mutate etmez
+- planning room pool yaratmaz
+- baseline'dan FIXED/ELIGIBLE_POOL inference yapmaz
+- readiness.provisionalInputs içinde:
+  - count
+  - withBaselineRoomEvidence
+  - withoutBaselineRoomEvidence
+  - PROVISIONAL_UNKNOWN semantics
+- hardInputReady kalan gerçek blocker'lara göre hesaplanır
+- snapshotVersion M33.0.1-v1
+- snapshot hash corrected readiness payload üzerinden yeniden üretilir
+- baseline hash değişmez
+- capture function dynamic snapshotVersion kullanır
+
+Commitler:
+```
+32150f7b5855ac7011672cc8b16857399b685882 fix: align solver readiness with provisional room semantics
+253e35d173fb05124b895d1f6e4180b746dd40a4 docs: surface provisional solver inputs
+a44f0d7b98b0806fb65654f6a10fd178d61851ec docs: align solver readiness with M22 room semantics
+```
+
+M33 preview diagnostic artık ayrıca:
+- provisional_inputs
+- resource_unknown_semantics
+kolonlarını gösterir.
+
+Doğrulama:
+1. migration list + dry-run
+2. yalnız 20260930073500 M33.0.1 expected
+3. db push
+4. m33_solver_snapshot_preview.sql tekrar
+Beklenen:
+- hard_input_ready=true (başka blocker yoksa)
+- hard_blockers=[]
+- provisional_inputs RESOURCE_MODE_UNKNOWN count=41
+  withBaselineRoomEvidence=3
+  withoutBaselineRoomEvidence=38
+- resource_unknown_semantics=M22_PROVISIONAL_UNKNOWN
+- objective_profile_ready=false
+- solver_prototype_ready=false
+5. hard_input_ready=true ise m33_solver_snapshot_rollback_qa.sql
+6. rollback QA PASS sonrası M33 snapshot foundation CLOSED, M33.1 objective profile UX
