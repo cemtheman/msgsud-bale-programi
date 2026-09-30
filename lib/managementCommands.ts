@@ -644,7 +644,7 @@ export function undoManagementBundle(
   accessToken: string,
   rootTransactionId: string,
 ) {
-  return callRpc('management_undo_bundle', accessToken, {
+  return callRpc('management_undo_bundle_v2', accessToken, {
     p_root_transaction_id: rootTransactionId,
   });
 }
@@ -662,7 +662,7 @@ export function redoManagementBundle(
   accessToken: string,
   undoTransactionId: string,
 ) {
-  return callRpc('management_redo_bundle', accessToken, {
+  return callRpc('management_redo_bundle_v2', accessToken, {
     p_undo_transaction_id: undoTransactionId,
   });
 }
