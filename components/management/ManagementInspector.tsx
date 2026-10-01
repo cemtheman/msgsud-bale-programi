@@ -9,10 +9,10 @@ import {
   type ManagementCandidateAssessment,
   type ManagementCandidateDetail,
 } from '@/lib/managementBoard';
-import { translateManagementPlacementResourceBlockReason } from '@/lib/managementCommands';
-import type {
-  ManagementPlacementResourcePreview,
-  ManagementPlacementResourceType,
+import {
+  translateManagementPlacementResourceBlockReason,
+  type ManagementPlacementResourcePreview,
+  type ManagementPlacementResourceType,
 } from '@/lib/managementCommands';
 import type {
   ManagementCoursePlanOption,
