@@ -2122,3 +2122,27 @@ npx supabase db push --dry-run
 Dry-run expectation:
 - only `20261001133000_management_m39_0_teacher_load_foundation.sql` should be pending
 - do not push if any unexpected migration appears
+### M39.0 code gate + migration dry-run — PASS
+
+Codespaces verification:
+```
+21 test files PASS
+107 / 107 tests PASS
+Next.js production build PASS
+TypeScript PASS
+```
+
+Supabase migration verification:
+- migration list shows `20261001133000` local-only
+- all prior migrations through `20261001101500` match remote
+- `npx supabase db push --dry-run` reports exactly one pending migration:
+  - `20261001133000_management_m39_0_teacher_load_foundation.sql`
+- no unexpected migration detected
+
+Status:
+- code gate PASS
+- migration dry-run PASS
+- real DB push pending
+- browser acceptance pending
+
+Checkpoint before journal commit: aad72347a5c87d15cba7c840bf2cdfa8cc39556e
