@@ -1192,10 +1192,30 @@ export function applyManagementTeacherPolicyToCandidateDetail(
     });
   });
 
-  const policyFilteredCount = assessments.filter((assessment, index) => (
-    detail.assessments[index]?.status === 'VALID'
-    && assessment.status !== 'VALID'
-  )).length;
+  const requirementPolicyActive = (
+    card.teacherAssignmentScope === 'REQUIREMENT'
+    && card.teacherContinuity === 'REQUIRED'
+  );
+
+  const policyFilteredCount = assessments.filter((assessment) => {
+    const rejectedByMembership = Boolean(
+      assessment.teacherId
+      && (
+        teacherOperationalStatusById[assessment.teacherId] === 'INACTIVE'
+        || !currentTeacherIds.has(assessment.teacherId)
+      )
+    );
+
+    const rejectedByRequirementPolicy = requirementPolicyActive && (
+      policyConflict
+      || Boolean(
+        resolvedTeacherId
+        && assessment.teacherId !== resolvedTeacherId
+      )
+    );
+
+    return rejectedByMembership || rejectedByRequirementPolicy;
+  }).length;
 
   return {
     assessments,
