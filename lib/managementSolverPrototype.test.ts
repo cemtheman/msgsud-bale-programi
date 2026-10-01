@@ -613,6 +613,10 @@ describe('M40 teacher load objective', () => {
 
     const result = runManagementObjectiveOptimization(
       snapshot({
+        requirements: [{
+          ...base.requirements[0],
+          teacherMode: 'ELIGIBLE_POOL',
+        }],
         teacherPools: [
           { requirementId: 'r1', teacherId: 't1' },
           { requirementId: 'r1', teacherId: 't2' },
