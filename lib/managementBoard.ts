@@ -73,7 +73,7 @@ export interface ManagementBoardData {
   teacherRows: ManagementBoardRow[];
   roomRows: ManagementBoardRow[];
   teacherNamesById: Record<string, string>;
-  teacherOperationalStatusById: Record<string, 'ACTIVE' | 'INACTIVE'>;
+  teacherOperationalStatusById?: Record<string, 'ACTIVE' | 'INACTIVE'>;
   roomNamesById: Record<string, string>;
 }
 
