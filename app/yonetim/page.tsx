@@ -23,6 +23,7 @@ import { ManagementSolverWorkspacePanel } from '@/components/management/Manageme
 import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   buildManagementRowDisplayCards,
+  cardBelongsToClassRow,
   cardMatchesAudience,
   cardMatchesStage,
   fetchManagementBoard,
@@ -725,6 +726,12 @@ export default function ManagementPage() {
     );
 
     if (programResourceFilters.length === 0) return baseRows;
+
+    if (resourceView === 'SINIFLAR') {
+      return baseRows.filter((row) =>
+        programCards.some((card) => cardBelongsToClassRow(card, row)),
+      );
+    }
 
     if (resourceView === 'ÖĞRETMENLER') {
       const visibleTeacherIds = new Set(
