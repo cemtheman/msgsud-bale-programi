@@ -1889,3 +1889,19 @@ Browser acceptance:
 3. wording should say `toplu öğretmen ataması/değişikliği`, never `taşıması`
 4. undo completion notice should not claim one day/period for a multi-card bundle
 5. Yinele should preserve the same semantic wording
+### M38.1 code gate — PASS
+
+Codespaces verification:
+```
+20 test files PASS
+104 / 104 tests PASS
+Next.js production build PASS
+TypeScript PASS
+```
+
+Status:
+- semantic history-label implementation PASS
+- no migration
+- browser acceptance pending
+
+Checkpoint before journal commit: 4f936e9727534fae910a3fcde8d089c504297e8c
