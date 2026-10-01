@@ -1203,3 +1203,97 @@ status: M35.2 PASS
 ```
 
 Do not reopen M35.2 unless a concrete regression is reproduced.
+## 25. M36 operational resource gaps + publication safety — READY FOR ACCEPTANCE
+
+Base checkpoint: M35.2 PASS.
+
+Working branch:
+```
+feat/management-m36-operational-gaps
+```
+
+Goal:
+- make intentionally preserved teacher/room gaps operationally visible after mid-term resource changes
+- let the administrator jump directly from health/status to the affected timetable card
+- prevent publication from relying only on potentially stale candidate-domain summaries
+- keep M33/M34/M35 history and solver authority unchanged
+
+Implemented:
+- shared live-gap semantics in `lib/managementBoard.ts`:
+  - required teacher + placed card + null teacher => teacher gap
+  - non-UNKNOWN room strategy + placed card + null room => room gap
+- Program top bar now shows `Öğretmensiz · N` / `Salonsuz · N` controls when relevant
+- clicking a gap control:
+  - opens Program / Sınıflar
+  - filters to the relevant operational gaps
+  - opens the first affected card
+  - focuses the Teacher or Room assignment section
+- gap filters stay visible even when the current stage/day has zero matches so they can always be cleared
+- empty rows collapse under gap filtering
+- a resolved card automatically leaves the gap view and its inspector closes after refresh
+- timetable cards with a live resource gap show a compact `!` badge + tooltip
+- teacher/room timetable row headers now say only `Öğretmen` / `Salon` instead of the generic `Sınıf / Alan`
+- inspector changes `Öğretmen değiştir` -> `Öğretmen ata` and `Salon değiştir` -> `Salon ata` when the current resource is empty
+- teacher options outside the course-plan pool are labelled `Geçici / manuel seçim` for a teacherless placed lesson
+- Program Durumu health is now live-placement-aware and does not depend solely on persisted candidate summaries
+- direct teacher/room gaps are not double-counted as generic unresolved health issues
+- Program Durumu issue cards have actionable buttons (`Öğretmen ata`, `Salon ata`, `Programda incele`, `Ders havuzunu aç`)
+
+Publication safety:
+```
+20261001094500_management_m36_0_publication_resource_gap_gate.sql
+```
+- wraps the established `management_preview_publication` gate instead of rewriting publication logic
+- adds server-side blockers:
+  - `MISSING_REQUIRED_TEACHER_PLACEMENT`
+  - `MISSING_REQUIRED_ROOM_PLACEMENT`
+- adds exact counts:
+  - `missingRequiredTeacherPlacementCount`
+  - `missingRequiredRoomPlacementCount`
+- `management_apply_publication` continues calling the public gate name, therefore publication inherits the new blockers
+- publication remains blocked even if M35.2 deliberately skipped synchronous candidate-domain rebuild
+
+Regression coverage:
+- new `tests/managementHealth.test.ts`
+- verifies direct teacher gap with stale-valid domain
+- verifies direct room gap
+- verifies OPTIONAL teacher / UNKNOWN room strategy are not falsely blocked
+- verifies direct gaps are not duplicated as generic unresolved warnings
+
+Expected test count:
+```
+18 test files
+92 tests
+```
+
+Acceptance gate:
+```bash
+git switch feat/management-m36-operational-gaps
+git pull --ff-only
+npm test
+npm run build
+npx supabase migration list | tail -12
+npx supabase db push --dry-run
+```
+
+Dry-run must show only:
+```
+20261001094500_management_m36_0_publication_resource_gap_gate.sql
+```
+
+Only after test/build/dry-run PASS:
+```bash
+npx supabase db push
+npx supabase migration list | tail -12
+```
+
+Browser acceptance:
+1. leave one REQUIRED placed lesson teacherless using the accepted M35 flow
+2. Program top bar shows `Öğretmensiz · N` and the card shows `!`
+3. clicking the chip filters the board and opens `Öğretmen ata` on the affected card
+4. assign an active teacher; the card disappears from the gap filter after refresh
+5. Program Durumu shows/removes the corresponding blocker consistently
+6. server publication gate shows/removes `Öğretmeni boş bırakılmış ders var` consistently
+7. repeat the same flow for a room gap if a safe test lesson is available
+
+Checkpoint before journal commit: f1f8969005d2c722b3c0d3c2b2cacff0aec1b5f0
