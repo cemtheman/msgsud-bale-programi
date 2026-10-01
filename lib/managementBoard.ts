@@ -73,6 +73,7 @@ export interface ManagementBoardData {
   teacherRows: ManagementBoardRow[];
   roomRows: ManagementBoardRow[];
   teacherNamesById: Record<string, string>;
+  teacherOperationalStatusById: Record<string, 'ACTIVE' | 'INACTIVE'>;
   roomNamesById: Record<string, string>;
 }
 
@@ -160,6 +161,7 @@ interface TeacherRow {
   id: string;
   name: string;
   operational_status: 'ACTIVE' | 'INACTIVE';
+  archived_at: string | null;
 }
 
 interface TeacherNameOverrideRow {
@@ -347,6 +349,7 @@ export function translateCandidateReason(code: string) {
     ROOM_CONFLICT: 'Salon aynı saatte kullanımda',
     ROOM_INACTIVE: 'Salon kullanımda değil',
     TEACHER_INACTIVE: 'Öğretmen atamaya kapalı',
+    TEACHER_NOT_IN_REQUIREMENT_POOL: 'Öğretmen artık bu dersin öğretmen havuzunda değil',
     GROUP_CONFLICT: 'Öğrenci grubu aynı saatte başka derste',
     REQUIREMENT_TEACHER_MISMATCH: 'Bu dersin diğer bloklarında kullanılan öğretmenle eşleşmiyor',
     REQUIREMENT_TEACHER_CONFLICT: 'Bu dersin yerleşmiş bloklarında birden fazla öğretmen kullanılıyor',
@@ -688,7 +691,7 @@ export async function fetchManagementBoard(
       accessToken,
     ),
     authedGet<TeacherRow[]>(
-      'teachers?select=id,name,operational_status',
+      'teachers?select=id,name,operational_status,archived_at',
       accessToken,
     ),
     authedGet<RequirementRoomRow[]>(
@@ -966,8 +969,11 @@ export async function fetchManagementBoard(
 
   const teacherRows: ManagementBoardRow[] = teachers
     .filter((row) => (
-      row.operational_status === 'ACTIVE'
-      || placedTeacherIds.has(row.id)
+      !row.archived_at
+      && (
+        row.operational_status === 'ACTIVE'
+        || placedTeacherIds.has(row.id)
+      )
     ))
     .map((row) => ({
       id: row.id,
@@ -992,6 +998,9 @@ export async function fetchManagementBoard(
     roomRows,
     teacherNamesById: Object.fromEntries(
       teachers.map((row) => [row.id, teacherById.get(row.id) ?? row.name]),
+    ),
+    teacherOperationalStatusById: Object.fromEntries(
+      teachers.map((row) => [row.id, row.operational_status]),
     ),
     roomNamesById: Object.fromEntries(
       rooms.map((row) => [row.id, roomById.get(row.id) ?? row.name]),
@@ -1040,18 +1049,48 @@ export async function fetchManagementCardCandidates(
 export function applyManagementTeacherPolicyToCandidateDetail(
   detail: ManagementCandidateDetail,
   card: ManagementBoardCard,
+  teacherOperationalStatusById: Readonly<Record<string, 'ACTIVE' | 'INACTIVE'>> = {},
 ): ManagementCandidateDetail {
-  if (
-    card.teacherAssignmentScope !== 'REQUIREMENT'
-    || card.teacherContinuity !== 'REQUIRED'
-  ) {
-    return detail;
-  }
+  const currentTeacherIds = new Set(card.teacherIds);
+
+  const membershipAssessments = detail.assessments.map((assessment) => {
+    let code: string | null = null;
+
+    if (
+      assessment.teacherId
+      && teacherOperationalStatusById[assessment.teacherId] === 'INACTIVE'
+    ) {
+      code = 'TEACHER_INACTIVE';
+    } else if (
+      assessment.teacherId
+      && !currentTeacherIds.has(assessment.teacherId)
+    ) {
+      code = 'TEACHER_NOT_IN_REQUIREMENT_POOL';
+    }
+
+    if (!code) return assessment;
+
+    return {
+      ...assessment,
+      status: 'INVALID' as const,
+      isComplete: false,
+      reasonCodes: assessment.reasonCodes.includes(code)
+        ? assessment.reasonCodes
+        : [...assessment.reasonCodes, code],
+    };
+  });
 
   const policyConflict = card.teacherContinuityConflict;
   const resolvedTeacherId = card.resolvedRequirementTeacherId;
 
-  const assessments = detail.assessments.map((assessment) => {
+  const assessments = membershipAssessments.map((assessment) => {
+    if (
+      card.teacherAssignmentScope !== 'REQUIREMENT'
+      || card.teacherContinuity !== 'REQUIRED'
+    ) {
+      return assessment;
+    }
+
     const mismatch = Boolean(
       resolvedTeacherId
       && assessment.teacherId !== resolvedTeacherId
@@ -1083,9 +1122,9 @@ export function applyManagementTeacherPolicyToCandidateDetail(
     });
   });
 
-  const policyFilteredCount = assessments.filter((assessment) => (
-    assessment.reasonCodes.includes('REQUIREMENT_TEACHER_MISMATCH')
-    || assessment.reasonCodes.includes('REQUIREMENT_TEACHER_CONFLICT')
+  const policyFilteredCount = assessments.filter((assessment, index) => (
+    detail.assessments[index]?.status === 'VALID'
+    && assessment.status !== 'VALID'
   )).length;
 
   return {
