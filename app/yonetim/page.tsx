@@ -64,7 +64,9 @@ import {
   fetchManagementResources,
   previewManagementRoomOperationalStatus,
   previewManagementRoomProfile,
+  previewManagementRoomDeparture,
   previewManagementTeacherDeparture,
+  applyManagementRoomDeparture,
   applyManagementTeacherDeparture,
   setManagementTeacherOperationalStatus,
   updateManagementRoomDisplayName,
@@ -221,6 +223,8 @@ function resourceHistoryLabel(descriptor: ManagementCommandDescriptor) {
       return `${resourceName}öğretmen ayrılış / atama değişikliği`;
     case 'ROOM_DELETE':
       return `${resourceName}salon silme işlemi`;
+    case 'ROOM_DEPARTURE':
+      return `${resourceName}salon ayrılış / kullanım değişikliği`;
     default:
       return `${resourceName}${resourceKind} değişikliği`;
   }
@@ -819,6 +823,7 @@ export default function ManagementPage() {
         detail,
         card,
         sourceBoard?.teacherOperationalStatusById ?? {},
+        sourceBoard?.roomOperationalStatusById ?? {},
       )
       : detail;
   }, [board]);
@@ -3332,6 +3337,58 @@ export default function ManagementPage() {
               setCommandNotice({
                 kind: 'success',
                 text: 'Kullanılmayan öğretmen kaydı silindi.',
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onPreviewRoomDeparture={async (roomId) => {
+            if (!session || !access?.canEdit || !resources) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            return previewManagementRoomDeparture(
+              session.accessToken,
+              resources.revisionId,
+              roomId,
+            );
+          }}
+          onApplyRoomDeparture={async (
+            roomId,
+            mode,
+            expectedStateToken,
+          ) => {
+            if (!session || !access?.canEdit || !resources) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity(
+              mode === 'ARCHIVE_CLEAR'
+                ? 'Salon kaydı derslerden ayrılıp arşivleniyor.'
+                : mode === 'OUT_OF_SERVICE_CLEAR'
+                  ? 'Salon derslerden çıkarılıp kullanım dışına alınıyor.'
+                  : 'Salon yeni kullanımlara kapatılıyor.',
+            );
+
+            try {
+              const result = await applyManagementRoomDeparture(
+                session.accessToken,
+                resources.revisionId,
+                roomId,
+                mode,
+                expectedStateToken,
+              );
+
+              setCommandNotice({
+                kind: 'success',
+                text: mode === 'ARCHIVE_CLEAR'
+                  ? `“${result.roomName}” aktif kaynaklardan silindi. ${result.placedBlockCount} program bloğu gün/saat/öğretmen korunarak salonsuz bırakıldı.`
+                  : mode === 'OUT_OF_SERVICE_CLEAR'
+                    ? `“${result.roomName}” kullanım dışına alındı. ${result.placedBlockCount} program bloğu gün/saat/öğretmen korunarak salonsuz bırakıldı.`
+                    : `“${result.roomName}” yeni kullanımlara kapatıldı; mevcut ${result.placedBlockCount} program bloğundaki salon kaydı korundu.`,
               });
               setRefreshToken((value) => value + 1);
             } finally {
