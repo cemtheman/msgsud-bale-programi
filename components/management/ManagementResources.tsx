@@ -1023,7 +1023,7 @@ export function ManagementResources({
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-[minmax(170px,0.8fr)_90px_125px_minmax(250px,1.35fr)_82px_92px_195px] items-center gap-0 border-b border-slate-100 px-4 py-3 last:border-b-0"
+                      className="grid grid-cols-[minmax(170px,0.8fr)_90px_125px_minmax(250px,1.35fr)_82px_92px_245px] items-center gap-0 border-b border-slate-100 px-4 py-3 last:border-b-0"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-[12px] font-bold text-slate-900">
@@ -1093,7 +1093,7 @@ export function ManagementResources({
                         {row.placedBlockCount}
                       </p>
 
-                      <div className="flex justify-end gap-1.5">
+                      <div className="flex flex-wrap justify-end gap-1.5">
                         <button
                           type="button"
                           onClick={() => onOpenProgramResource('ROOM', row.id, row.name)}
