@@ -2,14 +2,14 @@
 
 > Not: Dosya adı tarihsel olarak `MAC_CONTINUATION.md` kaldı. Aktif çalışma ortamı GitHub Codespaces'tir.
 
-Tarih: 30 Eylül 2026
+Tarih: 1 Ekim 2026
 
 ## 1. Aktif çalışma ortamı
 
 - Ortam: **GitHub Codespaces**
 - Çalışma dizini: `/workspaces/msgsud-bale-programi`
 - Shell: Linux/bash
-- Branch: `main`
+- Branch: `feat/management-m39-teacher-planning-inputs`
 - Komut biçimi: `npm`, `npx`
 - Kullanıcı yeni ortam bildirmedikçe Codespaces geçerli kabul edilir
 
@@ -18,7 +18,7 @@ Başlangıç:
 ```bash
 cd /workspaces/msgsud-bale-programi
 git fetch origin
-git switch main
+git switch feat/management-m39-teacher-planning-inputs
 git pull --ff-only
 git rev-parse HEAD
 git status --short
@@ -2327,3 +2327,78 @@ Working method:
 - user validates with pull, tests, build, migration gates and browser smoke
 - DB changes follow migration list → dry-run → exact pending check → real push → live smoke
 - record regressions and checkpoint SHAs after PASS
+
+
+## 34. M40 teacher load readiness/objective — IMPLEMENTATION READY
+
+Implementation checkpoint before this diary commit:
+`6c0899981dd92e00fa7da312576df073c0f9f13f`
+
+New migration:
+`20261001200000_management_m40_teacher_load_readiness_objective.sql`
+
+M40 rules:
+- no hidden teacher-load defaults
+- relevant = ACTIVE teacher in active requirement pool or active DRAFT placement
+- all relevant teachers need explicit `target_load` for load-balance readiness
+- min/max are optional soft bands, never hard constraints
+- unused/inactive teachers do not block readiness
+- M39.1 hard availability remains structural
+
+Objective:
+```
+target deviation = Σ abs(load - target)
+range violation = Σ under-min + over-max
+load metric = target deviation + range violation
+```
+
+Implemented:
+- contextual DB load health
+- load readiness in Resources
+- M40 snapshot targets/readiness/baseline metrics
+- generic objective validator supports `teacherLoadBalance`
+- ACTIVE load profile is DB-gated by readiness
+- in-memory weighted load metric
+- load-only seed search
+- result metric comparison
+- Öncelikler load objective UI
+- user-facing readiness guidance
+- load-target edits now intentionally change optimizer readiness/behavior, while program/publication stay unchanged
+
+Regression tests added:
+- incomplete target readiness blocks load optimization
+- complete targets allow load-only optimizer to rebalance a one-card eligible-pool fixture
+
+Expected final code gate:
+- 21 test files
+- 112 tests
+- production build PASS
+
+Status:
+**M40 implementation complete; test/build/DB validation pending.**
+
+Required next gate:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+git rev-parse HEAD
+npm test
+npm run build
+npx supabase migration list | tail -25
+npx supabase db push --dry-run
+```
+
+Expected pending DB migration:
+`20261001200000_management_m40_teacher_load_readiness_objective.sql`
+
+Do not push any unexpected migration.
+
+After dry-run PASS:
+1. push M40
+2. confirm local/remote parity
+3. Resources → Teachers: verify ready/relevant counts and missing-target health
+4. define targets for relevant teachers
+5. Öncelikler: verify load-balance becomes selectable only when ready
+6. run load-weighted option generation; verify load metric is reported and no trial write occurs
+7. only explicit proposal confirmation may change placements
+8. mark M40 CLOSED/PASS and update checkpoints
