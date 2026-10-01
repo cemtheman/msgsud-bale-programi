@@ -1827,3 +1827,65 @@ Accepted:
 Room bulk flow remains the same code path with resource type ROOM; repeat browser smoke only when 2+ real room gaps are available.
 
 Checkpoint before journal commit: 0c4e7243c3f3ba0ce02801250c5f97f97211e0ab
+### M38.1 semantic history labels — READY FOR GATE
+
+Browser feedback after M38.0 acceptance:
+- bulk teacher assignment undo worked correctly as one bundle
+- notification still described the operation as an Armoni `taşıması` because M29 history uses MOVE transactions internally
+
+Goal:
+- keep M29/M32 history and replay mechanics unchanged
+- interpret placement-resource overrides semantically in UI history labels
+
+Implementation:
+- `ManagementCommandDescriptor` now carries placement-resource semantics:
+  - `placementResourceType`
+  - `placementResourceBeforeId`
+  - `placementResourceId`
+- history derivation recognizes M29.4 placement-resource overrides using existing payload metadata:
+  - `engine_version = M29.4-placement-resource-override`
+  - or `propagation_stop_reason = PLACEMENT_RESOURCE_OVERRIDE`
+- compares `before.teacher_id/room_id` with `after.teacher_id/room_id` to distinguish TEACHER vs ROOM
+- same semantics are recovered for REDO from the original root transaction
+
+UI wording:
+- missing -> resource becomes `öğretmen ataması` / `salon ataması`
+- existing resource -> resource becomes `öğretmen değişikliği` / `salon değişikliği`
+- bundle size > 1 adds `toplu`
+- bulk resource history no longer shows one root card's day/time as if it described the entire bundle
+- target teacher/room name is shown when available
+- single-card resource changes keep day/time context
+- history tooltip, busy-state text and completion notice all use the same semantic formatter
+
+Examples:
+- `9A + 9B + ... Armoni toplu öğretmen ataması · Test Öğretmen geri alındı.`
+- `5A Matematik salon değişikliği · Pazartesi · 3. ders · B1 105A yeniden uygulandı.`
+
+Regression coverage:
+- bundled teacher placement override is recognized at UNDO head
+- room placement override semantics survive into REDO descriptor
+
+Expected gate:
+```
+20 test files
+104 tests
+```
+
+No migration in M38.1.
+
+Implementation HEAD before journal commit: 621757b26c2f130a8517d3869dff91c0e739cd88
+Branch vs main: ahead 17, behind 0
+
+Required gate:
+```bash
+git pull --ff-only
+npm test
+npm run build
+```
+
+Browser acceptance:
+1. perform or redo a bulk teacher assignment
+2. inspect Geri Al tooltip and then execute undo
+3. wording should say `toplu öğretmen ataması/değişikliği`, never `taşıması`
+4. undo completion notice should not claim one day/period for a multi-card bundle
+5. Yinele should preserve the same semantic wording
