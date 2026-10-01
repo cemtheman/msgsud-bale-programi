@@ -753,7 +753,10 @@ export default function ManagementPage() {
       audienceFilter,
     );
 
-    if (programResourceFilters.length === 0) return baseRows;
+    if (
+      programResourceFilters.length === 0
+      && !programGapFilter
+    ) return baseRows;
 
     if (resourceView === 'SINIFLAR') {
       return baseRows.filter((row) =>
@@ -784,6 +787,7 @@ export default function ManagementPage() {
     audienceFilter,
     board,
     programCards,
+    programGapFilter,
     programResourceFilters,
     resourceView,
     stage,
@@ -2257,9 +2261,11 @@ export default function ManagementPage() {
               ))}
             </div>
   
-            {(visibleMissingTeacherCards.length > 0 || visibleMissingRoomCards.length > 0) && (
+            {(visibleMissingTeacherCards.length > 0
+              || visibleMissingRoomCards.length > 0
+              || Boolean(programGapFilter)) && (
               <div className="flex shrink-0 items-center gap-1">
-                {visibleMissingTeacherCards.length > 0 && (
+                {(visibleMissingTeacherCards.length > 0 || programGapFilter === 'TEACHER') && (
                   <button
                     type="button"
                     onClick={() => {
@@ -2279,7 +2285,7 @@ export default function ManagementPage() {
                     Öğretmensiz · {visibleMissingTeacherCards.length}
                   </button>
                 )}
-                {visibleMissingRoomCards.length > 0 && (
+                {(visibleMissingRoomCards.length > 0 || programGapFilter === 'ROOM') && (
                   <button
                     type="button"
                     onClick={() => {
@@ -2303,11 +2309,11 @@ export default function ManagementPage() {
             )}
 
             <div className="flex shrink-0 items-center gap-2 text-[9px] font-semibold text-slate-500 max-[1360px]:hidden">
-              {programResourceFilters.length > 0 ? (
+              {programResourceFilters.length > 0 || programGapFilter ? (
                 <>
                   <span>{programCards.length} yerleşim</span>
                   <span className="text-slate-300">·</span>
-                  <span>kaynak filtresi</span>
+                  <span>{programGapFilter ? 'eksik kaynak filtresi' : 'kaynak filtresi'}</span>
                 </>
               ) : (
                 <>
