@@ -993,3 +993,120 @@ Browser:
 6. click filter pill × or normal Program/resource-view navigation -> filter clears
 7. resource row actions no longer overlap
 
+### M35.1 teacher departure + multi-resource Program filters — implementation ready
+
+User requirement:
+- a teacher may leave after term start without forcing the timetable to move
+- used teachers must be closable/deletable with explicit warning
+- affected lessons may remain in the exact same day/time/room with teacher empty
+- later a normal or temporary teacher can be assigned through the existing Program resource-change flow
+- Program teacher/room rows should show only the resource name
+- right-clicking the Program title strip should allow multiple teacher/room filters
+
+New migration:
+```
+20261001010000_management_m35_teacher_departure.sql
+```
+
+Teacher departure contract:
+- `INACTIVATE_KEEP`: teacher becomes unavailable for new candidates; current placement teacher links stay
+- `INACTIVATE_CLEAR`: current draft requirement links + placement teacher ids are cleared; day/time/room remain exactly unchanged
+- `ARCHIVE_CLEAR`: same clear behavior plus logical archive (`teachers.archived_at`); teacher disappears from active Resources while historical/FK identity remains
+- unused teachers keep the old physical-delete path
+- unused/unreferenced teachers keep the old direct inactive/active status path
+- warnings/previews are shown only when active requirements or placements are actually affected
+- candidate domains are refreshed for affected cards
+- current published projection is not rewritten by this draft operation
+
+History:
+- new RESOURCE operation `TEACHER_DEPARTURE`
+- one global LIFO history root per departure action
+- scoped snapshots contain status/archive state, exact current-revision requirement links, requirement `teacher_mode`, and exact placement teacher ids
+- undo/redo restores the same teacher UUID, teacher modes, requirement links, and placement teacher ids
+- M34 legacy RESOURCE operations continue through the existing snapshot/apply functions
+- structural history epoch rules remain unchanged
+
+Resources UI:
+- used teacher “Atamaya kapat” opens impact preview
+- options:
+  - Derslerden çıkar ve atamaya kapat
+  - Yalnız yeni atamalara kapat
+- used teacher “Sil” opens archive warning and preserves timetable slots
+- unused teacher “Sil” remains physical delete
+- archived teachers are omitted from active Resources inventory
+- teacher and room action columns aligned/wrap safely
+
+Program resource rows:
+- teacher rows no longer append “Öğretmen”
+- room rows no longer append “Salon”
+- first column shows only the actual resource name
+
+Program multi-resource filters:
+- right-click Program title strip -> Filtre ekle
+- multiple teachers can be selected (OR within teacher group)
+- multiple rooms can be selected (OR within room group)
+- teacher + room filters combine with AND between groups
+- filters appear as removable pills
+- Sınıflar / Öğretmenler / Salonlar views retain the filters
+- empty class/resource rows collapse while filters are active
+- Resources -> Program initializes the same filter system with one selected resource
+- top Program navigation and Ders Planı -> Program navigation clear resource filters
+- card context menu and filter popup are mutually exclusive
+
+Implementation commits after browser-feedback checkpoint include:
+```
+adb67887305fbb07ee80bafe9e28668a80ae18a3  feat: add controlled teacher departure with undoable slot preservation
+a5e2798fcb84ed546d4a1ee5e27a180770360663  feat: expose teacher departure preview and apply client
+04521a9355616aac478b2aaf15ca3af1c9c0a04c  feat: register teacher departure history operation
+9eae2312deb5dff2a035eef95369b1f181aeeceb  ui: remove redundant teacher and room secondary row labels
+a4d2abe7cd1e6ceaa0c8b4b6d8779499d193455e  feat: warn and preserve slots when teachers leave
+76929c1f0198143ec98243e8c7ccddcb061d3be4  feat: wire teacher departure history labels and client imports
+623a08e95e7b1575b5ebd2e5f5dfb0d862bb0b8f  feat: connect resource teacher departure workflow
+97fd3c437c8a6925c5c8f71773522a82d5df5e91  feat: support multi teacher and room filters in Program
+f6514dd03ab3b86ff5965c794da8783a68b51325  ux: add right-click multi-resource filter menu
+5951fd72220e8365d5188a17958e1f41a9e2990b  polish: stabilize multi-filter header interactions
+01c929cd02157b95f9275a3456cccbdc00a99388  test: cover teacher departure in global resource history
+7536274623d8880f53d28ec6c8537f5de4c2f993  ux: collapse empty class rows under resource filters
+6c96633132253044be994bb9078507d103459736  fix: align room resource action column
+ffdc5f95fd1c804bbcbd97905f240d7f16f1b23d  fix: preserve teacher departure snapshot array order
+4f4410c34c95fa8fefbe06e7cf7e8fe5bedd8cad  fix: preserve physical delete for unused teachers
+97a5d11246da97fe68c562cd45dcbba1baa04a6c  fix: retain unused teacher physical deletion path
+fa54eda980f80d8774253470b394209785cf8d69  fix: preserve exact teacher mode through departure undo redo
+```
+
+Static gate before Codespaces:
+- modified TS/TSX files: balanced braces/parens/brackets
+- migration: 20 `$$` delimiters, one transaction BEGIN/COMMIT
+- no legacy single-resource `programResourceFocus` references
+- no teacher/room row secondary labels
+- room/teacher action column mismatch removed
+- SQL runtime and TypeScript build still require Codespaces acceptance before migration push
+
+Expected regression count after added history test:
+```
+17 test files
+85 tests
+```
+
+Codespaces gate:
+```bash
+git pull --ff-only
+npm test
+npm run build
+npx supabase migration list | tail -30
+npx supabase db push --dry-run
+```
+
+Dry-run must show only:
+```
+20261001010000_management_m35_teacher_departure.sql
+```
+
+Only after code gate + dry-run PASS:
+```bash
+npx supabase db push
+npx supabase migration list | tail -30
+```
+
+Then restart local dev and run browser smoke.
+
