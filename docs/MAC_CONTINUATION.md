@@ -2160,3 +2160,31 @@ Status:
 - browser acceptance pending
 
 Checkpoint before journal commit: bd16e1a4b81c0aacd20d4b3b7f326a52bdaab3ac
+### M39.0 browser acceptance — PASS / CLOSED
+
+Browser acceptance confirmed on Resources → Teachers:
+- actual weekly load is shown as duration-period total, separate from block count
+- observed example: `12 saat · 5 blok`
+- unconfigured load targets show `Tanımsız`
+- invalid ordering `20 / 18 / 24` is blocked in UI with `Minimum yük hedef yükten büyük olamaz.`
+- clearing all three targets succeeds and returns row to `Tanımsız`
+- valid `1 / 12 / 20` target set saves successfully and is reflected in the teacher row
+- success message confirms program and publication are unchanged
+- actual weekly load remains unchanged after planning-target edits
+
+Final M39.0 status:
+- 21/21 test files PASS
+- 107/107 tests PASS
+- Next.js production build PASS
+- TypeScript PASS
+- migration dry-run PASS
+- `20261001133000` applied and local/remote match
+- browser validation/edit/clear flow PASS
+
+**M39.0 CLOSED / PASS**
+
+Next:
+- M39.1 hard teacher availability foundation
+- keep load objective disabled until subsequent readiness/objective integration package
+
+Checkpoint before journal commit: 85843c3d783b27aa40e6b387cee441e6f6763729
