@@ -1110,3 +1110,68 @@ npx supabase migration list | tail -30
 
 Then restart local dev and run browser smoke.
 
+### M35.2 timeout fix + explicit VE/VEYA resource filtering — ready for acceptance
+
+Browser failure after M35.1 migration:
+- used-teacher departure preview opened correctly
+- apply failed with PostgreSQL: `canceling statement due to statement timeout`
+- reproduced conceptually on teachers with many active requirements/placements
+- root cause: `management_apply_teacher_departure_state` synchronously called
+  `refresh_management_candidate_domain_subset(...)` inside the same RPC transaction
+- the older M28 teacher status path uses the same expensive rebuild primitive
+
+Fix migration:
+```
+20261001043000_management_m35_2_teacher_departure_fast_path.sql
+```
+
+M35.2 departure behavior:
+- teacher status / requirement links / placement teacher ids / archive state still change atomically
+- day, period and room remain untouched
+- global RESOURCE history snapshot/undo/redo remains exact
+- synchronous candidate-domain rebuild is removed from departure + undo/redo critical path
+- current requirement teacher links and teacher operational status are authoritative immediately
+- stale persisted candidate rows are revalidated client-side:
+  - inactive teacher -> `TEACHER_INACTIVE`
+  - teacher no longer in requirement pool -> `TEACHER_NOT_IN_REQUIREMENT_POOL`
+- stale rows cannot remain in the UI's valid-candidate list
+- archived teachers are removed from current board/planning options
+
+Program resource filter semantics revised:
+- explicit mode selector added to right-click filter menu
+- default: `Herhangi biri · VEYA`
+  - a card is shown when ANY selected teacher OR ANY selected room matches
+  - best for combined schedule/usage overview
+- optional: `Kesişim · VE`
+  - within teacher selections: OR
+  - within room selections: OR
+  - between teacher group and room group: AND
+  - e.g. (Teacher A OR Teacher B) AND (Room 101 OR Room 102)
+- this avoids impossible semantics such as requiring one lesson to have Teacher A AND Teacher B simultaneously
+
+Regression coverage added:
+- stale candidate from a departed/inactive teacher becomes INVALID
+- VEYA mode includes cards matching either selected resource group
+- VE mode requires teacher-group + room-group intersection
+
+Expected tests after this patch: 88 total if no other test-count changes.
+
+Acceptance:
+```bash
+git pull --ff-only
+npm test
+npm run build
+npx supabase migration list | tail -10
+npx supabase db push --dry-run
+```
+
+Dry-run must show only:
+```
+20261001043000_management_m35_2_teacher_departure_fast_path.sql
+```
+
+Then:
+```bash
+npx supabase db push
+```
+
