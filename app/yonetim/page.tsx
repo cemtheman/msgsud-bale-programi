@@ -800,7 +800,11 @@ export default function ManagementPage() {
     const detail = await fetchManagementCardCandidates(accessToken, cardId);
     const card = sourceBoard?.cards.find((item) => item.id === cardId) ?? null;
     return card
-      ? applyManagementTeacherPolicyToCandidateDetail(detail, card)
+      ? applyManagementTeacherPolicyToCandidateDetail(
+        detail,
+        card,
+        sourceBoard?.teacherOperationalStatusById ?? {},
+      )
       : detail;
   }, [board]);
 
