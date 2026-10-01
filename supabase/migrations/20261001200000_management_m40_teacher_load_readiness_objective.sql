@@ -870,7 +870,8 @@ begin
   into v_teacher_name
   from public.teachers teacher
   where teacher.id = p_teacher_id
-    and teacher.archived_at is null;
+    and teacher.archived_at is null
+    and teacher.operational_status = 'ACTIVE';
 
   if v_teacher_name is null then
     raise exception 'M40 active teacher resource not found';
