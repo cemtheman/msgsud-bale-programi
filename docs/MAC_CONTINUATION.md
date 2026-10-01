@@ -1687,3 +1687,41 @@ Merge recommendation:
 - start subsequent work from a fresh M38 branch
 
 Do not reopen M37 unless a concrete regression is reproduced.
+## 28. M37 merged to main — stable checkpoint
+
+Final merge completed successfully.
+
+Main checkpoint:
+```
+main: d3befd95f45855bb6c2887d360f06df6a67b9d8a
+```
+
+Verified before merge:
+- 20/20 test files PASS
+- 100/100 tests PASS
+- Next.js production build PASS
+- TypeScript PASS
+- forced JWT-expiry browser acceptance PASS
+- Operational Queue browser acceptance PASS
+
+Merged scope:
+- M37 operational queue
+- exact-card `Aç ve ata` navigation
+- sequential previous/next gap navigation
+- automatic advance after resolving a gap
+- centralized management access-token refresh
+- 2-minute expiry safety window
+- concurrent refresh deduplication
+- fresh-token resolution across management authenticated modules
+
+Git merge:
+```
+feature: feat/management-m37-operations
+strategy: fast-forward
+main HEAD: d3befd95f45855bb6c2887d360f06df6a67b9d8a
+```
+
+Rule:
+- treat this SHA as stable rollback/checkpoint before M38
+- do not reopen M37 unless a concrete regression is reproduced
+- start all new work from a fresh M38 branch
