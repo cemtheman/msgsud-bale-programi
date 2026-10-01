@@ -1794,3 +1794,19 @@ Browser smoke:
 4. safe preview -> `Toplu uygula`; selected teacher gaps disappear after refresh
 5. verify one Undo action restores the bulk assignment bundle
 6. repeat same flow with `Salonları toplu ata` when 2+ room gaps are available
+### M38.0 code gate — PASS
+
+Codespaces verification:
+```
+20 test files PASS
+102 / 102 tests PASS
+Next.js production build PASS
+TypeScript PASS
+```
+
+Status:
+- bulk operational assignment code gate PASS
+- no migration
+- browser acceptance pending
+
+Checkpoint before journal commit: c39277cfeb31701ffaa0f1e97edebb8ef165cb05
