@@ -185,6 +185,54 @@ function roleLabel(role: string | null | undefined) {
   return 'Yetkisiz';
 }
 
+function PartisyonMark({
+  className = 'h-7 w-7',
+}: {
+  className?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 36 36"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M7 4.5h12.5c6.3 0 10 3.1 10 8.2 0 5.2-3.7 8.3-10 8.3h-6.3v10.5H7V4.5Zm6.2 6v4.6h6.1c2.8 0 4.2-.8 4.2-2.4 0-1.5-1.4-2.2-4.2-2.2h-6.1Z"
+        fill="currentColor"
+      />
+      <path
+        d="M8.2 11.5h10.6M8.2 15.7h12.1M8.2 19.9h10.6"
+        fill="none"
+        stroke="white"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function PartisyonBrand({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2.5" aria-label="MSGSÜ İDK Partisyon">
+      <span className="grid shrink-0 place-items-center text-[#1437B8]">
+        <PartisyonMark className={compact ? 'h-7 w-7' : 'h-9 w-9'} />
+      </span>
+      <span className="min-w-0 leading-none">
+        <span className="block text-[8px] font-bold uppercase tracking-[0.28em] text-slate-400">
+          MSGSÜ İDK
+        </span>
+        <span className={`mt-1 block font-black tracking-[-0.035em] text-[#081736] ${compact ? 'text-[16px]' : 'text-[22px]'}`}>
+          Partisyon
+        </span>
+      </span>
+    </div>
+  );
+}
+
 
 function actionNoun(action: ManagementRootAction) {
   if (action === 'PLACE') return 'yerleştirmesi';
@@ -349,10 +397,8 @@ function LoginScreen({
   return (
     <main className="management-workbench-root flex min-h-screen items-center justify-center bg-[#F5F3EE] px-5 py-10 text-slate-900">
       <section className="w-full max-w-[430px] rounded-[28px] border border-slate-200 bg-white p-7 shadow-[0_24px_70px_rgba(15,23,42,0.10)]">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#A63D48]">
-          PARTİSYON
-        </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
+        <PartisyonBrand />
+        <h1 className="mt-6 text-3xl font-bold tracking-tight text-slate-950">
           Yönetim
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -2134,11 +2180,11 @@ export default function ManagementPage() {
       </div>
 
       <header className="shrink-0 border-b border-slate-200 bg-white">
-        <div className="flex h-[46px] items-center gap-5 px-5">
-          <div className="flex h-full items-center gap-4">
-            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A63D48]">
-              Partisyon
-            </span>
+        <div className="flex h-[54px] items-center gap-5 px-5">
+          <div className="flex h-full items-center gap-5">
+            <PartisyonBrand compact />
+
+            <span className="h-7 w-px bg-slate-200" aria-hidden="true" />
 
             <nav className="flex h-full items-center gap-5">
               <button
@@ -3455,8 +3501,8 @@ export default function ManagementPage() {
               );
 
               const overlapText = result.unavailablePlacedBlockCount > 0
-                ? ` ${result.unavailablePlacedBlockCount} mevcut program bloğu yeni hard kısıtla çakışıyor; program otomatik değiştirilmedi.`
-                : ' Mevcut program otomatik değiştirilmedi.';
+                ? ` ${result.unavailablePlacedBlockCount} mevcut ders bu saatlerle çakışıyor; program otomatik olarak değiştirilmedi.`
+                : ' Mevcut program otomatik olarak değiştirilmedi.';
 
               setCommandNotice({
                 kind: result.unavailablePlacedBlockCount > 0
@@ -3464,7 +3510,7 @@ export default function ManagementPage() {
                   : 'success',
                 text: result.availabilityConfigured
                   ? `${result.unavailablePeriodCount} uygun olmayan ders saati kaydedildi.${overlapText}`
-                  : `Öğretmenin hard uygunluk kısıtları temizlendi.${overlapText}`,
+                  : `Öğretmenin uygunluk kısıtları temizlendi.${overlapText}`,
               });
               setRefreshToken((value) => value + 1);
             } finally {
