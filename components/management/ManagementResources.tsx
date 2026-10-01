@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import {
   validateManagementTeacherLoadTargets,
+  validateManagementTeacherUnavailablePeriods,
   type ManagementResourceInventoryData,
   type ManagementResourceKnowledgeStatus,
   type ManagementRoomOperationalStatus,
@@ -16,9 +17,30 @@ import {
   type ManagementRoomStatusPreview,
   type ManagementTeacherLoadTargetsInput,
   type ManagementTeacherResourceRow,
+  type ManagementTeacherUnavailablePeriod,
 } from '@/lib/managementResources';
 
 type ResourceTab = 'TEACHERS' | 'ROOMS';
+type TeacherPlanningTab = 'LOAD' | 'AVAILABILITY';
+
+const TEACHER_PLANNING_DAYS = [
+  { id: 1, label: 'Pazartesi', short: 'Pzt' },
+  { id: 2, label: 'Salı', short: 'Sal' },
+  { id: 3, label: 'Çarşamba', short: 'Çar' },
+  { id: 4, label: 'Perşembe', short: 'Per' },
+  { id: 5, label: 'Cuma', short: 'Cum' },
+] as const;
+
+const TEACHER_PLANNING_PERIODS = Array.from(
+  { length: 12 },
+  (_, index) => index + 1,
+);
+
+function teacherUnavailableKey(
+  slot: ManagementTeacherUnavailablePeriod,
+) {
+  return `${slot.dayOfWeek}:${slot.period}`;
+}
 
 function capabilityLabel(value: string) {
   const labels: Record<string, string> = {
@@ -119,6 +141,7 @@ export function ManagementResources({
   onCreateRoom,
   onSetTeacherStatus,
   onUpdateTeacherLoadTargets,
+  onUpdateTeacherUnavailablePeriods,
   onPreviewTeacherDeparture,
   onApplyTeacherDeparture,
   onPreviewRoomDeparture,
@@ -144,6 +167,10 @@ export function ManagementResources({
   onUpdateTeacherLoadTargets: (
     teacherId: string,
     input: ManagementTeacherLoadTargetsInput,
+  ) => Promise<void>;
+  onUpdateTeacherUnavailablePeriods: (
+    teacherId: string,
+    unavailablePeriods: ManagementTeacherUnavailablePeriod[],
   ) => Promise<void>;
   onPreviewTeacherDeparture: (
     teacherId: string,
@@ -195,9 +222,13 @@ export function ManagementResources({
 
   const [teacherLoadTarget, setTeacherLoadTarget] =
     useState<ManagementTeacherResourceRow | null>(null);
+  const [teacherPlanningTab, setTeacherPlanningTab] =
+    useState<TeacherPlanningTab>('LOAD');
   const [teacherMinimumLoad, setTeacherMinimumLoad] = useState('');
   const [teacherTargetLoad, setTeacherTargetLoad] = useState('');
   const [teacherMaximumLoad, setTeacherMaximumLoad] = useState('');
+  const [teacherUnavailablePeriods, setTeacherUnavailablePeriods] =
+    useState<ManagementTeacherUnavailablePeriod[]>([]);
   const [teacherLoadSaving, setTeacherLoadSaving] = useState(false);
   const [teacherLoadError, setTeacherLoadError] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<{
@@ -259,6 +290,7 @@ export function ManagementResources({
 
   const openTeacherLoadEditor = (row: ManagementTeacherResourceRow) => {
     setTeacherLoadTarget(row);
+    setTeacherPlanningTab('LOAD');
     setTeacherMinimumLoad(
       row.minimumLoad === null ? '' : String(row.minimumLoad),
     );
@@ -268,6 +300,34 @@ export function ManagementResources({
     setTeacherMaximumLoad(
       row.maximumLoad === null ? '' : String(row.maximumLoad),
     );
+    setTeacherUnavailablePeriods([...row.unavailablePeriods]);
+    setTeacherLoadError(null);
+  };
+
+  const toggleTeacherUnavailablePeriod = (
+    dayOfWeek: number,
+    period: number,
+  ) => {
+    setTeacherUnavailablePeriods((current) => {
+      const key = `${dayOfWeek}:${period}`;
+      const exists = current.some(
+        (slot) => teacherUnavailableKey(slot) === key,
+      );
+
+      if (exists) {
+        return current.filter(
+          (slot) => teacherUnavailableKey(slot) !== key,
+        );
+      }
+
+      return [
+        ...current,
+        { dayOfWeek, period },
+      ].sort((left, right) => (
+        left.dayOfWeek - right.dayOfWeek
+        || left.period - right.period
+      ));
+    });
     setTeacherLoadError(null);
   };
 
@@ -304,6 +364,70 @@ export function ManagementResources({
       );
     } finally {
       setTeacherLoadSaving(false);
+    }
+  };
+
+  const saveTeacherUnavailablePeriods = async () => {
+    if (!teacherLoadTarget || teacherLoadSaving) return;
+
+    const validationError =
+      validateManagementTeacherUnavailablePeriods(
+        teacherUnavailablePeriods,
+      );
+    if (validationError) {
+      setTeacherLoadError(validationError);
+      return;
+    }
+
+    setTeacherLoadSaving(true);
+    setTeacherLoadError(null);
+    try {
+      await onUpdateTeacherUnavailablePeriods(
+        teacherLoadTarget.id,
+        teacherUnavailablePeriods,
+      );
+      setTeacherLoadTarget(null);
+    } catch (reason: unknown) {
+      setTeacherLoadError(
+        reason instanceof Error
+          ? reason.message
+          : 'Öğretmen uygunluk bilgisi güncellenemedi.',
+      );
+    } finally {
+      setTeacherLoadSaving(false);
+    }
+  };
+
+  const handleTeacherSecondaryAction = (
+    row: ManagementTeacherResourceRow,
+    action: string,
+  ) => {
+    if (action === 'NAME') {
+      openEditor('TEACHER', row);
+      return;
+    }
+
+    if (action === 'STATUS') {
+      if (row.operationalStatus !== 'ACTIVE') {
+        void changeTeacherStatus(row, 'ACTIVE');
+        return;
+      }
+
+      if (row.activeRequirementCount > 0 || row.placedBlockCount > 0) {
+        void openTeacherDeparture(row, 'INACTIVATE');
+        return;
+      }
+
+      void changeTeacherStatus(row, 'INACTIVE');
+      return;
+    }
+
+    if (action === 'DELETE') {
+      if (row.activeRequirementCount > 0 || row.placedBlockCount > 0) {
+        void openTeacherDeparture(row, 'ARCHIVE');
+        return;
+      }
+      void deleteUnusedTeacher(row);
     }
   };
 
@@ -870,6 +994,10 @@ export function ManagementResources({
     (row) => row.loadConfigured,
   ).length;
 
+  const configuredTeacherAvailabilityCount = visibleTeachers.filter(
+    (row) => row.availabilityConfigured,
+  ).length;
+
   const canonicalRooms = data.rooms.filter(
     (row) => !row.canonicalRoomId,
   );
@@ -895,7 +1023,7 @@ export function ManagementResources({
 
   return (
     <section className="management-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
-      <div className="mx-auto max-w-[1220px] space-y-4">
+      <div className="mx-auto max-w-[1280px] space-y-4">
         <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-5">
             <div>
@@ -922,7 +1050,7 @@ export function ManagementResources({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="flex rounded-xl bg-slate-100 p-1">
             <button
               type="button"
@@ -979,13 +1107,13 @@ export function ManagementResources({
             placeholder={tab === 'TEACHERS'
               ? 'Öğretmen ara…'
               : 'Salon veya özellik ara…'}
-            className="w-[300px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white"
+            className="min-w-[220px] flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white sm:max-w-[320px]"
           />
         </div>
 
         {tab === 'TEACHERS' ? (
           <>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
                   Öğretmen kaydı
@@ -1015,154 +1143,185 @@ export function ManagementResources({
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
-                  Yük hedefi tanımlı
+                  Planlama girdileri
                 </p>
-                <p className="mt-2 text-2xl font-black text-slate-900">
-                  {configuredTeacherLoadCount}
-                </p>
+                <div className="mt-2 flex items-end gap-5">
+                  <div>
+                    <p className="text-2xl font-black text-slate-900">
+                      {configuredTeacherLoadCount}
+                    </p>
+                    <p className="text-[10px] font-bold text-slate-400">
+                      yük hedefi
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-black text-slate-900">
+                      {configuredTeacherAvailabilityCount}
+                    </p>
+                    <p className="text-[10px] font-bold text-slate-400">
+                      uygunluk
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(220px,1fr)_90px_115px_150px_105px_330px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
-                <span>Öğretmen</span>
-                <span className="text-right">Aktif ders</span>
-                <span className="text-right">Haftalık yük</span>
-                <span className="text-right">Min / Hedef / Maks</span>
-                <span className="text-right">Durum</span>
-                <span className="text-right">İşlem</span>
-              </div>
-
-              {filteredTeachers.length > 0 ? (
-                filteredTeachers.map((row) => {
-                  const state = teacherState(row);
-
-                  return (
-                    <div
-                      key={row.id}
-                      className="grid grid-cols-[minmax(220px,1fr)_90px_115px_150px_105px_330px] items-center border-b border-slate-100 px-4 py-3 last:border-b-0"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-[12px] font-bold text-slate-900">
-                          {row.name}
-                        </p>
-                        {row.nameOverridden ? (
-                          <p className="mt-0.5 truncate text-[11px] font-semibold text-blue-600">
-                            Taslak ad · Yayınlanan: {row.baseName}
-                          </p>
-                        ) : (
-                          <p className="mt-0.5 text-[11px] font-medium text-slate-400">
-                            Öğretmen kaydı
-                          </p>
-                        )}
-                      </div>
-
-                      <p className="text-right text-[11px] font-black text-slate-700">
-                        {row.activeRequirementCount}
-                      </p>
-
-                      <div className="text-right">
-                        <p className="text-[11px] font-black text-slate-700">
-                          {row.actualLoadPeriods} saat
-                        </p>
-                        <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
-                          {row.placedBlockCount} blok
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <p className={`text-[11px] font-black ${
-                          row.loadConfigured ? 'text-slate-700' : 'text-slate-400'
-                        }`}>
-                          {row.loadConfigured
-                            ? [
-                              row.minimumLoad ?? '–',
-                              row.targetLoad ?? '–',
-                              row.maximumLoad ?? '–',
-                            ].join(' / ')
-                            : 'Tanımsız'}
-                        </p>
-                        <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
-                          ders saati
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <span className={`inline-flex rounded-full px-2 py-1 text-[11px] font-black ${state.className}`}>
-                          {state.label}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap justify-end gap-1">
-                        <button
-                          type="button"
-                          onClick={() => onOpenProgramResource('TEACHER', row.id, row.name)}
-                          disabled={row.placedBlockCount === 0}
-                          className="rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-[11px] font-bold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-30"
-                          title={row.placedBlockCount > 0 ? 'Bu öğretmenin programdaki derslerini aç' : 'Programda kullanım yok'}
-                        >
-                          Program
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openTeacherLoadEditor(row)}
-                          disabled={!canEdit || resourceActionBusy}
-                          className="rounded-lg border border-violet-200 bg-white px-2 py-1.5 text-[11px] font-bold text-violet-700 hover:bg-violet-50 disabled:opacity-35"
-                          title="Dönemlik minimum, hedef ve maksimum haftalık ders yükünü düzenle"
-                        >
-                          Yük
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openEditor('TEACHER', row)}
-                          disabled={!canEdit || resourceActionBusy}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-35"
-                        >
-                          Ad
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (row.operationalStatus !== 'ACTIVE') {
-                              void changeTeacherStatus(row, 'ACTIVE');
-                              return;
-                            }
-
-                            if (row.activeRequirementCount > 0 || row.placedBlockCount > 0) {
-                              void openTeacherDeparture(row, 'INACTIVATE');
-                              return;
-                            }
-
-                            void changeTeacherStatus(row, 'INACTIVE');
-                          }}
-                          disabled={!canEdit || resourceActionBusy || teacherDepartureApplying}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-35"
-                        >
-                          {row.operationalStatus === 'ACTIVE' ? 'Atamaya kapat' : 'Atamaya aç'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (row.activeRequirementCount > 0 || row.placedBlockCount > 0) {
-                              void openTeacherDeparture(row, 'ARCHIVE');
-                              return;
-                            }
-                            void deleteUnusedTeacher(row);
-                          }}
-                          disabled={!canEdit || resourceActionBusy || teacherDepartureApplying}
-                          className="rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-30"
-                        >
-                          Sil
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="p-6 text-center text-sm font-semibold text-slate-400">
-                  Aramanızla eşleşen öğretmen bulunamadı.
+            <div className="overflow-x-auto rounded-[22px] border border-slate-200 bg-white shadow-sm">
+              <div className="min-w-[1040px]">
+                <div className="grid grid-cols-[minmax(230px,1fr)_80px_120px_200px_115px_245px] items-center border-b border-slate-100 bg-slate-50 px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                  <span>Öğretmen</span>
+                  <span className="text-right">Aktif ders</span>
+                  <span className="text-right">Haftalık yük</span>
+                  <span className="text-right">Planlanan yük</span>
+                  <span className="text-right">Durum</span>
+                  <span className="text-right">İşlem</span>
                 </div>
-              )}
+
+                {filteredTeachers.length > 0 ? (
+                  filteredTeachers.map((row) => {
+                    const state = teacherState(row);
+
+                    return (
+                      <div
+                        key={row.id}
+                        className="grid grid-cols-[minmax(230px,1fr)_80px_120px_200px_115px_245px] items-center border-b border-slate-100 px-4 py-2.5 last:border-b-0 hover:bg-slate-50/60"
+                      >
+                        <div className="min-w-0 pr-3">
+                          <p className="truncate text-[12px] font-bold text-slate-900">
+                            {row.name}
+                          </p>
+                          {row.nameOverridden ? (
+                            <p className="mt-0.5 truncate text-[10px] font-semibold text-blue-600">
+                              Taslak ad · Yayınlanan: {row.baseName}
+                            </p>
+                          ) : (
+                            <p className="mt-0.5 text-[10px] font-medium text-slate-400">
+                              Öğretmen kaydı
+                            </p>
+                          )}
+                        </div>
+
+                        <p className="text-right text-[12px] font-black tabular-nums text-slate-700">
+                          {row.activeRequirementCount}
+                        </p>
+
+                        <div className="text-right">
+                          <p className="text-[13px] font-black tabular-nums text-slate-800">
+                            {row.actualLoadPeriods}
+                            <span className="ml-1 text-[10px] font-bold text-slate-400">
+                              saat
+                            </span>
+                          </p>
+                          <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
+                            {row.placedBlockCount} blok
+                          </p>
+                        </div>
+
+                        <div className="text-right">
+                          {row.loadConfigured ? (
+                            <div className="flex justify-end gap-1">
+                              {([
+                                ['Min', row.minimumLoad],
+                                ['Hedef', row.targetLoad],
+                                ['Maks', row.maximumLoad],
+                              ] as const).map(([label, value]) => (
+                                <span
+                                  key={label}
+                                  className="inline-flex min-w-[50px] flex-col rounded-lg bg-violet-50 px-1.5 py-1 text-center"
+                                >
+                                  <span className="text-[8px] font-black uppercase tracking-wide text-violet-400">
+                                    {label}
+                                  </span>
+                                  <span className="text-[11px] font-black tabular-nums text-violet-800">
+                                    {value ?? '–'}
+                                  </span>
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">
+                              Yük hedefi tanımsız
+                            </span>
+                          )}
+                          <p className={`mt-1 text-[9px] font-semibold ${
+                            row.availabilityConfigured
+                              ? 'text-rose-600'
+                              : 'text-slate-400'
+                          }`}>
+                            {row.availabilityConfigured
+                              ? `${row.unavailablePeriodCount} saat uygun değil`
+                              : 'Uygunluk kısıtı yok'}
+                          </p>
+                          {row.unavailablePlacedBlockCount > 0 && (
+                            <p className="mt-0.5 text-[9px] font-black text-rose-700">
+                              {row.unavailablePlacedBlockCount} mevcut blok çakışıyor
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="text-right">
+                          <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-black ${state.className}`}>
+                            {state.label}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onOpenProgramResource('TEACHER', row.id, row.name)}
+                            disabled={row.placedBlockCount === 0}
+                            className="rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-30"
+                            title={row.placedBlockCount > 0 ? 'Bu öğretmenin programdaki derslerini aç' : 'Programda kullanım yok'}
+                          >
+                            Program
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openTeacherLoadEditor(row)}
+                            disabled={
+                              !canEdit
+                              || resourceActionBusy
+                              || row.operationalStatus !== 'ACTIVE'
+                            }
+                            className="rounded-lg border border-violet-200 bg-white px-2.5 py-1.5 text-[10px] font-bold text-violet-700 hover:bg-violet-50 disabled:opacity-35"
+                            title={
+                              row.operationalStatus === 'ACTIVE'
+                                ? 'Yük hedeflerini ve uygun olmayan saatleri düzenle'
+                                : 'Planlama girdileri yalnız atamaya açık öğretmenlerde düzenlenir'
+                            }
+                          >
+                            Planlama
+                          </button>
+                          <select
+                            aria-label={`${row.name} diğer işlemler`}
+                            defaultValue=""
+                            disabled={!canEdit || resourceActionBusy || teacherDepartureApplying}
+                            onChange={(event) => {
+                              const action = event.currentTarget.value;
+                              event.currentTarget.value = '';
+                              handleTeacherSecondaryAction(row, action);
+                            }}
+                            className="max-w-[86px] rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-bold text-slate-600 outline-none hover:bg-slate-50 disabled:opacity-35"
+                          >
+                            <option value="" disabled>Diğer…</option>
+                            <option value="NAME">Adı düzenle</option>
+                            <option value="STATUS">
+                              {row.operationalStatus === 'ACTIVE'
+                                ? 'Atamaya kapat'
+                                : 'Atamaya aç'}
+                            </option>
+                            <option value="DELETE">Sil</option>
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="p-6 text-center text-sm font-semibold text-slate-400">
+                    Aramanızla eşleşen öğretmen bulunamadı.
+                  </div>
+                )}
+              </div>
             </div>
           </>
         ) : (
@@ -2128,18 +2287,18 @@ export function ManagementResources({
 
       {teacherLoadTarget && (
         <div className="fixed inset-0 z-[111] flex items-center justify-center bg-slate-950/30 p-4">
-          <div className="w-full max-w-[540px] rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_30px_100px_rgba(15,23,42,0.25)]">
+          <div className="max-h-[92vh] w-full max-w-[780px] overflow-y-auto rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_30px_100px_rgba(15,23,42,0.25)]">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
-                  Öğretmen planlama girdisi
+                  Öğretmen planlama girdileri
                 </p>
                 <h3 className="mt-1 text-lg font-black text-slate-950">
                   {teacherLoadTarget.name}
                 </h3>
-                <p className="mt-1 text-[11px] font-medium leading-5 text-slate-500">
-                  Değerler bu dönem için haftalık ders saati/periyot olarak tutulur.
-                  Şimdilik yalnız planlama audit’inde kullanılır; optimizer davranışını değiştirmez.
+                <p className="mt-1 max-w-[620px] text-[11px] font-medium leading-5 text-slate-500">
+                  Yük hedefleri planlama verisidir. “Uygun değil” olarak işaretlenen
+                  saatler ise yeni yerleştirmeler ve optimizasyon için hard constraint’tir.
                 </p>
               </div>
               <button
@@ -2152,66 +2311,208 @@ export function ManagementResources({
               </button>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-wide text-blue-500">
-                    Mevcut gerçek yük
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
+                <p className="text-[10px] font-black uppercase tracking-wide text-blue-500">
+                  Mevcut gerçek yük
+                </p>
+                <div className="mt-1 flex items-end justify-between gap-3">
+                  <p className="text-2xl font-black text-blue-950">
+                    {teacherLoadTarget.actualLoadPeriods}
+                    <span className="ml-1 text-xs font-bold">saat</span>
                   </p>
-                  <p className="mt-1 text-2xl font-black text-blue-950">
-                    {teacherLoadTarget.actualLoadPeriods} saat
+                  <p className="text-[10px] font-semibold text-blue-800">
+                    {teacherLoadTarget.placedBlockCount} blok
                   </p>
                 </div>
-                <p className="text-right text-[11px] font-semibold text-blue-800">
-                  {teacherLoadTarget.placedBlockCount} program bloğu
+              </div>
+
+              <div className={`rounded-2xl border px-4 py-3 ${
+                teacherLoadTarget.unavailablePlacedBlockCount > 0
+                  ? 'border-rose-200 bg-rose-50'
+                  : 'border-slate-200 bg-slate-50'
+              }`}>
+                <p className={`text-[10px] font-black uppercase tracking-wide ${
+                  teacherLoadTarget.unavailablePlacedBlockCount > 0
+                    ? 'text-rose-500'
+                    : 'text-slate-400'
+                }`}>
+                  Hard uygunluk
                 </p>
+                <div className="mt-1 flex items-end justify-between gap-3">
+                  <p className={`text-2xl font-black ${
+                    teacherLoadTarget.unavailablePlacedBlockCount > 0
+                      ? 'text-rose-900'
+                      : 'text-slate-800'
+                  }`}>
+                    {teacherUnavailablePeriods.length}
+                    <span className="ml-1 text-xs font-bold">saat kapalı</span>
+                  </p>
+                  <p className={`text-right text-[10px] font-semibold ${
+                    teacherLoadTarget.unavailablePlacedBlockCount > 0
+                      ? 'text-rose-700'
+                      : 'text-slate-500'
+                  }`}>
+                    {teacherLoadTarget.unavailablePlacedBlockCount > 0
+                      ? `${teacherLoadTarget.unavailablePlacedBlockCount} mevcut blok çakışıyor`
+                      : 'Mevcut çakışma yok'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              {([
-                {
-                  label: 'Minimum',
-                  value: teacherMinimumLoad,
-                  setValue: setTeacherMinimumLoad,
-                },
-                {
-                  label: 'Hedef',
-                  value: teacherTargetLoad,
-                  setValue: setTeacherTargetLoad,
-                },
-                {
-                  label: 'Maksimum',
-                  value: teacherMaximumLoad,
-                  setValue: setTeacherMaximumLoad,
-                },
-              ] as const).map((field) => (
-                <label key={field.label} className="block">
-                  <span className="text-[10px] font-black uppercase tracking-wide text-slate-400">
-                    {field.label}
-                  </span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={60}
-                    step={1}
-                    inputMode="numeric"
-                    value={field.value}
-                    onChange={(event) => {
-                      field.setValue(event.target.value);
-                      setTeacherLoadError(null);
-                    }}
-                    disabled={teacherLoadSaving}
-                    placeholder="—"
-                    className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-sm font-black text-slate-800 outline-none transition focus:border-slate-400 disabled:bg-slate-50"
-                  />
-                </label>
-              ))}
+            <div className="mt-4 flex rounded-xl bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setTeacherPlanningTab('LOAD');
+                  setTeacherLoadError(null);
+                }}
+                className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-black transition ${
+                  teacherPlanningTab === 'LOAD'
+                    ? 'bg-white text-slate-950 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Yük hedefi
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTeacherPlanningTab('AVAILABILITY');
+                  setTeacherLoadError(null);
+                }}
+                className={`flex-1 rounded-lg px-3 py-2 text-[11px] font-black transition ${
+                  teacherPlanningTab === 'AVAILABILITY'
+                    ? 'bg-white text-slate-950 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                Uygun değil · {teacherUnavailablePeriods.length}
+              </button>
             </div>
 
-            <p className="mt-3 text-[10px] font-medium leading-5 text-slate-500">
-              Alanlar boş bırakılabilir. Tanımlanan değerlerde minimum ≤ hedef ≤ maksimum olmalıdır.
-            </p>
+            {teacherPlanningTab === 'LOAD' ? (
+              <>
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  {([
+                    {
+                      label: 'Minimum',
+                      value: teacherMinimumLoad,
+                      setValue: setTeacherMinimumLoad,
+                    },
+                    {
+                      label: 'Hedef',
+                      value: teacherTargetLoad,
+                      setValue: setTeacherTargetLoad,
+                    },
+                    {
+                      label: 'Maksimum',
+                      value: teacherMaximumLoad,
+                      setValue: setTeacherMaximumLoad,
+                    },
+                  ] as const).map((field) => (
+                    <label key={field.label} className="block">
+                      <span className="text-[10px] font-black uppercase tracking-wide text-slate-400">
+                        {field.label}
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={60}
+                        step={1}
+                        inputMode="numeric"
+                        value={field.value}
+                        onChange={(event) => {
+                          field.setValue(event.target.value);
+                          setTeacherLoadError(null);
+                        }}
+                        disabled={teacherLoadSaving}
+                        placeholder="—"
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-center text-sm font-black text-slate-800 outline-none transition focus:border-slate-400 disabled:bg-slate-50"
+                      />
+                    </label>
+                  ))}
+                </div>
+
+                <p className="mt-3 text-[10px] font-medium leading-5 text-slate-500">
+                  Alanlar boş bırakılabilir. Minimum ≤ hedef ≤ maksimum olmalıdır.
+                  Bu değerler M39.1’de hâlâ optimizer puanlamasını değiştirmez.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/60 p-3">
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[680px]">
+                      <div
+                        className="grid gap-1"
+                        style={{
+                          gridTemplateColumns:
+                            '92px repeat(12, minmax(38px, 1fr))',
+                        }}
+                      >
+                        <span />
+                        {TEACHER_PLANNING_PERIODS.map((period) => (
+                          <span
+                            key={period}
+                            className="py-1 text-center text-[9px] font-black text-slate-400"
+                          >
+                            {period}
+                          </span>
+                        ))}
+
+                        {TEACHER_PLANNING_DAYS.flatMap((day) => [
+                          <div
+                            key={`day-${day.id}`}
+                            className="flex items-center pr-2"
+                          >
+                            <span className="text-[10px] font-black text-slate-600">
+                              {day.label}
+                            </span>
+                          </div>,
+                          ...TEACHER_PLANNING_PERIODS.map((period) => {
+                            const selected = teacherUnavailablePeriods.some(
+                              (slot) => (
+                                slot.dayOfWeek === day.id
+                                && slot.period === period
+                              ),
+                            );
+
+                            return (
+                              <button
+                                key={`${day.id}-${period}`}
+                                type="button"
+                                onClick={() => toggleTeacherUnavailablePeriod(
+                                  day.id,
+                                  period,
+                                )}
+                                disabled={teacherLoadSaving}
+                                aria-pressed={selected}
+                                title={`${day.label} · ${period}. ders`}
+                                className={`h-9 rounded-lg border text-[10px] font-black transition ${
+                                  selected
+                                    ? 'border-rose-300 bg-rose-50 text-rose-700 shadow-sm'
+                                    : 'border-slate-200 bg-white text-slate-400 hover:border-slate-300 hover:text-slate-700'
+                                }`}
+                              >
+                                {selected ? '×' : '·'}
+                              </button>
+                            );
+                          }),
+                        ])}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold leading-5 text-amber-800">
+                  Seçili saatlerde bu öğretmen yeni aday olarak kullanılamaz ve solver
+                  bu saatleri seçemez. Mevcut program otomatik taşınmaz; oluşan
+                  çakışmalar Kaynaklar ve solver baseline audit’inde görünür.
+                </div>
+              </>
+            )}
 
             {teacherLoadError && (
               <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-700">
@@ -2219,19 +2520,25 @@ export function ManagementResources({
               </p>
             )}
 
-            <div className="mt-5 flex items-center justify-between gap-3">
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={() => {
-                  setTeacherMinimumLoad('');
-                  setTeacherTargetLoad('');
-                  setTeacherMaximumLoad('');
+                  if (teacherPlanningTab === 'LOAD') {
+                    setTeacherMinimumLoad('');
+                    setTeacherTargetLoad('');
+                    setTeacherMaximumLoad('');
+                  } else {
+                    setTeacherUnavailablePeriods([]);
+                  }
                   setTeacherLoadError(null);
                 }}
                 disabled={teacherLoadSaving}
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
               >
-                Hedefleri temizle
+                {teacherPlanningTab === 'LOAD'
+                  ? 'Hedefleri temizle'
+                  : 'Kısıtları temizle'}
               </button>
 
               <div className="flex gap-2">
@@ -2245,7 +2552,13 @@ export function ManagementResources({
                 </button>
                 <button
                   type="button"
-                  onClick={() => void saveTeacherLoadTargets()}
+                  onClick={() => {
+                    if (teacherPlanningTab === 'LOAD') {
+                      void saveTeacherLoadTargets();
+                    } else {
+                      void saveTeacherUnavailablePeriods();
+                    }
+                  }}
                   disabled={teacherLoadSaving}
                   className="rounded-xl bg-slate-950 px-4 py-2 text-[11px] font-black text-white hover:bg-slate-800 disabled:opacity-35"
                 >
