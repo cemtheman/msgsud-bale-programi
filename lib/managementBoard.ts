@@ -350,6 +350,26 @@ export function cardMatchesStage(
   });
 }
 
+export function cardHasMissingRequiredTeacher(
+  card: ManagementBoardCard,
+) {
+  return Boolean(
+    card.placement
+    && card.teacherRequirement === 'REQUIRED'
+    && !card.placement.teacherId,
+  );
+}
+
+export function cardHasMissingRequiredRoom(
+  card: ManagementBoardCard,
+) {
+  return Boolean(
+    card.placement
+    && card.resourceMode !== 'UNKNOWN'
+    && !card.placement.roomId,
+  );
+}
+
 export function cardMatchesAudience(
   card: ManagementBoardCard,
   audience: ManagementAudienceScope,
