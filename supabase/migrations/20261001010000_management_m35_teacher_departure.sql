@@ -129,6 +129,11 @@ begin
               from public.course_requirement_teachers assignment
               where assignment.requirement_id = scope_item.requirement_id
                 and assignment.teacher_id = p_teacher_id
+            ),
+            'teacherMode', (
+              select requirement.teacher_mode
+              from public.course_requirements requirement
+              where requirement.id = scope_item.requirement_id
             )
           )
           order by scope_item.requirement_id
@@ -227,6 +232,10 @@ begin
           (v_item ->> 'requirementId')::uuid
         and assignment.teacher_id = p_teacher_id;
     end if;
+
+    update public.course_requirements requirement
+    set teacher_mode = v_item ->> 'teacherMode'
+    where requirement.id = (v_item ->> 'requirementId')::uuid;
   end loop;
 
   select coalesce(
@@ -237,20 +246,6 @@ begin
   from jsonb_array_elements_text(
     coalesce(v_scope -> 'requirementIds', '[]'::jsonb)
   );
-
-  if cardinality(v_requirement_ids) > 0 then
-    update public.course_requirements requirement
-    set teacher_mode = case (
-      select count(*)
-      from public.course_requirement_teachers assignment
-      where assignment.requirement_id = requirement.id
-    )
-      when 0 then 'UNKNOWN'
-      when 1 then 'FIXED'
-      else 'ELIGIBLE_POOL'
-    end
-    where requirement.id = any(v_requirement_ids);
-  end if;
 
   for v_item in
     select value
@@ -534,7 +529,21 @@ begin
   if p_mode in ('INACTIVATE_CLEAR', 'ARCHIVE_CLEAR') then
     select coalesce(
       jsonb_agg(
-        item.value || jsonb_build_object('linked', false)
+        item.value || jsonb_build_object(
+          'linked', false,
+          'teacherMode',
+          case (
+            select count(*)
+            from public.course_requirement_teachers assignment
+            where assignment.requirement_id =
+                (item.value ->> 'requirementId')::uuid
+              and assignment.teacher_id <> p_teacher_id
+          )
+            when 0 then 'UNKNOWN'
+            when 1 then 'FIXED'
+            else 'ELIGIBLE_POOL'
+          end
+        )
         order by item.ordinality
       ),
       '[]'::jsonb
