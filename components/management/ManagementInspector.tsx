@@ -435,7 +435,7 @@ export function ManagementInspector({
 
 
   useEffect(() => {
-    setShowGeneralCandidates(false);
+    setShowGeneralCandidates(openIntent === 'CANDIDATES');
     setCandidateHelpOpen(false);
   }, [
     card?.id,
@@ -443,11 +443,17 @@ export function ManagementInspector({
     card?.placement?.startPeriod,
     card?.placement?.teacherId,
     card?.placement?.roomId,
+    openIntent,
+    openIntentNonce,
   ]);
 
 
   useEffect(() => {
-    setPlacementEditMode(null);
+    setPlacementEditMode(
+      openIntent === 'TEACHER' || openIntent === 'ROOM'
+        ? openIntent
+        : null,
+    );
     setPlacementChoiceId(null);
     setPlacementResourcePreview(null);
     setPlacementResourceError(null);
@@ -460,6 +466,8 @@ export function ManagementInspector({
     card?.placement?.startPeriod,
     card?.placement?.teacherId,
     card?.placement?.roomId,
+    openIntent,
+    openIntentNonce,
   ]);
 
   if (!card) {
