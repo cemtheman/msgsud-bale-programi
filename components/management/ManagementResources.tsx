@@ -1230,14 +1230,24 @@ export function ManagementResources({
                         </button>
                         <button
                           type="button"
-                          onClick={() => void deleteRoom(row)}
+                          onClick={() => {
+                            if (row.activeRequirementCount > 0 || row.placedBlockCount > 0) {
+                              void openRoomDeparture(row, 'ARCHIVE_CLEAR');
+                              return;
+                            }
+                            void deleteUnusedRoom(row);
+                          }}
                           disabled={
                             !canEdit
                             || resourceActionBusy
-                            || row.activeRequirementCount > 0
-                            || row.placedBlockCount > 0
+                            || roomDepartureApplying
                             || row.aliasCount > 0
                           }
+                          title={row.aliasCount > 0
+                            ? 'Bağlı takma adlar varken ana salon doğrudan silinemez.'
+                            : row.activeRequirementCount > 0 || row.placedBlockCount > 0
+                              ? 'Program slotlarını koruyarak salonu derslerden çıkar ve kaydı arşivle'
+                              : 'Kullanılmayan salon kaydını sil'}
                           className="rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-30"
                         >
                           Sil
@@ -1260,9 +1270,10 @@ export function ManagementResources({
             Taslak adlar yayınlanan programı değiştirmez
           </p>
           <p className="mt-1 text-[11px] font-medium leading-5 text-blue-800">
-            Salon özelliği değişiklikleri etki önizlemesinden geçer. Tadilatta veya kullanım dışı
-            salonlar yeni program adaylarından çıkarılır; salonda mevcut yerleşim varsa durum
-            değişikliği önce bu derslerin Program ekranında taşınmasını veya kaldırılmasını ister.
+            Salon özelliği değişiklikleri etki önizlemesinden geçer. Bir salon dönem içinde
+            kullanımdan kalkarsa Sil işlemi mevcut derslerin gün, saat ve öğretmenini koruyup
+            yalnız salon bağlantısını boşaltabilir. Bağlı takma adı olan ana salonlar bu toplu
+            arşiv akışına alınmaz.
           </p>
         </div>
       </div>
@@ -1270,6 +1281,123 @@ export function ManagementResources({
       {resourceActionError && (
         <div className="fixed bottom-4 right-4 z-[118] max-w-[430px] rounded-2xl border border-rose-200 bg-white px-4 py-3 text-[11px] font-bold text-rose-700 shadow-xl">
           {resourceActionError}
+        </div>
+      )}
+
+      {roomDepartureTarget && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/35 p-4">
+          <div className="w-full max-w-[620px] overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_32px_100px_rgba(15,23,42,0.28)]">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
+                Salon kaynağı
+              </p>
+              <h3 className="mt-1 text-lg font-black text-slate-950">
+                {roomDepartureTarget.name} kaydını sil
+              </h3>
+              <p className="mt-1 text-[11px] font-medium leading-5 text-slate-500">
+                Derslerin gün, saat ve öğretmenleri değiştirilmeden salon bağlantısı boşaltılabilir.
+              </p>
+            </div>
+
+            <div className="space-y-4 px-5 py-4">
+              {roomDepartureLoading && (
+                <div className="rounded-2xl bg-slate-50 px-4 py-4 text-center text-[11px] font-bold text-slate-500">
+                  Etki hesaplanıyor…
+                </div>
+              )}
+
+              {roomDepartureError && (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] font-bold text-rose-700">
+                  {roomDepartureError}
+                </div>
+              )}
+
+              {roomDeparturePreview && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
+                        Ders tanımı
+                      </p>
+                      <p className="mt-1 text-xl font-black text-slate-900">
+                        {roomDeparturePreview.activeRequirementCount}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
+                        Program bloğu
+                      </p>
+                      <p className="mt-1 text-xl font-black text-slate-900">
+                        {roomDeparturePreview.placedBlockCount}
+                      </p>
+                    </div>
+                  </div>
+
+                  {roomDeparturePreview.aliasCount > 0 ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+                      <p className="text-[11px] font-black text-rose-800">
+                        Bu ana salona {roomDeparturePreview.aliasCount} takma ad bağlı
+                      </p>
+                      <p className="mt-1 text-[10px] font-medium leading-5 text-rose-700">
+                        Takma ad ailesi bulunan salonlar bu sürümde topluca arşivlenmiyor.
+                        Önce takma ad bağlantılarının ayrıca çözülmesi gerekiyor.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+                        <p className="text-[11px] font-black text-rose-800">
+                          Derslerden çıkar ve kaydı sil
+                        </p>
+                        <p className="mt-1 text-[10px] font-medium leading-5 text-rose-700">
+                          Salon aktif ders tanımlarından ve mevcut taslak yerleşimlerden çıkarılır.
+                          Gün, saat ve öğretmen korunur; dersler aynı slotta salonsuz kalır.
+                          Salon kimliği geçmiş ve veri bütünlüğü için arşivde saklanır.
+                        </p>
+                      </div>
+
+                      {roomDeparturePreview.placedBlockCount > 0 && (
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[10px] font-semibold leading-5 text-amber-800">
+                          {roomDeparturePreview.placedBlockCount} program bloğu aynı slotta kalacak
+                          ve salon alanı boşalacak. Daha sonra Program ekranından aktif bir salon
+                          geçici veya kalıcı olarak atanabilir.
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  if (roomDepartureApplying) return;
+                  setRoomDepartureTarget(null);
+                  setRoomDeparturePreview(null);
+                  setRoomDepartureError(null);
+                }}
+                disabled={roomDepartureApplying}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-bold text-slate-600 disabled:opacity-40"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={() => void applyRoomDeparture()}
+                disabled={
+                  !roomDeparturePreview
+                  || roomDeparturePreview.aliasCount > 0
+                  || roomDepartureLoading
+                  || roomDepartureApplying
+                }
+                className="rounded-xl bg-rose-700 px-4 py-2 text-[11px] font-black text-white hover:bg-rose-600 disabled:opacity-35"
+              >
+                {roomDepartureApplying ? 'Uygulanıyor…' : 'Derslerden çıkar ve sil'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
