@@ -2208,8 +2208,8 @@ export default function ManagementPage() {
                 }}
                 className={
                   activeSection === 'PROGRAM'
-                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'inline-flex h-[32px] items-center border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
+                    : 'inline-flex h-[32px] items-center border-b-2 border-transparent px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
                 }
               >
                 Program
@@ -2219,8 +2219,8 @@ export default function ManagementPage() {
                 onClick={() => setActiveSection('PLAN')}
                 className={
                   activeSection === 'PLAN'
-                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'inline-flex h-[32px] items-center border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
+                    : 'inline-flex h-[32px] items-center border-b-2 border-transparent px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
                 }
               >
                 Ders Planı
@@ -2230,8 +2230,8 @@ export default function ManagementPage() {
                 onClick={() => setActiveSection('RESOURCES')}
                 className={
                   activeSection === 'RESOURCES'
-                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'inline-flex h-[32px] items-center border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
+                    : 'inline-flex h-[32px] items-center border-b-2 border-transparent px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
                 }
               >
                 Kaynaklar
@@ -2241,8 +2241,8 @@ export default function ManagementPage() {
                 onClick={() => setActiveSection('SOLVER')}
                 className={
                   activeSection === 'SOLVER'
-                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'inline-flex h-[32px] items-center border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
+                    : 'inline-flex h-[32px] items-center border-b-2 border-transparent px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
                 }
               >
                 Öncelikler
@@ -2252,8 +2252,8 @@ export default function ManagementPage() {
                 onClick={() => setActiveSection('STATUS')}
                 className={
                   activeSection === 'STATUS'
-                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'inline-flex h-[32px] items-center border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
+                    : 'inline-flex h-[32px] items-center border-b-2 border-transparent px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
                 }
               >
                 Program Durumu
