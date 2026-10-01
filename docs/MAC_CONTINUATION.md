@@ -2446,3 +2446,21 @@ Expected gate:
 - build PASS
 - dry-run shows only M40.1 migration
 - then DB push + browser readiness smoke
+
+
+### M40 acceptance diagnostic — hard readiness blocker visibility
+
+During browser acceptance, Program Kontrolü showed:
+- provisional rooms warning: 41 requirements, explicitly non-blocking
+- hard readiness false, therefore Programı kontrol et disabled
+- previous UI only showed a generic error and hid `readiness.hardBlockers`
+
+Wrapper audit:
+- M33.0.1 provisional-room correction is still in the wrapper chain
+- `RESOURCE_MODE_UNKNOWN` is filtered out of hard blockers before M39.1/M40 wrappers
+- therefore the 41 unknown rooms are not the cause of hard readiness false
+
+UI diagnostic added:
+- Program Kontrolü now renders each hard blocker with Turkish label + count
+- no DB semantics changed
+- next browser refresh should identify the actual blocker before any corrective migration is written
