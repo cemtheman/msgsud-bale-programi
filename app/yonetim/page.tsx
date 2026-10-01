@@ -238,7 +238,7 @@ function PartisyonBrand({
           <span className="grid shrink-0 place-items-center text-[#1437B8]">
             <PartisyonMark className={compact ? 'h-[18px] w-auto' : 'h-[25px] w-auto'} />
           </span>
-          <span className={`-ml-[1px] font-black leading-none tracking-[-0.045em] text-[#081736] ${compact ? 'text-[18px]' : 'text-[25px]'}`}>
+          <span className={`relative top-[2px] -ml-[1px] font-black leading-none tracking-[-0.045em] text-[#081736] ${compact ? 'text-[18px]' : 'text-[25px]'}`}>
             artisyon
           </span>
         </span>
@@ -2366,7 +2366,9 @@ export default function ManagementPage() {
                   key={item.id}
                   type="button"
                   onClick={() => setAudienceFilter(item.id)}
-                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                  className={`flex h-[32px] min-w-[42px] items-center justify-center rounded-lg px-3 font-bold transition ${
+                    item.id === 'ALL' ? 'text-[10px]' : 'text-[18px] leading-none'
+                  } ${
                     audienceFilter === item.id
                       ? 'bg-slate-950 text-white shadow-sm'
                       : 'text-slate-500 hover:bg-slate-50'
