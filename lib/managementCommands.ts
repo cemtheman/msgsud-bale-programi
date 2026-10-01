@@ -84,6 +84,9 @@ export function translateManagementPlacementResourceBlockReason(
   if (reason === 'TEACHER_CONFLICT') {
     return 'Öğretmen aynı saatte başka derste.';
   }
+  if (reason === 'TEACHER_UNAVAILABLE') {
+    return 'Öğretmen bu ders saatinde uygun değil.';
+  }
   if (reason === 'ROOM_CONFLICT') {
     return 'Salon aynı saatte başka derste kullanılıyor.';
   }
@@ -223,6 +226,12 @@ function translateCommandError(message: string, fallback: string) {
     return 'İşlem beklenenden uzun sürdü ve zaman aşımına uğradı. Programın güncel durumunu yenileyip yeniden deneyin.';
   }
 
+
+  if (
+    normalized.includes('m39.1 placement teacher is hard unavailable for selected slot')
+  ) {
+    return 'Öğretmen bu ders saatinde uygun değil. Başka bir saat veya öğretmen seçin.';
+  }
 
   if (
     normalized.includes('candidate is invalid')
