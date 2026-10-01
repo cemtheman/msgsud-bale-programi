@@ -56,12 +56,17 @@ function compareQueueItems(
   left: ManagementOperationalQueueItem,
   right: ManagementOperationalQueueItem,
 ) {
+  const kindPriority: Record<ManagementOperationalQueueKind, number> = {
+    TEACHER: 0,
+    ROOM: 1,
+  };
+
   return (
     left.dayOfWeek - right.dayOfWeek
     || left.startPeriod - right.startPeriod
     || left.subjectName.localeCompare(right.subjectName, 'tr')
     || left.groupName.localeCompare(right.groupName, 'tr')
-    || left.kind.localeCompare(right.kind)
+    || kindPriority[left.kind] - kindPriority[right.kind]
   );
 }
 
