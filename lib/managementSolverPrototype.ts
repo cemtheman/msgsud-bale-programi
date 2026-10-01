@@ -100,6 +100,7 @@ interface SolverContext {
   baseline: Map<string, ManagementSolverBaselinePlacement>;
   activeTeacherIds: Set<string>;
   teachers: Map<string, ManagementSolverTeacher>;
+  teacherUnavailableKeys: Set<string>;
   rooms: Map<string, ManagementSolverRoom>;
   activeRoomIds: Set<string>;
   teacherPools: Map<string, string[]>;
@@ -117,6 +118,40 @@ const LUNCH_RIGHT_PERIOD = 6;
 
 function unique<T>(values: T[]) {
   return [...new Set(values)];
+}
+
+function teacherAvailabilityKey(
+  teacherId: string,
+  dayOfWeek: number,
+  period: number,
+) {
+  return `${teacherId}|${dayOfWeek}|${period}`;
+}
+
+function teacherIsUnavailable(
+  teacherId: string | null,
+  dayOfWeek: number,
+  startPeriod: number,
+  durationPeriods: number,
+  context: SolverContext,
+) {
+  if (!teacherId) return false;
+
+  for (
+    let period = startPeriod;
+    period < startPeriod + durationPeriods;
+    period += 1
+  ) {
+    if (
+      context.teacherUnavailableKeys.has(
+        teacherAvailabilityKey(teacherId, dayOfWeek, period),
+      )
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function overlaps(
@@ -449,6 +484,15 @@ function rawCandidatesForCard(
     if (!days.includes(dayOfWeek)) return;
     if (!periods.includes(startPeriod)) return;
     if (!validTimeStart(startPeriod, card.durationPeriods, periods)) return;
+    if (
+      teacherIsUnavailable(
+        teacherId,
+        dayOfWeek,
+        startPeriod,
+        card.durationPeriods,
+        context,
+      )
+    ) return;
 
     const key = [
       dayOfWeek,
@@ -733,6 +777,15 @@ function createContext(
   const teachers = new Map(
     snapshot.teachers.map((teacher) => [teacher.id, teacher]),
   );
+  const teacherUnavailableKeys = new Set(
+    (snapshot.teacherUnavailablePeriods ?? []).map((slot) => (
+      teacherAvailabilityKey(
+        slot.teacherId,
+        slot.dayOfWeek,
+        slot.period,
+      )
+    )),
+  );
   const rooms = new Map(
     snapshot.rooms.map((room) => [room.id, room]),
   );
@@ -764,6 +817,7 @@ function createContext(
     baseline,
     activeTeacherIds,
     teachers,
+    teacherUnavailableKeys,
     rooms,
     activeRoomIds,
     teacherPools,
@@ -841,6 +895,22 @@ function baselineAudit(
       && !context.activeTeacherIds.has(baseline.teacherId)
     ) {
       addBaselineIssue(issueMap, card.id, 'BASELINE_TEACHER_INACTIVE');
+    }
+
+    if (
+      teacherIsUnavailable(
+        baseline.teacherId,
+        baseline.dayOfWeek,
+        baseline.startPeriod,
+        card.durationPeriods,
+        context,
+      )
+    ) {
+      addBaselineIssue(
+        issueMap,
+        card.id,
+        'BASELINE_TEACHER_UNAVAILABLE',
+      );
     }
 
     if (
