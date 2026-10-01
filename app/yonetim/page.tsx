@@ -396,11 +396,16 @@ export default function ManagementPage() {
   const [stage, setStage] = useState<ManagementStage>('ORTAOKUL');
   const [resourceView, setResourceView] =
     useState<ManagementResourceView>('SINIFLAR');
-  const [programResourceFocus, setProgramResourceFocus] = useState<{
+  const [programResourceFilters, setProgramResourceFilters] = useState<Array<{
     kind: 'TEACHER' | 'ROOM';
     id: string;
     label: string;
+  }>>([]);
+  const [programFilterMenu, setProgramFilterMenu] = useState<{
+    x: number;
+    y: number;
   } | null>(null);
+  const [programFilterQuery, setProgramFilterQuery] = useState('');
   const [audienceFilter, setAudienceFilter] =
     useState<ManagementAudienceScope>('ALL');
 
@@ -584,15 +589,70 @@ export default function ManagementPage() {
   );
 
   const programCards = useMemo(() => {
-    if (!programResourceFocus) return visibleCards;
+    if (programResourceFilters.length === 0) return visibleCards;
+
+    const teacherIds = new Set(
+      programResourceFilters
+        .filter((filter) => filter.kind === 'TEACHER')
+        .map((filter) => filter.id),
+    );
+    const roomIds = new Set(
+      programResourceFilters
+        .filter((filter) => filter.kind === 'ROOM')
+        .map((filter) => filter.id),
+    );
 
     return visibleCards.filter((card) => {
       if (!card.placement) return false;
-      return programResourceFocus.kind === 'TEACHER'
-        ? card.placement.teacherId === programResourceFocus.id
-        : card.placement.roomId === programResourceFocus.id;
+
+      const teacherMatches = teacherIds.size === 0
+        || (
+          Boolean(card.placement.teacherId)
+          && teacherIds.has(card.placement.teacherId as string)
+        );
+      const roomMatches = roomIds.size === 0
+        || (
+          Boolean(card.placement.roomId)
+          && roomIds.has(card.placement.roomId as string)
+        );
+
+      return teacherMatches && roomMatches;
     });
-  }, [programResourceFocus, visibleCards]);
+  }, [programResourceFilters, visibleCards]);
+
+  const programTeacherFilterOptions = useMemo(() => {
+    if (!board) return [];
+    const usedIds = new Set(
+      board.cards
+        .map((card) => card.placement?.teacherId ?? null)
+        .filter((value): value is string => Boolean(value)),
+    );
+    const query = programFilterQuery.trim().toLocaleLowerCase('tr-TR');
+
+    return board.teacherRows
+      .filter((row) => usedIds.has(row.id))
+      .filter((row) => (
+        query.length === 0
+        || row.label.toLocaleLowerCase('tr-TR').includes(query)
+      ));
+  }, [board, programFilterQuery]);
+
+  const programRoomFilterOptions = useMemo(() => {
+    if (!board) return [];
+    const usedIds = new Set(
+      board.cards
+        .map((card) => card.placement?.roomId ?? null)
+        .filter((value): value is string => Boolean(value)),
+    );
+    const query = programFilterQuery.trim().toLocaleLowerCase('tr-TR');
+
+    return board.roomRows
+      .filter((row) => usedIds.has(row.id))
+      .filter((row) => (
+        query.length === 0
+        || row.label.toLocaleLowerCase('tr-TR').includes(query)
+      ));
+  }, [board, programFilterQuery]);
 
   const placementAssistantGroups = useMemo(
     () => buildManagementPlacementAssistantGroups(visibleCards),
@@ -643,19 +703,32 @@ export default function ManagementPage() {
       audienceFilter,
     );
 
-    const focusMatchesView = programResourceFocus
-      && (
-        (programResourceFocus.kind === 'TEACHER' && resourceView === 'ÖĞRETMENLER')
-        || (programResourceFocus.kind === 'ROOM' && resourceView === 'SALONLAR')
-      );
+    if (programResourceFilters.length === 0) return baseRows;
 
-    return focusMatchesView
-      ? baseRows.filter((row) => row.id === programResourceFocus.id)
-      : baseRows;
+    if (resourceView === 'ÖĞRETMENLER') {
+      const visibleTeacherIds = new Set(
+        programCards
+          .map((card) => card.placement?.teacherId ?? null)
+          .filter((value): value is string => Boolean(value)),
+      );
+      return baseRows.filter((row) => visibleTeacherIds.has(row.id));
+    }
+
+    if (resourceView === 'SALONLAR') {
+      const visibleRoomIds = new Set(
+        programCards
+          .map((card) => card.placement?.roomId ?? null)
+          .filter((value): value is string => Boolean(value)),
+      );
+      return baseRows.filter((row) => visibleRoomIds.has(row.id));
+    }
+
+    return baseRows;
   }, [
     audienceFilter,
     board,
-    programResourceFocus,
+    programCards,
+    programResourceFilters,
     resourceView,
     stage,
   ]);
@@ -744,6 +817,35 @@ export default function ManagementPage() {
     });
   };
 
+  const toggleProgramResourceFilter = (
+    kind: 'TEACHER' | 'ROOM',
+    id: string,
+    label: string,
+  ) => {
+    setProgramResourceFilters((current) => {
+      const exists = current.some(
+        (filter) => filter.kind === kind && filter.id === id,
+      );
+      if (exists) {
+        return current.filter(
+          (filter) => !(filter.kind === kind && filter.id === id),
+        );
+      }
+
+      return [...current, { kind, id, label }];
+    });
+  };
+
+  const openProgramFilterMenu = (x: number, y: number) => {
+    const width = 520;
+    const height = 430;
+    setProgramFilterQuery('');
+    setProgramFilterMenu({
+      x: Math.max(8, Math.min(x, window.innerWidth - width - 8)),
+      y: Math.max(8, Math.min(y, window.innerHeight - height - 8)),
+    });
+  };
+
   const openResourceInProgram = (
     kind: 'TEACHER' | 'ROOM',
     resourceId: string,
@@ -767,11 +869,11 @@ export default function ManagementPage() {
 
     setActiveSection('PROGRAM');
     setResourceView(kind === 'TEACHER' ? 'ÖĞRETMENLER' : 'SALONLAR');
-    setProgramResourceFocus({
+    setProgramResourceFilters([{
       kind,
       id: resourceId,
       label: resourceName,
-    });
+    }]);
     setAudienceFilter('ALL');
     setPoolOpen(false);
     setSelectedCardId(null);
@@ -809,13 +911,23 @@ export default function ManagementPage() {
       && (
         !cardMatchesStage(selectedCard, stage)
         || !cardMatchesAudience(selectedCard, audienceFilter)
+        || (
+          programResourceFilters.length > 0
+          && !programCards.some((card) => card.id === selectedCard.id)
+        )
       )
     ) {
       setSelectedCardId(null);
       setSelectedCardIds([]);
       setInspectorOpen(false);
     }
-  }, [audienceFilter, selectedCard, stage]);
+  }, [
+    audienceFilter,
+    programCards,
+    programResourceFilters.length,
+    selectedCard,
+    stage,
+  ]);
 
   useEffect(() => {
     setCommandNotice(null);
@@ -1788,7 +1900,7 @@ export default function ManagementPage() {
                 type="button"
                 onClick={() => {
                   setActiveSection('PROGRAM');
-                  setProgramResourceFocus(null);
+                  setProgramResourceFilters([]);
                 }}
                 className={
                   activeSection === 'PROGRAM'
@@ -1986,10 +2098,7 @@ export default function ManagementPage() {
                 <button
                   key={view.id}
                   type="button"
-                  onClick={() => {
-                    setResourceView(view.id);
-                    setProgramResourceFocus(null);
-                  }}
+                  onClick={() => setResourceView(view.id)}
                   className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
                     resourceView === view.id
                       ? 'bg-slate-950 text-white'
@@ -2002,7 +2111,7 @@ export default function ManagementPage() {
             </div>
   
             <div className="flex shrink-0 items-center gap-2 text-[9px] font-semibold text-slate-500 max-[1360px]:hidden">
-              {programResourceFocus ? (
+              {programResourceFilters.length > 0 ? (
                 <>
                   <span>{programCards.length} yerleşim</span>
                   <span className="text-slate-300">·</span>
@@ -2210,7 +2319,14 @@ export default function ManagementPage() {
             data-tour-target="program-area"
             className="flex min-h-0 min-w-0 flex-col"
           >
-            <div className="mb-2 flex h-8 shrink-0 items-center justify-between px-1">
+            <div
+              className="mb-2 flex h-8 shrink-0 items-center justify-between px-1"
+              onContextMenu={(event) => {
+                event.preventDefault();
+                openProgramFilterMenu(event.clientX, event.clientY);
+              }}
+              title="Sağ tıklayarak öğretmen / salon filtresi ekleyin"
+            >
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">
                   {RESOURCE_VIEWS.find((view) => view.id === resourceView)?.label}
@@ -2218,16 +2334,21 @@ export default function ManagementPage() {
                 <span className="text-sm font-bold text-slate-800">
                   {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} · {DAY_LONG[activeDay]}
                 </span>
-                {programResourceFocus && (
+                {programResourceFilters.map((filter) => (
                   <button
+                    key={`${filter.kind}:${filter.id}`}
                     type="button"
-                    onClick={() => setProgramResourceFocus(null)}
-                    className="max-w-[260px] truncate rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-black text-blue-700 hover:bg-blue-100"
-                    title="Kaynak filtresini kaldır"
+                    onClick={() => toggleProgramResourceFilter(
+                      filter.kind,
+                      filter.id,
+                      filter.label,
+                    )}
+                    className="max-w-[220px] truncate rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-black text-blue-700 hover:bg-blue-100"
+                    title={`${filter.label} filtresini kaldır`}
                   >
-                    {programResourceFocus.kind === 'TEACHER' ? 'Öğretmen' : 'Salon'} · {programResourceFocus.label} ×
+                    {filter.kind === 'TEACHER' ? 'Öğretmen' : 'Salon'} · {filter.label} ×
                   </button>
-                )}
+                ))}
               </div>
   
               <span className="text-[9px] font-medium text-slate-400">
@@ -2415,7 +2536,7 @@ export default function ManagementPage() {
             );
 
             setStage(planStage);
-            setProgramResourceFocus(null);
+            setProgramResourceFilters([]);
             setActiveSection('PROGRAM');
 
             if (card) {
