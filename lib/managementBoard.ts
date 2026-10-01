@@ -430,6 +430,7 @@ export function translateCandidateReason(code: string) {
     ROOM_CONFLICT: 'Salon aynı saatte kullanımda',
     ROOM_INACTIVE: 'Salon kullanımda değil',
     TEACHER_INACTIVE: 'Öğretmen atamaya kapalı',
+    TEACHER_UNAVAILABLE: 'Öğretmen bu saatte uygun değil',
     TEACHER_NOT_IN_REQUIREMENT_POOL: 'Öğretmen artık bu dersin öğretmen havuzunda değil',
     GROUP_CONFLICT: 'Öğrenci grubu aynı saatte başka derste',
     REQUIREMENT_TEACHER_MISMATCH: 'Bu dersin diğer bloklarında kullanılan öğretmenle eşleşmiyor',
