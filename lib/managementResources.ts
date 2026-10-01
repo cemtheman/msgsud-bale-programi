@@ -38,6 +38,11 @@ export interface ManagementTeacherResourceRow {
   operationalStatus: ManagementTeacherOperationalStatus;
   activeRequirementCount: number;
   placedBlockCount: number;
+  actualLoadPeriods: number;
+  minimumLoad: number | null;
+  targetLoad: number | null;
+  maximumLoad: number | null;
+  loadConfigured: boolean;
 }
 
 export interface ManagementRoomResourceRow {
@@ -72,6 +77,78 @@ interface TeacherRow {
   name: string;
   operational_status: ManagementTeacherOperationalStatus;
   archived_at: string | null;
+}
+
+interface TeacherLoadAuditRow {
+  teacherId: string;
+  minimumLoad: number | null;
+  targetLoad: number | null;
+  maximumLoad: number | null;
+  configured: boolean;
+  actualLoadPeriods: number;
+  placedBlockCount: number;
+  activeRequirementCount: number;
+}
+
+export interface ManagementTeacherLoadTargetsInput {
+  minimumLoad: number | null;
+  targetLoad: number | null;
+  maximumLoad: number | null;
+}
+
+export interface ManagementTeacherLoadTargetsResult
+  extends ManagementTeacherLoadTargetsInput {
+  teacherId: string;
+  teacherName?: string;
+  configured: boolean;
+  actualLoadPeriods: number;
+  placedBlockCount: number;
+  activeRequirementCount: number;
+  publishedChanged?: false;
+  solverBehaviorChanged?: false;
+}
+
+export function validateManagementTeacherLoadTargets(
+  input: ManagementTeacherLoadTargetsInput,
+) {
+  const values = [
+    ['Minimum', input.minimumLoad],
+    ['Hedef', input.targetLoad],
+    ['Maksimum', input.maximumLoad],
+  ] as const;
+
+  for (const [label, value] of values) {
+    if (value === null) continue;
+    if (!Number.isInteger(value) || value < 0 || value > 60) {
+      return `${label} yük 0 ile 60 arasında tam sayı olmalı.`;
+    }
+  }
+
+  if (
+    input.minimumLoad !== null
+    && input.targetLoad !== null
+    && input.minimumLoad > input.targetLoad
+  ) {
+    return 'Minimum yük hedef yükten büyük olamaz.';
+  }
+
+  if (
+    input.targetLoad !== null
+    && input.maximumLoad !== null
+    && input.targetLoad > input.maximumLoad
+  ) {
+    return 'Hedef yük maksimum yükten büyük olamaz.';
+  }
+
+  if (
+    input.minimumLoad !== null
+    && input.maximumLoad !== null
+    && input.minimumLoad > input.maximumLoad
+  ) {
+    return 'Minimum yük maksimum yükten büyük olamaz.';
+  }
+
+  return null;
 }
 
 interface RoomRow {
@@ -285,6 +362,34 @@ async function authedRpc<T>(
       throw new Error('Öğretmen durumu geçersiz.');
     }
 
+    if (normalized.includes('m39.0 teacher planning inputs require draft revision')) {
+      throw new Error('Öğretmen yük hedefleri yalnız taslak program için düzenlenebilir.');
+    }
+
+    if (normalized.includes('m39.0 active teacher resource not found')) {
+      throw new Error('Öğretmen artık aktif kaynaklar arasında değil. Veriyi yenileyin.');
+    }
+
+    if (normalized.includes('m39.0 minimum load cannot exceed target load')) {
+      throw new Error('Minimum yük hedef yükten büyük olamaz.');
+    }
+
+    if (normalized.includes('m39.0 target load cannot exceed maximum load')) {
+      throw new Error('Hedef yük maksimum yükten büyük olamaz.');
+    }
+
+    if (normalized.includes('m39.0 minimum load cannot exceed maximum load')) {
+      throw new Error('Minimum yük maksimum yükten büyük olamaz.');
+    }
+
+    if (
+      normalized.includes('m39.0 minimum load must be between 0 and 60')
+      || normalized.includes('m39.0 target load must be between 0 and 60')
+      || normalized.includes('m39.0 maximum load must be between 0 and 60')
+    ) {
+      throw new Error('Öğretmen yükü 0 ile 60 ders saati arasında olmalı.');
+    }
+
     throw new Error(message);
   }
 
@@ -312,6 +417,7 @@ export async function fetchManagementResources(
     placements,
     teacherNameOverrides,
     roomNameOverrides,
+    teacherLoadAudit,
   ] = await Promise.all([
     authedGet<TeacherRow[]>(
       'teachers?select=id,name,operational_status,archived_at&order=name.asc',
@@ -348,6 +454,13 @@ export async function fetchManagementResources(
     authedGet<RoomNameOverrideRow[]>(
       `management_room_name_overrides?select=room_id,display_name&schedule_revision_id=eq.${revision.id}`,
       accessToken,
+    ),
+    authedRpc<TeacherLoadAuditRow[]>(
+      'management_list_teacher_load_targets',
+      accessToken,
+      {
+        p_schedule_revision_id: revision.id,
+      },
     ),
   ]);
 
@@ -405,6 +518,10 @@ export async function fetchManagementResources(
     roomNameOverrides.map((row) => [row.room_id, row.display_name]),
   );
 
+  const teacherLoadById = new Map(
+    teacherLoadAudit.map((row) => [row.teacherId, row]),
+  );
+
   const archivedCanonicalRoomIds = new Set(
     rooms
       .filter((room) => !room.canonical_room_id && Boolean(room.archived_at))
@@ -454,6 +571,16 @@ export async function fetchManagementResources(
         activeTeacherRequirements.get(teacher.id)?.size ?? 0,
       placedBlockCount:
         teacherPlacedCounts.get(teacher.id) ?? 0,
+      actualLoadPeriods:
+        teacherLoadById.get(teacher.id)?.actualLoadPeriods ?? 0,
+      minimumLoad:
+        teacherLoadById.get(teacher.id)?.minimumLoad ?? null,
+      targetLoad:
+        teacherLoadById.get(teacher.id)?.targetLoad ?? null,
+      maximumLoad:
+        teacherLoadById.get(teacher.id)?.maximumLoad ?? null,
+      loadConfigured:
+        teacherLoadById.get(teacher.id)?.configured ?? false,
       };
     }),
     rooms: visibleRooms.map((room) => {
@@ -522,6 +649,25 @@ export function updateManagementRoomDisplayName(
       p_schedule_revision_id: revisionId,
       p_room_id: roomId,
       p_display_name: displayName,
+    },
+  );
+}
+
+export function updateManagementTeacherLoadTargets(
+  accessToken: string,
+  revisionId: string,
+  teacherId: string,
+  input: ManagementTeacherLoadTargetsInput,
+) {
+  return authedRpc<ManagementTeacherLoadTargetsResult>(
+    'management_set_teacher_load_targets',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_teacher_id: teacherId,
+      p_minimum_load: input.minimumLoad,
+      p_target_load: input.targetLoad,
+      p_maximum_load: input.maximumLoad,
     },
   );
 }
