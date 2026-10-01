@@ -57,6 +57,7 @@ import {
   createManagementRoomResource,
   createManagementTeacherResource,
   deleteManagementRoomResource,
+  deleteManagementTeacherResource,
   fetchManagementResources,
   previewManagementRoomOperationalStatus,
   previewManagementRoomProfile,
@@ -3115,6 +3116,30 @@ export default function ManagementPage() {
                   : mode === 'INACTIVATE_CLEAR'
                     ? `“${result.teacherName}” atamaya kapatıldı. ${result.placedBlockCount} program bloğu gün/saat/salon korunarak öğretmensiz bırakıldı.`
                     : `“${result.teacherName}” yeni atamalara kapatıldı; mevcut ${result.placedBlockCount} program bloğundaki öğretmen kaydı korundu.`,
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onDeleteTeacher={async (teacherId) => {
+            if (!session || !access?.canEdit || !resources) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Kullanılmayan öğretmen kaydı siliniyor.');
+
+            try {
+              await deleteManagementTeacherResource(
+                session.accessToken,
+                resources.revisionId,
+                teacherId,
+              );
+              setCommandNotice({
+                kind: 'success',
+                text: 'Kullanılmayan öğretmen kaydı silindi.',
               });
               setRefreshToken((value) => value + 1);
             } finally {
