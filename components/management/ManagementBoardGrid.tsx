@@ -604,7 +604,7 @@ export function ManagementBoardGrid({
         <div className="min-w-[948px]">
           <div className="grid grid-cols-[132px_repeat(12,minmax(68px,1fr))] border-b border-slate-200 bg-slate-50">
             <div className="sticky left-0 z-[60] border-r border-slate-200 bg-slate-50 px-4 py-3 text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400 shadow-[2px_0_4px_-3px_rgba(15,23,42,0.35)]">
-              Sınıf / Alan
+              {view === 'SINIFLAR' ? 'Sınıf / Alan' : view === 'ÖĞRETMENLER' ? 'Öğretmen' : 'Salon'}
             </div>
             {PERIODS.map((period) => (
               <div
@@ -731,6 +731,14 @@ export function ManagementBoardGrid({
                         const secondaryLabel = displayCard.grouped
                           ? displayCard.classCodes.join(' + ')
                           : compactCardGroupName(card);
+                        const missingTeacher = card.teacherRequirement === 'REQUIRED'
+                          && !placement.teacherId;
+                        const missingRoom = card.resourceMode !== 'UNKNOWN'
+                          && !placement.roomId;
+                        const resourceGapLabel = [
+                          missingTeacher ? 'Öğretmensiz' : null,
+                          missingRoom ? 'Salonsuz' : null,
+                        ].filter(Boolean).join(' · ');
 
                         return (
                           <button
@@ -774,14 +782,27 @@ export function ManagementBoardGrid({
                               height: cardHeight,
                             }}
                             title={
-                              displayCard.grouped
-                                ? `${card.subjectName} · ${displayCard.classCodes.join(' + ')} · ${displayCard.sourceCardIds.length} kayıt`
-                                : `${card.subjectName} · ${card.groupName}`
+                              `${
+                                displayCard.grouped
+                                  ? `${card.subjectName} · ${displayCard.classCodes.join(' + ')} · ${displayCard.sourceCardIds.length} kayıt`
+                                  : `${card.subjectName} · ${card.groupName}`
+                              }${resourceGapLabel ? ` · ⚠ ${resourceGapLabel}` : ''}`
                             }
                           >
-                            <p className="truncate text-[9.5px] font-semibold leading-tight">
+                            <p className={`truncate text-[9.5px] font-semibold leading-tight ${
+                              resourceGapLabel ? 'pr-3' : ''
+                            }`}>
                               {card.subjectName}
                             </p>
+                            {resourceGapLabel && (
+                              <span
+                                className="absolute right-1 top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-600 text-[8px] font-black text-white shadow-sm"
+                                title={resourceGapLabel}
+                                aria-label={resourceGapLabel}
+                              >
+                                !
+                              </span>
+                            )}
                             {secondaryLabel && (
                               <p className="mt-0.5 truncate text-[7.5px] font-medium leading-tight opacity-55">
                                 {secondaryLabel}
