@@ -1654,3 +1654,36 @@ Accepted:
 - M37.1 JWT resilience is closed unless a concrete regression is reproduced
 
 Checkpoint before journal commit: f310f6a90b92a6750530e460b5f65a26bf6a2931
+### M37 final acceptance — PASS / ready to merge
+
+Final verification:
+```
+20 test files PASS
+100 / 100 tests PASS
+Next.js production build PASS
+TypeScript PASS
+forced JWT-expiry browser acceptance PASS
+Operational Queue browser flow PASS
+```
+
+Accepted M37 scope:
+- Program Durumu operational queue for teacher/room gaps
+- exact-card `Aç ve ata` navigation
+- sequential previous/next gap navigation with x/n indicator
+- automatic advance after resolving a gap
+- duplicate health/publication issue presentation reduced
+- centralized management access-token refresh
+- 2-minute expiry safety window
+- concurrent refresh deduplication
+- all authenticated management modules use fresh-token resolution
+- raw `JWT expired` no longer surfaced in forced-expiry browser test
+
+Feature HEAD before this journal commit: 20bf4df1acc5787486b3e6df02ff423cba01ac51
+Branch vs main before close: ahead 21, behind 0
+
+Merge recommendation:
+- fast-forward M37 to main
+- treat resulting main SHA as the stable M37 checkpoint
+- start subsequent work from a fresh M38 branch
+
+Do not reopen M37 unless a concrete regression is reproduced.
