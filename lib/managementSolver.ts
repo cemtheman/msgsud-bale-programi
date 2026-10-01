@@ -279,6 +279,10 @@ function translateSolverError(message: string, fallback: string) {
     return 'Etkin profil için en az bir hedefe Kapalı dışında bir öncelik verin.';
   }
 
+  if (normalized.includes('m40 teacher load objective requires complete target loads')) {
+    return 'Öğretmen yük dengesi için planlamaya katılan tüm öğretmenlerde Hedef yük tanımlayın.';
+  }
+
   if (normalized.includes('unsupported objective')) {
     return 'Henüz veri modeli tamamlanmamış bir hedef etkinleştirilmeye çalışıldı.';
   }
