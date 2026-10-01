@@ -132,6 +132,12 @@ export interface ManagementSolverTeacher {
   operationalStatus: string;
 }
 
+export interface ManagementSolverTeacherUnavailablePeriod {
+  teacherId: string;
+  dayOfWeek: number;
+  period: number;
+}
+
 export interface ManagementSolverRoom {
   id: string;
   name: string;
@@ -175,6 +181,7 @@ export interface ManagementSolverSnapshotPreview {
   teacherPools: ManagementSolverTeacherPoolEntry[];
   roomPools: ManagementSolverRoomPoolEntry[];
   teachers: ManagementSolverTeacher[];
+  teacherUnavailablePeriods?: ManagementSolverTeacherUnavailablePeriod[];
   rooms: ManagementSolverRoom[];
   baselinePlacements: ManagementSolverBaselinePlacement[];
   baselineMetrics: ManagementSolverBaselineMetrics;
