@@ -1297,3 +1297,20 @@ Browser acceptance:
 7. repeat the same flow for a room gap if a safe test lesson is available
 
 Checkpoint before journal commit: f1f8969005d2c722b3c0d3c2b2cacff0aec1b5f0
+### M36 final static checkpoint
+
+Final implementation HEAD before this journal commit: `45e62944935a3fd8ce1b96cb478de5336467f273`
+
+Final refactor notes:
+- live teacher/room gap semantics are centralized in `cardHasMissingRequiredTeacher` / `cardHasMissingRequiredRoom`
+- Program filters, Program Durumu, and timetable warning badges use the same helpers
+- room-gap rule was checked against the schema: `resource_mode` is only `FIXED | ELIGIBLE_POOL | CAPABILITY | UNKNOWN`; therefore non-UNKNOWN + null placement room is a real operational gap
+- selected-card cleanup includes gap filters, so a resolved card automatically leaves the filtered view
+
+Final static proof:
+- all modified TS/TSX files have balanced braces / parentheses / brackets
+- M36 migration has 2 `$$` delimiters and exactly one transaction BEGIN/COMMIT
+- branch is based on accepted M35.2 and is behind 0
+- files changed from M35.2 baseline: 11
+
+Runtime acceptance still required in Codespaces before applying the M36 migration.
