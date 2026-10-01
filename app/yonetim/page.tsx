@@ -3460,7 +3460,7 @@ export default function ManagementPage() {
 
               setCommandNotice({
                 kind: result.unavailablePlacedBlockCount > 0
-                  ? 'warning'
+                  ? 'info'
                   : 'success',
                 text: result.availabilityConfigured
                   ? `${result.unavailablePeriodCount} uygun olmayan ders saati kaydedildi.${overlapText}`
