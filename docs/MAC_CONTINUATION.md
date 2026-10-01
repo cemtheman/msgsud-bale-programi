@@ -1905,3 +1905,18 @@ Status:
 - browser acceptance pending
 
 Checkpoint before journal commit: 4f936e9727534fae910a3fcde8d089c504297e8c
+### M38.1 browser acceptance — PASS
+
+Browser acceptance confirmed:
+- bulk teacher assignment history tooltip now uses semantic wording
+- observed tooltip: `... Armoni toplu öğretmen ataması · Test Öğretmen · 5 kayıt geri al`
+- legacy `taşıması` wording is no longer shown for placement-resource override history
+- multi-card bundle does not claim one shared day/period
+- resource target name and affected-record count are visible
+
+Accepted:
+- placement-resource override semantics are recovered correctly at history UI level
+- M29/M32 storage/replay mechanics remain unchanged
+- M38.1 semantic history labels are closed unless a concrete regression is reproduced
+
+Checkpoint before journal commit: 5467cd58f803ba26297df177c3a8c2e588d6bff9
