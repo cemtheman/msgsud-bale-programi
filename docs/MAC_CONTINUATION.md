@@ -2019,3 +2019,32 @@ Rule:
 - every new optimization input must be explicit, auditable and explainable
 
 M38 branch checkpoint before this diary commit: 602dd62b36c3ca8d7a4bfc06b458bdd7e2f0091e
+
+## 31. 1 Ekim 2026 — Vercel gate correction
+
+30 Eylül local-first politikasındaki production istisnası hatalıydı:
+`VERCEL_ENV=production` durumunda her `main` push'u build ediliyordu.
+Bu yüzden dokümantasyon ve ara checkpoint commit'leri Production deployment
+geçmişine girdi.
+
+Yeni ve bağlayıcı kural:
+
+```text
+normal commit       -> GitHub only, Vercel SKIP
+[deploy]            -> Preview build
+[prod]              -> Production build
+```
+
+Aktif Ignored Build Step:
+
+```sh
+if [ "$VERCEL_ENV" = "production" ]; then printf '%s' "$VERCEL_GIT_COMMIT_MESSAGE" | grep -qi '\[prod\]' && exit 1 || exit 0; else printf '%s' "$VERCEL_GIT_COMMIT_MESSAGE" | grep -qi '\[deploy\]' && exit 1 || exit 0; fi
+```
+
+Bundan sonra hiçbir günlük/checkpoint/merge sonrası housekeeping commit'i
+otomatik production build tetiklememelidir. Production ancak kullanıcı açıkça
+yayın istediğinde `[prod]` ile yapılır. Preview yalnız `[deploy]` ile yapılır.
+Localhost/Codespaces ana doğrulama ortamıdır.
+
+Bu kural 30 Eylül'deki "production her zaman build" notunun yerini alır.
+

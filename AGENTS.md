@@ -5526,3 +5526,38 @@ history item'ını yönetir.
 
 Bu davranış şu aşamada açıkça kayıtlı bir ürün/altyapı sınırıdır; universal resource undo
 istenirse ayrı backend history paketi açılmalıdır.
+
+## 83. 1 Ekim 2026 — Vercel production gate düzeltmesi
+
+30 Eylül'de tanımlanan ilk Ignored Build Step kuralında production için
+`exit 1` istisnası bırakıldığı fark edildi. Bunun sonucu olarak `main`
+branch'e gönderilen sıradan dokümantasyon/checkpoint commit'leri de Vercel
+tarafında Production build olarak çalıştı.
+
+**Bu eski kural artık geçersizdir.**
+
+1 Ekim 2026'da Vercel Ignored Build Step politikası sıkılaştırıldı:
+
+- `main` / production commit'i yalnız commit mesajında **`[prod]`** varsa build edilir.
+- feature/preview commit'i yalnız commit mesajında **`[deploy]`** varsa build edilir.
+- işaretsiz tüm commit/push'lar GitHub'a gider ancak Vercel build'i **SKIP** edilir.
+- mevcut production deployment, yeni build yapılmadığı sürece yayında kalır.
+
+Aktif Ignored Build Step komutu:
+
+```sh
+if [ "$VERCEL_ENV" = "production" ]; then printf '%s' "$VERCEL_GIT_COMMIT_MESSAGE" | grep -qi '\[prod\]' && exit 1 || exit 0; else printf '%s' "$VERCEL_GIT_COMMIT_MESSAGE" | grep -qi '\[deploy\]' && exit 1 || exit 0; fi
+```
+
+Kalıcı yayın sözleşmesi:
+
+- normal çalışma/checkpoint: işaretsiz commit → Vercel yok
+- preview: `[deploy]`
+- production: `[prod]`
+- `[prod]` yalnız kullanıcı production yayını istediğinde kullanılır
+- günlük/dokümantasyon commit'lerine `[prod]` eklenmez
+- local/Codespaces doğrulaması varsayılandır; Vercel yayın katmanıdır
+
+Bu bölüm, 30 Eylül'deki "production her zaman build edilir" ifadesini açıkça
+geçersiz kılar.
+
