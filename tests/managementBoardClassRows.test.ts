@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyManagementTeacherPolicyToCandidateDetail,
   buildManagementClassRows,
   buildManagementRowDisplayCards,
   cardBelongsToClassRow,
@@ -324,6 +325,47 @@ describe('management grade-group audience rows', () => {
       [first, second],
       'SINIFLAR',
     )).toHaveLength(2);
+  });
+
+  it('invalidates stale candidate teachers after a teacher leaves the live pool', () => {
+    const sourceCard = {
+      ...card('teacher-departure', ['SECTION'], ['5A']),
+      teacherMode: 'UNKNOWN',
+      teacherIds: [],
+      teacherNames: [],
+    };
+
+    const detail = applyManagementTeacherPolicyToCandidateDetail(
+      {
+        assessments: [
+          {
+            dayOfWeek: 1,
+            startPeriod: 3,
+            teacherId: 'teacher-left',
+            roomId: 'room-1',
+            status: 'VALID',
+            isComplete: true,
+            reasonCodes: [],
+          },
+        ],
+        reasonCounts: [],
+        validCandidates: [],
+        policyFilteredCount: 0,
+        policyResolvedTeacherId: null,
+        policyConflict: false,
+      },
+      sourceCard,
+      {
+        'teacher-left': 'INACTIVE',
+      },
+    );
+
+    expect(detail.validCandidates).toHaveLength(0);
+    expect(detail.assessments[0]).toMatchObject({
+      status: 'INVALID',
+      isComplete: false,
+    });
+    expect(detail.assessments[0].reasonCodes).toContain('TEACHER_INACTIVE');
   });
 
   it('keeps a source-confirmed audience row even before lesson cards exist', () => {
