@@ -2402,3 +2402,18 @@ After dry-run PASS:
 6. run load-weighted option generation; verify load metric is reported and no trial write occurs
 7. only explicit proposal confirmation may change placements
 8. mark M40 CLOSED/PASS and update checkpoints
+
+
+### M40 first validation gate result
+
+At `b6009c56337736674715671684da9b319fc478ab`:
+- tests: 21/21 files, 112/112 PASS
+- build: compile PASS, TypeScript failed in `managementSolverProposal.test.ts` due stale M33.3 fixture type
+- migration dry-run/push intentionally not reached
+
+Fixture was updated for M40 result contract:
+- engine `M40-v1`
+- teacher load target/range metrics
+- `teacherLoadBalance` score component
+
+Re-run test/build before any DB push.
