@@ -130,6 +130,25 @@ describe('teacher-policy-aware candidate reads', () => {
     expect(result.policyFilteredCount).toBe(0);
   });
 
+  it('rejects stale candidates that still reference an inactive room', () => {
+    const result = applyManagementTeacherPolicyToCandidateDetail(
+      detail(),
+      card({
+        teacherAssignmentScope: 'BLOCK',
+        teacherContinuity: 'NONE',
+      }),
+      {},
+      { room: 'OUT_OF_SERVICE' },
+    );
+
+    expect(result.validCandidates).toHaveLength(0);
+    expect(result.policyFilteredCount).toBe(2);
+    expect(result.reasonCounts).toContainEqual({
+      code: 'ROOM_INACTIVE',
+      count: 2,
+    });
+  });
+
   it('blocks teacher choices while a requirement itself has a continuity conflict', () => {
     const result = applyManagementTeacherPolicyToCandidateDetail(
       detail(),
