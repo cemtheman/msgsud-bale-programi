@@ -1563,3 +1563,21 @@ Browser smoke:
 4. previous/next moves across gaps and changes day automatically
 5. assign resource -> resolved card leaves the gap list and next unresolved card opens
 6. return to Program Durumu -> resolved item is gone from the operation queue
+### M37.0 code gate — PASS
+
+Final gate:
+```
+19 test files PASS
+98 / 98 tests PASS
+Next.js production build PASS (previous run; comparator-only follow-up did not affect build surface)
+```
+
+Regression fixed during gate:
+- dual-gap queue item ordering is now explicit: TEACHER before ROOM for the same lesson/slot
+- comparator no longer relies on alphabetical enum ordering
+
+Checkpoint before journal commit: 33d41ee9a427649208cd070326495b15971b435b
+
+Status:
+- code gate PASS
+- browser acceptance pending
