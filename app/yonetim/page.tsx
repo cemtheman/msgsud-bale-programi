@@ -192,7 +192,7 @@ function PartisyonMark({
 }) {
   return (
     <svg
-      viewBox="0 0 36 36"
+      viewBox="5.5 3.5 25.5 29"
       aria-hidden="true"
       className={className}
     >
@@ -236,9 +236,9 @@ function PartisyonBrand({
         </span>
         <span className="mt-0.5 flex items-end gap-0 whitespace-nowrap">
           <span className="grid shrink-0 place-items-center text-[#1437B8]">
-            <PartisyonMark className={compact ? 'h-7 w-7' : 'h-9 w-9'} />
+            <PartisyonMark className={compact ? 'h-[22px] w-auto translate-y-[1px]' : 'h-[30px] w-auto translate-y-[1px]'} />
           </span>
-          <span className={`-ml-[2px] pb-[1px] font-black leading-none tracking-[-0.045em] text-[#081736] ${compact ? 'text-[17px]' : 'text-[24px]'}`}>
+          <span className={`-ml-[1px] font-black leading-none tracking-[-0.045em] text-[#081736] ${compact ? 'text-[18px]' : 'text-[25px]'}`}>
             artisyon
           </span>
         </span>
