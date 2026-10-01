@@ -658,6 +658,28 @@ export default function ManagementPage() {
     visibleCards,
   ]);
 
+  const orderedOperationalGapCards = useMemo(() => {
+    if (!programGapFilter) return [];
+
+    return [...programCards]
+      .filter((card) => Boolean(card.placement))
+      .sort((left, right) => (
+        (left.placement?.dayOfWeek ?? 0) - (right.placement?.dayOfWeek ?? 0)
+        || (left.placement?.startPeriod ?? 0) - (right.placement?.startPeriod ?? 0)
+        || left.subjectName.localeCompare(right.subjectName, 'tr')
+        || left.groupName.localeCompare(right.groupName, 'tr')
+      ));
+  }, [programCards, programGapFilter]);
+
+  const selectedOperationalGapIndex = useMemo(
+    () => (
+      selectedCardId
+        ? orderedOperationalGapCards.findIndex((card) => card.id === selectedCardId)
+        : -1
+    ),
+    [orderedOperationalGapCards, selectedCardId],
+  );
+
   const programTeacherFilterOptions = useMemo(() => {
     if (!board) return [];
     const usedIds = new Set(
@@ -936,6 +958,34 @@ export default function ManagementPage() {
     );
   };
 
+  const openOperationalGapCard = (
+    card: ManagementBoardData['cards'][number],
+  ) => {
+    if (!programGapFilter || !card.placement) return;
+
+    setActiveDay(card.placement.dayOfWeek);
+    openCardInspector(
+      card.id,
+      [card.id],
+      programGapFilter === 'TEACHER' ? 'TEACHER' : 'ROOM',
+    );
+  };
+
+  const stepOperationalGap = (direction: -1 | 1) => {
+    if (!programGapFilter || orderedOperationalGapCards.length === 0) return;
+
+    const currentIndex = selectedOperationalGapIndex >= 0
+      ? selectedOperationalGapIndex
+      : 0;
+    const nextIndex = (
+      currentIndex
+      + direction
+      + orderedOperationalGapCards.length
+    ) % orderedOperationalGapCards.length;
+
+    openOperationalGapCard(orderedOperationalGapCards[nextIndex]);
+  };
+
   const handleHealthIssueAction = (issue: ManagementHealthIssue) => {
     if (!board || !issue.action) return;
 
@@ -1045,23 +1095,42 @@ export default function ManagementPage() {
   };
 
   useEffect(() => {
+    if (!selectedCard) return;
+
+    const outsideStageOrAudience = (
+      !cardMatchesStage(selectedCard, stage)
+      || !cardMatchesAudience(selectedCard, audienceFilter)
+    );
+    const outsideActiveFilter = (
+      (programResourceFilters.length > 0 || Boolean(programGapFilter))
+      && !programCards.some((card) => card.id === selectedCard.id)
+    );
+
+    if (!outsideStageOrAudience && !outsideActiveFilter) return;
+
     if (
-      selectedCard
-      && (
-        !cardMatchesStage(selectedCard, stage)
-        || !cardMatchesAudience(selectedCard, audienceFilter)
-        || (
-          (programResourceFilters.length > 0 || Boolean(programGapFilter))
-          && !programCards.some((card) => card.id === selectedCard.id)
-        )
-      )
+      programGapFilter
+      && !outsideStageOrAudience
+      && orderedOperationalGapCards.length > 0
     ) {
-      setSelectedCardId(null);
-      setSelectedCardIds([]);
-      setInspectorOpen(false);
+      const nextCard = orderedOperationalGapCards[0];
+      if (nextCard.id !== selectedCard.id && nextCard.placement) {
+        setActiveDay(nextCard.placement.dayOfWeek);
+        openCardInspector(
+          nextCard.id,
+          [nextCard.id],
+          programGapFilter === 'TEACHER' ? 'TEACHER' : 'ROOM',
+        );
+        return;
+      }
     }
+
+    setSelectedCardId(null);
+    setSelectedCardIds([]);
+    setInspectorOpen(false);
   }, [
     audienceFilter,
+    orderedOperationalGapCards,
     programCards,
     programGapFilter,
     programResourceFilters.length,
@@ -2295,6 +2364,34 @@ export default function ManagementPage() {
                     Salonsuz · {visibleMissingRoomCards.length}
                   </button>
                 )}
+              </div>
+            )}
+
+            {programGapFilter && orderedOperationalGapCards.length > 0 && (
+              <div className="flex shrink-0 items-center rounded-xl border border-slate-200 bg-white p-0.5">
+                <button
+                  type="button"
+                  onClick={() => stepOperationalGap(-1)}
+                  className="rounded-lg px-2 py-1.5 text-[10px] font-black text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  title="Önceki eksik kayıt"
+                >
+                  ‹
+                </button>
+                <span className="min-w-[44px] px-1 text-center text-[9px] font-black text-slate-600">
+                  {selectedOperationalGapIndex >= 0
+                    ? selectedOperationalGapIndex + 1
+                    : 1}
+                  {' / '}
+                  {orderedOperationalGapCards.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => stepOperationalGap(1)}
+                  className="rounded-lg px-2 py-1.5 text-[10px] font-black text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  title="Sonraki eksik kayıt"
+                >
+                  ›
+                </button>
               </div>
             )}
 
