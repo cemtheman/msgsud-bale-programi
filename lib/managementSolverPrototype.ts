@@ -1671,7 +1671,7 @@ export type ManagementOptimizationStatus =
   | 'BLOCKED';
 
 export interface ManagementOptimizationResult {
-  engineVersion: 'M33.3-v0';
+  engineVersion: 'M40-v1';
   status: ManagementOptimizationStatus;
   snapshotHash: string;
   baselineHash: string;
@@ -2226,7 +2226,7 @@ export function runManagementObjectiveOptimization(
   const blocked = (
     reason: string,
   ): ManagementOptimizationResult => ({
-    engineVersion: 'M33.3-v0',
+    engineVersion: 'M40-v1',
     status: 'BLOCKED',
     snapshotHash: snapshot.snapshotHash,
     baselineHash: snapshot.baselineHash,
@@ -2372,7 +2372,7 @@ export function runManagementObjectiveOptimization(
   );
 
   return {
-    engineVersion: 'M33.3-v0',
+    engineVersion: 'M40-v1',
     status: improved ? 'IMPROVED' : 'UNCHANGED',
     snapshotHash: snapshot.snapshotHash,
     baselineHash: snapshot.baselineHash,
