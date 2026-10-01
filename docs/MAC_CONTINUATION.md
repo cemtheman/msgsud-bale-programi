@@ -1344,3 +1344,91 @@ Required rerun before migration:
 npm test
 npm run build
 ```
+### M36 browser feedback + M36.1 corrective package — READY FOR CODE GATE
+
+Browser feedback after M36.0:
+- live teacher-gap detection: PASS
+- Program Durumu teacher-gap blocker: PASS
+- server publication blocker for missing required teacher: PASS
+- manual/temporary teacher UI opened correctly
+- placement resource preview failed with `column "card_id" does not exist`
+- room-gap flow could not be exercised because an in-use room could not be deleted/cleared
+
+Root cause of manual teacher failure:
+- M32.4.2 `management_preview_placement_resource_change_v2` CTE `effective_cards` exposes column `id`
+- function incorrectly aggregated `card_id` from that CTE
+- exact failing expression: `array_agg(card_id order by card_id)`
+- M36.1 corrects it to `array_agg(effective.id order by effective.id)`
+
+New follow-up migration:
+```
+20261001101500_management_m36_1_room_departure_and_override_fix.sql
+```
+
+M36.1 room departure model:
+- adds logical `rooms.archived_at`
+- adds `ROOM_DEPARTURE` as a first-class global RESOURCE history operation
+- used canonical room with no aliases can be removed while preserving lesson day/time/teacher
+- placement `room_id` becomes null; card remains in the same slot
+- explicit requirement room link is removed
+- if the removed room was the final explicit room, the existing non-UNKNOWN room requirement semantics are preserved so the lesson becomes a real `Salonsuz` operational gap
+- remaining explicit pools normalize to FIXED (1) / ELIGIBLE_POOL (>1)
+- CAPABILITY strategy metadata is preserved defensively
+- no synchronous candidate-domain rebuild is performed inside room departure
+- undo/redo restores exact room UUID, status/archive flag, requirement links, resource mode/capability, and placement room ids
+- archive is blocked for canonical rooms with aliases; alias-family retirement is intentionally not implemented in this package
+- unused alias-free rooms retain the existing physical delete path
+
+Client/UI:
+- in-use alias-free room `Sil` now opens an impact warning instead of being disabled
+- warning states that day/time/teacher stay fixed and the room becomes empty
+- archived canonical rooms disappear from Resources / Course Plan / Program room choices
+- stale persisted candidates referencing non-ACTIVE rooms are rejected live with `ROOM_INACTIVE`
+- roomless lesson manual choices show `Geçici / manuel seçim` outside the Course Plan room pool
+- command history label supports `ROOM_DEPARTURE`
+
+Regression coverage added:
+- `ROOM_DEPARTURE` is recognized by global resource history
+- stale candidates using OUT_OF_SERVICE rooms are rejected live
+
+Expected next test count:
+```
+18 test files
+94 tests
+```
+
+Static proof:
+- modified TS/TSX brace/paren/bracket counts balanced
+- M36.1 SQL has 18 `$$` delimiters (9 function bodies)
+- SQL comments/strings stripped: parentheses 197/197
+- broken `array_agg(card_id order by card_id)` occurrence: 0
+- corrected `array_agg(effective.id order by effective.id)` occurrence: 1
+
+Implementation HEAD before this journal commit: dc1b6893a3dce2f325f115a76c83a0f0d488b161
+
+Next gate — do NOT push migration before both commands pass:
+```bash
+git pull --ff-only
+npm test
+npm run build
+```
+
+Then:
+```bash
+npx supabase migration list | tail -15
+npx supabase db push --dry-run
+```
+
+Dry-run should show only:
+```
+20261001101500_management_m36_1_room_departure_and_override_fix.sql
+```
+
+Post-migration browser smoke:
+1. teacherless lesson -> manual teacher -> Etkiyi hesapla: no `card_id` error
+2. apply teacher -> same slot, teacher fills, teacher gap clears
+3. used alias-free room -> Kaynaklar / Salonlar / Sil -> warning modal
+4. apply room archive -> same day/time/teacher, room becomes empty
+5. Program shows `Salonsuz · N`; Program Durumu + publication gate block it
+6. assign active room -> same slot, room fills, gap clears
+7. Undo/Redo ROOM_DEPARTURE restores/clears exact room state
