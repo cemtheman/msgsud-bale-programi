@@ -2019,3 +2019,106 @@ Rule:
 - every new optimization input must be explicit, auditable and explainable
 
 M38 branch checkpoint before this diary commit: 602dd62b36c3ca8d7a4bfc06b458bdd7e2f0091e
+## 31. M39.0 teacher load planning foundation — READY FOR CODE GATE
+
+Main-roadmap return started after M38 closure.
+
+Goal:
+- create explicit term-scoped teacher load planning inputs before enabling any teacher-load optimizer objective
+- audit real weekly teacher load from the current DRAFT without trial writes
+- keep solver behavior unchanged in M39.0
+
+### Data model
+
+New migration:
+`20261001133000_management_m39_0_teacher_load_foundation.sql`
+
+New table:
+`management_teacher_planning_inputs`
+
+Scope:
+- key: `(requirement_set_id, teacher_id)`
+- `minimum_load`
+- `target_load`
+- `maximum_load`
+- values are weekly timetable periods, not permanent teacher attributes
+- every field is optional
+- range: 0..60
+- ordering guards: minimum <= target <= maximum when values are present
+- all-null input deletes the planning row instead of storing fake zero defaults
+
+New RPCs:
+- `management_list_teacher_load_targets(revision_id)`
+  - read-only VIEWER audit
+  - actual load = sum of placed active card `duration_periods`
+  - also returns placed block count and active requirement count
+- `management_set_teacher_load_targets(...)`
+  - EDITOR + DRAFT only
+  - explicit validation
+  - does not mutate placements/candidates/publication
+  - returns `solverBehaviorChanged=false`
+
+### Resources UI
+
+Teacher inventory now shows:
+- weekly actual load in periods/hours
+- placed block count as secondary context
+- `Min / Hedef / Maks` values
+- count of teachers with load targets configured
+- `Yük` action opens a compact planning editor
+
+Editor semantics:
+- fields may remain blank
+- blank != zero
+- current actual load is shown for comparison
+- clearing all targets removes the planning input row
+- UI states explicitly that optimizer behavior does not change yet
+
+### Client contract
+
+`ManagementTeacherResourceRow` gains:
+- `actualLoadPeriods`
+- `minimumLoad`
+- `targetLoad`
+- `maximumLoad`
+- `loadConfigured`
+
+New pure validator:
+`validateManagementTeacherLoadTargets()`
+
+Regression coverage:
+- empty/partial targets accepted
+- invalid min/target/max ordering rejected
+- non-integer / outside 0..60 rejected
+
+Expected gate after implementation:
+```
+21 test files
+107 tests
+```
+
+Important architecture rule:
+- M39.0 does NOT enable `teacherLoadBalance`
+- M39.0 does NOT change solver snapshot/objective scoring
+- M39.0 only establishes explicit institutional input + audit
+- hard availability/unavailability is intentionally deferred to M39.1
+
+Implementation HEAD before journal commit: b689dab1c9a7366075e7f7055520d16237cb8eac
+Branch vs main: ahead 5, behind 0
+
+Required code gate before DB push:
+```bash
+git pull --ff-only
+npm test
+npm run build
+```
+
+Only after code gate PASS:
+```bash
+npx supabase migration list | tail -25
+npx supabase db push --dry-run
+```
+
+Dry-run expectation:
+- only `20261001133000_management_m39_0_teacher_load_foundation.sql` should be pending
+- do not push if any unexpected migration appears
