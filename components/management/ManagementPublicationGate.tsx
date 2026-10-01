@@ -92,8 +92,12 @@ function reasonCount(
 
 export function ManagementPublicationGate({
   data,
+  suppressedBlockReasons = [],
+  suppressedWarningReasons = [],
 }: {
   data: ManagementPublicationGateData | null;
+  suppressedBlockReasons?: ManagementPublicationBlockReason[];
+  suppressedWarningReasons?: ManagementPublicationWarningReason[];
 }) {
   if (!data) {
     return (
@@ -106,6 +110,14 @@ export function ManagementPublicationGate({
   }
 
   const blocked = !data.canPublish;
+  const visibleBlockReasons = data.blockReasons.filter(
+    (reason) => !suppressedBlockReasons.includes(reason),
+  );
+  const visibleWarningReasons = data.warningReasons.filter(
+    (reason) => !suppressedWarningReasons.includes(reason),
+  );
+  const suppressedBlockCount = data.blockReasons.length - visibleBlockReasons.length;
+  const suppressedWarningCount = data.warningReasons.length - visibleWarningReasons.length;
   const baselineCurrentSessions = data.baseline.currentSessionCount ?? '–';
   const baselineExpectedSessions = data.baseline.expectedSessionCount ?? '–';
   const baselineCurrentGroups = data.baseline.currentGroupCount ?? '–';
@@ -226,13 +238,13 @@ export function ManagementPublicationGate({
         </span>
       </div>
 
-      {data.blockReasons.length > 0 && (
+      {visibleBlockReasons.length > 0 && (
         <div className="mt-4">
           <p className="text-[11px] font-black uppercase tracking-wide text-rose-600">
             Yayını şu anda engelleyenler
           </p>
           <div className="mt-2 grid gap-2 md:grid-cols-2">
-            {data.blockReasons.map((reason) => {
+            {visibleBlockReasons.map((reason) => {
               const meta = BLOCK_META[reason] ?? {
                 title: reason,
                 detail: 'Bu durum yayınlamayı şu anda engelliyor.',
@@ -263,13 +275,13 @@ export function ManagementPublicationGate({
         </div>
       )}
 
-      {data.warningReasons.length > 0 && (
+      {visibleWarningReasons.length > 0 && (
         <div className="mt-4">
           <p className="text-[11px] font-black uppercase tracking-wide text-amber-600">
             Yayın öncesi uyarılar
           </p>
           <div className="mt-2 grid gap-2 md:grid-cols-2">
-            {data.warningReasons.map((reason) => {
+            {visibleWarningReasons.map((reason) => {
               const meta = WARNING_META[reason] ?? {
                 title: reason,
                 detail: 'Bu durumu yayınlamadan önce gözden geçirmeniz önerilir.',
@@ -297,6 +309,24 @@ export function ManagementPublicationGate({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {(suppressedBlockCount > 0 || suppressedWarningCount > 0) && (
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
+            Yukarıdaki program durumu ile eşleşen kontroller
+          </p>
+          <p className="mt-1 text-[11px] font-medium leading-5 text-slate-600">
+            {suppressedBlockCount > 0
+              ? `${suppressedBlockCount} yayın engeli`
+              : ''}
+            {suppressedBlockCount > 0 && suppressedWarningCount > 0 ? ' · ' : ''}
+            {suppressedWarningCount > 0
+              ? `${suppressedWarningCount} yayın uyarısı`
+              : ''}
+            {' '}sunucu yayın kapısında da doğrulandı; aynı kayıtlar burada yeniden listelenmedi.
+          </p>
         </div>
       )}
 
