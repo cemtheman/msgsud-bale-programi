@@ -113,6 +113,12 @@ interface TeacherLoadAuditRow {
   unavailablePlacedBlockCount: number;
 }
 
+export const MANAGEMENT_TEACHER_LOAD_DEFAULTS = {
+  minimumLoad: 1,
+  targetLoad: 10,
+  maximumLoad: 20,
+} as const;
+
 export interface ManagementTeacherLoadTargetsInput {
   minimumLoad: number | null;
   targetLoad: number | null;
