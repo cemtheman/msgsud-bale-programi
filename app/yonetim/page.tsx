@@ -234,11 +234,11 @@ function PartisyonBrand({
         <span className={`block font-bold uppercase text-slate-400 ${compact ? 'text-[7px] tracking-[0.26em]' : 'text-[9px] tracking-[0.3em]'}`}>
           MSGSÜ İDK
         </span>
-        <span className="mt-0.5 flex items-end gap-0.5 whitespace-nowrap">
+        <span className="mt-0.5 flex items-end gap-0 whitespace-nowrap">
           <span className="grid shrink-0 place-items-center text-[#1437B8]">
             <PartisyonMark className={compact ? 'h-7 w-7' : 'h-9 w-9'} />
           </span>
-          <span className={`pb-[1px] font-black leading-none tracking-[-0.045em] text-[#081736] ${compact ? 'text-[17px]' : 'text-[24px]'}`}>
+          <span className={`-ml-[2px] pb-[1px] font-black leading-none tracking-[-0.045em] text-[#081736] ${compact ? 'text-[17px]' : 'text-[24px]'}`}>
             artisyon
           </span>
         </span>
