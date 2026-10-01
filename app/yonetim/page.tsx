@@ -72,6 +72,7 @@ import {
   updateManagementRoomDisplayName,
   updateManagementTeacherDisplayName,
   updateManagementTeacherLoadTargets,
+  updateManagementTeacherUnavailablePeriods,
   type ManagementResourceInventoryData,
 } from '@/lib/managementResources';
 import {
@@ -3427,6 +3428,43 @@ export default function ManagementPage() {
                 text: result.configured
                   ? `Öğretmen yük hedefleri ${label} olarak kaydedildi. Program ve yayın değişmedi.`
                   : 'Öğretmen yük hedefleri temizlendi. Program ve yayın değişmedi.',
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onUpdateTeacherUnavailablePeriods={async (
+            teacherId,
+            unavailablePeriods,
+          ) => {
+            if (!session || !access?.canEdit || !resources) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Öğretmenin uygun olmadığı saatler güncelleniyor.');
+
+            try {
+              const result = await updateManagementTeacherUnavailablePeriods(
+                session.accessToken,
+                resources.revisionId,
+                teacherId,
+                unavailablePeriods,
+              );
+
+              const overlapText = result.unavailablePlacedBlockCount > 0
+                ? ` ${result.unavailablePlacedBlockCount} mevcut program bloğu yeni hard kısıtla çakışıyor; program otomatik değiştirilmedi.`
+                : ' Mevcut program otomatik değiştirilmedi.';
+
+              setCommandNotice({
+                kind: result.unavailablePlacedBlockCount > 0
+                  ? 'warning'
+                  : 'success',
+                text: result.availabilityConfigured
+                  ? `${result.unavailablePeriodCount} uygun olmayan ders saati kaydedildi.${overlapText}`
+                  : `Öğretmenin hard uygunluk kısıtları temizlendi.${overlapText}`,
               });
               setRefreshToken((value) => value + 1);
             } finally {
