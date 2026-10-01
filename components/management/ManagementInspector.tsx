@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ManagementRoomStrategyEditor } from '@/components/management/ManagementRoomStrategyEditor';
 import {
   managementCardStatus,
@@ -179,6 +179,9 @@ export function ManagementInspector({
   const [planSaving, setPlanSaving] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
 
+  const placementEditSectionRef = useRef<HTMLDivElement | null>(null);
+  const candidateSectionRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     if (openIntent === 'CANDIDATES') {
       setShowGeneralCandidates(true);
@@ -196,6 +199,32 @@ export function ManagementInspector({
 
     setPlacementEditMode(null);
   }, [openIntent, openIntentNonce]);
+
+  useEffect(() => {
+    const target = openIntent === 'CANDIDATES'
+      ? candidateSectionRef.current
+      : openIntent === 'TEACHER' || openIntent === 'ROOM'
+        ? placementEditSectionRef.current
+        : null;
+
+    if (!target) return;
+
+    const timer = window.setTimeout(() => {
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest',
+      });
+    }, 80);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    candidateDetail,
+    openIntent,
+    openIntentNonce,
+    placementEditMode,
+    showGeneralCandidates,
+  ]);
 
 
   const focusCandidatesForTeacher = useMemo(
@@ -580,7 +609,14 @@ export function ManagementInspector({
 
 
       {placement && !candidateFocus && canEdit && (
-        <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+        <div
+          ref={placementEditSectionRef}
+          className={`mt-3 rounded-2xl border p-3 transition-all duration-300 ${
+            openIntent === 'TEACHER' || openIntent === 'ROOM'
+              ? 'border-blue-300 bg-blue-50/60 ring-2 ring-blue-200/70'
+              : 'border-slate-200 bg-slate-50/70'
+          }`}
+        >
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
             Yerleşimi düzenle
           </p>
@@ -1164,7 +1200,14 @@ export function ManagementInspector({
           </div>
 
           {!candidateFocus && candidateDetail.validCandidates.length > 0 && (
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+            <div
+              ref={candidateSectionRef}
+              className={`mt-4 rounded-2xl border p-3 transition-all duration-300 ${
+                openIntent === 'CANDIDATES'
+                  ? 'border-blue-300 bg-blue-50/60 ring-2 ring-blue-200/70'
+                  : 'border-slate-200 bg-slate-50/70'
+              }`}
+            >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
