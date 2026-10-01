@@ -611,7 +611,249 @@ where assessment.teacher_id is not null;
 
 
 -- -------------------------------------------------------------------------
--- D. M33 SNAPSHOT: SAME HARD RULE FOR SOLVER / OPTIMIZER
+-- D. PLACEMENT PREVIEW + LAST-LINE HARD ENFORCEMENT
+-- -------------------------------------------------------------------------
+-- M29/M32.4 manual teacher override is intentionally broader than the planning
+-- pool. Preserve that product rule, but surface hard availability in its
+-- preview and reject any write that would create an unavailable teacher/time
+-- tuple. Existing conflicting placements remain editable when teacher/day/start
+-- themselves do not change.
+
+alter function public.management_preview_placement_resource_change(
+  uuid[], text, uuid
+)
+  rename to management_preview_placement_resource_change_m39_base;
+
+revoke all
+  on function public.management_preview_placement_resource_change_m39_base(
+    uuid[], text, uuid
+  )
+  from public, anon, authenticated;
+
+create or replace function public.management_preview_placement_resource_change(
+  p_card_ids uuid[],
+  p_resource_type text,
+  p_resource_id uuid
+)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_base jsonb;
+  v_reasons text[] := array[]::text[];
+  v_impacts jsonb := '[]'::jsonb;
+  v_state_token text;
+begin
+  if session_user <> 'postgres'
+     and not public.has_management_role('EDITOR') then
+    raise exception 'M39.1 management EDITOR role required'
+      using errcode = '42501';
+  end if;
+
+  v_base :=
+    public.management_preview_placement_resource_change_m39_base(
+      p_card_ids,
+      p_resource_type,
+      p_resource_id
+    );
+
+  if p_resource_type <> 'TEACHER' then
+    return v_base || jsonb_build_object(
+      'teacherAvailabilityImpacts', '[]'::jsonb,
+      'availabilityEngineVersion', 'M39.1-v1'
+    );
+  end if;
+
+  with target as (
+    select
+      card.id as card_id,
+      card.duration_periods,
+      revision.requirement_set_id,
+      placement.day_of_week,
+      placement.start_period
+    from jsonb_array_elements_text(
+      coalesce(v_base -> 'cardIds', '[]'::jsonb)
+    ) selected(value)
+    join public.schedule_cards card
+      on card.id = selected.value::uuid
+    join public.schedule_revisions revision
+      on revision.id = card.schedule_revision_id
+    join public.placements placement
+      on placement.card_id = card.id
+  ),
+  blocked as (
+    select
+      target.card_id,
+      target.day_of_week,
+      target.start_period,
+      array_agg(slot.period order by slot.period)::integer[]
+        as unavailable_periods
+    from target
+    join public.management_teacher_unavailable_periods slot
+      on slot.requirement_set_id = target.requirement_set_id
+     and slot.teacher_id = p_resource_id
+     and slot.day_of_week = target.day_of_week
+     and slot.period between
+       target.start_period
+       and target.start_period + target.duration_periods - 1
+    group by
+      target.card_id,
+      target.day_of_week,
+      target.start_period
+  )
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'cardId', blocked.card_id,
+        'dayOfWeek', blocked.day_of_week,
+        'startPeriod', blocked.start_period,
+        'unavailablePeriods', to_jsonb(blocked.unavailable_periods)
+      )
+      order by blocked.day_of_week, blocked.start_period, blocked.card_id
+    ),
+    '[]'::jsonb
+  )
+  into v_impacts
+  from blocked;
+
+  select coalesce(
+    array_agg(distinct reason order by reason),
+    array[]::text[]
+  )
+  into v_reasons
+  from (
+    select jsonb_array_elements_text(
+      coalesce(v_base -> 'blockReasons', '[]'::jsonb)
+    ) as reason
+
+    union all
+
+    select 'TEACHER_UNAVAILABLE'
+    where jsonb_array_length(v_impacts) > 0
+  ) combined;
+
+  v_state_token := md5(
+    jsonb_build_object(
+      'baseStateToken', v_base ->> 'stateToken',
+      'teacherId', p_resource_id,
+      'availabilityImpacts', v_impacts
+    )::text
+  );
+
+  return v_base || jsonb_build_object(
+    'canApply', (
+      coalesce((v_base ->> 'canApply')::boolean, false)
+      and jsonb_array_length(v_impacts) = 0
+    ),
+    'blockReasons', to_jsonb(v_reasons),
+    'teacherAvailabilityImpacts', v_impacts,
+    'stateToken', v_state_token,
+    'availabilityEngineVersion', 'M39.1-v1'
+  );
+end
+$$;
+
+revoke all
+  on function public.management_preview_placement_resource_change(
+    uuid[], text, uuid
+  )
+  from public, anon;
+
+grant execute
+  on function public.management_preview_placement_resource_change(
+    uuid[], text, uuid
+  )
+  to authenticated;
+
+
+create or replace function
+  public.management_enforce_teacher_hard_availability_placement()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_requirement_set_id uuid;
+  v_duration_periods integer;
+begin
+  if new.teacher_id is null
+     or new.day_of_week is null
+     or new.start_period is null then
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE'
+     and new.card_id is not distinct from old.card_id
+     and new.teacher_id is not distinct from old.teacher_id
+     and new.day_of_week is not distinct from old.day_of_week
+     and new.start_period is not distinct from old.start_period then
+    return new;
+  end if;
+
+  select
+    revision.requirement_set_id,
+    card.duration_periods
+  into
+    v_requirement_set_id,
+    v_duration_periods
+  from public.schedule_cards card
+  join public.schedule_revisions revision
+    on revision.id = card.schedule_revision_id
+  where card.id = new.card_id;
+
+  if exists (
+    select 1
+    from public.management_teacher_unavailable_periods slot
+    where slot.requirement_set_id = v_requirement_set_id
+      and slot.teacher_id = new.teacher_id
+      and slot.day_of_week = new.day_of_week
+      and slot.period between
+        new.start_period
+        and new.start_period + v_duration_periods - 1
+  ) then
+    raise exception
+      'M39.1 placement teacher is hard unavailable for selected slot'
+      using errcode = '23514';
+  end if;
+
+  return new;
+end
+$$;
+
+drop trigger if exists
+  zy_management_teacher_availability_placement_insert
+  on public.placements;
+
+create trigger zy_management_teacher_availability_placement_insert
+before insert
+on public.placements
+for each row
+execute function
+  public.management_enforce_teacher_hard_availability_placement();
+
+drop trigger if exists
+  zy_management_teacher_availability_placement_update
+  on public.placements;
+
+create trigger zy_management_teacher_availability_placement_update
+before update of card_id, day_of_week, start_period, teacher_id
+on public.placements
+for each row
+execute function
+  public.management_enforce_teacher_hard_availability_placement();
+
+revoke all
+  on function
+    public.management_enforce_teacher_hard_availability_placement()
+  from public, anon, authenticated;
+
+
+-- -------------------------------------------------------------------------
+-- E. M33 SNAPSHOT: SAME HARD RULE FOR SOLVER / OPTIMIZER
 -- -------------------------------------------------------------------------
 -- Preserve the established M33 snapshot builder as a private base and wrap it
 -- instead of copying the large, already accepted structural contract.
@@ -823,6 +1065,11 @@ comment on function public.management_set_teacher_unavailable_periods(
   uuid, uuid, jsonb
 ) is
   'M39.1 replaces one active teacher hard-unavailability set for the term, reclassifies persisted candidate rows, and leaves current placements/publication unchanged.';
+
+comment on function public.management_preview_placement_resource_change(
+  uuid[], text, uuid
+) is
+  'M39.1 availability-aware wrapper around M29 placement-resource preview. Manual teacher override remains allowed only outside hard-unavailable teacher/time slots.';
 
 comment on function public.management_preview_solver_snapshot(uuid, uuid) is
   'M39.1 M33 snapshot wrapper that adds term-scoped teacher hard-unavailability slots to structural solver input and snapshot hashing.';
