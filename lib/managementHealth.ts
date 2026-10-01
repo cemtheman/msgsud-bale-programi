@@ -1,6 +1,8 @@
 'use client';
 
 import {
+  cardHasMissingRequiredRoom,
+  cardHasMissingRequiredTeacher,
   cardMatchesStage,
   type ManagementBoardData,
   type ManagementStage,
@@ -57,19 +59,11 @@ export function deriveManagementHealth(
     : board.cards;
 
   const missingPlacedTeacher = cards.filter(
-    (card) => (
-      Boolean(card.placement)
-      && card.teacherRequirement === 'REQUIRED'
-      && !card.placement?.teacherId
-    ),
+    cardHasMissingRequiredTeacher,
   );
 
   const missingPlacedRoom = cards.filter(
-    (card) => (
-      Boolean(card.placement)
-      && card.resourceMode !== 'UNKNOWN'
-      && !card.placement?.roomId
-    ),
+    cardHasMissingRequiredRoom,
   );
 
   const directResourceGapCardIds = new Set([
