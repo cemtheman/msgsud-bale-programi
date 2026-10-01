@@ -106,6 +106,32 @@ describe('M34 unified management history state', () => {
     });
   });
 
+  it('exposes teacher departure as a first-class resource history action', () => {
+    const state = deriveManagementCommandState([
+      tx({
+        id: 'departure-5',
+        action: 'RESOURCE',
+        history_sequence: 5,
+        payload: {
+          source: 'MANUAL',
+          resource_operation: 'TEACHER_DEPARTURE',
+          resource_type: 'TEACHER',
+          resource_id: 'teacher-5',
+          resource_name: 'Geçici Öğretmen',
+        },
+      }),
+    ]);
+
+    expect(state.undo).toMatchObject({
+      transactionId: 'departure-5',
+      action: 'RESOURCE',
+      resourceOperation: 'TEACHER_DEPARTURE',
+      resourceType: 'TEACHER',
+      resourceId: 'teacher-5',
+      resourceName: 'Geçici Öğretmen',
+    });
+  });
+
   it('invalidates a pending resource redo after a newer manual decision', () => {
     const state = deriveManagementCommandState([
       tx({
