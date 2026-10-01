@@ -259,7 +259,7 @@ export async function fetchManagementAccessContext(
     method: 'POST',
     headers: {
       apikey: key,
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
       'Content-Type': 'application/json',
     },
     body: '{}',
