@@ -79,6 +79,7 @@ interface RoomRow {
   knowledge_status: ManagementResourceKnowledgeStatus | null;
   operational_status: ManagementRoomOperationalStatus;
   capabilities: string[] | null;
+  archived_at: string | null;
 }
 
 interface RequirementRow {
@@ -303,7 +304,7 @@ export async function fetchManagementResources(
       accessToken,
     ),
     authedGet<RoomRow[]>(
-      'rooms?select=id,name,canonical_room_id,knowledge_status,operational_status,capabilities&order=name.asc',
+      'rooms?select=id,name,canonical_room_id,knowledge_status,operational_status,capabilities,archived_at&order=name.asc',
       accessToken,
     ),
     authedGet<RequirementRow[]>(
@@ -390,6 +391,19 @@ export async function fetchManagementResources(
     roomNameOverrides.map((row) => [row.room_id, row.display_name]),
   );
 
+  const archivedCanonicalRoomIds = new Set(
+    rooms
+      .filter((room) => !room.canonical_room_id && Boolean(room.archived_at))
+      .map((room) => room.id),
+  );
+  const visibleRooms = rooms.filter((room) => (
+    !room.archived_at
+    && (
+      !room.canonical_room_id
+      || !archivedCanonicalRoomIds.has(room.canonical_room_id)
+    )
+  ));
+
   const resolvedRoomNameById = new Map(
     rooms.map((room) => [
       room.id,
@@ -398,7 +412,7 @@ export async function fetchManagementResources(
   );
   const aliasCountByCanonical = new Map<string, number>();
 
-  rooms.forEach((room) => {
+  visibleRooms.forEach((room) => {
     if (!room.canonical_room_id) return;
     aliasCountByCanonical.set(
       room.canonical_room_id,
@@ -428,7 +442,7 @@ export async function fetchManagementResources(
         teacherPlacedCounts.get(teacher.id) ?? 0,
       };
     }),
-    rooms: rooms.map((room) => {
+    rooms: visibleRooms.map((room) => {
       const overrideName = roomOverrideById.get(room.id);
 
       return {
@@ -756,6 +770,71 @@ export function applyManagementTeacherDeparture(
     {
       p_schedule_revision_id: revisionId,
       p_teacher_id: teacherId,
+      p_mode: mode,
+      p_expected_state_token: expectedStateToken,
+    },
+  );
+}
+
+export type ManagementRoomDepartureMode =
+  | 'OUT_OF_SERVICE_KEEP'
+  | 'OUT_OF_SERVICE_CLEAR'
+  | 'ARCHIVE_CLEAR';
+
+export interface ManagementRoomDeparturePreview {
+  roomId: string;
+  roomName: string;
+  operationalStatus: ManagementRoomOperationalStatus;
+  assignmentCount: number;
+  activeRequirementCount: number;
+  placedBlockCount: number;
+  aliasCount: number;
+  stateToken: string;
+  publishedChanged: false;
+}
+
+export interface ManagementRoomDepartureApplyResult {
+  applied: boolean;
+  roomId: string;
+  roomName: string;
+  mode: ManagementRoomDepartureMode;
+  assignmentCount: number;
+  placedBlockCount: number;
+  aliasCount: number;
+  candidateRebuildCardCount: number;
+  historyTransactionId: string;
+  archived: boolean;
+  publishedChanged: false;
+}
+
+export function previewManagementRoomDeparture(
+  accessToken: string,
+  revisionId: string,
+  roomId: string,
+) {
+  return authedRpc<ManagementRoomDeparturePreview>(
+    'management_preview_room_departure',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_room_id: roomId,
+    },
+  );
+}
+
+export function applyManagementRoomDeparture(
+  accessToken: string,
+  revisionId: string,
+  roomId: string,
+  mode: ManagementRoomDepartureMode,
+  expectedStateToken: string,
+) {
+  return authedRpc<ManagementRoomDepartureApplyResult>(
+    'management_apply_room_departure',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_room_id: roomId,
       p_mode: mode,
       p_expected_state_token: expectedStateToken,
     },
