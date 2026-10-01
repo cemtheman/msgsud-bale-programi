@@ -1810,3 +1810,20 @@ Status:
 - browser acceptance pending
 
 Checkpoint before journal commit: c39277cfeb31701ffaa0f1e97edebb8ef165cb05
+### M38.0 browser acceptance — PASS
+
+Browser acceptance confirmed:
+- bulk teacher assignment flow completed successfully
+- selected cards were updated through the existing placement-resource authority
+- resulting operation remained in global history
+- a single `Geri Al` action restored the bulk assignment bundle
+- screenshot confirmation shows the grouped Armoni operation restored with teacher/room context preserved
+
+Accepted:
+- bulk preview/apply path works in the real management UI
+- bundle-root history semantics are preserved
+- M38.0 teacher bulk operation is closed unless a concrete regression is reproduced
+
+Room bulk flow remains the same code path with resource type ROOM; repeat browser smoke only when 2+ real room gaps are available.
+
+Checkpoint before journal commit: 0c4e7243c3f3ba0ce02801250c5f97f97211e0ab
