@@ -68,6 +68,8 @@ export interface ManagementSolverBaselineMetrics {
   preferredTeacherContinuityBreaks: number;
   teacherIdleGapPeriods: number;
   roomStabilityBreaks: number;
+  teacherLoadTargetDeviationPeriods?: number;
+  teacherLoadRangeViolationPeriods?: number;
 }
 
 export interface ManagementSolverRequirement {
@@ -138,6 +140,28 @@ export interface ManagementSolverTeacherUnavailablePeriod {
   period: number;
 }
 
+export interface ManagementSolverTeacherLoadTarget {
+  teacherId: string;
+  minimumLoad: number | null;
+  targetLoad: number | null;
+  maximumLoad: number | null;
+  actualLoadPeriods: number;
+  relevant: boolean;
+}
+
+export interface ManagementSolverTeacherLoadReadiness {
+  ready: boolean;
+  relevantTeacherCount: number;
+  configuredTeacherCount: number;
+  targetConfiguredTeacherCount: number;
+  missingTargetTeacherCount: number;
+  partialTeacherCount: number;
+  baselineBelowMinimumTeacherCount: number;
+  baselineAboveMaximumTeacherCount: number;
+  baselineTargetDeviationPeriods: number;
+  baselineRangeViolationPeriods: number;
+}
+
 export interface ManagementSolverRoom {
   id: string;
   name: string;
@@ -182,6 +206,8 @@ export interface ManagementSolverSnapshotPreview {
   roomPools: ManagementSolverRoomPoolEntry[];
   teachers: ManagementSolverTeacher[];
   teacherUnavailablePeriods?: ManagementSolverTeacherUnavailablePeriod[];
+  teacherLoadTargets?: ManagementSolverTeacherLoadTarget[];
+  teacherLoadReadiness?: ManagementSolverTeacherLoadReadiness;
   rooms: ManagementSolverRoom[];
   baselinePlacements: ManagementSolverBaselinePlacement[];
   baselineMetrics: ManagementSolverBaselineMetrics;
@@ -203,6 +229,7 @@ export interface ManagementSolverSnapshotPreview {
     provisionalInputs?: ManagementSolverProvisionalInput[];
     resourceUnknownSemantics?: string;
     missingOptionalModelInputs: string[];
+    teacherLoadReadiness?: ManagementSolverTeacherLoadReadiness;
     objectiveProfileValidation: ManagementSolverObjectiveValidation;
   };
 }
