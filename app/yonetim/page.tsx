@@ -71,6 +71,7 @@ import {
   setManagementTeacherOperationalStatus,
   updateManagementRoomDisplayName,
   updateManagementTeacherDisplayName,
+  updateManagementTeacherLoadTargets,
   type ManagementResourceInventoryData,
 } from '@/lib/managementResources';
 import {
@@ -3392,6 +3393,40 @@ export default function ManagementPage() {
                 text: operationalStatus === 'ACTIVE'
                   ? `Öğretmen atamaya açıldı. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`
                   : `Öğretmen atamaya kapatıldı. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`,
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
+          }}
+          onUpdateTeacherLoadTargets={async (teacherId, input) => {
+            if (!session || !access?.canEdit || !resources) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Öğretmenin dönemlik yük hedefleri güncelleniyor.');
+
+            try {
+              const result = await updateManagementTeacherLoadTargets(
+                session.accessToken,
+                resources.revisionId,
+                teacherId,
+                input,
+              );
+
+              const label = [
+                result.minimumLoad ?? '–',
+                result.targetLoad ?? '–',
+                result.maximumLoad ?? '–',
+              ].join(' / ');
+
+              setCommandNotice({
+                kind: 'success',
+                text: result.configured
+                  ? `Öğretmen yük hedefleri ${label} olarak kaydedildi. Program ve yayın değişmedi.`
+                  : 'Öğretmen yük hedefleri temizlendi. Program ve yayın değişmedi.',
               });
               setRefreshToken((value) => value + 1);
             } finally {
