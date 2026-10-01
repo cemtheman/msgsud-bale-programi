@@ -408,6 +408,8 @@ export default function ManagementPage() {
     y: number;
   } | null>(null);
   const [programFilterQuery, setProgramFilterQuery] = useState('');
+  const [programFilterMode, setProgramFilterMode] =
+    useState<'ANY' | 'INTERSECTION'>('ANY');
   const [audienceFilter, setAudienceFilter] =
     useState<ManagementAudienceScope>('ALL');
 
@@ -628,20 +630,30 @@ export default function ManagementPage() {
     return visibleCards.filter((card) => {
       if (!card.placement) return false;
 
-      const teacherMatches = teacherIds.size === 0
-        || (
-          Boolean(card.placement.teacherId)
-          && teacherIds.has(card.placement.teacherId as string)
-        );
-      const roomMatches = roomIds.size === 0
-        || (
-          Boolean(card.placement.roomId)
-          && roomIds.has(card.placement.roomId as string)
-        );
+      const hasTeacherFilters = teacherIds.size > 0;
+      const hasRoomFilters = roomIds.size > 0;
+      const teacherMatches = Boolean(
+        card.placement.teacherId
+        && teacherIds.has(card.placement.teacherId),
+      );
+      const roomMatches = Boolean(
+        card.placement.roomId
+        && roomIds.has(card.placement.roomId),
+      );
 
-      return teacherMatches && roomMatches;
+      if (programFilterMode === 'ANY') {
+        return (
+          (hasTeacherFilters && teacherMatches)
+          || (hasRoomFilters && roomMatches)
+        );
+      }
+
+      return (
+        (!hasTeacherFilters || teacherMatches)
+        && (!hasRoomFilters || roomMatches)
+      );
     });
-  }, [programResourceFilters, visibleCards]);
+  }, [programFilterMode, programResourceFilters, visibleCards]);
 
   const programTeacherFilterOptions = useMemo(() => {
     if (!board) return [];
@@ -909,6 +921,7 @@ export default function ManagementPage() {
       id: resourceId,
       label: resourceName,
     }]);
+    setProgramFilterMode('ANY');
     setAudienceFilter('ALL');
     setPoolOpen(false);
     setSelectedCardId(null);
@@ -2266,7 +2279,7 @@ export default function ManagementPage() {
                 Öğretmen ve salon
               </p>
               <p className="mt-1 text-[9px] font-medium leading-4 text-slate-500">
-                Aynı türde seçimler “veya”; öğretmen ve salon birlikte seçilirse iki koşul da aranır.
+                Çoklu seçimlerin nasıl birleşeceğini aşağıdaki eşleşme modundan seçin.
               </p>
             </div>
             <button
@@ -2276,6 +2289,45 @@ export default function ManagementPage() {
               aria-label="Filtre menüsünü kapat"
             >
               ×
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 px-4 pt-3">
+            <button
+              type="button"
+              onClick={() => setProgramFilterMode('ANY')}
+              className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                programFilterMode === 'ANY'
+                  ? 'border-slate-950 bg-slate-950 text-white'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span className="block text-[10px] font-black">
+                Herhangi biri · VEYA
+              </span>
+              <span className={`mt-0.5 block text-[9px] font-medium leading-4 ${
+                programFilterMode === 'ANY' ? 'text-slate-300' : 'text-slate-500'
+              }`}>
+                Seçilen öğretmen veya salonlardan herhangi biri eşleşsin.
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setProgramFilterMode('INTERSECTION')}
+              className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                programFilterMode === 'INTERSECTION'
+                  ? 'border-slate-950 bg-slate-950 text-white'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span className="block text-[10px] font-black">
+                Kesişim · VE
+              </span>
+              <span className={`mt-0.5 block text-[9px] font-medium leading-4 ${
+                programFilterMode === 'INTERSECTION' ? 'text-slate-300' : 'text-slate-500'
+              }`}>
+                Öğretmen grubundan biri ve salon grubundan biri aynı derste eşleşsin.
+              </span>
             </button>
           </div>
 
@@ -2382,7 +2434,7 @@ export default function ManagementPage() {
 
           <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
             <span className="text-[9px] font-semibold text-slate-400">
-              {programResourceFilters.length} filtre seçili
+              {programResourceFilters.length} filtre seçili · {programFilterMode === 'ANY' ? 'VEYA' : 'VE'}
             </span>
             <button
               type="button"
