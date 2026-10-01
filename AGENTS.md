@@ -14,7 +14,7 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-m39-teacher-planning-inputs` |
 | Son doğrulanmış implementation checkpoint | `8ac11517018e1047c50bef46fe558903c91198a9` — M39.1 CLOSED/PASS; 21/21 test files, 110/110 tests, build + DB + browser hard-block acceptance PASS |
-| Aktif implementation checkpoint | `6c0899981dd92e00fa7da312576df073c0f9f13f` — M40 teacher load readiness/objective implementation; validation gate pending |
+| Aktif implementation checkpoint | `2e46862b8a18bbed9abed566c495e10ed9a61148` — M40 teacher load readiness/objective implementation + proposal fixture alignment; validation gate pending |
 | Implementation commit | `M40 teacher load readiness + contextual objective support + in-memory load metric + Resources/Öncelikler UI` |
 | Son documentation checkpoint | `docs/MAC_CONTINUATION.md` M39.1 close; M40 implementation handoff bu oturumda ekleniyor |
 | Son kullanıcı/QA kabulü | **M39.1 CLOSED/PASS** — 21/21 test files, 110/110 tests; Next/TypeScript/PWA build PASS; three-slot availability save + overlap audit + manual hard-block browser PASS |
@@ -5861,3 +5861,23 @@ Only after code/build/dry-run PASS:
 - Öncelikler load objective readiness/metric smoke
 - verify proposal remains explicit/read-only until user confirms apply
 - then update this diary to M40 CLOSED/PASS
+
+
+### M40 validation note — first code gate
+
+First Codespaces gate at `b6009c56337736674715671684da9b319fc478ab`:
+- Vitest PASS: 21/21 files, 112/112 tests
+- production compile reached TypeScript
+- build failed only because `lib/managementSolverProposal.test.ts` still used the pre-M40 `ManagementOptimizationResult` fixture shape:
+  - `engineVersion: M33.3-v0`
+  - missing load metric fields
+  - missing `teacherLoadBalance` score component
+- DB dry-run was correctly not reached/pushed
+
+Fix:
+- proposal fixture aligned to `M40-v1`
+- zero-valued teacher load target/range metrics added to baseline/proposed/delta fixture
+- zero-weight `teacherLoadBalance` score component added to baseline/proposed fixture
+- proposal contract note aligned to M40
+
+M40 remains **VALIDATION PENDING** until test/build rerun and migration dry-run PASS.
