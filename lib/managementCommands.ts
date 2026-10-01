@@ -11,7 +11,8 @@ export type ManagementResourceHistoryOperation =
   | 'TEACHER_CREATE'
   | 'ROOM_CREATE'
   | 'TEACHER_DELETE'
-  | 'ROOM_DELETE';
+  | 'ROOM_DELETE'
+  | 'TEACHER_DEPARTURE';
 
 export interface ManagementCommandDescriptor {
   transactionId: string;
