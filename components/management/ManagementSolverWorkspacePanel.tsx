@@ -48,6 +48,7 @@ const BASELINE_ISSUE_LABELS: Record<string, string> = {
   BASELINE_TIME_INVALID: 'Gün veya saat kurala uymuyor',
   REQUIRED_TEACHER_MISSING: 'Öğretmen belirtilmemiş',
   BASELINE_TEACHER_INACTIVE: 'Öğretmen kullanım dışı',
+  BASELINE_TEACHER_UNAVAILABLE: 'Öğretmen bu saatte uygun değil',
   BASELINE_TEACHER_OUTSIDE_PLANNING_POOL: 'Bu öğretmen otomatik yerleştirmede seçilemiyor',
   BASELINE_TEACHER_NOT_ALLOWED: 'Bu öğretmen bu ders için kullanılamıyor',
   BASELINE_ROOM_INACTIVE: 'Salon kullanım dışı',
@@ -156,6 +157,22 @@ const OBJECTIVES: Array<{
       'Aynı dersin farklı günlerde gereksiz yere farklı salonlara taşınmasını azaltır.',
     baseline: (workspace) =>
       `Mevcut programda: ${workspace.preview.baselineMetrics.roomStabilityBreaks} salon değişimi`,
+  },
+  {
+    key: 'teacherLoadBalance',
+    title: 'Öğretmen yüklerini hedeflere yaklaştır',
+    summary:
+      'Hedef ders yüklerine yaklaşmayı; varsa en az/en fazla bandında kalmayı tercih eder.',
+    baseline: (workspace) => {
+      const readiness = workspace.preview.teacherLoadReadiness
+        ?? workspace.preview.readiness.teacherLoadReadiness;
+
+      if (!readiness?.ready) {
+        return `${readiness?.missingTargetTeacherCount ?? 0} öğretmende hedef yük eksik`;
+      }
+
+      return `Mevcut program: ${readiness.baselineTargetDeviationPeriods} saat hedef sapması · ${readiness.baselineRangeViolationPeriods} saat bant dışı`;
+    },
   },
 ];
 
@@ -285,6 +302,11 @@ export function ManagementSolverWorkspacePanel({
   const unknownRooms = provisionalInputs.find(
     (item) => item.code === 'RESOURCE_MODE_UNKNOWN',
   ) ?? null;
+  const loadReadiness = data.preview.teacherLoadReadiness
+    ?? data.preview.readiness.teacherLoadReadiness;
+  const loadReady = loadReadiness?.ready ?? false;
+  const loadObjectiveSelected = weights.teacherLoadBalance > 0;
+  const objectiveInputsReady = !loadObjectiveSelected || loadReady;
   const positiveObjectiveCount = OBJECTIVES.filter(
     (objective) => weights[objective.key] > 0,
   ).length;
@@ -293,6 +315,7 @@ export function ManagementSolverWorkspacePanel({
     && !busy
     && name.trim().length > 0
     && positiveObjectiveCount > 0
+    && objectiveInputsReady
   );
   const changedCardIds = new Set(
     feasibilityResult?.changedCards?.map((item) => item.cardId) ?? [],
@@ -405,6 +428,13 @@ export function ManagementSolverWorkspacePanel({
       return;
     }
 
+    if (!objectiveInputsReady) {
+      setLocalError(
+        `Öğretmen yük dengesi için ${loadReadiness?.missingTargetTeacherCount ?? 0} öğretmende Hedef yük tanımlayın.`,
+      );
+      return;
+    }
+
     setOptimizationBusy(true);
     setProposalApplyPending(false);
     setProposalApplyError(null);
@@ -462,6 +492,13 @@ export function ManagementSolverWorkspacePanel({
 
     if (status === 'ACTIVE' && positiveObjectiveCount === 0) {
       setLocalError('Bu ayarları kullanmak için en az bir tercihe öncelik verin.');
+      return;
+    }
+
+    if (status === 'ACTIVE' && !objectiveInputsReady) {
+      setLocalError(
+        `Öğretmen yük dengesi için ${loadReadiness?.missingTargetTeacherCount ?? 0} öğretmende Hedef yük tanımlayın.`,
+      );
       return;
     }
 
@@ -646,6 +683,11 @@ export function ManagementSolverWorkspacePanel({
                       <p className="mt-0.5 text-[12px] font-medium text-slate-400">
                         {objective.baseline(data)}
                       </p>
+                      {objective.key === 'teacherLoadBalance' && !loadReady && (
+                        <p className="mt-1 text-[11px] font-bold text-amber-700">
+                          Kaynaklar → Öğretmenler bölümünde eksik Hedef yüklerini tamamlayın.
+                        </p>
+                      )}
                     </div>
 
                     <select
@@ -666,6 +708,11 @@ export function ManagementSolverWorkspacePanel({
                         <option
                           key={level.value}
                           value={level.value}
+                          disabled={
+                            objective.key === 'teacherLoadBalance'
+                            && !loadReady
+                            && level.value > 0
+                          }
                         >
                           {level.label}
                         </option>
@@ -676,7 +723,7 @@ export function ManagementSolverWorkspacePanel({
               })}
             </div>
             <div className="border-t border-slate-100 px-4 py-2.5 text-[12px] font-medium text-slate-400">
-              Yakında: Öğretmen yük dengesi · Derslerin tercih edilen gün ve saatleri
+              Yakında: Derslerin tercih edilen gün ve saatleri
             </div>
           </section>
 
@@ -700,6 +747,7 @@ export function ManagementSolverWorkspacePanel({
                       busy
                       || name.trim().length === 0
                       || positiveObjectiveCount === 0
+                      || !objectiveInputsReady
                     }
                     className="rounded-xl bg-[#A63D48] px-4 py-2 text-[11px] font-black text-white hover:bg-[#8F3340] disabled:opacity-35"
                   >
@@ -1042,6 +1090,7 @@ export function ManagementSolverWorkspacePanel({
                   !hardReady
                   || optimizationBusy
                   || positiveObjectiveCount === 0
+                  || !objectiveInputsReady
                 }
                 className="shrink-0 rounded-xl bg-[#A63D48] px-4 py-2.5 text-[12px] font-black text-white hover:bg-[#8F3340] disabled:cursor-not-allowed disabled:opacity-35"
               >
@@ -1075,6 +1124,12 @@ export function ManagementSolverWorkspacePanel({
             {positiveObjectiveCount === 0 && (
               <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-bold text-amber-800">
                 Önce en az bir tercihe Düşük, Orta, Yüksek veya Çok yüksek öncelik verin.
+              </div>
+            )}
+
+            {loadObjectiveSelected && !loadReady && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-bold text-amber-800">
+                Öğretmen yük dengesi için {loadReadiness?.missingTargetTeacherCount ?? 0} öğretmende Hedef yük eksik.
               </div>
             )}
 
@@ -1129,7 +1184,7 @@ export function ManagementSolverWorkspacePanel({
 
                 {optimizationResult.status !== 'BLOCKED' && (
                   <>
-                    <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                    <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-5">
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                         <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
                           Değişen karar
@@ -1171,6 +1226,22 @@ export function ManagementSolverWorkspacePanel({
                           {optimizationResult.baselineMetrics.roomStabilityBreaks}
                           {' → '}
                           {optimizationResult.proposedMetrics.roomStabilityBreaks}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
+                          Yük hedefi sapması
+                        </p>
+                        <p className="mt-1 text-[11px] font-black text-slate-900">
+                          {optimizationResult.baselineMetrics.teacherLoadTargetDeviationPeriods}
+                          {' → '}
+                          {optimizationResult.proposedMetrics.teacherLoadTargetDeviationPeriods}
+                        </p>
+                        <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
+                          Bant dışı {optimizationResult.baselineMetrics.teacherLoadRangeViolationPeriods}
+                          {' → '}
+                          {optimizationResult.proposedMetrics.teacherLoadRangeViolationPeriods}
                         </p>
                       </div>
                     </div>
