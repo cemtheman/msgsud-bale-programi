@@ -701,7 +701,7 @@ begin
                 (item.value ->> 'requirementId')::uuid
               and assignment.room_id <> p_room_id
           )
-            when 0 then 'UNKNOWN'
+            when 0 then item.value ->> 'resourceMode'
             when 1 then 'FIXED'
             else 'ELIGIBLE_POOL'
           end,
