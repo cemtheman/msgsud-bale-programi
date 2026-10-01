@@ -75,6 +75,7 @@ export interface ManagementBoardData {
   teacherNamesById: Record<string, string>;
   teacherOperationalStatusById?: Record<string, 'ACTIVE' | 'INACTIVE'>;
   roomNamesById: Record<string, string>;
+  roomOperationalStatusById?: Record<string, 'ACTIVE' | 'MAINTENANCE' | 'OUT_OF_SERVICE'>;
 }
 
 export type ManagementProgramResourceFilter = {
@@ -205,6 +206,14 @@ interface ClassGroupRow {
 interface NamedRow {
   id: string;
   name: string;
+}
+
+interface RoomRow {
+  id: string;
+  name: string;
+  canonical_room_id: string | null;
+  operational_status: 'ACTIVE' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
+  archived_at: string | null;
 }
 
 interface TeacherRow {
@@ -768,8 +777,8 @@ export async function fetchManagementBoard(
       'course_requirement_rooms?select=requirement_id,room_id',
       accessToken,
     ),
-    authedGet<NamedRow[]>(
-      'rooms?select=id,name',
+    authedGet<RoomRow[]>(
+      'rooms?select=id,name,canonical_room_id,operational_status,archived_at',
       accessToken,
     ),
     authedGet<PlacementRow[]>(
@@ -1052,7 +1061,27 @@ export async function fetchManagementBoard(
     }))
     .sort((a, b) => a.label.localeCompare(b.label, 'tr'));
 
+  const archivedCanonicalRoomIds = new Set(
+    rooms
+      .filter((row) => !row.canonical_room_id && Boolean(row.archived_at))
+      .map((row) => row.id),
+  );
+  const placedRoomIds = new Set(
+    placements
+      .map((placement) => placement.room_id)
+      .filter((value): value is string => Boolean(value)),
+  );
+
   const roomRows: ManagementBoardRow[] = rooms
+    .filter((row) => (
+      !row.archived_at
+      && !row.canonical_room_id
+      && (
+        row.operational_status === 'ACTIVE'
+        || placedRoomIds.has(row.id)
+      )
+    ))
+    .filter((row) => !archivedCanonicalRoomIds.has(row.id))
     .map((row) => ({
       id: row.id,
       label: roomById.get(row.id) ?? row.name,
@@ -1074,6 +1103,9 @@ export async function fetchManagementBoard(
     ),
     roomNamesById: Object.fromEntries(
       rooms.map((row) => [row.id, roomById.get(row.id) ?? row.name]),
+    ),
+    roomOperationalStatusById: Object.fromEntries(
+      rooms.map((row) => [row.id, row.operational_status]),
     ),
   };
 }
@@ -1120,6 +1152,7 @@ export function applyManagementTeacherPolicyToCandidateDetail(
   detail: ManagementCandidateDetail,
   card: ManagementBoardCard,
   teacherOperationalStatusById: Readonly<Record<string, 'ACTIVE' | 'INACTIVE'>> = {},
+  roomOperationalStatusById: Readonly<Record<string, 'ACTIVE' | 'MAINTENANCE' | 'OUT_OF_SERVICE'>> = {},
 ): ManagementCandidateDetail {
   const currentTeacherIds = new Set(card.teacherIds);
 
@@ -1136,6 +1169,12 @@ export function applyManagementTeacherPolicyToCandidateDetail(
       && !currentTeacherIds.has(assessment.teacherId)
     ) {
       code = 'TEACHER_NOT_IN_REQUIREMENT_POOL';
+    } else if (
+      assessment.roomId
+      && roomOperationalStatusById[assessment.roomId]
+      && roomOperationalStatusById[assessment.roomId] !== 'ACTIVE'
+    ) {
+      code = 'ROOM_INACTIVE';
     }
 
     if (!code) return assessment;
@@ -1213,8 +1252,15 @@ export function applyManagementTeacherPolicyToCandidateDetail(
         && assessment.teacherId !== resolvedTeacherId
       )
     );
+    const rejectedByRoomStatus = Boolean(
+      assessment.roomId
+      && roomOperationalStatusById[assessment.roomId]
+      && roomOperationalStatusById[assessment.roomId] !== 'ACTIVE'
+    );
 
-    return rejectedByMembership || rejectedByRequirementPolicy;
+    return rejectedByMembership
+      || rejectedByRequirementPolicy
+      || rejectedByRoomStatus;
   }).length;
 
   return {
