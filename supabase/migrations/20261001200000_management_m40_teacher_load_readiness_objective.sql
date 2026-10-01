@@ -176,7 +176,7 @@ begin
     left join placed_load placed
       on placed.teacher_id = relevant.teacher_id
   ),
-  aggregate as (
+  health_summary as (
     select
       count(*)::integer as relevant_teacher_count,
       count(*) filter (where configured)::integer
@@ -205,24 +205,24 @@ begin
   )
   select jsonb_build_object(
     'ready',
-      aggregate.relevant_teacher_count > 0
-      and aggregate.missing_target_teacher_count = 0,
+      health_summary.relevant_teacher_count > 0
+      and health_summary.missing_target_teacher_count = 0,
     'revisionId', v_revision_id,
-    'relevantTeacherCount', aggregate.relevant_teacher_count,
-    'configuredTeacherCount', aggregate.configured_teacher_count,
+    'relevantTeacherCount', health_summary.relevant_teacher_count,
+    'configuredTeacherCount', health_summary.configured_teacher_count,
     'targetConfiguredTeacherCount',
-      aggregate.target_configured_teacher_count,
+      health_summary.target_configured_teacher_count,
     'missingTargetTeacherCount',
-      aggregate.missing_target_teacher_count,
-    'partialTeacherCount', aggregate.partial_teacher_count,
+      health_summary.missing_target_teacher_count,
+    'partialTeacherCount', health_summary.partial_teacher_count,
     'baselineBelowMinimumTeacherCount',
-      aggregate.baseline_below_minimum_teacher_count,
+      health_summary.baseline_below_minimum_teacher_count,
     'baselineAboveMaximumTeacherCount',
-      aggregate.baseline_above_maximum_teacher_count,
+      health_summary.baseline_above_maximum_teacher_count,
     'baselineTargetDeviationPeriods',
-      aggregate.baseline_target_deviation_periods,
+      health_summary.baseline_target_deviation_periods,
     'baselineRangeViolationPeriods',
-      aggregate.baseline_range_violation_periods,
+      health_summary.baseline_range_violation_periods,
     'targets',
       coalesce((
         select jsonb_agg(
@@ -240,7 +240,7 @@ begin
       ), '[]'::jsonb)
   )
   into v_result
-  from aggregate;
+  from health_summary;
 
   return v_result;
 end
@@ -1074,18 +1074,18 @@ begin
   ) with ordinality item(value, ordinality);
 
   select coalesce(
-    jsonb_agg(item.value order by item.ordinality),
+    jsonb_agg(to_jsonb(item.value) order by item.ordinality),
     '[]'::jsonb
   )
   into v_missing
-  from jsonb_array_elements(
+  from jsonb_array_elements_text(
     coalesce(
       v_base -> 'readiness' -> 'missingOptionalModelInputs',
       '[]'::jsonb
     )
   ) with ordinality item(value, ordinality)
-  where item.value #>> '{}' <> 'TEACHER_LOAD_TARGETS'
-    and item.value #>> '{}' <> 'TEACHER_LOAD_TARGETS_INCOMPLETE';
+  where item.value <> 'TEACHER_LOAD_TARGETS'
+    and item.value <> 'TEACHER_LOAD_TARGETS_INCOMPLETE';
 
   if not v_load_ready then
     v_missing :=
