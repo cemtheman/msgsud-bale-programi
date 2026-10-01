@@ -152,7 +152,7 @@ export function ManagementResources({
     operationalStatus: ManagementRoomOperationalStatus,
     expectedStateToken: string,
   ) => Promise<void>;
-  onOpenProgramResource: (kind: 'TEACHER' | 'ROOM', resourceId: string) => void;
+  onOpenProgramResource: (kind: 'TEACHER' | 'ROOM', resourceId: string, resourceName: string) => void;
 }) {
   const [tab, setTab] = useState<ResourceTab>('TEACHERS');
   const [query, setQuery] = useState('');
@@ -783,7 +783,7 @@ export function ManagementResources({
             </div>
 
             <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-sm">
-              <div className="grid grid-cols-[minmax(240px,1fr)_105px_120px_105px_235px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
+              <div className="grid grid-cols-[minmax(240px,1fr)_105px_120px_105px_300px] border-b border-slate-100 bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-[0.12em] text-slate-400">
                 <span>Öğretmen</span>
                 <span className="text-right">Aktif ders</span>
                 <span className="text-right">Programdaki blok</span>
@@ -829,10 +829,10 @@ export function ManagementResources({
                         </span>
                       </div>
 
-                      <div className="flex justify-end gap-1">
+                      <div className="flex flex-wrap justify-end gap-1">
                         <button
                           type="button"
-                          onClick={() => onOpenProgramResource('TEACHER', row.id)}
+                          onClick={() => onOpenProgramResource('TEACHER', row.id, row.name)}
                           disabled={row.placedBlockCount === 0}
                           className="rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-[11px] font-bold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-30"
                           title={row.placedBlockCount > 0 ? 'Bu öğretmenin programdaki derslerini aç' : 'Programda kullanım yok'}
@@ -1035,7 +1035,7 @@ export function ManagementResources({
                       <div className="flex justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={() => onOpenProgramResource('ROOM', row.id)}
+                          onClick={() => onOpenProgramResource('ROOM', row.id, row.name)}
                           disabled={row.placedBlockCount === 0}
                           className="rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-30"
                           title={row.placedBlockCount > 0 ? 'Bu salonun programdaki derslerini aç' : 'Programda kullanım yok'}
