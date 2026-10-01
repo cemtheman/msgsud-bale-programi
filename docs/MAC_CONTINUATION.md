@@ -2146,3 +2146,17 @@ Status:
 - browser acceptance pending
 
 Checkpoint before journal commit: aad72347a5c87d15cba7c840bf2cdfa8cc39556e
+### M39.0 migration applied — PASS
+
+Supabase verification:
+- `20261001133000_management_m39_0_teacher_load_foundation.sql` applied successfully
+- migration list now shows local/remote match for `20261001133000`
+- no unexpected pending migration reported
+
+Status:
+- code gate PASS
+- migration dry-run PASS
+- real DB push PASS
+- browser acceptance pending
+
+Checkpoint before journal commit: bd16e1a4b81c0aacd20d4b3b7f326a52bdaab3ac
