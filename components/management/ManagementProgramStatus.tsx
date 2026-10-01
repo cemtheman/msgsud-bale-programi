@@ -7,10 +7,11 @@ import type {
   ManagementBoardCard,
   ManagementStage,
 } from '@/lib/managementBoard';
-import type {
-  ManagementPlacementResourceApplyResult,
-  ManagementPlacementResourcePreview,
-  ManagementPlacementResourceType,
+import {
+  translateManagementPlacementResourceBlockReason,
+  type ManagementPlacementResourceApplyResult,
+  type ManagementPlacementResourcePreview,
+  type ManagementPlacementResourceType,
 } from '@/lib/managementCommands';
 import type { ManagementCoursePlanOption } from '@/lib/managementCoursePlan';
 import {
@@ -742,7 +743,7 @@ export function ManagementProgramStatus({
                         {bulkPreview.blockReasons.length > 0 && (
                           <div className="mt-2 space-y-1 rounded-xl bg-white/70 px-2.5 py-2 text-[9px] font-bold text-rose-700">
                             {bulkPreview.blockReasons.map((reason) => (
-                              <p key={reason}>• {reason}</p>
+                              <p key={reason}>• {translateManagementPlacementResourceBlockReason(reason)}</p>
                             ))}
                           </div>
                         )}
