@@ -689,6 +689,18 @@ function canAssign(
   remainingCardsByRequirement: Map<string, number>,
   context: SolverContext,
 ) {
+  if (
+    teacherIsUnavailable(
+      candidate.teacherId,
+      candidate.dayOfWeek,
+      candidate.startPeriod,
+      candidate.durationPeriods,
+      context,
+    )
+  ) {
+    return false;
+  }
+
   for (const occupied of assignments) {
     if (candidate.dayOfWeek !== occupied.dayOfWeek) continue;
     if (!overlaps(
