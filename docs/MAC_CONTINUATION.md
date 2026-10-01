@@ -2188,3 +2188,12 @@ Next:
 - keep load objective disabled until subsequent readiness/objective integration package
 
 Checkpoint before journal commit: 85843c3d783b27aa40e6b387cee441e6f6763729
+### M39.1 UI polish scope — user requested
+
+Alongside hard teacher availability foundation, polish Resources → Teachers without redesign:
+- improve table column balance after weekly-load fields were added
+- make `Haftalık yük` and `Min / Hedef / Maks` hierarchy easier to scan
+- reduce crowding in the right-side action group
+- improve row spacing/alignment while preserving the normalized management UI system
+- make configured vs undefined load targets visually clearer
+- keep all existing functionality and accepted information architecture intact
