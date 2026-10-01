@@ -189,16 +189,6 @@ export function ManagementProgramStatus({
     expectedStateToken: string,
   ) => Promise<ManagementPlacementResourceApplyResult>;
 }) {
-  if (!snapshot) {
-    return (
-      <section className="flex min-h-0 flex-1 items-center justify-center p-6">
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-400 shadow-sm">
-          Program durumu hazırlanıyor…
-        </div>
-      </section>
-    );
-  }
-
   const [bulkKind, setBulkKind] = useState<ManagementOperationalQueueKind | null>(null);
   const [bulkSelectedCardIds, setBulkSelectedCardIds] = useState<string[]>([]);
   const [bulkResourceId, setBulkResourceId] = useState('');
@@ -208,9 +198,6 @@ export function ManagementProgramStatus({
   const [bulkApplying, setBulkApplying] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
 
-  const meta = statusMeta(snapshot.status);
-  const blockerCount = snapshot.blockers.reduce((sum, issue) => sum + issue.count, 0);
-  const warningCount = snapshot.warnings.reduce((sum, issue) => sum + issue.count, 0);
   const operationalQueue = buildManagementOperationalQueue(cards, stage);
   const bulkQueueItems = useMemo(
     () => (
@@ -225,6 +212,19 @@ export function ManagementProgramStatus({
     : roomOptions;
   const selectedBulkCount = bulkSelectedCardIds.length;
 
+  if (!snapshot) {
+    return (
+      <section className="flex min-h-0 flex-1 items-center justify-center p-6">
+        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-400 shadow-sm">
+          Program durumu hazırlanıyor…
+        </div>
+      </section>
+    );
+  }
+
+  const meta = statusMeta(snapshot.status);
+  const blockerCount = snapshot.blockers.reduce((sum, issue) => sum + issue.count, 0);
+  const warningCount = snapshot.warnings.reduce((sum, issue) => sum + issue.count, 0);
   const resetBulkPreview = () => {
     setBulkPreview(null);
     setBulkError(null);
