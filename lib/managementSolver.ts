@@ -1,5 +1,7 @@
 'use client';
 
+import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+
 export type ManagementSolverObjectiveKey =
   | 'changeCost'
   | 'preferredTeacherContinuity'
@@ -277,7 +279,7 @@ async function callSolverRpc<T>(
     method: 'POST',
     headers: {
       apikey: key,
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
@@ -357,7 +359,7 @@ async function authedSolverGet<T>(
   const response = await fetch(`${url}/rest/v1/${path}`, {
     headers: {
       apikey: key,
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
     },
     cache: 'no-store',
   });
