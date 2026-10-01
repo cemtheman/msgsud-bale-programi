@@ -3486,8 +3486,8 @@ export default function ManagementPage() {
               setCommandNotice({
                 kind: 'success',
                 text: result.configured
-                  ? `Öğretmen yük hedefleri ${label} olarak kaydedildi. Program ve yayın değişmedi.`
-                  : 'Öğretmen yük hedefleri temizlendi. Program ve yayın değişmedi.',
+                  ? `Öğretmen yük hedefleri ${label} olarak kaydedildi. Program ve yayın değişmedi; optimizasyon hazırlığı güncellendi.`
+                  : 'Öğretmen yük hedefleri temizlendi. Program ve yayın değişmedi; optimizasyon hazırlığı güncellendi.',
               });
               setRefreshToken((value) => value + 1);
             } finally {
