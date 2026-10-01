@@ -75,6 +75,37 @@ export interface ManagementPlacementResourcePreview {
   stateToken: string;
 }
 
+export function translateManagementPlacementResourceBlockReason(
+  reason: string,
+) {
+  if (reason === 'TEACHER_CONFLICT') {
+    return 'Öğretmen aynı saatte başka derste.';
+  }
+  if (reason === 'ROOM_CONFLICT') {
+    return 'Salon aynı saatte başka derste kullanılıyor.';
+  }
+  if (reason === 'RESOURCE_INACTIVE') {
+    return 'Seçilen kaynak aktif değil.';
+  }
+  if (reason === 'CAPABILITY_MISMATCH') {
+    return 'Salon dersin gerekli özelliğini karşılamıyor.';
+  }
+  if (reason === 'CARD_LOCKED') {
+    return 'Kart kilitli.';
+  }
+  if (reason === 'REQUIREMENT_TEACHER_MISMATCH') {
+    return 'Bu ders tüm bloklarda aynı öğretmeni kullanmalı.';
+  }
+  if (reason === 'OUTSIDE_PLANNING_POOL_WITH_UNPLACED_BLOCKS') {
+    return 'Bu dersin henüz yerleşmemiş blokları var. Seçilen öğretmeni önce Ders Planı öğretmen havuzuna ekleyin.';
+  }
+  if (reason === 'NO_CHANGES') {
+    return 'Kaynak zaten bu yerleşimde kullanılıyor.';
+  }
+
+  return reason;
+}
+
 export interface ManagementPlacementResourceApplyResult {
   applied: boolean;
   resourceType: ManagementPlacementResourceType;
