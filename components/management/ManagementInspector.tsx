@@ -9,6 +9,7 @@ import {
   type ManagementCandidateAssessment,
   type ManagementCandidateDetail,
 } from '@/lib/managementBoard';
+import { translateManagementPlacementResourceBlockReason } from '@/lib/managementCommands';
 import type {
   ManagementPlacementResourcePreview,
   ManagementPlacementResourceType,
@@ -822,23 +823,7 @@ export function ManagementInspector({
                     <div className="mt-2 space-y-1">
                       {placementResourcePreview.blockReasons.map((reason) => (
                         <p key={reason} className="text-[9px] font-bold text-amber-800">
-                          • {reason === 'TEACHER_CONFLICT'
-                            ? 'Öğretmen aynı saatte başka derste.'
-                            : reason === 'ROOM_CONFLICT'
-                              ? 'Salon aynı saatte başka derste kullanılıyor.'
-                              : reason === 'RESOURCE_INACTIVE'
-                                ? 'Seçilen kaynak aktif değil.'
-                                : reason === 'CAPABILITY_MISMATCH'
-                                  ? 'Salon dersin gerekli özelliğini karşılamıyor.'
-                                  : reason === 'CARD_LOCKED'
-                                    ? 'Kart kilitli.'
-                                    : reason === 'REQUIREMENT_TEACHER_MISMATCH'
-                                      ? 'Bu ders tüm bloklarda aynı öğretmeni kullanmalı.'
-                                      : reason === 'OUTSIDE_PLANNING_POOL_WITH_UNPLACED_BLOCKS'
-                                        ? 'Bu dersin henüz yerleşmemiş blokları var. Seçilen öğretmeni önce Ders Planı öğretmen havuzuna ekleyin.'
-                                      : reason === 'NO_CHANGES'
-                                        ? 'Kaynak zaten bu yerleşimde kullanılıyor.'
-                                        : reason}
+                          • {translateManagementPlacementResourceBlockReason(reason)}
                         </p>
                       ))}
                     </div>
