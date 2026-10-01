@@ -430,10 +430,6 @@ async function authedRpc<T>(
       throw new Error('Öğretmen durumu geçersiz.');
     }
 
-    if (normalized.includes('m39.0 teacher planning inputs require draft revision')) {
-      throw new Error('Öğretmen yük hedefleri yalnız taslak program için düzenlenebilir.');
-    }
-
     if (
       normalized.includes('m40 teacher planning inputs require draft revision')
       || normalized.includes('m39.0 teacher planning inputs require draft revision')
