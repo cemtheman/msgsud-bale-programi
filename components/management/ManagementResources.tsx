@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import {
+  MANAGEMENT_TEACHER_LOAD_DEFAULTS,
   validateManagementTeacherLoadTargets,
   validateManagementTeacherUnavailablePeriods,
   type ManagementResourceInventoryData,
@@ -291,14 +292,28 @@ export function ManagementResources({
   const openTeacherLoadEditor = (row: ManagementTeacherResourceRow) => {
     setTeacherLoadTarget(row);
     setTeacherPlanningTab('LOAD');
+
+    const useDefaults = row.loadRelevant && !row.loadConfigured;
     setTeacherMinimumLoad(
-      row.minimumLoad === null ? '' : String(row.minimumLoad),
+      useDefaults
+        ? String(MANAGEMENT_TEACHER_LOAD_DEFAULTS.minimumLoad)
+        : row.minimumLoad === null
+          ? ''
+          : String(row.minimumLoad),
     );
     setTeacherTargetLoad(
-      row.targetLoad === null ? '' : String(row.targetLoad),
+      useDefaults
+        ? String(MANAGEMENT_TEACHER_LOAD_DEFAULTS.targetLoad)
+        : row.targetLoad === null
+          ? ''
+          : String(row.targetLoad),
     );
     setTeacherMaximumLoad(
-      row.maximumLoad === null ? '' : String(row.maximumLoad),
+      useDefaults
+        ? String(MANAGEMENT_TEACHER_LOAD_DEFAULTS.maximumLoad)
+        : row.maximumLoad === null
+          ? ''
+          : String(row.maximumLoad),
     );
     setTeacherUnavailablePeriods([...row.unavailablePeriods]);
     setTeacherLoadError(null);
@@ -2461,8 +2476,9 @@ export function ManagementResources({
 
                 <p className="mt-3 text-[10px] font-medium leading-5 text-slate-500">
                   En az ve en fazla isteğe bağlıdır; En az ≤ hedef ≤ en fazla olmalıdır.
-                  Öğretmen yük dengesi tercihini kullanmak için bu dönem planlamaya katılan
-                  her öğretmende Hedef değeri gerekir. Bu değerler zorunlu yerleştirme kuralı değildir.
+                  Yeni ve tanımsız planlama kayıtları 1 / 10 / 20 ile başlar. Öğretmen yük
+                  dengesi tercihini kullanmak için bu dönem planlamaya katılan her öğretmende
+                  Hedef değeri gerekir. Bu değerler zorunlu yerleştirme kuralı değildir.
                 </p>
               </>
             ) : (
