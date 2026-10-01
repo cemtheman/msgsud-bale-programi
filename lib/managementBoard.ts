@@ -972,7 +972,7 @@ export async function fetchManagementBoard(
     .map((row) => ({
       id: row.id,
       label: teacherById.get(row.id) ?? row.name,
-      secondary: 'Öğretmen',
+      secondary: null,
     }))
     .sort((a, b) => a.label.localeCompare(b.label, 'tr'));
 
@@ -980,7 +980,7 @@ export async function fetchManagementBoard(
     .map((row) => ({
       id: row.id,
       label: roomById.get(row.id) ?? row.name,
-      secondary: 'Salon',
+      secondary: null,
     }))
     .sort((a, b) => a.label.localeCompare(b.label, 'tr', { numeric: true }));
 
