@@ -1920,3 +1920,102 @@ Accepted:
 - M38.1 semantic history labels are closed unless a concrete regression is reproduced
 
 Checkpoint before journal commit: 5467cd58f803ba26297df177c3a8c2e588d6bff9
+## 30. M38 closure + main-roadmap realignment
+
+Full diary and solver/policy contract reread completed after M38.1 browser acceptance.
+
+### M38 status
+
+**M38.0 CLOSED / PASS**
+- bulk teacher/room operational assignment UI
+- multi-select + one preview/state token
+- existing M32.4.2/M29 authority reused
+- bundle history preserved
+- teacher bulk browser apply + single-step undo PASS
+
+**M38.1 CLOSED / PASS**
+- placement-resource override history is interpreted semantically
+- bulk teacher assignment no longer appears as generic `taşıması`
+- undo/redo descriptors preserve TEACHER/ROOM assignment semantics
+- 20/20 test files, 104/104 tests PASS
+- Next.js production build + TypeScript PASS
+- browser tooltip acceptance PASS
+
+No M38 migration was added.
+
+### What the full reread shows
+
+M34–M38 was a stabilization/operations leg after M33.4, not a replacement for the long-term solver roadmap:
+- M34: resource mutations entered global undo/redo history
+- M35: teacher departure + operational safety + multi-resource filtering
+- M36: live teacher/room gaps + publication safety + room departure
+- M37: operational queue + sequential repair + resilient JWT/session refresh
+- M38: safe bulk repair + semantic history labels
+
+These packages close the major day-to-day administration gaps uncovered after solver proposal apply became usable.
+
+### Main roadmap state
+
+Already completed from the original teacher-policy / solver-readiness order:
+1. additive teacher assignment policy foundation
+2. read-only policy audit
+3. schema validation without destructive placement rewrite
+4. Course Plan policy UI
+5. ambiguous requirement classification / reconciliation path
+6. policy-aware candidate generation
+7. Placement Assistant forward-impact metrics
+8. solver-readiness snapshot/checks
+9. immutable in-memory feasibility prototype (M33.2)
+10. explainable soft-objective local optimization (M33.3)
+11. explicit human-reviewed atomic proposal apply + undo/redo (M33.4)
+
+Still intentionally incomplete in the foundation contracts:
+
+**A. Teacher planning/load inputs — first main-roadmap gap**
+- `minimum_load`
+- `target_load`
+- `maximum_load`
+- hard unavailable times
+- legal/administrative leave
+- later: preferred times / preferred free day / gap preferences
+- without explicit load targets, `teacherLoadBalance` remains disabled by design
+
+**B. Subject time preferences — second input gap**
+- explicit subject/day/time preference data does not yet exist
+- `subjectTimePreference` objective remains disabled by design
+
+**C. Fine-grained manual authority / pins**
+- current card-level `locked` flag is coarse
+- target pin dimensions remain: `TIME`, `TEACHER`, `ROOM`, `STRUCTURE`
+- full-auto must respect these independently
+
+**D. Team teaching / role-aware staff**
+- intentionally separate future problem
+- current `placements.teacher_id` is one primary teacher
+- accompanist / assistant / co-teacher should eventually use role-aware placement staff rather than overloading teacher assignment scope
+
+### Return-to-main-roadmap decision
+
+Do not open M38.2 unless a concrete M38 regression appears.
+
+Next milestone should be **M39 — Teacher Planning Inputs / Load Foundation**, deliberately small and additive:
+1. audit current teacher data and actual placed weekly loads
+2. define schema/semantics for min/target/max load and hard unavailability
+3. add read-only readiness/audit before changing solver behavior
+4. expose inputs in Resources or Course Plan using the frozen management UI system
+5. only after data is explicit, enable teacher-load metrics/objective work
+
+Suggested later sequence:
+- M39: teacher load + hard availability foundation
+- M40: teacher load readiness/health + objective metric integration
+- M41: subject time preference foundation
+- M42: fine-grained pin model
+- then revisit stronger/full-auto generation against immutable snapshot
+
+Rule:
+- preserve M33 solver snapshot/in-memory/no-trial-write architecture
+- preserve human review + explicit commit
+- do not add hidden defaults for institutional preferences
+- every new optimization input must be explicit, auditable and explainable
+
+M38 branch checkpoint before this diary commit: 602dd62b36c3ca8d7a4bfc06b458bdd7e2f0091e
