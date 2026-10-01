@@ -69,7 +69,10 @@ import {
   updateManagementTeacherDisplayName,
   type ManagementResourceInventoryData,
 } from '@/lib/managementResources';
-import { deriveManagementHealth } from '@/lib/managementHealth';
+import {
+  deriveManagementHealth,
+  type ManagementHealthIssue,
+} from '@/lib/managementHealth';
 import {
   fetchManagementPublicationGate,
   type ManagementPublicationGateData,
@@ -411,6 +414,8 @@ export default function ManagementPage() {
   const [programFilterQuery, setProgramFilterQuery] = useState('');
   const [programFilterMode, setProgramFilterMode] =
     useState<'ANY' | 'INTERSECTION'>('ANY');
+  const [programGapFilter, setProgramGapFilter] =
+    useState<'TEACHER' | 'ROOM' | null>(null);
   const [audienceFilter, setAudienceFilter] =
     useState<ManagementAudienceScope>('ALL');
 
@@ -614,14 +619,56 @@ export default function ManagementPage() {
     [audienceFilter, board, stage],
   );
 
+  const visibleMissingTeacherCards = useMemo(
+    () => visibleCards.filter(
+      (card) => (
+        Boolean(card.placement)
+        && card.teacherRequirement === 'REQUIRED'
+        && !card.placement?.teacherId
+      ),
+    ),
+    [visibleCards],
+  );
+
+  const visibleMissingRoomCards = useMemo(
+    () => visibleCards.filter(
+      (card) => (
+        Boolean(card.placement)
+        && card.resourceMode !== 'UNKNOWN'
+        && !card.placement?.roomId
+      ),
+    ),
+    [visibleCards],
+  );
+
   const programCards = useMemo(() => (
-    visibleCards.filter((card) =>
-      cardMatchesProgramResourceFilters(
-        card,
-        programResourceFilters,
-        programFilterMode,
-      ))
-  ), [programFilterMode, programResourceFilters, visibleCards]);
+    visibleCards
+      .filter((card) =>
+        cardMatchesProgramResourceFilters(
+          card,
+          programResourceFilters,
+          programFilterMode,
+        ))
+      .filter((card) => {
+        if (!programGapFilter) return true;
+        if (!card.placement) return false;
+
+        return programGapFilter === 'TEACHER'
+          ? (
+            card.teacherRequirement === 'REQUIRED'
+            && !card.placement.teacherId
+          )
+          : (
+            card.resourceMode !== 'UNKNOWN'
+            && !card.placement.roomId
+          );
+      })
+  ), [
+    programFilterMode,
+    programGapFilter,
+    programResourceFilters,
+    visibleCards,
+  ]);
 
   const programTeacherFilterOptions = useMemo(() => {
     if (!board) return [];
@@ -854,11 +901,93 @@ export default function ManagementPage() {
     const width = 520;
     const height = 430;
     setCardContextMenu(null);
+    setProgramGapFilter(null);
     setProgramFilterQuery('');
     setProgramFilterMenu({
       x: Math.max(8, Math.min(x, window.innerWidth - width - 8)),
       y: Math.max(8, Math.min(y, window.innerHeight - height - 8)),
     });
+  };
+
+  const openOperationalGap = (
+    kind: 'TEACHER' | 'ROOM',
+    cardIds?: string[],
+  ) => {
+    if (!board) return;
+
+    const source = cardIds?.length
+      ? cardIds
+          .map((cardId) => board.cards.find((card) => card.id === cardId) ?? null)
+          .filter((card): card is ManagementBoardData['cards'][number] => Boolean(card))
+      : kind === 'TEACHER'
+        ? visibleMissingTeacherCards
+        : visibleMissingRoomCards;
+
+    const target = source.find((card) => Boolean(card.placement)) ?? source[0] ?? null;
+
+    setActiveSection('PROGRAM');
+    setAudienceFilter('ALL');
+    setResourceView('SINIFLAR');
+    setProgramResourceFilters([]);
+    setProgramGapFilter(kind);
+    setPoolOpen(false);
+
+    if (!target?.placement) return;
+
+    setStage(cardMatchesStage(target, 'ORTAOKUL') ? 'ORTAOKUL' : 'LISE');
+    setActiveDay(target.placement.dayOfWeek);
+    openCardInspector(
+      target.id,
+      [target.id],
+      kind === 'TEACHER' ? 'TEACHER' : 'ROOM',
+    );
+  };
+
+  const handleHealthIssueAction = (issue: ManagementHealthIssue) => {
+    if (!board || !issue.action) return;
+
+    if (issue.action === 'OPEN_POOL') {
+      setActiveSection('PROGRAM');
+      setAudienceFilter('ALL');
+      setResourceView('SINIFLAR');
+      setProgramResourceFilters([]);
+      setProgramGapFilter(null);
+      setPoolOpen(true);
+      setInspectorOpen(false);
+      return;
+    }
+
+    if (issue.action === 'OPEN_TEACHER') {
+      openOperationalGap('TEACHER', issue.cardIds);
+      return;
+    }
+
+    if (issue.action === 'OPEN_ROOM') {
+      openOperationalGap('ROOM', issue.cardIds);
+      return;
+    }
+
+    const target = issue.cardIds
+      ?.map((cardId) => board.cards.find((card) => card.id === cardId) ?? null)
+      .find((card): card is ManagementBoardData['cards'][number] => Boolean(card))
+      ?? null;
+
+    setActiveSection('PROGRAM');
+    setAudienceFilter('ALL');
+    setResourceView('SINIFLAR');
+    setProgramResourceFilters([]);
+    setProgramGapFilter(null);
+
+    if (!target) return;
+
+    if (target.placement) {
+      setActiveDay(target.placement.dayOfWeek);
+      setPoolOpen(false);
+    } else {
+      setPoolOpen(true);
+    }
+
+    openCardInspector(target.id, [target.id], 'CANDIDATES');
   };
 
   const openResourceInProgram = (
@@ -890,6 +1019,7 @@ export default function ManagementPage() {
       label: resourceName,
     }]);
     setProgramFilterMode('ANY');
+    setProgramGapFilter(null);
     setAudienceFilter('ALL');
     setPoolOpen(false);
     setSelectedCardId(null);
@@ -1917,6 +2047,7 @@ export default function ManagementPage() {
                 onClick={() => {
                   setActiveSection('PROGRAM');
                   setProgramResourceFilters([]);
+                  setProgramGapFilter(null);
                 }}
                 className={
                   activeSection === 'PROGRAM'
@@ -2126,6 +2257,51 @@ export default function ManagementPage() {
               ))}
             </div>
   
+            {(visibleMissingTeacherCards.length > 0 || visibleMissingRoomCards.length > 0) && (
+              <div className="flex shrink-0 items-center gap-1">
+                {visibleMissingTeacherCards.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (programGapFilter === 'TEACHER') {
+                        setProgramGapFilter(null);
+                        return;
+                      }
+                      openOperationalGap('TEACHER');
+                    }}
+                    className={`rounded-xl border px-2.5 py-2 text-[9px] font-black transition ${
+                      programGapFilter === 'TEACHER'
+                        ? 'border-rose-700 bg-rose-700 text-white'
+                        : 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
+                    }`}
+                    title="Öğretmensiz yerleşimleri göster"
+                  >
+                    Öğretmensiz · {visibleMissingTeacherCards.length}
+                  </button>
+                )}
+                {visibleMissingRoomCards.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (programGapFilter === 'ROOM') {
+                        setProgramGapFilter(null);
+                        return;
+                      }
+                      openOperationalGap('ROOM');
+                    }}
+                    className={`rounded-xl border px-2.5 py-2 text-[9px] font-black transition ${
+                      programGapFilter === 'ROOM'
+                        ? 'border-amber-700 bg-amber-700 text-white'
+                        : 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                    }`}
+                    title="Salonsuz yerleşimleri göster"
+                  >
+                    Salonsuz · {visibleMissingRoomCards.length}
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="flex shrink-0 items-center gap-2 text-[9px] font-semibold text-slate-500 max-[1360px]:hidden">
               {programResourceFilters.length > 0 ? (
                 <>
@@ -2739,6 +2915,7 @@ export default function ManagementPage() {
 
             setStage(planStage);
             setProgramResourceFilters([]);
+            setProgramGapFilter(null);
             setActiveSection('PROGRAM');
 
             if (card) {
@@ -3386,6 +3563,7 @@ export default function ManagementPage() {
           onStageChange={setStage}
           publicationPreview={publicationPreview}
           publicationGate={publicationGate}
+          onIssueAction={handleHealthIssueAction}
         />
       )}
 
