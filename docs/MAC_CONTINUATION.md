@@ -1494,3 +1494,72 @@ Rule:
 - treat this SHA as the stable rollback/checkpoint before M37
 - do not reopen M34/M35/M36 unless a concrete regression is reproduced
 - all new work starts from a fresh M37 branch
+## 27. M37.0 operational queue — READY FOR ACCEPTANCE
+
+Goal:
+- turn M36 live resource-gap detection into a practical one-by-one operations workflow
+- avoid repeating the same teacher/room gap in multiple Program Durumu sections
+- let administrators work through missing resources in timetable order without returning to the summary screen each time
+
+New model:
+- `lib/managementOperations.ts`
+- `buildManagementOperationalQueue(cards, stage)`
+- queue task kinds:
+  - `TEACHER`
+  - `ROOM`
+- tasks are sorted by day, period, subject, group
+- a lesson missing both resources produces two explicit operational tasks
+- OPTIONAL teacher / UNKNOWN room-strategy gaps are excluded
+
+Program Durumu:
+- new `Operasyon kuyruğu / Kaynağı tamamlanacak dersler` panel
+- compact counters: `Öğretmensiz · N`, `Salonsuz · N`
+- each row shows:
+  - missing resource type
+  - subject
+  - group/class
+  - day + period
+  - preserved opposite resource (room or teacher)
+  - `Aç ve ata` action
+- teacher/room resource-gap blocker cards are removed from the lower generic blocker list so the same issue is shown only once in detail
+- publication gate suppression from M36 remains unchanged
+
+Program workflow:
+- operational gap mode now has previous/next navigation in the top bar
+- current position is shown as `x / n`
+- navigation wraps through the current teacher-gap or room-gap set
+- after a resource is assigned and the current card leaves the active gap filter, the next unresolved card opens automatically when one remains
+- last resolved card closes normally when no matching gap remains
+
+Regression coverage:
+- new `tests/managementOperations.test.ts`
+- queue teacher/room task generation
+- deterministic day/period ordering
+- dual-task generation for a lesson missing both resources
+- OPTIONAL teacher / UNKNOWN room exclusion
+
+Expected gate:
+```
+19 test files
+98 tests
+```
+
+No migration in M37.0.
+
+Implementation HEAD before journal commit: 4913316a011440d83071469a7f902222723b4435
+Branch vs main: ahead 5, behind 0
+
+Acceptance commands:
+```bash
+git pull --ff-only
+npm test
+npm run build
+```
+
+Browser smoke:
+1. Program Durumu -> operation queue lists current teacher/room gaps once
+2. `Aç ve ata` opens the exact card and correct Teacher/Room editor
+3. top bar shows x/n navigation while the gap filter is active
+4. previous/next moves across gaps and changes day automatically
+5. assign resource -> resolved card leaves the gap list and next unresolved card opens
+6. return to Program Durumu -> resolved item is gone from the operation queue
