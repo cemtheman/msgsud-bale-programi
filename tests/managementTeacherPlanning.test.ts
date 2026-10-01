@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   validateManagementTeacherLoadTargets,
+  validateManagementTeacherUnavailablePeriods,
 } from '@/lib/managementResources';
 
 describe('management teacher planning inputs', () => {
@@ -36,6 +37,35 @@ describe('management teacher planning inputs', () => {
       targetLoad: null,
       maximumLoad: 20,
     })).toBe('Minimum yük maksimum yükten büyük olamaz.');
+  });
+
+  it('accepts explicit unique hard-unavailability slots', () => {
+    expect(validateManagementTeacherUnavailablePeriods([])).toBeNull();
+    expect(validateManagementTeacherUnavailablePeriods([
+      { dayOfWeek: 1, period: 1 },
+      { dayOfWeek: 5, period: 12 },
+    ])).toBeNull();
+  });
+
+  it('rejects invalid or duplicate hard-unavailability slots', () => {
+    expect(validateManagementTeacherUnavailablePeriods([
+      { dayOfWeek: 0, period: 1 },
+    ])).toBe(
+      'Uygun olmayan saatler hafta içi 1–5. gün ve 1–12. ders aralığında olmalı.',
+    );
+
+    expect(validateManagementTeacherUnavailablePeriods([
+      { dayOfWeek: 1, period: 13 },
+    ])).toBe(
+      'Uygun olmayan saatler hafta içi 1–5. gün ve 1–12. ders aralığında olmalı.',
+    );
+
+    expect(validateManagementTeacherUnavailablePeriods([
+      { dayOfWeek: 2, period: 4 },
+      { dayOfWeek: 2, period: 4 },
+    ])).toBe(
+      'Aynı uygun olmayan ders saati birden fazla kez seçilemez.',
+    );
   });
 
   it('requires integer load values between 0 and 60', () => {
