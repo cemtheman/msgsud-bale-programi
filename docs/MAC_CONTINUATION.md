@@ -1640,3 +1640,17 @@ Browser acceptance:
 2. no raw `JWT expired` should surface
 3. if the stored token is near expiry, request should refresh transparently and continue
 4. queue navigation/auto-advance must remain unchanged
+### M37.1 forced JWT-expiry browser acceptance — PASS
+
+Manual browser acceptance:
+- local stored session expiry was forced to ~5 seconds
+- after waiting, user opened Operational Queue -> assignment flow
+- `Etkiyi hesapla` completed without raw `JWT expired`
+- automatic refresh path recovered transparently
+
+Accepted:
+- fresh-token resolution works in real browser flow
+- concurrent refresh dedupe remains covered by automated tests
+- M37.1 JWT resilience is closed unless a concrete regression is reproduced
+
+Checkpoint before journal commit: f310f6a90b92a6750530e460b5f65a26bf6a2931
