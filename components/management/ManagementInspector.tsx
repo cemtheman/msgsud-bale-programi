@@ -631,6 +631,20 @@ export function ManagementInspector({
           <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">
             Gün veya saati değiştirmek için kartı çizelgede sürükleyin. Öğretmen veya salonu değiştirmek için kaynağı seçin; sistem mevcut slot üzerindeki etkisini ve çakışmaları önce hesaplar.
           </p>
+          {((
+            card.teacherRequirement === 'REQUIRED'
+            && !placement.teacherId
+          ) || (
+            card.resourceMode !== 'UNKNOWN'
+            && !placement.roomId
+          )) && (
+            <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[9px] font-semibold leading-4 text-amber-800">
+              {card.teacherRequirement === 'REQUIRED' && !placement.teacherId
+                ? 'Bu ders aynı slotta korunmuş ancak öğretmeni boş. Aktif bir öğretmeni geçici veya kalıcı olarak atayabilirsiniz.'
+                : 'Bu ders aynı slotta korunmuş ancak salonu boş. Aktif bir salon atayabilirsiniz.'}
+            </div>
+          )}
+
           <p className="mt-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2 text-[9px] font-semibold leading-4 text-blue-800">
             {card.teacherAssignmentScope === 'REQUIREMENT'
               && card.teacherContinuity === 'REQUIRED'
@@ -659,7 +673,7 @@ export function ManagementInspector({
                   : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
               } disabled:cursor-not-allowed disabled:opacity-35`}
             >
-              Öğretmen değiştir
+              {placement.teacherId ? 'Öğretmen değiştir' : 'Öğretmen ata'}
               <span className="ml-1 text-[9px] opacity-65">
                 · {Math.max(
                   0,
@@ -683,7 +697,7 @@ export function ManagementInspector({
                   : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
               } disabled:cursor-not-allowed disabled:opacity-35`}
             >
-              Salon değiştir
+              {placement.roomId ? 'Salon değiştir' : 'Salon ata'}
               <span className="ml-1 text-[9px] opacity-65">
                 · {Math.max(0, roomOptions.length - (placement.roomId ? 1 : 0))}
               </span>
@@ -748,7 +762,9 @@ export function ManagementInspector({
                           }>
                             {card.teacherIds.includes(option.id)
                               ? 'Ders planı havuzunda'
-                              : 'Manuel seçim'}
+                              : !placement.teacherId
+                                ? 'Geçici / manuel seçim'
+                                : 'Manuel seçim'}
                           </span>
                         )}
                       </span>
