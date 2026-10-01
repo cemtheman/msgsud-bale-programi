@@ -15,6 +15,7 @@ import type {
 import type { ManagementCoursePlanOption } from '@/lib/managementCoursePlan';
 import {
   buildManagementOperationalQueue,
+  operationalQueueCardIds,
   type ManagementOperationalQueueKind,
 } from '@/lib/managementOperations';
 import type {
@@ -231,9 +232,7 @@ export function ManagementProgramStatus({
   };
 
   const openBulkOperation = (kind: ManagementOperationalQueueKind) => {
-    const cardIds = operationalQueue.items
-      .filter((item) => item.kind === kind)
-      .map((item) => item.cardId);
+    const cardIds = operationalQueueCardIds(operationalQueue, kind);
 
     setBulkKind(kind);
     setBulkSelectedCardIds(cardIds);
