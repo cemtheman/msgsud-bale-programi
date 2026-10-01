@@ -1,11 +1,18 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { ManagementPublicationGate } from '@/components/management/ManagementPublicationGate';
 import { ManagementPublicationPreview } from '@/components/management/ManagementPublicationPreview';
 import type {
   ManagementBoardCard,
   ManagementStage,
 } from '@/lib/managementBoard';
+import type {
+  ManagementPlacementResourceApplyResult,
+  ManagementPlacementResourcePreview,
+  ManagementPlacementResourceType,
+} from '@/lib/managementCommands';
+import type { ManagementCoursePlanOption } from '@/lib/managementCoursePlan';
 import {
   buildManagementOperationalQueue,
   type ManagementOperationalQueueKind,
@@ -145,8 +152,14 @@ export function ManagementProgramStatus({
   publicationPreview,
   publicationGate,
   cards,
+  teacherOptions,
+  roomOptions,
+  canEdit,
+  commandBusy,
   onIssueAction,
   onOperationalQueueAction,
+  onBulkPreview,
+  onBulkApply,
 }: {
   snapshot: ManagementHealthSnapshot | null;
   versionNumber: number | null;
@@ -155,11 +168,26 @@ export function ManagementProgramStatus({
   publicationPreview: ManagementPublicationPreviewData | null;
   publicationGate: ManagementPublicationGateData | null;
   cards: ManagementBoardCard[];
+  teacherOptions: ManagementCoursePlanOption[];
+  roomOptions: ManagementCoursePlanOption[];
+  canEdit: boolean;
+  commandBusy: boolean;
   onIssueAction?: (issue: ManagementHealthIssue) => void;
   onOperationalQueueAction?: (
     kind: ManagementOperationalQueueKind,
     cardId: string,
   ) => void;
+  onBulkPreview?: (
+    cardIds: string[],
+    resourceType: ManagementPlacementResourceType,
+    resourceId: string,
+  ) => Promise<ManagementPlacementResourcePreview>;
+  onBulkApply?: (
+    cardIds: string[],
+    resourceType: ManagementPlacementResourceType,
+    resourceId: string,
+    expectedStateToken: string,
+  ) => Promise<ManagementPlacementResourceApplyResult>;
 }) {
   if (!snapshot) {
     return (
@@ -171,10 +199,122 @@ export function ManagementProgramStatus({
     );
   }
 
+  const [bulkKind, setBulkKind] = useState<ManagementOperationalQueueKind | null>(null);
+  const [bulkSelectedCardIds, setBulkSelectedCardIds] = useState<string[]>([]);
+  const [bulkResourceId, setBulkResourceId] = useState('');
+  const [bulkPreview, setBulkPreview] =
+    useState<ManagementPlacementResourcePreview | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkApplying, setBulkApplying] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+
   const meta = statusMeta(snapshot.status);
   const blockerCount = snapshot.blockers.reduce((sum, issue) => sum + issue.count, 0);
   const warningCount = snapshot.warnings.reduce((sum, issue) => sum + issue.count, 0);
   const operationalQueue = buildManagementOperationalQueue(cards, stage);
+  const bulkQueueItems = useMemo(
+    () => (
+      bulkKind
+        ? operationalQueue.items.filter((item) => item.kind === bulkKind)
+        : []
+    ),
+    [bulkKind, operationalQueue.items],
+  );
+  const bulkResourceOptions = bulkKind === 'TEACHER'
+    ? teacherOptions
+    : roomOptions;
+  const selectedBulkCount = bulkSelectedCardIds.length;
+
+  const resetBulkPreview = () => {
+    setBulkPreview(null);
+    setBulkError(null);
+  };
+
+  const openBulkOperation = (kind: ManagementOperationalQueueKind) => {
+    const cardIds = operationalQueue.items
+      .filter((item) => item.kind === kind)
+      .map((item) => item.cardId);
+
+    setBulkKind(kind);
+    setBulkSelectedCardIds(cardIds);
+    setBulkResourceId('');
+    setBulkPreview(null);
+    setBulkError(null);
+  };
+
+  const closeBulkOperation = () => {
+    if (bulkLoading || bulkApplying) return;
+    setBulkKind(null);
+    setBulkSelectedCardIds([]);
+    setBulkResourceId('');
+    setBulkPreview(null);
+    setBulkError(null);
+  };
+
+  const runBulkPreview = async () => {
+    if (
+      !bulkKind
+      || bulkSelectedCardIds.length === 0
+      || !bulkResourceId
+      || !onBulkPreview
+      || bulkLoading
+      || bulkApplying
+    ) return;
+
+    setBulkLoading(true);
+    setBulkError(null);
+    try {
+      setBulkPreview(await onBulkPreview(
+        bulkSelectedCardIds,
+        bulkKind,
+        bulkResourceId,
+      ));
+    } catch (reason: unknown) {
+      setBulkPreview(null);
+      setBulkError(
+        reason instanceof Error
+          ? reason.message
+          : 'Toplu atama etkisi hesaplanamadı.',
+      );
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const runBulkApply = async () => {
+    if (
+      !bulkKind
+      || !bulkPreview
+      || !bulkPreview.canApply
+      || !bulkResourceId
+      || !onBulkApply
+      || bulkApplying
+      || bulkLoading
+    ) return;
+
+    setBulkApplying(true);
+    setBulkError(null);
+    try {
+      await onBulkApply(
+        bulkSelectedCardIds,
+        bulkKind,
+        bulkResourceId,
+        bulkPreview.stateToken,
+      );
+      setBulkKind(null);
+      setBulkSelectedCardIds([]);
+      setBulkResourceId('');
+      setBulkPreview(null);
+    } catch (reason: unknown) {
+      setBulkError(
+        reason instanceof Error
+          ? reason.message
+          : 'Toplu atama uygulanamadı.',
+      );
+    } finally {
+      setBulkApplying(false);
+    }
+  };
   const nonOperationalBlockers = snapshot.blockers.filter(
     (issue) => (
       issue.id !== 'placed-teacher-missing'
@@ -323,16 +463,40 @@ export function ManagementProgramStatus({
                 </p>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                 {operationalQueue.teacherCount > 0 && (
-                  <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
-                    Öğretmensiz · {operationalQueue.teacherCount}
-                  </span>
+                  <>
+                    <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
+                      Öğretmensiz · {operationalQueue.teacherCount}
+                    </span>
+                    {operationalQueue.teacherCount > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => openBulkOperation('TEACHER')}
+                        disabled={!canEdit || commandBusy}
+                        className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-[10px] font-black text-rose-700 transition hover:bg-rose-50 disabled:opacity-40"
+                      >
+                        Öğretmenleri toplu ata
+                      </button>
+                    )}
+                  </>
                 )}
                 {operationalQueue.roomCount > 0 && (
-                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-800">
-                    Salonsuz · {operationalQueue.roomCount}
-                  </span>
+                  <>
+                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-800">
+                      Salonsuz · {operationalQueue.roomCount}
+                    </span>
+                    {operationalQueue.roomCount > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => openBulkOperation('ROOM')}
+                        disabled={!canEdit || commandBusy}
+                        className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-[10px] font-black text-amber-800 transition hover:bg-amber-50 disabled:opacity-40"
+                      >
+                        Salonları toplu ata
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -398,6 +562,240 @@ export function ManagementProgramStatus({
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {bulkKind && (
+          <div className="fixed inset-0 z-[126] flex items-center justify-center bg-slate-950/35 p-4">
+            <div className="flex max-h-[88vh] w-full max-w-[760px] flex-col overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_32px_100px_rgba(15,23,42,0.28)]">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                    Toplu operasyon
+                  </p>
+                  <h3 className="mt-1 text-lg font-black text-slate-950">
+                    {bulkKind === 'TEACHER'
+                      ? 'Öğretmensiz derslere öğretmen ata'
+                      : 'Salonsuz derslere salon ata'}
+                  </h3>
+                  <p className="mt-1 text-[10px] font-medium leading-5 text-slate-500">
+                    Seçilen kayıtların mevcut gün ve saatleri korunur. Önce tek bir etki önizlemesi hesaplanır.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeBulkOperation}
+                  disabled={bulkLoading || bulkApplying}
+                  className="rounded-xl px-2 py-1 text-sm font-black text-slate-400 hover:bg-slate-50 hover:text-slate-700 disabled:opacity-30"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="management-scrollbar min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                <div className="grid grid-cols-[minmax(0,1fr)_260px] gap-4">
+                  <div className="min-w-0">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                        Dersler · {selectedBulkCount} / {bulkQueueItems.length}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBulkSelectedCardIds(
+                            bulkSelectedCardIds.length === bulkQueueItems.length
+                              ? []
+                              : bulkQueueItems.map((item) => item.cardId),
+                          );
+                          resetBulkPreview();
+                        }}
+                        className="text-[9px] font-black text-blue-700 hover:underline"
+                      >
+                        {bulkSelectedCardIds.length === bulkQueueItems.length
+                          ? 'Seçimi kaldır'
+                          : 'Tümünü seç'}
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {bulkQueueItems.map((item) => {
+                        const checked = bulkSelectedCardIds.includes(item.cardId);
+                        return (
+                          <label
+                            key={item.id}
+                            className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition ${
+                              checked
+                                ? 'border-blue-200 bg-blue-50/70'
+                                : 'border-slate-200 bg-white hover:bg-slate-50'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                setBulkSelectedCardIds((current) => (
+                                  checked
+                                    ? current.filter((id) => id !== item.cardId)
+                                    : [...current, item.cardId]
+                                ));
+                                resetBulkPreview();
+                              }}
+                              className="h-4 w-4 accent-blue-700"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[10px] font-black text-slate-900">
+                                {item.subjectName} · {item.groupName}
+                              </p>
+                              <p className="mt-0.5 truncate text-[9px] font-semibold text-slate-500">
+                                {DAY_SHORT[item.dayOfWeek] ?? `Gün ${item.dayOfWeek}`} · {item.startPeriod}. ders
+                                {' · '}
+                                {bulkKind === 'TEACHER'
+                                  ? `Salon: ${item.fixedResourceLabel ?? 'belirsiz'}`
+                                  : `Öğretmen: ${item.fixedResourceLabel ?? 'belirsiz'}`}
+                              </p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                        {bulkKind === 'TEACHER' ? 'Atanacak öğretmen' : 'Atanacak salon'}
+                      </label>
+                      <select
+                        value={bulkResourceId}
+                        onChange={(event) => {
+                          setBulkResourceId(event.target.value);
+                          resetBulkPreview();
+                        }}
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-bold text-slate-700 outline-none focus:border-slate-400"
+                      >
+                        <option value="">Seçin…</option>
+                        {bulkResourceOptions.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => void runBulkPreview()}
+                      disabled={
+                        !canEdit
+                        || commandBusy
+                        || bulkLoading
+                        || bulkApplying
+                        || selectedBulkCount === 0
+                        || !bulkResourceId
+                        || !onBulkPreview
+                      }
+                      className="w-full rounded-xl bg-slate-950 px-3 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:opacity-35"
+                    >
+                      {bulkLoading ? 'Hesaplanıyor…' : 'Etkiyi hesapla'}
+                    </button>
+
+                    {bulkError && (
+                      <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-[10px] font-bold leading-5 text-rose-700">
+                        {bulkError}
+                      </div>
+                    )}
+
+                    {bulkPreview && (
+                      <div className={`rounded-2xl border p-3 ${
+                        bulkPreview.canApply
+                          ? 'border-emerald-200 bg-emerald-50'
+                          : 'border-rose-200 bg-rose-50'
+                      }`}>
+                        <p className={`text-[10px] font-black ${
+                          bulkPreview.canApply ? 'text-emerald-800' : 'text-rose-800'
+                        }`}>
+                          {bulkPreview.canApply
+                            ? 'Uygulanabilir'
+                            : 'Bu seçim güvenli uygulanamıyor'}
+                        </p>
+                        <div className="mt-2 space-y-1 text-[9px] font-semibold leading-4 text-slate-600">
+                          <p>Seçilen: {selectedBulkCount} kayıt</p>
+                          <p>Etkilenen: {bulkPreview.affectedCardCount} kart</p>
+                          <p>Ders tanımı: {bulkPreview.affectedRequirementCount}</p>
+                          {bulkPreview.requirementWideExpansionCount > 0 && (
+                            <p className="font-black text-amber-700">
+                              Süreklilik nedeniyle {bulkPreview.requirementWideExpansionCount} ek kart kapsama giriyor.
+                            </p>
+                          )}
+                          {bulkPreview.outsidePlanningPoolCount > 0 && (
+                            <p className="font-black text-amber-700">
+                              {bulkPreview.outsidePlanningPoolCount} seçim mevcut Ders Planı havuzunun dışında.
+                            </p>
+                          )}
+                          {bulkPreview.poolExpansionCount > 0 && (
+                            <p className="font-black text-amber-700">
+                              Ders Planı havuzu {bulkPreview.poolExpansionCount} kaynak bağlantısıyla genişleyecek.
+                            </p>
+                          )}
+                        </div>
+
+                        {bulkPreview.blockReasons.length > 0 && (
+                          <div className="mt-2 space-y-1 rounded-xl bg-white/70 px-2.5 py-2 text-[9px] font-bold text-rose-700">
+                            {bulkPreview.blockReasons.map((reason) => (
+                              <p key={reason}>• {reason}</p>
+                            ))}
+                          </div>
+                        )}
+
+                        {bulkPreview.conflicts.length > 0 && (
+                          <div className="mt-2 space-y-1 rounded-xl bg-white/70 px-2.5 py-2 text-[9px] font-semibold text-rose-700">
+                            {bulkPreview.conflicts.slice(0, 5).map((conflict) => (
+                              <p key={`${conflict.cardId}:${conflict.blockingCardId}:${conflict.conflictType}`}>
+                                • {conflict.subjectName} · {DAY_SHORT[conflict.dayOfWeek] ?? conflict.dayOfWeek}. gün · {conflict.startPeriod}. ders
+                              </p>
+                            ))}
+                            {bulkPreview.conflicts.length > 5 && (
+                              <p>+ {bulkPreview.conflicts.length - 5} çakışma daha</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-4">
+                <p className="text-[9px] font-semibold text-slate-400">
+                  Önizlemeden sonra seçim değişirse etki yeniden hesaplanır.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={closeBulkOperation}
+                    disabled={bulkLoading || bulkApplying}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-black text-slate-600 hover:bg-slate-50 disabled:opacity-35"
+                  >
+                    Vazgeç
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void runBulkApply()}
+                    disabled={
+                      !bulkPreview
+                      || !bulkPreview.canApply
+                      || bulkLoading
+                      || bulkApplying
+                      || commandBusy
+                      || !onBulkApply
+                    }
+                    className="rounded-xl bg-blue-700 px-4 py-2 text-[10px] font-black text-white hover:bg-blue-600 disabled:opacity-35"
+                  >
+                    {bulkApplying ? 'Uygulanıyor…' : 'Toplu uygula'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
