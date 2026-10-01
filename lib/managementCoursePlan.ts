@@ -201,6 +201,7 @@ interface RoomOptionRow {
   canonical_room_id: string | null;
   capabilities: string[] | null;
   operational_status: 'ACTIVE' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
+  archived_at: string | null;
 }
 
 interface TeacherNameOverrideRow {
@@ -537,7 +538,7 @@ export async function fetchManagementCoursePlan(
       accessToken,
     ),
     authedGet<RoomOptionRow[]>(
-      'rooms?select=id,name,canonical_room_id,capabilities,operational_status',
+      'rooms?select=id,name,canonical_room_id,capabilities,operational_status,archived_at',
       accessToken,
     ),
     authedGet<CardRow[]>(
@@ -721,6 +722,7 @@ export async function fetchManagementCoursePlan(
       .filter((room) => (
         room.canonical_room_id === null
         && room.operational_status === 'ACTIVE'
+        && !room.archived_at
       ))
       .map((room) => ({
         id: room.id,
