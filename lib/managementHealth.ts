@@ -17,6 +17,12 @@ export type ManagementIssueOrigin =
   | 'INHERITED'
   | 'TOUCHED_INHERITED';
 
+export type ManagementHealthIssueAction =
+  | 'OPEN_POOL'
+  | 'OPEN_TEACHER'
+  | 'OPEN_ROOM'
+  | 'OPEN_CANDIDATES';
+
 export interface ManagementHealthIssue {
   id: string;
   severity: 'BLOCKER' | 'WARNING';
@@ -24,6 +30,9 @@ export interface ManagementHealthIssue {
   detail: string;
   count: number;
   origin?: ManagementIssueOrigin;
+  cardIds?: string[];
+  action?: ManagementHealthIssueAction;
+  actionLabel?: string;
 }
 
 export interface ManagementHealthSnapshot {
@@ -47,6 +56,27 @@ export function deriveManagementHealth(
     ? board.cards.filter((card) => cardMatchesStage(card, stage))
     : board.cards;
 
+  const missingPlacedTeacher = cards.filter(
+    (card) => (
+      Boolean(card.placement)
+      && card.teacherRequirement === 'REQUIRED'
+      && !card.placement?.teacherId
+    ),
+  );
+
+  const missingPlacedRoom = cards.filter(
+    (card) => (
+      Boolean(card.placement)
+      && card.resourceMode !== 'UNKNOWN'
+      && !card.placement?.roomId
+    ),
+  );
+
+  const directResourceGapCardIds = new Set([
+    ...missingPlacedTeacher.map((card) => card.id),
+    ...missingPlacedRoom.map((card) => card.id),
+  ]);
+
   const unplacedTouched = cards.filter(
     (card) => !card.placement && touched.has(card.id),
   );
@@ -66,6 +96,7 @@ export function deriveManagementHealth(
       card.unresolvedCount > 0
       && touched.has(card.id)
       && !card.isContradiction
+      && !directResourceGapCardIds.has(card.id)
     ),
   );
 
@@ -74,6 +105,7 @@ export function deriveManagementHealth(
       card.unresolvedCount > 0
       && !touched.has(card.id)
       && !card.isContradiction
+      && !directResourceGapCardIds.has(card.id)
     ),
   );
 
@@ -88,6 +120,9 @@ export function deriveManagementHealth(
       detail: 'Bu derslerin programda bir gün ve saat seçimi yapılmalı.',
       count: unplacedUntouched.length,
       origin: 'INHERITED',
+      cardIds: unplacedUntouched.map((card) => card.id),
+      action: 'OPEN_POOL',
+      actionLabel: 'Ders havuzunu aç',
     });
   }
 
@@ -99,6 +134,9 @@ export function deriveManagementHealth(
       detail: 'Bu derslerde değişiklik yapılmış ancak son durumda programda geçerli bir yeri kalmamış.',
       count: unplacedTouched.length,
       origin: 'TOUCHED_INHERITED',
+      cardIds: unplacedTouched.map((card) => card.id),
+      action: 'OPEN_POOL',
+      actionLabel: 'Ders havuzunu aç',
     });
   }
 
@@ -110,6 +148,9 @@ export function deriveManagementHealth(
       detail: 'Bu dersler için mevcut kurallara göre geçerli bir gün, saat, öğretmen ve salon birleşimi kalmamış.',
       count: contradictionUntouched.length,
       origin: 'INHERITED',
+      cardIds: contradictionUntouched.map((card) => card.id),
+      action: 'OPEN_CANDIDATES',
+      actionLabel: 'Programda incele',
     });
   }
 
@@ -121,6 +162,35 @@ export function deriveManagementHealth(
       detail: 'Bu derslerde yapılan değişiklikten sonra geçerli bir yerleşim seçeneği kalmamış.',
       count: contradictionTouched.length,
       origin: 'TOUCHED_INHERITED',
+      cardIds: contradictionTouched.map((card) => card.id),
+      action: 'OPEN_CANDIDATES',
+      actionLabel: 'Programda incele',
+    });
+  }
+
+  if (missingPlacedTeacher.length > 0) {
+    blockers.push({
+      id: 'placed-teacher-missing',
+      severity: 'BLOCKER',
+      title: 'Programda öğretmensiz kalan dersler',
+      detail: 'Bu derslerin gün, saat ve salonları korunuyor; ancak yayın öncesinde öğretmen atanması gerekiyor.',
+      count: missingPlacedTeacher.length,
+      cardIds: missingPlacedTeacher.map((card) => card.id),
+      action: 'OPEN_TEACHER',
+      actionLabel: 'Öğretmen ata',
+    });
+  }
+
+  if (missingPlacedRoom.length > 0) {
+    blockers.push({
+      id: 'placed-room-missing',
+      severity: 'BLOCKER',
+      title: 'Programda salonsuz kalan dersler',
+      detail: 'Bu derslerin gün ve saatleri korunuyor; ancak yayın öncesinde salon atanması gerekiyor.',
+      count: missingPlacedRoom.length,
+      cardIds: missingPlacedRoom.map((card) => card.id),
+      action: 'OPEN_ROOM',
+      actionLabel: 'Salon ata',
     });
   }
 
@@ -132,6 +202,9 @@ export function deriveManagementHealth(
       detail: 'Bu derslerde öğretmen, salon veya kaynak bilgisi tamamlanmadan program yayımlanamaz.',
       count: unresolvedTouched.length,
       origin: 'TOUCHED_INHERITED',
+      cardIds: unresolvedTouched.map((card) => card.id),
+      action: 'OPEN_CANDIDATES',
+      actionLabel: 'Programda incele',
     });
   }
 
@@ -143,6 +216,9 @@ export function deriveManagementHealth(
       detail: 'Mevcut veriden gelen bazı öğretmen veya salon bilgileri eksik. Bu kayıtlar henüz düzenlenmediği için ayrı bir dikkat notu olarak izleniyor.',
       count: unresolvedInherited.length,
       origin: 'INHERITED',
+      cardIds: unresolvedInherited.map((card) => card.id),
+      action: 'OPEN_CANDIDATES',
+      actionLabel: 'Programda incele',
     });
   }
 
