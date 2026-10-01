@@ -5,6 +5,8 @@ import type {
   ManagementResourceInventoryData,
   ManagementResourceKnowledgeStatus,
   ManagementRoomOperationalStatus,
+  ManagementRoomDepartureMode,
+  ManagementRoomDeparturePreview,
   ManagementTeacherOperationalStatus,
   ManagementTeacherDepartureMode,
   ManagementTeacherDeparturePreview,
@@ -116,6 +118,8 @@ export function ManagementResources({
   onSetTeacherStatus,
   onPreviewTeacherDeparture,
   onApplyTeacherDeparture,
+  onPreviewRoomDeparture,
+  onApplyRoomDeparture,
   onDeleteTeacher,
   onDeleteRoom,
   onPreviewRoomProfile,
@@ -140,6 +144,14 @@ export function ManagementResources({
   onApplyTeacherDeparture: (
     teacherId: string,
     mode: ManagementTeacherDepartureMode,
+    expectedStateToken: string,
+  ) => Promise<void>;
+  onPreviewRoomDeparture: (
+    roomId: string,
+  ) => Promise<ManagementRoomDeparturePreview>;
+  onApplyRoomDeparture: (
+    roomId: string,
+    mode: ManagementRoomDepartureMode,
     expectedStateToken: string,
   ) => Promise<void>;
   onDeleteTeacher: (teacherId: string) => Promise<void>;
@@ -219,6 +231,16 @@ export function ManagementResources({
   const [teacherDepartureLoading, setTeacherDepartureLoading] = useState(false);
   const [teacherDepartureApplying, setTeacherDepartureApplying] = useState(false);
   const [teacherDepartureError, setTeacherDepartureError] = useState<string | null>(null);
+
+  const [roomDepartureTarget, setRoomDepartureTarget] =
+    useState<ManagementRoomResourceRow | null>(null);
+  const [roomDeparturePreview, setRoomDeparturePreview] =
+    useState<ManagementRoomDeparturePreview | null>(null);
+  const [roomDepartureMode, setRoomDepartureMode] =
+    useState<ManagementRoomDepartureMode>('ARCHIVE_CLEAR');
+  const [roomDepartureLoading, setRoomDepartureLoading] = useState(false);
+  const [roomDepartureApplying, setRoomDepartureApplying] = useState(false);
+  const [roomDepartureError, setRoomDepartureError] = useState<string | null>(null);
 
   const openEditor = (
     kind: 'TEACHER' | 'ROOM',
@@ -384,7 +406,65 @@ export function ManagementResources({
     }
   };
 
-  const deleteRoom = async (row: ManagementRoomResourceRow) => {
+  const openRoomDeparture = async (
+    row: ManagementRoomResourceRow,
+    mode: ManagementRoomDepartureMode = 'ARCHIVE_CLEAR',
+  ) => {
+    if (resourceActionBusy || roomDepartureLoading || roomDepartureApplying) return;
+
+    setRoomDepartureTarget(row);
+    setRoomDepartureMode(mode);
+    setRoomDeparturePreview(null);
+    setRoomDepartureError(null);
+    setRoomDepartureLoading(true);
+
+    try {
+      setRoomDeparturePreview(await onPreviewRoomDeparture(row.id));
+    } catch (reason: unknown) {
+      setRoomDepartureError(
+        reason instanceof Error
+          ? reason.message
+          : 'Salon değişikliğinin etkisi hesaplanamadı.',
+      );
+    } finally {
+      setRoomDepartureLoading(false);
+    }
+  };
+
+  const applyRoomDeparture = async () => {
+    if (
+      !roomDepartureTarget
+      || !roomDeparturePreview
+      || roomDepartureLoading
+      || roomDepartureApplying
+    ) {
+      return;
+    }
+
+    setRoomDepartureApplying(true);
+    setRoomDepartureError(null);
+
+    try {
+      await onApplyRoomDeparture(
+        roomDepartureTarget.id,
+        roomDepartureMode,
+        roomDeparturePreview.stateToken,
+      );
+      setRoomDepartureTarget(null);
+      setRoomDeparturePreview(null);
+    } catch (reason: unknown) {
+      setRoomDepartureError(
+        reason instanceof Error
+          ? reason.message
+          : 'Salon değişikliği uygulanamadı.',
+      );
+    } finally {
+      setRoomDepartureApplying(false);
+    }
+  };
+
+  const deleteUnusedRoom = async (row: ManagementRoomResourceRow) => {
+
     if (resourceActionBusy) return;
     setResourceActionBusy(true);
     setResourceActionError(null);
