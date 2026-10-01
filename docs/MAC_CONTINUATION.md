@@ -1725,3 +1725,72 @@ Rule:
 - treat this SHA as stable rollback/checkpoint before M38
 - do not reopen M37 unless a concrete regression is reproduced
 - start all new work from a fresh M38 branch
+## 29. M38.0 bulk operational assignments — READY FOR ACCEPTANCE
+
+Goal:
+- resolve multiple teacherless or roomless timetable gaps in one controlled operation
+- reuse the existing placement-resource preview/apply authority instead of creating a new backend path
+- preserve preview safety, conflicts, state-token freshness and global bundle history
+
+Bulk operation model:
+- Program Durumu / Operasyon Kuyruğu shows:
+  - `Öğretmenleri toplu ata` when more than one teacher gap exists
+  - `Salonları toplu ata` when more than one room gap exists
+- bulk modal preselects all tasks of the chosen resource kind
+- tasks can be included/excluded individually
+- source selection uses active Course Plan teacher/room options
+- one resource is assigned to all selected cards
+- day/time and the opposite resource stay unchanged
+
+Safety preview:
+- calls existing `management_preview_placement_resource_change_v2` with `cardIds[]`
+- shows selected count / affected card count / affected requirement count
+- shows requirement-wide expansion when teacher continuity expands scope
+- shows outside-planning-pool/manual selection count
+- shows planning-pool expansion count if returned
+- shows translated block reasons and up to five concrete conflicts
+- `Toplu uygula` is disabled unless preview `canApply=true`
+- any selection/resource change invalidates the previous state token and requires a new preview
+
+Apply/history:
+- calls existing `management_apply_placement_resource_change_v2`
+- M32.4.2 policy layer remains authoritative
+- M29 base apply tags all affected per-card MOVE transactions under one bundle root
+- existing bundle-aware Undo/Redo therefore remains the history mechanism
+- no new migration / RPC / database authority introduced
+
+Refactors:
+- `operationalQueueCardIds(queue, kind)` centralizes same-kind bulk selection
+- resource-preview blocker translations centralized in `managementCommands.ts`
+- Inspector and bulk modal reuse the same Turkish reason messages
+
+Regression coverage:
+- teacher bulk selection never includes room-gap-only tasks
+- room bulk selection never includes teacher-gap-only tasks
+- a dual-gap lesson appears once in each kind-specific bulk selection
+
+Expected gate:
+```
+20 test files
+102 tests
+```
+
+No migration in M38.0.
+
+Implementation HEAD before journal commit: 485decfcaccee81a70c27086c228eb61f6785a36
+Branch vs main: ahead 11, behind 0
+
+Acceptance commands:
+```bash
+git pull --ff-only
+npm test
+npm run build
+```
+
+Browser smoke:
+1. Program Durumu -> Operasyon Kuyruğu -> `Öğretmenleri toplu ata`
+2. deselect/select several rows; choose an active teacher
+3. `Etkiyi hesapla` shows affected scope and blocks conflicts safely
+4. safe preview -> `Toplu uygula`; selected teacher gaps disappear after refresh
+5. verify one Undo action restores the bulk assignment bundle
+6. repeat same flow with `Salonları toplu ata` when 2+ room gaps are available
