@@ -1,5 +1,7 @@
 'use client';
 
+import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+
 export type ManagementResourceView = 'SINIFLAR' | 'ÖĞRETMENLER' | 'SALONLAR';
 export type ManagementStage = 'ORTAOKUL' | 'LISE';
 export type ManagementDomainStatus = 'VALID' | 'INVALID' | 'UNRESOLVED';
@@ -307,7 +309,7 @@ async function authedGet<T>(path: string, accessToken: string): Promise<T> {
   const response = await fetch(`${url}/rest/v1/${path}`, {
     headers: {
       apikey: key,
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
     },
     cache: 'no-store',
   });
