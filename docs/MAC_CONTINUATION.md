@@ -2417,3 +2417,32 @@ Fixture was updated for M40 result contract:
 - `teacherLoadBalance` score component
 
 Re-run test/build before any DB push.
+
+
+## 35. M40.1 teacher load defaults — implementation ready
+
+Approved starting values:
+- En az: 1
+- Hedef: 10
+- En fazla: 20
+
+This is an explicit product decision and supersedes the earlier M40 assumption that no institutional defaults existed.
+
+Implementation:
+- shared frontend constant: `MANAGEMENT_TEACHER_LOAD_DEFAULTS`
+- blank relevant teacher form starts at 1 / 10 / 20
+- existing custom values remain untouched
+- migration `20261001213000_management_m40_1_teacher_load_defaults.sql`
+- migration inserts defaults only for relevant ACTIVE teachers with no existing planning row
+- no UPDATE path; custom rows such as 3 / 10 / 20 are preserved
+
+Expected current effect:
+- the 51 missing teacher targets visible in M40 acceptance should be populated automatically if they are genuinely unconfigured rows
+- after migration, Öncelikler → teacher load balance should become selectable when readiness reaches full coverage
+
+Expected gate:
+- 21 test files
+- 113 tests
+- build PASS
+- dry-run shows only M40.1 migration
+- then DB push + browser readiness smoke
