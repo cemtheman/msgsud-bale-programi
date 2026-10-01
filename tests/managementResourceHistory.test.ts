@@ -158,6 +158,93 @@ describe('M34 unified management history state', () => {
     });
   });
 
+  it('recognizes a bundled teacher placement override as teacher assignment history', () => {
+    const state = deriveManagementCommandState([
+      tx({
+        id: 'teacher-override-10',
+        action: 'MOVE',
+        history_sequence: 10,
+        payload: {
+          source: 'MANUAL',
+          engine_version: 'M29.4-placement-resource-override',
+          propagation_stop_reason: 'PLACEMENT_RESOURCE_OVERRIDE',
+          card_id: 'card-10',
+          bundle_id: 'teacher-override-10',
+          bundle_size: 3,
+          bundle_card_ids: ['card-10', 'card-11', 'card-12'],
+          before: {
+            teacher_id: null,
+            room_id: 'room-1',
+          },
+          after: {
+            teacher_id: 'teacher-9',
+            room_id: 'room-1',
+          },
+        },
+      }),
+    ]);
+
+    expect(state.undo).toMatchObject({
+      transactionId: 'teacher-override-10',
+      action: 'MOVE',
+      bundleSize: 3,
+      placementResourceType: 'TEACHER',
+      placementResourceBeforeId: null,
+      placementResourceId: 'teacher-9',
+    });
+  });
+
+  it('preserves room placement override semantics for redo', () => {
+    const state = deriveManagementCommandState([
+      tx({
+        id: 'undo-room-override-12',
+        action: 'MOVE',
+        history_sequence: 12,
+        payload: {
+          source: 'ROOT_UNDO',
+          reverts_root_transaction_id: 'room-override-11',
+          reverted_root_action: 'MOVE',
+          bundle_id: 'room-override-11',
+          bundle_size: 2,
+          bundle_card_ids: ['card-20', 'card-21'],
+        },
+      }),
+      tx({
+        id: 'room-override-11',
+        action: 'MOVE',
+        history_sequence: 11,
+        reverted_at: '2026-10-01T10:00:00.000Z',
+        payload: {
+          source: 'MANUAL',
+          engine_version: 'M29.4-placement-resource-override',
+          propagation_stop_reason: 'PLACEMENT_RESOURCE_OVERRIDE',
+          card_id: 'card-20',
+          bundle_id: 'room-override-11',
+          bundle_size: 2,
+          bundle_card_ids: ['card-20', 'card-21'],
+          before: {
+            teacher_id: 'teacher-1',
+            room_id: null,
+          },
+          after: {
+            teacher_id: 'teacher-1',
+            room_id: 'room-7',
+          },
+        },
+      }),
+    ]);
+
+    expect(state.undo).toBeNull();
+    expect(state.redo).toMatchObject({
+      transactionId: 'undo-room-override-12',
+      action: 'MOVE',
+      bundleSize: 2,
+      placementResourceType: 'ROOM',
+      placementResourceBeforeId: null,
+      placementResourceId: 'room-7',
+    });
+  });
+
   it('invalidates a pending resource redo after a newer manual decision', () => {
     const state = deriveManagementCommandState([
       tx({
