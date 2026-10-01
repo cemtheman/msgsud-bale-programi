@@ -43,7 +43,13 @@ function originLabel(origin?: ManagementIssueOrigin) {
   return null;
 }
 
-function IssueCard({ issue }: { issue: ManagementHealthIssue }) {
+function IssueCard({
+  issue,
+  onAction,
+}: {
+  issue: ManagementHealthIssue;
+  onAction?: (issue: ManagementHealthIssue) => void;
+}) {
   const isBlocker = issue.severity === 'BLOCKER';
   const origin = originLabel(issue.origin);
 
@@ -83,15 +89,30 @@ function IssueCard({ issue }: { issue: ManagementHealthIssue }) {
           </p>
         </div>
 
-        <span
-          className={
-            isBlocker
-              ? 'shrink-0 rounded-2xl bg-white px-3 py-2 text-lg font-black text-rose-700'
-              : 'shrink-0 rounded-2xl bg-white px-3 py-2 text-lg font-black text-amber-700'
-          }
-        >
-          {issue.count}
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <span
+            className={
+              isBlocker
+                ? 'rounded-2xl bg-white px-3 py-2 text-lg font-black text-rose-700'
+                : 'rounded-2xl bg-white px-3 py-2 text-lg font-black text-amber-700'
+            }
+          >
+            {issue.count}
+          </span>
+          {issue.action && issue.actionLabel && onAction && (
+            <button
+              type="button"
+              onClick={() => onAction(issue)}
+              className={
+                isBlocker
+                  ? 'rounded-xl border border-rose-200 bg-white px-3 py-2 text-[10px] font-black text-rose-700 transition hover:bg-rose-100'
+                  : 'rounded-xl border border-amber-200 bg-white px-3 py-2 text-[10px] font-black text-amber-800 transition hover:bg-amber-100'
+              }
+            >
+              {issue.actionLabel}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -104,6 +125,7 @@ export function ManagementProgramStatus({
   onStageChange,
   publicationPreview,
   publicationGate,
+  onIssueAction,
 }: {
   snapshot: ManagementHealthSnapshot | null;
   versionNumber: number | null;
@@ -111,6 +133,7 @@ export function ManagementProgramStatus({
   onStageChange: (stage: ManagementStage) => void;
   publicationPreview: ManagementPublicationPreviewData | null;
   publicationGate: ManagementPublicationGateData | null;
+  onIssueAction?: (issue: ManagementHealthIssue) => void;
 }) {
   if (!snapshot) {
     return (
@@ -253,7 +276,7 @@ export function ManagementProgramStatus({
               <div className="mt-4 space-y-2">
                 {snapshot.blockers.length > 0 ? (
                   snapshot.blockers.map((issue) => (
-                    <IssueCard key={issue.id} issue={issue} />
+                    <IssueCard key={issue.id} issue={issue} onAction={onIssueAction} />
                   ))
                 ) : (
                   <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
@@ -283,7 +306,7 @@ export function ManagementProgramStatus({
               <div className="mt-4 space-y-2">
                 {snapshot.warnings.length > 0 ? (
                   snapshot.warnings.map((issue) => (
-                    <IssueCard key={issue.id} issue={issue} />
+                    <IssueCard key={issue.id} issue={issue} onAction={onIssueAction} />
                   ))
                 ) : (
                   <div className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">
