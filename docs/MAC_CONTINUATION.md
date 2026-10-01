@@ -1581,3 +1581,62 @@ Checkpoint before journal commit: 33d41ee9a427649208cd070326495b15971b435b
 Status:
 - code gate PASS
 - browser acceptance pending
+### M37.1 management session resilience — READY FOR GATE
+
+Browser feedback:
+- M37 operational queue and Program Durumu layout behave as intended
+- manual teacher assignment eventually failed with raw `JWT expired` after the management page remained open
+
+Root cause:
+- refresh-token support already existed in `managementAuth.ts`
+- management page/component state could retain an old access token for a long-lived session
+- authenticated data/RPC helpers used the supplied access token directly and did not resolve the newer stored session at request time
+
+Fix:
+- added `getFreshManagementAccessToken()` in `managementAuth.ts`
+- expiry safety window increased to 2 minutes
+- stored session is checked at every authenticated management request
+- when expiring/expired, refresh token is used automatically
+- concurrent requests share one in-flight refresh promise, preventing refresh-token fan-out/rotation races
+- if localStorage already contains a newer token than React state, request uses the stored token
+- server/test callers without browser storage retain their explicitly supplied token
+
+Authenticated modules migrated to fresh-token resolution:
+- managementBoard
+- managementCommands
+- managementCoursePlan
+- managementOverview
+- managementPublicationGate
+- managementPublicationPreview
+- managementResources
+- managementSolver
+- management access-context check
+
+Logout intentionally remains best-effort with the session token and always clears local state.
+
+Regression tests:
+- valid stored token does not refresh
+- three concurrent calls near expiry share exactly one refresh request and all receive the new access token
+
+Expected next gate:
+```
+20 test files
+100 tests
+```
+
+No migration in M37.1.
+
+Implementation HEAD before journal commit: 02eb55fa3e17678b85c4185be8ee5558a6a7a2af
+
+Required gate:
+```bash
+git pull --ff-only
+npm test
+npm run build
+```
+
+Browser acceptance:
+1. keep/open management session and perform a normal teacher assignment
+2. no raw `JWT expired` should surface
+3. if the stored token is near expiry, request should refresh transparently and continue
+4. queue navigation/auto-advance must remain unchanged
