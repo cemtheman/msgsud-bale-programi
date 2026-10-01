@@ -830,6 +830,7 @@ export default function ManagementPage() {
   ) => {
     const width = 168;
     const height = 228;
+    setProgramFilterMenu(null);
     setCardContextMenu({
       cardId,
       cardIds: Array.from(new Set(sourceCardIds.length ? sourceCardIds : [cardId])),
@@ -860,6 +861,7 @@ export default function ManagementPage() {
   const openProgramFilterMenu = (x: number, y: number) => {
     const width = 520;
     const height = 430;
+    setCardContextMenu(null);
     setProgramFilterQuery('');
     setProgramFilterMenu({
       x: Math.max(8, Math.min(x, window.innerWidth - width - 8)),
@@ -2495,7 +2497,7 @@ export default function ManagementPage() {
               }}
               title="Sağ tıklayarak öğretmen / salon filtresi ekleyin"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pr-2">
                 <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">
                   {RESOURCE_VIEWS.find((view) => view.id === resourceView)?.label}
                 </span>
@@ -2511,7 +2513,7 @@ export default function ManagementPage() {
                       filter.id,
                       filter.label,
                     )}
-                    className="max-w-[220px] truncate rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-black text-blue-700 hover:bg-blue-100"
+                    className="max-w-[220px] shrink-0 truncate rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-black text-blue-700 hover:bg-blue-100"
                     title={`${filter.label} filtresini kaldır`}
                   >
                     {filter.kind === 'TEACHER' ? 'Öğretmen' : 'Salon'} · {filter.label} ×
@@ -2519,7 +2521,7 @@ export default function ManagementPage() {
                 ))}
               </div>
   
-              <span className="text-[9px] font-medium text-slate-400">
+              <span className="shrink-0 text-[9px] font-medium text-slate-400">
                 {programCards.length} kart · {rows.length} kaynak satırı
               </span>
             </div>
