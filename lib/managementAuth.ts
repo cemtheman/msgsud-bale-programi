@@ -33,7 +33,9 @@ interface AuthResponse {
 }
 
 const SESSION_KEY = 'msgsu-management-session:v1';
-const EXPIRY_SAFETY_MS = 60_000;
+const EXPIRY_SAFETY_MS = 120_000;
+
+let inFlightManagementRefresh: Promise<ManagementSession> | null = null;
 
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -196,6 +198,41 @@ export async function refreshManagementSession(
   );
   storeManagementSession(refreshed);
   return refreshed;
+}
+
+export async function getFreshManagementAccessToken(
+  fallbackAccessToken?: string,
+): Promise<string> {
+  const stored = readStoredManagementSession();
+
+  // Unit tests/server-side helpers may not have browser storage. Preserve the
+  // explicitly supplied token in that environment.
+  if (!stored) {
+    if (fallbackAccessToken) return fallbackAccessToken;
+    throw new Error('Yönetim oturumu bulunamadı. Lütfen yeniden giriş yapın.');
+  }
+
+  if (stored.expiresAt - Date.now() > EXPIRY_SAFETY_MS) {
+    return stored.accessToken;
+  }
+
+  if (!inFlightManagementRefresh) {
+    inFlightManagementRefresh = refreshManagementSession(stored)
+      .finally(() => {
+        inFlightManagementRefresh = null;
+      });
+  }
+
+  try {
+    const refreshed = await inFlightManagementRefresh;
+    return refreshed.accessToken;
+  } catch (reason: unknown) {
+    throw new Error(
+      reason instanceof Error
+        ? reason.message
+        : 'Oturum yenilenemedi. Lütfen yeniden giriş yapın.',
+    );
+  }
 }
 
 export async function getValidManagementSession() {
