@@ -5,6 +5,7 @@ import type {
 } from '@/lib/managementSolver';
 import {
   runManagementFeasibilityPrototype,
+  runManagementObjectiveOptimization,
 } from '@/lib/managementSolverPrototype';
 
 function snapshot(
@@ -569,5 +570,106 @@ describe('M33.2 in-memory feasibility prototype', () => {
 
     expect(result.status).toBe('INFEASIBLE');
     expect(result.reasons).toContain('LOCKED_CARD_BASELINE_MISSING');
+  });
+});
+
+
+describe('M40 teacher load objective', () => {
+  const loadOnlyWeights = {
+    changeCost: 0,
+    preferredTeacherContinuity: 0,
+    teacherIdleGaps: 0,
+    roomStability: 0,
+    teacherLoadBalance: 1000,
+    subjectTimePreference: 0,
+  };
+
+  it('blocks load optimization when relevant teacher targets are incomplete', () => {
+    const result = runManagementObjectiveOptimization(
+      snapshot({
+        teacherLoadReadiness: {
+          ready: false,
+          relevantTeacherCount: 1,
+          configuredTeacherCount: 0,
+          targetConfiguredTeacherCount: 0,
+          missingTargetTeacherCount: 1,
+          partialTeacherCount: 0,
+          baselineBelowMinimumTeacherCount: 0,
+          baselineAboveMaximumTeacherCount: 0,
+          baselineTargetDeviationPeriods: 0,
+          baselineRangeViolationPeriods: 0,
+        },
+      }),
+      loadOnlyWeights,
+    );
+
+    expect(result.status).toBe('BLOCKED');
+    expect(result.reasons).toContain('TEACHER_LOAD_INPUT_NOT_READY');
+    expect(result.writesPerformed).toBe(false);
+  });
+
+  it('moves load toward explicit teacher targets when load balance is enabled', () => {
+    const base = snapshot();
+
+    const result = runManagementObjectiveOptimization(
+      snapshot({
+        teacherPools: [
+          { requirementId: 'r1', teacherId: 't1' },
+          { requirementId: 'r1', teacherId: 't2' },
+        ],
+        teachers: [
+          { id: 't1', name: 'Ö1', operationalStatus: 'ACTIVE' },
+          { id: 't2', name: 'Ö2', operationalStatus: 'ACTIVE' },
+        ],
+        teacherLoadTargets: [
+          {
+            teacherId: 't1',
+            minimumLoad: 0,
+            targetLoad: 0,
+            maximumLoad: 0,
+            actualLoadPeriods: 1,
+            relevant: true,
+          },
+          {
+            teacherId: 't2',
+            minimumLoad: 1,
+            targetLoad: 1,
+            maximumLoad: 1,
+            actualLoadPeriods: 0,
+            relevant: true,
+          },
+        ],
+        teacherLoadReadiness: {
+          ready: true,
+          relevantTeacherCount: 2,
+          configuredTeacherCount: 2,
+          targetConfiguredTeacherCount: 2,
+          missingTargetTeacherCount: 0,
+          partialTeacherCount: 0,
+          baselineBelowMinimumTeacherCount: 1,
+          baselineAboveMaximumTeacherCount: 1,
+          baselineTargetDeviationPeriods: 2,
+          baselineRangeViolationPeriods: 2,
+        },
+        baselineMetrics: {
+          ...base.baselineMetrics,
+          teacherLoadTargetDeviationPeriods: 2,
+          teacherLoadRangeViolationPeriods: 2,
+        },
+      }),
+      loadOnlyWeights,
+      {
+        maxIterations: 4,
+        maxNeighborsPerCard: 48,
+      },
+    );
+
+    expect(result.status).toBe('IMPROVED');
+    expect(result.baselineMetrics.teacherLoadTargetDeviationPeriods).toBe(2);
+    expect(result.baselineMetrics.teacherLoadRangeViolationPeriods).toBe(2);
+    expect(result.proposedMetrics.teacherLoadTargetDeviationPeriods).toBe(0);
+    expect(result.proposedMetrics.teacherLoadRangeViolationPeriods).toBe(0);
+    expect(result.placements[0].teacherId).toBe('t2');
+    expect(result.writesPerformed).toBe(false);
   });
 });
