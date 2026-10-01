@@ -1174,4 +1174,32 @@ Then:
 ```bash
 npx supabase db push
 ```
+### M35.2 acceptance — PASS
 
+Browser/runtime acceptance completed successfully.
+
+Accepted behavior:
+- used teacher departure no longer hits statement timeout
+- `Derslerden çıkar ve atamaya kapat` preserves day/time/room and clears teacher assignment
+- teacher departure remains globally undoable/redoable
+- archived/inactive teachers are excluded from active planning choices
+- stale persisted candidate rows from departed teachers are rejected by live client validation
+- Program resource filters work with explicit `Herhangi biri · VEYA` and `Kesişim · VE` modes
+- teacher/room first-column labels remain simplified
+- multi-resource filter pills and right-click filter menu accepted
+- no further regression reported in this acceptance round
+
+Migration status:
+```
+20261001010000_management_m35_teacher_departure.sql              APPLIED
+20261001043000_management_m35_2_teacher_departure_fast_path.sql  APPLIED
+```
+
+Checkpoint:
+```
+branch: feat/management-m35-ux-safety
+HEAD before acceptance-log commit: d45ecf846715b8e3c7264810666c770c406fa548
+status: M35.2 PASS
+```
+
+Do not reopen M35.2 unless a concrete regression is reproduced.
