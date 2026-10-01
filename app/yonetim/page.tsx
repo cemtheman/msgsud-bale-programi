@@ -24,6 +24,7 @@ import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   buildManagementRowDisplayCards,
   cardBelongsToClassRow,
+  cardMatchesProgramResourceFilters,
   cardMatchesAudience,
   cardMatchesStage,
   fetchManagementBoard,
@@ -613,47 +614,14 @@ export default function ManagementPage() {
     [audienceFilter, board, stage],
   );
 
-  const programCards = useMemo(() => {
-    if (programResourceFilters.length === 0) return visibleCards;
-
-    const teacherIds = new Set(
-      programResourceFilters
-        .filter((filter) => filter.kind === 'TEACHER')
-        .map((filter) => filter.id),
-    );
-    const roomIds = new Set(
-      programResourceFilters
-        .filter((filter) => filter.kind === 'ROOM')
-        .map((filter) => filter.id),
-    );
-
-    return visibleCards.filter((card) => {
-      if (!card.placement) return false;
-
-      const hasTeacherFilters = teacherIds.size > 0;
-      const hasRoomFilters = roomIds.size > 0;
-      const teacherMatches = Boolean(
-        card.placement.teacherId
-        && teacherIds.has(card.placement.teacherId),
-      );
-      const roomMatches = Boolean(
-        card.placement.roomId
-        && roomIds.has(card.placement.roomId),
-      );
-
-      if (programFilterMode === 'ANY') {
-        return (
-          (hasTeacherFilters && teacherMatches)
-          || (hasRoomFilters && roomMatches)
-        );
-      }
-
-      return (
-        (!hasTeacherFilters || teacherMatches)
-        && (!hasRoomFilters || roomMatches)
-      );
-    });
-  }, [programFilterMode, programResourceFilters, visibleCards]);
+  const programCards = useMemo(() => (
+    visibleCards.filter((card) =>
+      cardMatchesProgramResourceFilters(
+        card,
+        programResourceFilters,
+        programFilterMode,
+      ))
+  ), [programFilterMode, programResourceFilters, visibleCards]);
 
   const programTeacherFilterOptions = useMemo(() => {
     if (!board) return [];
