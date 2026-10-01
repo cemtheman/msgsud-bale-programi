@@ -1783,7 +1783,10 @@ export default function ManagementPage() {
             <nav className="flex h-full items-center gap-5">
               <button
                 type="button"
-                onClick={() => setActiveSection('PROGRAM')}
+                onClick={() => {
+                  setActiveSection('PROGRAM');
+                  setProgramResourceFocus(null);
+                }}
                 className={
                   activeSection === 'PROGRAM'
                     ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
@@ -1996,11 +1999,21 @@ export default function ManagementPage() {
             </div>
   
             <div className="flex shrink-0 items-center gap-2 text-[9px] font-semibold text-slate-500 max-[1360px]:hidden">
-              <span>{visiblePlacedCount} yerleşmiş</span>
-              <span className="text-slate-300">·</span>
-              <span>{visibleUnplacedCount} havuzda</span>
-              <span className="text-slate-300">·</span>
-              <span>{overview?.activeMoveCount ?? 0} işlem</span>
+              {programResourceFocus ? (
+                <>
+                  <span>{programCards.length} yerleşim</span>
+                  <span className="text-slate-300">·</span>
+                  <span>kaynak filtresi</span>
+                </>
+              ) : (
+                <>
+                  <span>{visiblePlacedCount} yerleşmiş</span>
+                  <span className="text-slate-300">·</span>
+                  <span>{visibleUnplacedCount} havuzda</span>
+                  <span className="text-slate-300">·</span>
+                  <span>{overview?.activeMoveCount ?? 0} işlem</span>
+                </>
+              )}
             </div>
   
             <button
@@ -2399,6 +2412,7 @@ export default function ManagementPage() {
             );
 
             setStage(planStage);
+            setProgramResourceFocus(null);
             setActiveSection('PROGRAM');
 
             if (card) {
