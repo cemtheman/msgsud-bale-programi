@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 305 195" role="img" aria-label="MSGSÜ amblem referansı">
+  <defs>
+    <linearGradient id="owlBlue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#173FD1"/>
+      <stop offset="1" stop-color="#0C0F8F"/>
+    </linearGradient>
+  </defs>
+  <path d="M 14 26 L 31 34 L 25 49 L 28 59 L 43 74 L 51 80 L 60 102 L 72 113 L 89 118 L 100 116 L 109 109 L 117 110 L 122 119 L 124 142 L 137 131 L 143 121 L 153 115 L 161 120 L 171 132 L 181 138 L 194 139 L 206 135 L 218 126 L 226 115 L 233 100 L 238 82 L 241 62 L 239 51 L 232 42 L 250 32 L 246 16 L 222 25 L 196 29 L 162 31 L 126 31 L 91 30 L 59 29 L 32 25 Z M 65 51 L 93 56 L 118 58 L 144 58 L 167 56 L 190 51 L 168 80 L 145 108 L 124 82 L 101 55 Z M 46 61 L 56 69 L 55 83 L 59 93 L 67 99 L 77 99 L 86 93 L 95 84 L 102 93 L 95 104 L 84 111 L 70 113 L 58 109 L 49 101 L 43 89 L 42 76 Z M 205 60 L 216 68 L 219 81 L 217 94 L 210 104 L 199 110 L 186 111 L 174 106 L 164 96 L 171 85 L 180 94 L 190 99 L 199 98 L 207 91 L 210 80 L 209 69 Z" fill="url(#owlBlue)" fill-rule="evenodd"/>
+</svg>
