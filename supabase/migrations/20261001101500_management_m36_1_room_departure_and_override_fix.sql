@@ -670,6 +670,17 @@ begin
     raise exception 'M36.1 room departure preview is stale';
   end if;
 
+  select count(*)
+  into v_alias_count
+  from public.rooms alias
+  where alias.canonical_room_id = p_room_id
+    and alias.archived_at is null;
+
+  if p_mode = 'ARCHIVE_CLEAR' and v_alias_count > 0 then
+    raise exception
+      'M36.1 canonical room with aliases cannot be archived directly';
+  end if;
+
   v_after := jsonb_set(
     v_before,
     '{operationalStatus}',
@@ -774,11 +785,7 @@ begin
     coalesce(v_scope -> 'placementCardIds', '[]'::jsonb)
   );
 
-  select count(*)
-  into v_alias_count
-  from public.rooms alias
-  where alias.canonical_room_id = p_room_id
-    and alias.archived_at is null;
+  -- v_alias_count was locked/validated before mutation.
 
   return jsonb_build_object(
     'applied', true,
