@@ -217,16 +217,30 @@ function PartisyonBrand({
   compact?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2.5" aria-label="MSGSÜ İDK Partisyon">
-      <span className="grid shrink-0 place-items-center text-[#1437B8]">
-        <PartisyonMark className={compact ? 'h-7 w-7' : 'h-9 w-9'} />
-      </span>
-      <span className="min-w-0 leading-none">
-        <span className="block text-[8px] font-bold uppercase tracking-[0.28em] text-slate-400">
+    <div className="flex items-center" aria-label="MSGSÜ İDK Partisyon">
+      <img
+        src="/brand/msgsu-owl-reference.svg"
+        alt=""
+        aria-hidden="true"
+        className={compact ? 'h-8 w-auto shrink-0' : 'h-12 w-auto shrink-0'}
+      />
+
+      <span
+        className={`mx-3 w-px shrink-0 bg-slate-300 ${compact ? 'h-8' : 'h-11'}`}
+        aria-hidden="true"
+      />
+
+      <span className="min-w-0">
+        <span className={`block font-bold uppercase text-slate-400 ${compact ? 'text-[7px] tracking-[0.26em]' : 'text-[9px] tracking-[0.3em]'}`}>
           MSGSÜ İDK
         </span>
-        <span className={`mt-1 block font-black tracking-[-0.035em] text-[#081736] ${compact ? 'text-[16px]' : 'text-[22px]'}`}>
-          Partisyon
+        <span className="mt-0.5 flex items-center gap-1.5 whitespace-nowrap">
+          <span className="grid shrink-0 place-items-center text-[#1437B8]">
+            <PartisyonMark className={compact ? 'h-6 w-6' : 'h-8 w-8'} />
+          </span>
+          <span className={`font-black leading-none tracking-[-0.04em] text-[#081736] ${compact ? 'text-[15px]' : 'text-[22px]'}`}>
+            Partisyon
+          </span>
         </span>
       </span>
     </div>
@@ -2180,11 +2194,9 @@ export default function ManagementPage() {
       </div>
 
       <header className="shrink-0 border-b border-slate-200 bg-white">
-        <div className="flex h-[54px] items-center gap-5 px-5">
-          <div className="flex h-full items-center gap-5">
+        <div className="flex h-[60px] items-center gap-6 px-5">
+          <div className="flex h-full items-center gap-6">
             <PartisyonBrand compact />
-
-            <span className="h-7 w-px bg-slate-200" aria-hidden="true" />
 
             <nav className="flex h-full items-center gap-5">
               <button
