@@ -43,6 +43,10 @@ export interface ManagementTeacherResourceRow {
   targetLoad: number | null;
   maximumLoad: number | null;
   loadConfigured: boolean;
+  unavailablePeriods: ManagementTeacherUnavailablePeriod[];
+  unavailablePeriodCount: number;
+  availabilityConfigured: boolean;
+  unavailablePlacedBlockCount: number;
 }
 
 export interface ManagementRoomResourceRow {
@@ -79,6 +83,11 @@ interface TeacherRow {
   archived_at: string | null;
 }
 
+export interface ManagementTeacherUnavailablePeriod {
+  dayOfWeek: number;
+  period: number;
+}
+
 interface TeacherLoadAuditRow {
   teacherId: string;
   minimumLoad: number | null;
@@ -88,6 +97,10 @@ interface TeacherLoadAuditRow {
   actualLoadPeriods: number;
   placedBlockCount: number;
   activeRequirementCount: number;
+  unavailablePeriods: ManagementTeacherUnavailablePeriod[];
+  unavailablePeriodCount: number;
+  availabilityConfigured: boolean;
+  unavailablePlacedBlockCount: number;
 }
 
 export interface ManagementTeacherLoadTargetsInput {
@@ -106,6 +119,46 @@ export interface ManagementTeacherLoadTargetsResult
   activeRequirementCount: number;
   publishedChanged?: false;
   solverBehaviorChanged?: false;
+}
+
+export interface ManagementTeacherAvailabilityResult {
+  teacherId: string;
+  teacherName?: string;
+  unavailablePeriods: ManagementTeacherUnavailablePeriod[];
+  unavailablePeriodCount: number;
+  availabilityConfigured: boolean;
+  unavailablePlacedBlockCount: number;
+  candidateReclassifiedCardCount?: number;
+  publishedChanged?: false;
+  placementsChanged?: false;
+  solverBehaviorChanged?: true;
+}
+
+export function validateManagementTeacherUnavailablePeriods(
+  periods: ManagementTeacherUnavailablePeriod[],
+) {
+  const seen = new Set<string>();
+
+  for (const slot of periods) {
+    if (
+      !Number.isInteger(slot.dayOfWeek)
+      || slot.dayOfWeek < 1
+      || slot.dayOfWeek > 5
+      || !Number.isInteger(slot.period)
+      || slot.period < 1
+      || slot.period > 12
+    ) {
+      return 'Uygun olmayan saatler hafta içi 1–5. gün ve 1–12. ders aralığında olmalı.';
+    }
+
+    const key = `${slot.dayOfWeek}:${slot.period}`;
+    if (seen.has(key)) {
+      return 'Aynı uygun olmayan ders saati birden fazla kez seçilemez.';
+    }
+    seen.add(key);
+  }
+
+  return null;
 }
 
 export function validateManagementTeacherLoadTargets(
@@ -382,6 +435,26 @@ async function authedRpc<T>(
       throw new Error('Minimum yük maksimum yükten büyük olamaz.');
     }
 
+    if (normalized.includes('m39.1 teacher hard availability requires draft revision')) {
+      throw new Error('Öğretmen uygunluk bilgisi yalnız taslak program için düzenlenebilir.');
+    }
+
+    if (normalized.includes('m39.1 active teacher resource not found')) {
+      throw new Error('Öğretmen artık aktif kaynaklar arasında değil. Veriyi yenileyin.');
+    }
+
+    if (normalized.includes('m39.1 unavailable periods must be a json array')) {
+      throw new Error('Öğretmen uygunluk bilgisi geçersiz biçimde gönderildi.');
+    }
+
+    if (normalized.includes('m39.1 unavailable period must use day 1..5 and period 1..12')) {
+      throw new Error('Uygun olmayan saatler hafta içi 1–5. gün ve 1–12. ders aralığında olmalı.');
+    }
+
+    if (normalized.includes('m39.1 unavailable periods contain duplicates')) {
+      throw new Error('Aynı uygun olmayan ders saati birden fazla kez seçilemez.');
+    }
+
     if (
       normalized.includes('m39.0 minimum load must be between 0 and 60')
       || normalized.includes('m39.0 target load must be between 0 and 60')
@@ -581,6 +654,14 @@ export async function fetchManagementResources(
         teacherLoadById.get(teacher.id)?.maximumLoad ?? null,
       loadConfigured:
         teacherLoadById.get(teacher.id)?.configured ?? false,
+      unavailablePeriods:
+        teacherLoadById.get(teacher.id)?.unavailablePeriods ?? [],
+      unavailablePeriodCount:
+        teacherLoadById.get(teacher.id)?.unavailablePeriodCount ?? 0,
+      availabilityConfigured:
+        teacherLoadById.get(teacher.id)?.availabilityConfigured ?? false,
+      unavailablePlacedBlockCount:
+        teacherLoadById.get(teacher.id)?.unavailablePlacedBlockCount ?? 0,
       };
     }),
     rooms: visibleRooms.map((room) => {
@@ -668,6 +749,29 @@ export function updateManagementTeacherLoadTargets(
       p_minimum_load: input.minimumLoad,
       p_target_load: input.targetLoad,
       p_maximum_load: input.maximumLoad,
+    },
+  );
+}
+
+export function updateManagementTeacherUnavailablePeriods(
+  accessToken: string,
+  revisionId: string,
+  teacherId: string,
+  unavailablePeriods: ManagementTeacherUnavailablePeriod[],
+) {
+  const validationError =
+    validateManagementTeacherUnavailablePeriods(unavailablePeriods);
+  if (validationError) {
+    throw new Error(validationError);
+  }
+
+  return authedRpc<ManagementTeacherAvailabilityResult>(
+    'management_set_teacher_unavailable_periods',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_teacher_id: teacherId,
+      p_unavailable_periods: unavailablePeriods,
     },
   );
 }
