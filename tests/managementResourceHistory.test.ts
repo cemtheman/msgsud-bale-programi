@@ -132,6 +132,32 @@ describe('M34 unified management history state', () => {
     });
   });
 
+  it('exposes room departure as a first-class resource history action', () => {
+    const state = deriveManagementCommandState([
+      tx({
+        id: 'room-departure-6',
+        action: 'RESOURCE',
+        history_sequence: 6,
+        payload: {
+          source: 'MANUAL',
+          resource_operation: 'ROOM_DEPARTURE',
+          resource_type: 'ROOM',
+          resource_id: 'room-6',
+          resource_name: 'Test Salon',
+        },
+      }),
+    ]);
+
+    expect(state.undo).toMatchObject({
+      transactionId: 'room-departure-6',
+      action: 'RESOURCE',
+      resourceOperation: 'ROOM_DEPARTURE',
+      resourceType: 'ROOM',
+      resourceId: 'room-6',
+      resourceName: 'Test Salon',
+    });
+  });
+
   it('invalidates a pending resource redo after a newer manual decision', () => {
     const state = deriveManagementCommandState([
       tx({
