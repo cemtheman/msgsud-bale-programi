@@ -12,12 +12,12 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Aktif çalışma ortamı | `GitHub Codespaces` |
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
-| Aktif branch | `feat/management-m38-bulk-operations` — M38 closed; merge to main next |
-| Son doğrulanmış implementation checkpoint | `4f936e9727534fae910a3fcde8d089c504297e8c` + M38.1 acceptance documentation |
-| Implementation commit | `M38.0 bulk operational assignments + M38.1 semantic placement-resource history labels` |
-| Son documentation checkpoint | `docs/MAC_CONTINUATION.md` section 30; yeni oturumda `git rev-parse HEAD` ile doğrula |
+| Aktif branch | `feat/management-m39-teacher-planning-inputs` |
+| Son doğrulanmış implementation checkpoint | `b689dab1c9a7366075e7f7055520d16237cb8eac` — M39.0 implementation hazır; code gate pending |
+| Implementation commit | `M39.0 teacher load planning foundation — term-scoped min/target/max + actual load audit + Resources editor` |
+| Son documentation checkpoint | `docs/MAC_CONTINUATION.md` section 31; yeni oturumda `git rev-parse HEAD` ile doğrula |
 | Son kullanıcı/QA kabulü | **M38.0 CLOSED/PASS + M38.1 CLOSED/PASS** — 20/20 test files, 104/104 tests PASS; Next/TypeScript build PASS; bulk apply/undo browser PASS; semantic history tooltip PASS |
-| Sıradaki iş paketi | M38'i main'e fast-forward merge et; sonra **M39 Teacher Planning Inputs / Load Foundation** ile ana solver yol haritasına dön |
+| Sıradaki iş paketi | M39.0 code gate → migration dry-run/push → browser acceptance; sonra M39.1 hard teacher availability foundation |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
