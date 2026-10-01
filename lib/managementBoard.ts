@@ -77,6 +77,56 @@ export interface ManagementBoardData {
   roomNamesById: Record<string, string>;
 }
 
+export type ManagementProgramResourceFilter = {
+  kind: 'TEACHER' | 'ROOM';
+  id: string;
+};
+
+export type ManagementProgramResourceFilterMode = 'ANY' | 'INTERSECTION';
+
+export function cardMatchesProgramResourceFilters(
+  card: ManagementBoardCard,
+  filters: readonly ManagementProgramResourceFilter[],
+  mode: ManagementProgramResourceFilterMode,
+) {
+  if (filters.length === 0) return true;
+  if (!card.placement) return false;
+
+  const teacherIds = new Set(
+    filters
+      .filter((filter) => filter.kind === 'TEACHER')
+      .map((filter) => filter.id),
+  );
+  const roomIds = new Set(
+    filters
+      .filter((filter) => filter.kind === 'ROOM')
+      .map((filter) => filter.id),
+  );
+
+  const hasTeacherFilters = teacherIds.size > 0;
+  const hasRoomFilters = roomIds.size > 0;
+  const teacherMatches = Boolean(
+    card.placement.teacherId
+    && teacherIds.has(card.placement.teacherId),
+  );
+  const roomMatches = Boolean(
+    card.placement.roomId
+    && roomIds.has(card.placement.roomId),
+  );
+
+  if (mode === 'ANY') {
+    return (
+      (hasTeacherFilters && teacherMatches)
+      || (hasRoomFilters && roomMatches)
+    );
+  }
+
+  return (
+    (!hasTeacherFilters || teacherMatches)
+    && (!hasRoomFilters || roomMatches)
+  );
+}
+
 export interface ManagementBoardDisplayCard {
   id: string;
   card: ManagementBoardCard;
