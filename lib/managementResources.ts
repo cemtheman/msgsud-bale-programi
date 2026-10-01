@@ -235,6 +235,18 @@ async function authedRpc<T>(
       throw new Error('Takma ad kayıtlarının salon özellikleri düzenlenmez.');
     }
 
+    if (normalized.includes('m36.1 room departure preview is stale')) {
+      throw new Error('Salon bilgileri önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.');
+    }
+
+    if (normalized.includes('canonical room with aliases cannot be archived directly')) {
+      throw new Error('Bu ana salona bağlı takma adlar var. Takma ad bağlantıları çözülmeden salon arşivlenemez.');
+    }
+
+    if (normalized.includes('active canonical room resource not found')) {
+      throw new Error('Salon artık aktif kaynaklar arasında değil. Veriyi yenileyin.');
+    }
+
     if (normalized.includes('m18.6 room status preview is stale')) {
       throw new Error('Salon durumu veya taslak program önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.');
     }
