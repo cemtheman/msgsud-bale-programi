@@ -236,7 +236,7 @@ function PartisyonBrand({
         </span>
         <span className="mt-0.5 flex items-end gap-0 whitespace-nowrap">
           <span className="grid shrink-0 place-items-center text-[#1437B8]">
-            <PartisyonMark className={compact ? 'h-[22px] w-auto translate-y-[1px]' : 'h-[30px] w-auto translate-y-[1px]'} />
+            <PartisyonMark className={compact ? 'h-[18px] w-auto' : 'h-[25px] w-auto'} />
           </span>
           <span className={`-ml-[1px] font-black leading-none tracking-[-0.045em] text-[#081736] ${compact ? 'text-[18px]' : 'text-[25px]'}`}>
             artisyon
