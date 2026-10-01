@@ -70,6 +70,15 @@ function compareQueueItems(
   );
 }
 
+export function operationalQueueCardIds(
+  queue: ManagementOperationalQueue,
+  kind: ManagementOperationalQueueKind,
+) {
+  return queue.items
+    .filter((item) => item.kind === kind)
+    .map((item) => item.cardId);
+}
+
 export function buildManagementOperationalQueue(
   cards: readonly ManagementBoardCard[],
   stage: ManagementStage,
