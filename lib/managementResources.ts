@@ -1,5 +1,7 @@
 'use client';
 
+import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+
 const MANAGEMENT_ROOM_CAPABILITY_IDS = [
   'GENERAL_CLASSROOM_SMALL_GROUP',
   'GENERAL_CLASSROOM_LARGE_GROUP',
@@ -139,7 +141,7 @@ async function authedGet<T>(
   const response = await fetch(`${url}/rest/v1/${path}`, {
     headers: {
       apikey: key,
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
     },
     cache: 'no-store',
   });
@@ -174,7 +176,7 @@ async function authedRpc<T>(
     method: 'POST',
     headers: {
       apikey: key,
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
