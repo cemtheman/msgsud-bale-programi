@@ -29,6 +29,9 @@ export interface ManagementCommandDescriptor {
   resourceType?: 'TEACHER' | 'ROOM' | null;
   resourceId?: string | null;
   resourceName?: string | null;
+  placementResourceType?: ManagementPlacementResourceType | null;
+  placementResourceBeforeId?: string | null;
+  placementResourceId?: string | null;
 }
 
 export interface ManagementCommandState {
@@ -724,6 +727,76 @@ export function redoManagementBundle(
   });
 }
 
+function placementResourceOverrideFromPayload(
+  payload: Record<string, unknown> | null | undefined,
+): {
+  resourceType: ManagementPlacementResourceType;
+  beforeId: string | null;
+  resourceId: string | null;
+} | null {
+  if (!payload) return null;
+
+  const isPlacementOverride = (
+    payload.engine_version === 'M29.4-placement-resource-override'
+    || payload.propagation_stop_reason === 'PLACEMENT_RESOURCE_OVERRIDE'
+  );
+  if (!isPlacementOverride) return null;
+
+  const before = (
+    payload.before
+    && typeof payload.before === 'object'
+    && !Array.isArray(payload.before)
+  )
+    ? payload.before as Record<string, unknown>
+    : null;
+  const after = (
+    payload.after
+    && typeof payload.after === 'object'
+    && !Array.isArray(payload.after)
+  )
+    ? payload.after as Record<string, unknown>
+    : null;
+
+  if (!before || !after) return null;
+
+  const beforeTeacher = typeof before.teacher_id === 'string'
+    ? before.teacher_id
+    : null;
+  const afterTeacher = typeof after.teacher_id === 'string'
+    ? after.teacher_id
+    : null;
+  const beforeRoom = typeof before.room_id === 'string'
+    ? before.room_id
+    : null;
+  const afterRoom = typeof after.room_id === 'string'
+    ? after.room_id
+    : null;
+
+  if (
+    beforeTeacher !== afterTeacher
+    && beforeRoom === afterRoom
+  ) {
+    return {
+      resourceType: 'TEACHER',
+      beforeId: beforeTeacher,
+      resourceId: afterTeacher,
+    };
+  }
+
+  if (
+    beforeRoom !== afterRoom
+    && beforeTeacher === afterTeacher
+  ) {
+    return {
+      resourceType: 'ROOM',
+      beforeId: beforeRoom,
+      resourceId: afterRoom,
+    };
+  }
+
+  return null;
+}
+
 export function deriveManagementCommandState(
   rows: ManagementHistoryRootTransactionRow[],
 ): ManagementCommandState {
@@ -793,6 +866,9 @@ export function deriveManagementCommandState(
     : typeof undoCardIdValue === 'string'
       ? [undoCardIdValue]
       : [];
+  const undoPlacementOverride = placementResourceOverrideFromPayload(
+    undoRow?.payload,
+  );
   const undo: ManagementCommandDescriptor | null = undoRow
     ? {
       transactionId: undoRow.id,
@@ -823,6 +899,12 @@ export function deriveManagementCommandState(
         typeof undoRow.payload?.resource_name === 'string'
           ? undoRow.payload.resource_name
           : null,
+      placementResourceType:
+        undoPlacementOverride?.resourceType ?? null,
+      placementResourceBeforeId:
+        undoPlacementOverride?.beforeId ?? null,
+      placementResourceId:
+        undoPlacementOverride?.resourceId ?? null,
     }
     : null;
 
@@ -859,6 +941,9 @@ export function deriveManagementCommandState(
         : originalCardId
           ? [originalCardId]
           : [];
+      const redoPlacementOverride = placementResourceOverrideFromPayload(
+        originalRoot?.payload,
+      );
 
       redo = {
         transactionId: redoRow.id,
@@ -891,6 +976,12 @@ export function deriveManagementCommandState(
           typeof originalRoot?.payload?.resource_name === 'string'
             ? originalRoot.payload.resource_name
             : null,
+        placementResourceType:
+          redoPlacementOverride?.resourceType ?? null,
+        placementResourceBeforeId:
+          redoPlacementOverride?.beforeId ?? null,
+        placementResourceId:
+          redoPlacementOverride?.resourceId ?? null,
       };
     }
   }
