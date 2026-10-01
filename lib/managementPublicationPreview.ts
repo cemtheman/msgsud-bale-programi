@@ -1,5 +1,7 @@
 'use client';
 
+import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+
 import { schoolConfig } from '@/data/scheduleData';
 import type { ManagementStage } from '@/lib/managementBoard';
 
@@ -204,7 +206,7 @@ async function authedGet<T>(
   const response = await fetch(`${url}/rest/v1/${path}`, {
     headers: {
       apikey: key,
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
     },
     cache: 'no-store',
   });
