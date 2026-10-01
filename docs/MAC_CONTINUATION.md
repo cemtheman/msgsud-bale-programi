@@ -1454,3 +1454,43 @@ Merge recommendation:
 - branch is ahead of main and behind 0
 - use fast-forward merge into main
 - after merge, start next work from a fresh branch (M37)
+## 26. M34–M36 merged to main — stable checkpoint
+
+Final merge completed successfully.
+
+Main checkpoint:
+```
+main: 9e1f2e738f73371fa7a47b776a50dc06f71de024
+```
+
+Verification before merge:
+- 18/18 test files PASS
+- 94/94 tests PASS
+- TypeScript PASS
+- Next.js production build PASS
+- Supabase remote up to date
+- M36 browser acceptance PASS
+
+Merged scope:
+- M34 global resource history
+- Program card right-click / pool-drop removal
+- M35 teacher departure with slot preservation
+- M35.2 fast-path departure without synchronous candidate rebuild
+- Program multi-resource filters with explicit VEYA / VE modes
+- M36 live teacher/room operational-gap tracking
+- M36 publication blockers for live resource gaps
+- M36.1 manual resource-preview `card_id` fix
+- M36.1 room departure / archival with slot preservation
+- Program Durumu publication-card deduplication
+
+Git merge:
+```
+feature: feat/management-m36-operational-gaps
+strategy: fast-forward
+main HEAD: 9e1f2e738f73371fa7a47b776a50dc06f71de024
+```
+
+Rule:
+- treat this SHA as the stable rollback/checkpoint before M37
+- do not reopen M34/M35/M36 unless a concrete regression is reproduced
+- all new work starts from a fresh M37 branch
