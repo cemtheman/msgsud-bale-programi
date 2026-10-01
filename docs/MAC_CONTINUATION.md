@@ -1432,3 +1432,25 @@ Post-migration browser smoke:
 5. Program shows `Salonsuz · N`; Program Durumu + publication gate block it
 6. assign active room -> same slot, room fills, gap clears
 7. Undo/Redo ROOM_DEPARTURE restores/clears exact room state
+### M36.1 browser acceptance — PASS / ready to merge
+
+Browser smoke passed:
+- teacherless operational gap shown in Program, Program Durumu and publication gate
+- manual teacher assignment preview works after M32.4.2 `card_id` fix
+- in-use alias-free room can be retired while preserving lesson day/time/teacher
+- room becomes a live `Salonsuz` gap
+- Program Durumu and publication gate both detect the room gap
+- Program top-bar operational counters / card warning marker work
+
+Final UX cleanup before merge:
+- Program Durumu no longer repeats the same health issue as a second publication card
+- health cards remain the actionable source (`Öğretmen ata`, `Salon ata`, etc.)
+- publication gate suppresses overlapping health reasons and shows a compact note that those checks were also verified server-side
+- publication-only blockers/warnings remain visible as separate cards
+
+Final feature HEAD before journal commit: ca26df97d73815bf58c15e86f42bfad29447e464
+
+Merge recommendation:
+- branch is ahead of main and behind 0
+- use fast-forward merge into main
+- after merge, start next work from a fresh branch (M37)
