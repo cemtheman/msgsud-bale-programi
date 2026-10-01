@@ -3,6 +3,8 @@
 import {
   buildManagementRowDisplayCards,
   cardBelongsToClassRow,
+  cardHasMissingRequiredRoom,
+  cardHasMissingRequiredTeacher,
   placementBelongsToRow,
   type ManagementBoardCard,
   type ManagementBoardDisplayCard,
@@ -731,10 +733,8 @@ export function ManagementBoardGrid({
                         const secondaryLabel = displayCard.grouped
                           ? displayCard.classCodes.join(' + ')
                           : compactCardGroupName(card);
-                        const missingTeacher = card.teacherRequirement === 'REQUIRED'
-                          && !placement.teacherId;
-                        const missingRoom = card.resourceMode !== 'UNKNOWN'
-                          && !placement.roomId;
+                        const missingTeacher = cardHasMissingRequiredTeacher(card);
+                        const missingRoom = cardHasMissingRequiredRoom(card);
                         const resourceGapLabel = [
                           missingTeacher ? 'Öğretmensiz' : null,
                           missingRoom ? 'Salonsuz' : null,
