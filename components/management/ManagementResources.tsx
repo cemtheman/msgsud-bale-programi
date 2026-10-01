@@ -116,6 +116,7 @@ export function ManagementResources({
   onSetTeacherStatus,
   onPreviewTeacherDeparture,
   onApplyTeacherDeparture,
+  onDeleteTeacher,
   onDeleteRoom,
   onPreviewRoomProfile,
   onApplyRoomProfile,
@@ -141,6 +142,7 @@ export function ManagementResources({
     mode: ManagementTeacherDepartureMode,
     expectedStateToken: string,
   ) => Promise<void>;
+  onDeleteTeacher: (teacherId: string) => Promise<void>;
   onDeleteRoom: (roomId: string) => Promise<void>;
   onPreviewRoomProfile: (
     roomId: string,
@@ -364,6 +366,21 @@ export function ManagementResources({
       );
     } finally {
       setTeacherDepartureApplying(false);
+    }
+  };
+
+  const deleteUnusedTeacher = async (row: ManagementTeacherResourceRow) => {
+    if (resourceActionBusy) return;
+    setResourceActionBusy(true);
+    setResourceActionError(null);
+    try {
+      await onDeleteTeacher(row.id);
+    } catch (reason: unknown) {
+      setResourceActionError(
+        reason instanceof Error ? reason.message : 'Öğretmen silinemedi.',
+      );
+    } finally {
+      setResourceActionBusy(false);
     }
   };
 
@@ -916,11 +933,17 @@ export function ManagementResources({
                         <button
                           type="button"
                           onClick={() => {
-                            if (row.operationalStatus === 'ACTIVE') {
-                              void openTeacherDeparture(row, 'INACTIVATE');
-                            } else {
+                            if (row.operationalStatus !== 'ACTIVE') {
                               void changeTeacherStatus(row, 'ACTIVE');
+                              return;
                             }
+
+                            if (row.activeRequirementCount > 0 || row.placedBlockCount > 0) {
+                              void openTeacherDeparture(row, 'INACTIVATE');
+                              return;
+                            }
+
+                            void changeTeacherStatus(row, 'INACTIVE');
                           }}
                           disabled={!canEdit || resourceActionBusy || teacherDepartureApplying}
                           className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-35"
@@ -929,7 +952,13 @@ export function ManagementResources({
                         </button>
                         <button
                           type="button"
-                          onClick={() => void openTeacherDeparture(row, 'ARCHIVE')}
+                          onClick={() => {
+                            if (row.activeRequirementCount > 0 || row.placedBlockCount > 0) {
+                              void openTeacherDeparture(row, 'ARCHIVE');
+                              return;
+                            }
+                            void deleteUnusedTeacher(row);
+                          }}
                           disabled={!canEdit || resourceActionBusy || teacherDepartureApplying}
                           className="rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-30"
                         >
