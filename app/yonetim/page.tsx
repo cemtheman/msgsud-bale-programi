@@ -264,6 +264,40 @@ function commandContextLabel(
     || (card.classCodes.length > 0 ? card.classCodes.join(', ') : card.groupName);
 
   const placement = card.placement;
+
+  if (descriptor.placementResourceType) {
+    const isBulk = descriptor.bundleSize > 1;
+    const wasEmpty = descriptor.placementResourceBeforeId === null;
+    const operationLabel = descriptor.placementResourceType === 'TEACHER'
+      ? `${isBulk ? 'toplu ' : ''}öğretmen ${wasEmpty ? 'ataması' : 'değişikliği'}`
+      : `${isBulk ? 'toplu ' : ''}salon ${wasEmpty ? 'ataması' : 'değişikliği'}`;
+    const targetName = descriptor.placementResourceType === 'TEACHER'
+      ? (
+        descriptor.placementResourceId
+          ? board?.teacherNamesById[descriptor.placementResourceId] ?? null
+          : null
+      )
+      : (
+        descriptor.placementResourceId
+          ? board?.roomNamesById[descriptor.placementResourceId] ?? null
+          : null
+      );
+
+    if (isBulk) {
+      return `${audience} ${card.subjectName} ${operationLabel}${targetName ? ` · ${targetName}` : ''}`;
+    }
+
+    const singlePlacementContext = placement
+      ? [
+        DAY_LONG[placement.dayOfWeek],
+        `${placement.startPeriod}. ders`,
+        targetName,
+      ].filter(Boolean).join(' · ')
+      : targetName ?? '';
+
+    return `${audience} ${card.subjectName} ${operationLabel}${singlePlacementContext ? ` · ${singlePlacementContext}` : ''}`;
+  }
+
   const placementContext = placement
     ? [
       DAY_LONG[placement.dayOfWeek],
