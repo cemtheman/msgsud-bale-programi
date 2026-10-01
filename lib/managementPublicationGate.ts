@@ -1,5 +1,7 @@
 'use client';
 
+import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+
 export type ManagementPublicationBlockReason =
   | 'PUBLICATION_CONTROL_MISSING'
   | 'RUNTIME_ADJUSTMENTS_PENDING'
@@ -96,7 +98,7 @@ async function authedGet<T>(
   const response = await fetch(`${url}/rest/v1/${path}`, {
     headers: {
       apikey: key,
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
     },
     cache: 'no-store',
   });
@@ -132,7 +134,7 @@ export async function fetchManagementPublicationGate(
       method: 'POST',
       headers: {
         apikey: key,
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
