@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ManagementPublicationGate } from '@/components/management/ManagementPublicationGate';
 import { ManagementPublicationPreview } from '@/components/management/ManagementPublicationPreview';
 import type {
@@ -201,14 +201,9 @@ export function ManagementProgramStatus({
   const [bulkError, setBulkError] = useState<string | null>(null);
 
   const operationalQueue = buildManagementOperationalQueue(cards, stage);
-  const bulkQueueItems = useMemo(
-    () => (
-      bulkKind
-        ? operationalQueue.items.filter((item) => item.kind === bulkKind)
-        : []
-    ),
-    [bulkKind, operationalQueue.items],
-  );
+  const bulkQueueItems = bulkKind
+    ? operationalQueue.items.filter((item) => item.kind === bulkKind)
+    : [];
   const bulkResourceOptions = bulkKind === 'TEACHER'
     ? teacherOptions
     : roomOptions;
