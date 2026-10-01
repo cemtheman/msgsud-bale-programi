@@ -42,6 +42,20 @@ const DAY_NAMES: Record<number, string> = {
   5: 'Cum',
 };
 
+const HARD_BLOCKER_LABELS: Record<string, string> = {
+  TEACHER_REQUIREMENT_UNSPECIFIED: 'Öğretmen gereksinimi belirtilmemiş',
+  TEACHER_ASSIGNMENT_SCOPE_UNSPECIFIED: 'Öğretmen atama kapsamı belirtilmemiş',
+  REQUIRED_TEACHER_POOL_EMPTY: 'Zorunlu öğretmen havuzu boş',
+  REQUIRED_TEACHER_CONTINUITY_VIOLATION: 'Aynı öğretmenle devam kuralı mevcut programla çelişiyor',
+  RESOURCE_MODE_UNKNOWN: 'Salon stratejisi belirtilmemiş',
+  ROOM_POOL_EMPTY: 'Zorunlu salon havuzu boş',
+  CAPABILITY_ROOM_UNAVAILABLE: 'Gerekli özellikte aktif salon bulunmuyor',
+  BASELINE_INACTIVE_TEACHER: 'Programda kullanım dışı öğretmen var',
+  BASELINE_INACTIVE_ROOM: 'Programda kullanım dışı salon var',
+  BASELINE_TIME_OUT_OF_BOUNDS: 'Programda ders saati sınırını aşan blok var',
+  BASELINE_LUNCH_CROSSING: 'Programda öğle arasını geçen blok var',
+};
+
 const BASELINE_ISSUE_LABELS: Record<string, string> = {
   CARD_REQUIREMENT_MISSING: 'Dersin kural bilgisi eksik',
   BASELINE_PLACEMENT_MISSING: 'Ders programda yerleştirilmemiş',
@@ -298,6 +312,7 @@ export function ManagementSolverWorkspacePanel({
   }
 
   const hardReady = data.preview.readiness.hardInputReady;
+  const hardBlockers = data.preview.readiness.hardBlockers ?? [];
   const provisionalInputs = data.preview.readiness.provisionalInputs ?? [];
   const unknownRooms = provisionalInputs.find(
     (item) => item.code === 'RESOURCE_MODE_UNKNOWN',
@@ -849,8 +864,31 @@ export function ManagementSolverWorkspacePanel({
             )}
 
             {!hardReady && (
-              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[12px] font-bold text-rose-700">
-                Kural bilgileri eksik olduğu için program kontrol edilemiyor.
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+                <p className="text-[12px] font-black text-rose-800">
+                  Program kontrolünü engelleyen kural bilgileri var.
+                </p>
+                {hardBlockers.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {hardBlockers.map((blocker) => (
+                      <span
+                        key={blocker.code}
+                        className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700"
+                      >
+                        <span>
+                          {HARD_BLOCKER_LABELS[blocker.code] ?? blocker.code}
+                        </span>
+                        <span className="tabular-nums text-rose-500">
+                          · {blocker.count}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-[11px] font-semibold text-rose-700">
+                    Kural girdileri eksik; ayrıntı alınamadı.
+                  </p>
+                )}
               </div>
             )}
 
