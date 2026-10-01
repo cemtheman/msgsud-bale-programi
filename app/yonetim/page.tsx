@@ -56,10 +56,11 @@ import {
   createManagementRoomResource,
   createManagementTeacherResource,
   deleteManagementRoomResource,
-  deleteManagementTeacherResource,
   fetchManagementResources,
   previewManagementRoomOperationalStatus,
   previewManagementRoomProfile,
+  previewManagementTeacherDeparture,
+  applyManagementTeacherDeparture,
   setManagementTeacherOperationalStatus,
   updateManagementRoomDisplayName,
   updateManagementTeacherDisplayName,
@@ -208,6 +209,8 @@ function resourceHistoryLabel(descriptor: ManagementCommandDescriptor) {
       return `${resourceName}salon ekleme işlemi`;
     case 'TEACHER_DELETE':
       return `${resourceName}öğretmen silme işlemi`;
+    case 'TEACHER_DEPARTURE':
+      return `${resourceName}öğretmen ayrılış / atama değişikliği`;
     case 'ROOM_DELETE':
       return `${resourceName}salon silme işlemi`;
     default:
