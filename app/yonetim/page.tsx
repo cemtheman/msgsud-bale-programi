@@ -507,6 +507,27 @@ export default function ManagementPage() {
   }, [cardContextMenu]);
 
   useEffect(() => {
+    if (!programFilterMenu) return;
+
+    const closeMenu = () => setProgramFilterMenu(null);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMenu();
+    };
+
+    window.addEventListener('click', closeMenu);
+    window.addEventListener('blur', closeMenu);
+    window.addEventListener('resize', closeMenu);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('click', closeMenu);
+      window.removeEventListener('blur', closeMenu);
+      window.removeEventListener('resize', closeMenu);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [programFilterMenu]);
+
+  useEffect(() => {
     if (status !== 'ready' || !session) {
       setOverview(null);
       setBoard(null);
@@ -2209,6 +2230,153 @@ export default function ManagementPage() {
               aria-label="Bildirimi kapat"
             >
               ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {programFilterMenu && (
+        <div
+          className="fixed z-[124] w-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.24)]"
+          style={{ left: programFilterMenu.x, top: programFilterMenu.y }}
+          role="dialog"
+          aria-label="Program kaynak filtresi"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-4 py-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                Filtre ekle
+              </p>
+              <p className="mt-0.5 text-[12px] font-black text-slate-900">
+                Öğretmen ve salon
+              </p>
+              <p className="mt-1 text-[9px] font-medium leading-4 text-slate-500">
+                Aynı türde seçimler “veya”; öğretmen ve salon birlikte seçilirse iki koşul da aranır.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setProgramFilterMenu(null)}
+              className="rounded-lg px-2 py-1 text-sm font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-700"
+              aria-label="Filtre menüsünü kapat"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="px-4 pt-3">
+            <input
+              autoFocus
+              type="search"
+              value={programFilterQuery}
+              onChange={(event) => setProgramFilterQuery(event.target.value)}
+              placeholder="Öğretmen veya salon ara…"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-semibold text-slate-700 outline-none focus:border-slate-400 focus:bg-white"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 p-4">
+            <div className="min-w-0">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                  Öğretmenler
+                </p>
+                <span className="text-[9px] font-bold text-slate-400">
+                  {programTeacherFilterOptions.length}
+                </span>
+              </div>
+              <div className="management-scrollbar max-h-[255px] space-y-1 overflow-y-auto pr-1">
+                {programTeacherFilterOptions.map((option) => {
+                  const selected = programResourceFilters.some(
+                    (filter) => filter.kind === 'TEACHER' && filter.id === option.id,
+                  );
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => toggleProgramResourceFilter(
+                        'TEACHER',
+                        option.id,
+                        option.label,
+                      )}
+                      className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-[10px] font-bold transition ${
+                        selected
+                          ? 'border-blue-300 bg-blue-50 text-blue-800'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="truncate">{option.label}</span>
+                      <span className="shrink-0 text-[10px]">
+                        {selected ? '✓' : '+'}
+                      </span>
+                    </button>
+                  );
+                })}
+                {programTeacherFilterOptions.length === 0 && (
+                  <p className="rounded-xl bg-slate-50 px-3 py-3 text-center text-[10px] font-semibold text-slate-400">
+                    Eşleşen öğretmen yok.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="min-w-0">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                  Salonlar
+                </p>
+                <span className="text-[9px] font-bold text-slate-400">
+                  {programRoomFilterOptions.length}
+                </span>
+              </div>
+              <div className="management-scrollbar max-h-[255px] space-y-1 overflow-y-auto pr-1">
+                {programRoomFilterOptions.map((option) => {
+                  const selected = programResourceFilters.some(
+                    (filter) => filter.kind === 'ROOM' && filter.id === option.id,
+                  );
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => toggleProgramResourceFilter(
+                        'ROOM',
+                        option.id,
+                        option.label,
+                      )}
+                      className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-[10px] font-bold transition ${
+                        selected
+                          ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="truncate">{option.label}</span>
+                      <span className="shrink-0 text-[10px]">
+                        {selected ? '✓' : '+'}
+                      </span>
+                    </button>
+                  );
+                })}
+                {programRoomFilterOptions.length === 0 && (
+                  <p className="rounded-xl bg-slate-50 px-3 py-3 text-center text-[10px] font-semibold text-slate-400">
+                    Eşleşen salon yok.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
+            <span className="text-[9px] font-semibold text-slate-400">
+              {programResourceFilters.length} filtre seçili
+            </span>
+            <button
+              type="button"
+              onClick={() => setProgramResourceFilters([])}
+              disabled={programResourceFilters.length === 0}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-35"
+            >
+              Tüm filtreleri temizle
             </button>
           </div>
         </div>
