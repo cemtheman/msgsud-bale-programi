@@ -767,6 +767,19 @@ export function ManagementInspector({
                                 : 'Manuel seçim'}
                           </span>
                         )}
+                        {placementEditMode === 'ROOM' && (
+                          <span className={
+                            selected
+                              ? 'mt-0.5 block text-[8px] font-semibold text-slate-300'
+                              : 'mt-0.5 block text-[8px] font-semibold text-slate-400'
+                          }>
+                            {card.roomIds.includes(option.id)
+                              ? 'Ders planı havuzunda'
+                              : !placement.roomId
+                                ? 'Geçici / manuel seçim'
+                                : 'Manuel seçim'}
+                          </span>
+                        )}
                       </span>
                       <span className="shrink-0">{selected ? 'Seçildi' : 'Seç'}</span>
                     </button>
