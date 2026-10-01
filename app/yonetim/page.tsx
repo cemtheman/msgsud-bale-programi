@@ -3611,7 +3611,11 @@ export default function ManagementPage() {
           onStageChange={setStage}
           publicationPreview={publicationPreview}
           publicationGate={publicationGate}
+          cards={board?.cards ?? []}
           onIssueAction={handleHealthIssueAction}
+          onOperationalQueueAction={(kind, cardId) => {
+            openOperationalGap(kind, [cardId]);
+          }}
         />
       )}
 
