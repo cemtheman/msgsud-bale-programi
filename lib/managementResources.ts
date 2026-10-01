@@ -69,6 +69,7 @@ interface TeacherRow {
   id: string;
   name: string;
   operational_status: ManagementTeacherOperationalStatus;
+  archived_at: string | null;
 }
 
 interface RoomRow {
@@ -298,7 +299,7 @@ export async function fetchManagementResources(
     roomNameOverrides,
   ] = await Promise.all([
     authedGet<TeacherRow[]>(
-      'teachers?select=id,name,operational_status&order=name.asc',
+      'teachers?select=id,name,operational_status,archived_at&order=name.asc',
       accessToken,
     ),
     authedGet<RoomRow[]>(
@@ -410,7 +411,9 @@ export async function fetchManagementResources(
   return {
     revisionId: revision.id,
     availableCapabilities,
-    teachers: teachers.map((teacher) => {
+    teachers: teachers
+      .filter((teacher) => !teacher.archived_at)
+      .map((teacher) => {
       const overrideName = teacherOverrideById.get(teacher.id);
 
       return {
@@ -694,6 +697,69 @@ export interface ManagementTeacherStatusResult {
   operationalStatus: ManagementTeacherOperationalStatus;
   candidateRebuildCardCount: number;
   publishedChanged: false;
+}
+
+export type ManagementTeacherDepartureMode =
+  | 'INACTIVATE_KEEP'
+  | 'INACTIVATE_CLEAR'
+  | 'ARCHIVE_CLEAR';
+
+export interface ManagementTeacherDeparturePreview {
+  teacherId: string;
+  teacherName: string;
+  operationalStatus: ManagementTeacherOperationalStatus;
+  assignmentCount: number;
+  activeRequirementCount: number;
+  placedBlockCount: number;
+  stateToken: string;
+  publishedChanged: false;
+}
+
+export interface ManagementTeacherDepartureApplyResult {
+  applied: boolean;
+  teacherId: string;
+  teacherName: string;
+  mode: ManagementTeacherDepartureMode;
+  assignmentCount: number;
+  placedBlockCount: number;
+  candidateRebuildCardCount: number;
+  historyTransactionId: string;
+  archived: boolean;
+  publishedChanged: false;
+}
+
+export function previewManagementTeacherDeparture(
+  accessToken: string,
+  revisionId: string,
+  teacherId: string,
+) {
+  return authedRpc<ManagementTeacherDeparturePreview>(
+    'management_preview_teacher_departure',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_teacher_id: teacherId,
+    },
+  );
+}
+
+export function applyManagementTeacherDeparture(
+  accessToken: string,
+  revisionId: string,
+  teacherId: string,
+  mode: ManagementTeacherDepartureMode,
+  expectedStateToken: string,
+) {
+  return authedRpc<ManagementTeacherDepartureApplyResult>(
+    'management_apply_teacher_departure',
+    accessToken,
+    {
+      p_schedule_revision_id: revisionId,
+      p_teacher_id: teacherId,
+      p_mode: mode,
+      p_expected_state_token: expectedStateToken,
+    },
+  );
 }
 
 export function createManagementTeacherResource(
