@@ -87,7 +87,7 @@ function workspace(): ManagementSolverWorkspace {
 
 function result(): ManagementOptimizationResult {
   return {
-    engineVersion: 'M33.3-v0',
+    engineVersion: 'M40-v1',
     status: 'IMPROVED',
     snapshotHash: 'snapshot-1',
     baselineHash: 'baseline-1',
@@ -106,18 +106,24 @@ function result(): ManagementOptimizationResult {
       preferredTeacherContinuityBreaks: 0,
       teacherIdleGapPeriods: 5,
       roomStabilityBreaks: 0,
+      teacherLoadTargetDeviationPeriods: 0,
+      teacherLoadRangeViolationPeriods: 0,
     },
     proposedMetrics: {
       changeCost: 1,
       preferredTeacherContinuityBreaks: 0,
       teacherIdleGapPeriods: 2,
       roomStabilityBreaks: 0,
+      teacherLoadTargetDeviationPeriods: 0,
+      teacherLoadRangeViolationPeriods: 0,
     },
     delta: {
       changeCost: 1,
       preferredTeacherContinuityBreaks: 0,
       teacherIdleGapPeriods: -3,
       roomStabilityBreaks: 0,
+      teacherLoadTargetDeviationPeriods: 0,
+      teacherLoadRangeViolationPeriods: 0,
     },
     baselineScore: {
       total: 5,
@@ -141,6 +147,12 @@ function result(): ManagementOptimizationResult {
           contribution: 5,
         },
         roomStability: {
+          rawValue: 0,
+          normalizedValue: 0,
+          weight: 0,
+          contribution: 0,
+        },
+        teacherLoadBalance: {
           rawValue: 0,
           normalizedValue: 0,
           weight: 0,
@@ -170,6 +182,12 @@ function result(): ManagementOptimizationResult {
           contribution: 2,
         },
         roomStability: {
+          rawValue: 0,
+          normalizedValue: 0,
+          weight: 0,
+          contribution: 0,
+        },
+        teacherLoadBalance: {
           rawValue: 0,
           normalizedValue: 0,
           weight: 0,
