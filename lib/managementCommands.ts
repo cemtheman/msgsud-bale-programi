@@ -1,5 +1,7 @@
 'use client';
 
+import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+
 export type ManagementRootAction = 'PLACE' | 'MOVE' | 'REMOVE' | 'STRUCTURE' | 'RESOURCE';
 
 export type ManagementResourceHistoryOperation =
@@ -400,7 +402,7 @@ async function callJsonRpc<T>(
     method: 'POST',
     headers: {
       apikey: key,
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
@@ -426,7 +428,7 @@ async function callRpc(
     method: 'POST',
     headers: {
       apikey: key,
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
@@ -884,7 +886,7 @@ export async function fetchManagementCommandState(
   const response = await fetch(`${url}/rest/v1/${path}`, {
     headers: {
       apikey: key,
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
     },
     cache: 'no-store',
   });
