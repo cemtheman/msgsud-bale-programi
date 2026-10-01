@@ -12,17 +12,17 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Aktif çalışma ortamı | `GitHub Codespaces` |
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
-| Aktif branch | `main` |
-| Son doğrulanmış implementation checkpoint | `2b7a2a7b2f11da1c6a29f27bc00c470e8d6b0f76` |
-| Implementation commit | `M33.4 proposal apply/undo/redo + global history controls + management UI normalization — Codespaces test/build PASS` |
-| Son documentation checkpoint | Bu dosyanın güncel HEAD'i; yeni oturumda `git rev-parse HEAD` ile doğrula |
-| Son kullanıcı/QA kabulü | **M33.4 CLOSED/PASS + UI normalization PASS** — proposal apply/undo/redo browser PASS; global history görünür; Codespaces 16/16 test files, 81/81 tests PASS; Next/TypeScript production build PASS |
-| Sıradaki iş paketi | Yeni feature öncesi ürün kararı: Kaynak mutasyonlarını global undo/redo history engine'e dahil etme gereksinimini değerlendir; UI sistemi `docs/MANAGEMENT_UI_SYSTEM.md` ile korunur |
+| Aktif branch | `feat/management-m38-bulk-operations` — M38 closed; merge to main next |
+| Son doğrulanmış implementation checkpoint | `4f936e9727534fae910a3fcde8d089c504297e8c` + M38.1 acceptance documentation |
+| Implementation commit | `M38.0 bulk operational assignments + M38.1 semantic placement-resource history labels` |
+| Son documentation checkpoint | `docs/MAC_CONTINUATION.md` section 30; yeni oturumda `git rev-parse HEAD` ile doğrula |
+| Son kullanıcı/QA kabulü | **M38.0 CLOSED/PASS + M38.1 CLOSED/PASS** — 20/20 test files, 104/104 tests PASS; Next/TypeScript build PASS; bulk apply/undo browser PASS; semantic history tooltip PASS |
+| Sıradaki iş paketi | M38'i main'e fast-forward merge et; sonra **M39 Teacher Planning Inputs / Load Foundation** ile ana solver yol haritasına dön |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
 
-Not: Bu dosyanın kendisini ekleyen documentation commit, yukarıdaki implementation SHA'nın yalnızca dokümantasyon çocuğudur. Yeni oturumda branch HEAD ayrıca `git rev-parse HEAD` ile doğrulanmalıdır.
+Not: M34–M38 stabilization/operations zinciri tamamlandı. Ana roadmap yeniden solver input completeness eksenine döndü. Yeni oturumda branch HEAD ayrıca `git rev-parse HEAD` ile doğrulanmalıdır; M38 merge edilmemişse önce merge tamamlanır.
 
 ## 2. Çalışma yöntemi — değişmez sözleşme
 
