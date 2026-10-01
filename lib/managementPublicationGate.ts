@@ -10,7 +10,9 @@ export type ManagementPublicationBlockReason =
   | 'UNRESOLVED_TOUCHED'
   | 'INVALID_PERIOD_RANGE'
   | 'PUBLIC_MEMBER_MAPPING_MISSING'
-  | 'INACTIVE_ROOM_PLACEMENT';
+  | 'INACTIVE_ROOM_PLACEMENT'
+  | 'MISSING_REQUIRED_TEACHER_PLACEMENT'
+  | 'MISSING_REQUIRED_ROOM_PLACEMENT';
 
 export type ManagementPublicationWarningReason =
   | 'UNRESOLVED_INHERITED';
@@ -44,6 +46,8 @@ export interface ManagementPublicationGateData {
   invalidPeriodCount: number;
   memberlessRequirementCount: number;
   inactiveRoomPlacementCount: number;
+  missingRequiredTeacherPlacementCount: number;
+  missingRequiredRoomPlacementCount: number;
   projectedSessionCount: number;
   projectedGroupCount: number;
   baseline: ManagementPublicationBaseline;
