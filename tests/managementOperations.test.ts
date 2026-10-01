@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildManagementOperationalQueue,
+  operationalQueueCardIds,
 } from '@/lib/managementOperations';
 import type { ManagementBoardCard } from '@/lib/managementBoard';
 
@@ -137,6 +138,52 @@ describe('management operational queue', () => {
       'TEACHER:Bale',
       'ROOM:Bale',
     ]);
+  });
+
+  it('builds bulk selections by resource kind without crossing task types', () => {
+    const teacherGap = card('Matematik', {
+      placement: {
+        ...card('base').placement!,
+        teacherId: null,
+        teacherName: null,
+      },
+    });
+    const roomGap = card('Kimya', {
+      placement: {
+        ...card('base').placement!,
+        roomId: null,
+        roomName: null,
+      },
+    });
+
+    const queue = buildManagementOperationalQueue(
+      [teacherGap, roomGap],
+      'ORTAOKUL',
+    );
+
+    expect(operationalQueueCardIds(queue, 'TEACHER')).toEqual([
+      'Matematik',
+    ]);
+    expect(operationalQueueCardIds(queue, 'ROOM')).toEqual([
+      'Kimya',
+    ]);
+  });
+
+  it('keeps a dual-gap card once in each bulk resource selection', () => {
+    const both = card('Bale', {
+      placement: {
+        ...card('base').placement!,
+        teacherId: null,
+        teacherName: null,
+        roomId: null,
+        roomName: null,
+      },
+    });
+
+    const queue = buildManagementOperationalQueue([both], 'ORTAOKUL');
+
+    expect(operationalQueueCardIds(queue, 'TEACHER')).toEqual(['Bale']);
+    expect(operationalQueueCardIds(queue, 'ROOM')).toEqual(['Bale']);
   });
 
   it('ignores optional teacher and UNKNOWN room gaps', () => {
