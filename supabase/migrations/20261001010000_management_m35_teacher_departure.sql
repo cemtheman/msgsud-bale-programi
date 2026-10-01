@@ -533,22 +533,28 @@ begin
 
   if p_mode in ('INACTIVATE_CLEAR', 'ARCHIVE_CLEAR') then
     select coalesce(
-      jsonb_agg(value || jsonb_build_object('linked', false)),
+      jsonb_agg(
+        item.value || jsonb_build_object('linked', false)
+        order by item.ordinality
+      ),
       '[]'::jsonb
     )
     into v_requirement_links
     from jsonb_array_elements(
       coalesce(v_before -> 'requirementLinks', '[]'::jsonb)
-    );
+    ) with ordinality as item(value, ordinality);
 
     select coalesce(
-      jsonb_agg(value || jsonb_build_object('teacherId', null)),
+      jsonb_agg(
+        item.value || jsonb_build_object('teacherId', null)
+        order by item.ordinality
+      ),
       '[]'::jsonb
     )
     into v_placement_links
     from jsonb_array_elements(
       coalesce(v_before -> 'placementLinks', '[]'::jsonb)
-    );
+    ) with ordinality as item(value, ordinality);
 
     v_after := jsonb_set(
       v_after,
