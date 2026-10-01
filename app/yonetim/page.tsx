@@ -1046,7 +1046,7 @@ export default function ManagementPage() {
         !cardMatchesStage(selectedCard, stage)
         || !cardMatchesAudience(selectedCard, audienceFilter)
         || (
-          programResourceFilters.length > 0
+          (programResourceFilters.length > 0 || Boolean(programGapFilter))
           && !programCards.some((card) => card.id === selectedCard.id)
         )
       )
@@ -1058,6 +1058,7 @@ export default function ManagementPage() {
   }, [
     audienceFilter,
     programCards,
+    programGapFilter,
     programResourceFilters.length,
     selectedCard,
     stage,
