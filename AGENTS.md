@@ -5526,3 +5526,186 @@ history item'ını yönetir.
 
 Bu davranış şu aşamada açıkça kayıtlı bir ürün/altyapı sınırıdır; universal resource undo
 istenirse ayrı backend history paketi açılmalıdır.
+
+
+## 83. 1 Ekim 2026 — M39.1 hard teacher availability + Partisyon branding — CLOSED / PASS
+
+Branch:
+`feat/management-m39-teacher-planning-inputs`
+
+Implementation checkpoint before this journal commit:
+`8ac11517018e1047c50bef46fe558903c91198a9`
+
+### M39.1 architecture
+
+Goal:
+- add explicit term-scoped teacher hard unavailability
+- preserve current placements when availability changes
+- block new candidate/placement/solver choices that use unavailable teacher slots
+- keep M39.0 min/target/max load inputs as planning/audit data only
+
+New table:
+`management_teacher_unavailable_periods`
+
+Scope:
+- key: `(requirement_set_id, teacher_id, day_of_week, period)`
+- weekdays 1..5
+- periods 1..12
+- hard availability is term/requirement-set scoped, not a permanent teacher attribute
+
+Hard rule enforcement layers:
+1. persisted candidate domain:
+   - `TEACHER_UNAVAILABLE`
+   - candidate becomes INVALID
+2. manual placement/resource preview:
+   - `TEACHER_UNAVAILABLE` block reason
+3. placement write guard:
+   - new teacher/day/start tuple is rejected if it overlaps an unavailable period
+   - unchanged existing conflicting placement may still be edited for unrelated metadata
+4. solver snapshot / in-memory solver:
+   - `teacherUnavailablePeriods`
+   - hard rule `TEACHER_HARD_UNAVAILABLE`
+   - baseline audit reports unavailable baseline placements
+
+Important product rule:
+- saving hard availability does NOT auto-move existing placements
+- existing overlaps are reported for explicit human/solver repair
+- publication is unchanged
+
+### M39.1 migrations
+
+Applied:
+- `20261001143000_management_m39_1_teacher_hard_availability.sql`
+- `20261001185000_management_m39_1_1_candidate_summary_ownership.sql`
+- `20261001190000_management_m39_1_2_fast_availability_refresh.sql`
+
+M39.1.1 root cause:
+- M39.1 availability AFTER-statement trigger used `INSERT ... ON CONFLICT` for
+  `schedule_card_domain_summaries`
+- this violated the existing M32.5.1 ownership rule:
+  candidate-domain builders own summary creation; policy triggers may only update existing summaries
+- during candidate rebuild the M39 trigger created the summary too early
+- builder final INSERT then failed:
+  `duplicate key value violates unique constraint "schedule_card_domain_summaries_pkey"`
+
+M39.1.1 fix:
+- availability summary trigger now UPDATEs only existing summary rows
+- missing summary creation remains exclusively builder-owned
+
+M39.1.2 root cause:
+- availability save reclassified every candidate row for the selected teacher
+- this invoked M32.5 same-requirement fan-out
+- normal UI save hit statement timeout
+
+M39.1.2 fix:
+- targeted refresh only touches:
+  - rows currently overlapping the new unavailable slots
+  - rows already carrying `TEACHER_UNAVAILABLE` so removals can be repaired
+- the availability RPC suppresses only the M32.5 AFTER-statement same-requirement fan-out
+  for this targeted refresh
+- M39.1 + M22 BEFORE-row semantics remain active
+- M39.1.1 summary UPDATE remains active
+- ordinary candidate writes retain normal M32.5 behavior
+
+### Solver regression fix
+
+Initial M39.1 test exposed a real solver hole:
+- raw candidate generation filtered unavailable slots
+- baseline audit detected unavailable baseline placements
+- but `tryBaseline()` called `canAssign()` and could still accept an unavailable baseline
+
+Fix:
+- hard availability check moved into `canAssign()`
+- baseline, search and future assignment paths share the same last-line hard gate
+
+Regression:
+- `treats teacher hard unavailability as a structural solver constraint`
+
+Final automated gate:
+```
+Test Files  21 passed (21)
+Tests       110 passed (110)
+```
+
+Production build:
+- Next.js 16.3.4 PASS
+- TypeScript PASS
+- PWA compile PASS
+- static generation PASS
+- `/yonetim` route build PASS
+
+### Live DB / browser acceptance
+
+Remote migration parity confirmed through:
+- `20261001143000`
+- `20261001185000`
+- `20261001190000`
+
+Resources → Teachers live acceptance:
+- teacher planning modal saves unavailable periods successfully
+- observed live example: `3 saat uygun değil`
+- existing overlap audit visible: `1 mevcut blok çakışıyor`
+- existing program was not auto-moved
+- duplicate-key regression closed
+- statement-timeout regression closed
+
+Hard-block smoke:
+- Program → teacher change preview attempted to select the unavailable teacher
+- preview blocked the operation
+- user-facing reason:
+  `Öğretmen bu ders saatinde uygun değil.`
+- no write was applied
+
+**M39.1 CLOSED / PASS**
+
+### Teacher planning UI polish
+
+Resources → Teachers was polished without changing accepted information architecture:
+- `Mevcut gerçek yük` → `Mevcut ders yükü`
+- `Hard uygunluk` → `Uygunluk kısıtları`
+- `Minimum / Maksimum` → `En az / En fazla`
+- technical user-facing terms such as hard constraint / solver / baseline audit / optimizer
+  were removed from the planning modal
+- planning modal now separates:
+  - `Yük hedefi`
+  - `Uygunluk`
+- unavailable-period matrix is Monday–Friday × 12 periods
+- UI explicitly states that existing program is not automatically changed
+- table shows configured availability count and existing overlap count
+- actions remain compact: Program / Planlama / Diğer…
+
+### Partisyon product branding
+
+Official MSGSÜ logo kit is now the source for the owl asset:
+- `public/brand/msgsu-owl.svg`
+- official kit blue: `#06038d`
+- temporary hand/PDF-derived owl asset removed
+
+Header lockup:
+- official MSGSÜ owl
+- vertical separator
+- `MSGSÜ İDK`
+- Partisyon wordmark as `P mark + artisyon`
+
+Accepted visual rules:
+- P mark and `artisyon` form one wordmark
+- no overlap / blob effect
+- P is optically aligned to the word baseline
+- menu active indicator sits close to its label rather than at the bottom of the taller branded header
+- audience filter icons `📚 / 🩰 / 🎶` enlarged while keeping filter capsule height stable
+
+Branding is UI-only; no DB semantics changed.
+
+### Continuation
+
+Next roadmap step:
+- M40 teacher load readiness/health + objective metric integration
+- do not enable load-balancing scoring until explicit readiness is defined
+- preserve M33 immutable snapshot + in-memory/no-trial-write solver architecture
+- preserve M39.1 hard availability as a non-negotiable structural constraint
+
+Working method remains:
+- assistant patches/commits through GitHub
+- user only pulls, runs tests/build/migration gates and performs browser/runtime validation
+- never ask user to hand-edit patches
+- DB changes: migration list → dry-run → exact pending migration only → real push → live smoke
