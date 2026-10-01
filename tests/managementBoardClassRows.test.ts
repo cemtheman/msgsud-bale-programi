@@ -4,6 +4,7 @@ import {
   buildManagementClassRows,
   buildManagementRowDisplayCards,
   cardBelongsToClassRow,
+  cardMatchesProgramResourceFilters,
   managementRowsForView,
   type ManagementBoardCard,
   type ManagementBoardData,
@@ -325,6 +326,85 @@ describe('management grade-group audience rows', () => {
       [first, second],
       'SINIFLAR',
     )).toHaveLength(2);
+  });
+
+  it('uses OR semantics for the default multi-resource filter mode', () => {
+    const teacherCard = {
+      ...card('teacher-card', ['SECTION'], ['5A']),
+      placement: {
+        ...card('teacher-card-base', ['SECTION'], ['5A']).placement!,
+        teacherId: 'teacher-a',
+        teacherName: 'Teacher A',
+        roomId: 'room-x',
+        roomName: 'Room X',
+      },
+    };
+    const roomCard = {
+      ...card('room-card', ['SECTION'], ['5A']),
+      placement: {
+        ...card('room-card-base', ['SECTION'], ['5A']).placement!,
+        teacherId: 'teacher-b',
+        teacherName: 'Teacher B',
+        roomId: 'room-y',
+        roomName: 'Room Y',
+      },
+    };
+
+    const filters = [
+      { kind: 'TEACHER' as const, id: 'teacher-a' },
+      { kind: 'ROOM' as const, id: 'room-y' },
+    ];
+
+    expect(cardMatchesProgramResourceFilters(
+      teacherCard,
+      filters,
+      'ANY',
+    )).toBe(true);
+    expect(cardMatchesProgramResourceFilters(
+      roomCard,
+      filters,
+      'ANY',
+    )).toBe(true);
+  });
+
+  it('uses group intersection semantics for the VE filter mode', () => {
+    const intersection = {
+      ...card('intersection', ['SECTION'], ['5A']),
+      placement: {
+        ...card('intersection-base', ['SECTION'], ['5A']).placement!,
+        teacherId: 'teacher-a',
+        teacherName: 'Teacher A',
+        roomId: 'room-y',
+        roomName: 'Room Y',
+      },
+    };
+    const teacherOnly = {
+      ...intersection,
+      id: 'teacher-only',
+      placement: {
+        ...intersection.placement!,
+        roomId: 'room-x',
+        roomName: 'Room X',
+      },
+    };
+
+    const filters = [
+      { kind: 'TEACHER' as const, id: 'teacher-a' },
+      { kind: 'TEACHER' as const, id: 'teacher-c' },
+      { kind: 'ROOM' as const, id: 'room-y' },
+      { kind: 'ROOM' as const, id: 'room-z' },
+    ];
+
+    expect(cardMatchesProgramResourceFilters(
+      intersection,
+      filters,
+      'INTERSECTION',
+    )).toBe(true);
+    expect(cardMatchesProgramResourceFilters(
+      teacherOnly,
+      filters,
+      'INTERSECTION',
+    )).toBe(false);
   });
 
   it('invalidates stale candidate teachers after a teacher leaves the live pool', () => {
