@@ -705,7 +705,17 @@ begin
             when 1 then 'FIXED'
             else 'ELIGIBLE_POOL'
           end,
-          'requiredCapability', null
+          'requiredCapability',
+          case (
+            select count(*)
+            from public.course_requirement_rooms assignment
+            where assignment.requirement_id =
+                (item.value ->> 'requirementId')::uuid
+              and assignment.room_id <> p_room_id
+          )
+            when 0 then item.value ->> 'requiredCapability'
+            else null
+          end
         )
         order by item.ordinality
       ),
