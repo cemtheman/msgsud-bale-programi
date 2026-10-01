@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-m39-teacher-planning-inputs` |
 | Son doğrulanmış implementation checkpoint | `8ac11517018e1047c50bef46fe558903c91198a9` — M39.1 CLOSED/PASS; 21/21 test files, 110/110 tests, build + DB + browser hard-block acceptance PASS |
-| Aktif implementation checkpoint | `2e46862b8a18bbed9abed566c495e10ed9a61148` — M40 teacher load readiness/objective implementation + proposal fixture alignment; validation gate pending |
+| Aktif implementation checkpoint | `35ab923145ee39ec3c2c248d4e651934b91c3c70` — M40.1 approved teacher-load defaults implementation; validation gate pending |
 | Implementation commit | `M40 teacher load readiness + contextual objective support + in-memory load metric + Resources/Öncelikler UI` |
 | Son documentation checkpoint | `docs/MAC_CONTINUATION.md` M39.1 close; M40 implementation handoff bu oturumda ekleniyor |
 | Son kullanıcı/QA kabulü | **M39.1 CLOSED/PASS** — 21/21 test files, 110/110 tests; Next/TypeScript/PWA build PASS; three-slot availability save + overlap audit + manual hard-block browser PASS |
-| Sıradaki iş paketi | **M40 code gate → migration dry-run → DB push → load readiness/objective browser smoke** |
+| Sıradaki iş paketi | **M40.1 code gate → migration dry-run → DB push → readiness browser smoke** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -5881,3 +5881,52 @@ Fix:
 - proposal contract note aligned to M40
 
 M40 remains **VALIDATION PENDING** until test/build rerun and migration dry-run PASS.
+
+
+## 85. 1 Ekim 2026 — M40.1 approved teacher-load defaults — IMPLEMENTATION READY / VALIDATION PENDING
+
+User explicitly approved institutional starting defaults:
+
+```
+En az = 1
+Hedef = 10
+En fazla = 20
+```
+
+This supersedes M40's earlier "no hidden defaults" assumption. The values are now explicit product policy, not inferred solver behavior.
+
+Rules:
+- defaults apply only to relevant ACTIVE teachers with no planning-input row
+- existing custom values are never overwritten
+- existing partial/custom planning rows remain authoritative
+- defaults remain soft planning inputs, not hard placement constraints
+- clearing an individual teacher's values remains possible and can make readiness incomplete again
+
+Frontend:
+- `MANAGEMENT_TEACHER_LOAD_DEFAULTS = 1 / 10 / 20`
+- opening a relevant but unconfigured teacher planning form pre-fills 1 / 10 / 20
+- explanatory copy states the starting defaults
+- regression test locks the approved constants
+
+Migration:
+`20261001213000_management_m40_1_teacher_load_defaults.sql`
+
+Backfill scope:
+- requirement sets with a DRAFT revision
+- ACTIVE requirements / ACTIVE teachers
+- teachers in active requirement pools OR used by active DRAFT placements
+- INSERT only when no `management_teacher_planning_inputs` row exists
+- `ON CONFLICT DO NOTHING`
+- no UPDATE path, therefore existing 3/10/20 or any other custom values are preserved
+
+Expected effect on current browser acceptance:
+- current screen reports 51 relevant teachers missing target load
+- those currently unconfigured relevant teachers should receive 1 / 10 / 20 after migration
+- readiness should then reach full coverage unless a pre-existing partial planning row exists
+
+Expected test gate after M40.1:
+- 21 test files
+- 113 tests
+- production build PASS
+
+M40.1 remains **VALIDATION PENDING** until code gate + dry-run + DB push + browser readiness smoke pass.
