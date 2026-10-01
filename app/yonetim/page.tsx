@@ -393,6 +393,11 @@ export default function ManagementPage() {
   const [stage, setStage] = useState<ManagementStage>('ORTAOKUL');
   const [resourceView, setResourceView] =
     useState<ManagementResourceView>('SINIFLAR');
+  const [programResourceFocus, setProgramResourceFocus] = useState<{
+    kind: 'TEACHER' | 'ROOM';
+    id: string;
+    label: string;
+  } | null>(null);
   const [audienceFilter, setAudienceFilter] =
     useState<ManagementAudienceScope>('ALL');
 
@@ -575,6 +580,17 @@ export default function ManagementPage() {
     [audienceFilter, board, stage],
   );
 
+  const programCards = useMemo(() => {
+    if (!programResourceFocus) return visibleCards;
+
+    return visibleCards.filter((card) => {
+      if (!card.placement) return false;
+      return programResourceFocus.kind === 'TEACHER'
+        ? card.placement.teacherId === programResourceFocus.id
+        : card.placement.roomId === programResourceFocus.id;
+    });
+  }, [programResourceFocus, visibleCards]);
+
   const placementAssistantGroups = useMemo(
     () => buildManagementPlacementAssistantGroups(visibleCards),
     [visibleCards],
@@ -614,14 +630,32 @@ export default function ManagementPage() {
     placementAssistantWaitingForRefresh,
   ]);
 
-  const rows = useMemo(
-    () => (
-      board
-        ? managementRowsForView(board, resourceView, stage, audienceFilter)
-        : []
-    ),
-    [audienceFilter, board, resourceView, stage],
-  );
+  const rows = useMemo(() => {
+    if (!board) return [];
+
+    const baseRows = managementRowsForView(
+      board,
+      resourceView,
+      stage,
+      audienceFilter,
+    );
+
+    const focusMatchesView = programResourceFocus
+      && (
+        (programResourceFocus.kind === 'TEACHER' && resourceView === 'ÖĞRETMENLER')
+        || (programResourceFocus.kind === 'ROOM' && resourceView === 'SALONLAR')
+      );
+
+    return focusMatchesView
+      ? baseRows.filter((row) => row.id === programResourceFocus.id)
+      : baseRows;
+  }, [
+    audienceFilter,
+    board,
+    programResourceFocus,
+    resourceView,
+    stage,
+  ]);
 
   const selectedCard = useMemo(
     () => board?.cards.find((card) => card.id === selectedCardId) ?? null,
@@ -707,30 +741,63 @@ export default function ManagementPage() {
     });
   };
 
-  const openResourceInProgram = (kind: 'TEACHER' | 'ROOM', resourceId: string) => {
-    const match = board?.cards.find((card) => (
-      Boolean(card.placement)
-      && (
-        kind === 'TEACHER'
-          ? card.placement?.teacherId === resourceId
-          : card.placement?.roomId === resourceId
-      )
-    )) ?? null;
+  const openResourceInProgram = (
+    kind: 'TEACHER' | 'ROOM',
+    resourceId: string,
+    resourceName: string,
+  ) => {
+    if (!board) return;
+
+    const placements = board.cards
+      .filter((card) => (
+        Boolean(card.placement)
+        && (
+          kind === 'TEACHER'
+            ? card.placement?.teacherId === resourceId
+            : card.placement?.roomId === resourceId
+        )
+      ))
+      .sort((left, right) => (
+        (left.placement?.dayOfWeek ?? 0) - (right.placement?.dayOfWeek ?? 0)
+        || (left.placement?.startPeriod ?? 0) - (right.placement?.startPeriod ?? 0)
+      ));
 
     setActiveSection('PROGRAM');
     setResourceView(kind === 'TEACHER' ? 'ÖĞRETMENLER' : 'SALONLAR');
+    setProgramResourceFocus({
+      kind,
+      id: resourceId,
+      label: resourceName,
+    });
     setAudienceFilter('ALL');
+    setPoolOpen(false);
+    setSelectedCardId(null);
+    setSelectedCardIds([]);
+    setInspectorOpen(false);
+    setCandidateFocus(null);
 
-    if (!match?.placement) return;
+    if (placements.length === 0) return;
 
-    const firstGrade = match.classCodes
-      .map((code) => Number(code.match(/^(\d{1,2})/)?.[1] ?? NaN))
-      .find((grade) => Number.isFinite(grade));
-    if (firstGrade !== undefined) {
-      setStage(firstGrade <= 8 ? 'ORTAOKUL' : 'LISE');
+    const currentStageHasPlacement = placements.some((card) =>
+      cardMatchesStage(card, stage),
+    );
+    const targetStage = currentStageHasPlacement
+      ? stage
+      : cardMatchesStage(placements[0], 'ORTAOKUL')
+        ? 'ORTAOKUL'
+        : 'LISE';
+
+    setStage(targetStage);
+
+    const targetStagePlacements = placements.filter((card) =>
+      cardMatchesStage(card, targetStage),
+    );
+    const currentDayHasPlacement = targetStagePlacements.some(
+      (card) => card.placement?.dayOfWeek === activeDay,
+    );
+    if (!currentDayHasPlacement && targetStagePlacements[0]?.placement) {
+      setActiveDay(targetStagePlacements[0].placement.dayOfWeek);
     }
-    setActiveDay(match.placement.dayOfWeek);
-    openCardInspector(match.id, [match.id], 'DETAILS');
   };
 
   useEffect(() => {
@@ -1913,7 +1980,10 @@ export default function ManagementPage() {
                 <button
                   key={view.id}
                   type="button"
-                  onClick={() => setResourceView(view.id)}
+                  onClick={() => {
+                    setResourceView(view.id);
+                    setProgramResourceFocus(null);
+                  }}
                   className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
                     resourceView === view.id
                       ? 'bg-slate-950 text-white'
@@ -2132,16 +2202,26 @@ export default function ManagementPage() {
                 <span className="text-sm font-bold text-slate-800">
                   {stage === 'ORTAOKUL' ? 'Ortaokul' : 'Lise'} · {DAY_LONG[activeDay]}
                 </span>
+                {programResourceFocus && (
+                  <button
+                    type="button"
+                    onClick={() => setProgramResourceFocus(null)}
+                    className="max-w-[260px] truncate rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-black text-blue-700 hover:bg-blue-100"
+                    title="Kaynak filtresini kaldır"
+                  >
+                    {programResourceFocus.kind === 'TEACHER' ? 'Öğretmen' : 'Salon'} · {programResourceFocus.label} ×
+                  </button>
+                )}
               </div>
   
               <span className="text-[9px] font-medium text-slate-400">
-                {visibleCards.length} kart · {rows.length} kaynak satırı
+                {programCards.length} kart · {rows.length} kaynak satırı
               </span>
             </div>
   
             <ManagementBoardGrid
               rows={rows}
-              cards={visibleCards}
+              cards={programCards}
               view={resourceView}
               activeDay={activeDay}
               selectedCardId={selectedCardId}
