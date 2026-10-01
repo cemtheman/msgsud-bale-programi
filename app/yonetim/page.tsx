@@ -2772,21 +2772,52 @@ export default function ManagementPage() {
               setCommandActivity(null);
             }
           }}
-          onDeleteTeacher={async (teacherId) => {
+          onPreviewTeacherDeparture={async (teacherId) => {
+            if (!session || !access?.canEdit || !resources) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            return previewManagementTeacherDeparture(
+              session.accessToken,
+              resources.revisionId,
+              teacherId,
+            );
+          }}
+          onApplyTeacherDeparture={async (
+            teacherId,
+            mode,
+            expectedStateToken,
+          ) => {
             if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
             setCommandBusy(true);
-            setCommandActivity('Öğretmen kaydı siliniyor.');
+            setCommandActivity(
+              mode === 'ARCHIVE_CLEAR'
+                ? 'Öğretmen kaydı derslerden ayrılıp arşivleniyor.'
+                : mode === 'INACTIVATE_CLEAR'
+                  ? 'Öğretmen derslerden çıkarılıp atamaya kapatılıyor.'
+                  : 'Öğretmen yeni atamalara kapatılıyor.',
+            );
 
             try {
-              await deleteManagementTeacherResource(
+              const result = await applyManagementTeacherDeparture(
                 session.accessToken,
                 resources.revisionId,
                 teacherId,
+                mode,
+                expectedStateToken,
               );
-              setCommandNotice({ kind: 'success', text: 'Kullanılmayan öğretmen kaydı silindi.' });
+
+              setCommandNotice({
+                kind: 'success',
+                text: mode === 'ARCHIVE_CLEAR'
+                  ? `“${result.teacherName}” aktif kaynaklardan silindi. ${result.placedBlockCount} program bloğu gün/saat/salon korunarak öğretmensiz bırakıldı.`
+                  : mode === 'INACTIVATE_CLEAR'
+                    ? `“${result.teacherName}” atamaya kapatıldı. ${result.placedBlockCount} program bloğu gün/saat/salon korunarak öğretmensiz bırakıldı.`
+                    : `“${result.teacherName}” yeni atamalara kapatıldı; mevcut ${result.placedBlockCount} program bloğundaki öğretmen kaydı korundu.`,
+              });
               setRefreshToken((value) => value + 1);
             } finally {
               setCommandBusy(false);
