@@ -43,6 +43,11 @@ export interface ManagementTeacherResourceRow {
   targetLoad: number | null;
   maximumLoad: number | null;
   loadConfigured: boolean;
+  loadRelevant: boolean;
+  loadTargetReady: boolean;
+  targetDeviationPeriods: number | null;
+  belowMinimumBy: number;
+  aboveMaximumBy: number;
   unavailablePeriods: ManagementTeacherUnavailablePeriod[];
   unavailablePeriodCount: number;
   availabilityConfigured: boolean;
@@ -94,6 +99,11 @@ interface TeacherLoadAuditRow {
   targetLoad: number | null;
   maximumLoad: number | null;
   configured: boolean;
+  loadRelevant: boolean;
+  loadTargetReady: boolean;
+  targetDeviationPeriods: number | null;
+  belowMinimumBy: number;
+  aboveMaximumBy: number;
   actualLoadPeriods: number;
   placedBlockCount: number;
   activeRequirementCount: number;
@@ -117,8 +127,13 @@ export interface ManagementTeacherLoadTargetsResult
   actualLoadPeriods: number;
   placedBlockCount: number;
   activeRequirementCount: number;
+  loadRelevant?: boolean;
+  loadTargetReady?: boolean;
+  targetDeviationPeriods?: number | null;
+  belowMinimumBy?: number;
+  aboveMaximumBy?: number;
   publishedChanged?: false;
-  solverBehaviorChanged?: false;
+  solverBehaviorChanged?: true;
 }
 
 export interface ManagementTeacherAvailabilityResult {
@@ -419,19 +434,38 @@ async function authedRpc<T>(
       throw new Error('Öğretmen yük hedefleri yalnız taslak program için düzenlenebilir.');
     }
 
-    if (normalized.includes('m39.0 active teacher resource not found')) {
+    if (
+      normalized.includes('m40 teacher planning inputs require draft revision')
+      || normalized.includes('m39.0 teacher planning inputs require draft revision')
+    ) {
+      throw new Error('Öğretmen yük hedefleri yalnız taslak program için düzenlenebilir.');
+    }
+
+    if (
+      normalized.includes('m40 active teacher resource not found')
+      || normalized.includes('m39.0 active teacher resource not found')
+    ) {
       throw new Error('Öğretmen artık aktif kaynaklar arasında değil. Veriyi yenileyin.');
     }
 
-    if (normalized.includes('m39.0 minimum load cannot exceed target load')) {
+    if (
+      normalized.includes('m40 minimum load cannot exceed target load')
+      || normalized.includes('m39.0 minimum load cannot exceed target load')
+    ) {
       throw new Error('Minimum yük hedef yükten büyük olamaz.');
     }
 
-    if (normalized.includes('m39.0 target load cannot exceed maximum load')) {
+    if (
+      normalized.includes('m40 target load cannot exceed maximum load')
+      || normalized.includes('m39.0 target load cannot exceed maximum load')
+    ) {
       throw new Error('Hedef yük maksimum yükten büyük olamaz.');
     }
 
-    if (normalized.includes('m39.0 minimum load cannot exceed maximum load')) {
+    if (
+      normalized.includes('m40 minimum load cannot exceed maximum load')
+      || normalized.includes('m39.0 minimum load cannot exceed maximum load')
+    ) {
       throw new Error('Minimum yük maksimum yükten büyük olamaz.');
     }
 
@@ -456,7 +490,10 @@ async function authedRpc<T>(
     }
 
     if (
-      normalized.includes('m39.0 minimum load must be between 0 and 60')
+      normalized.includes('m40 minimum load must be between 0 and 60')
+      || normalized.includes('m40 target load must be between 0 and 60')
+      || normalized.includes('m40 maximum load must be between 0 and 60')
+      || normalized.includes('m39.0 minimum load must be between 0 and 60')
       || normalized.includes('m39.0 target load must be between 0 and 60')
       || normalized.includes('m39.0 maximum load must be between 0 and 60')
     ) {
@@ -654,6 +691,16 @@ export async function fetchManagementResources(
         teacherLoadById.get(teacher.id)?.maximumLoad ?? null,
       loadConfigured:
         teacherLoadById.get(teacher.id)?.configured ?? false,
+      loadRelevant:
+        teacherLoadById.get(teacher.id)?.loadRelevant ?? false,
+      loadTargetReady:
+        teacherLoadById.get(teacher.id)?.loadTargetReady ?? false,
+      targetDeviationPeriods:
+        teacherLoadById.get(teacher.id)?.targetDeviationPeriods ?? null,
+      belowMinimumBy:
+        teacherLoadById.get(teacher.id)?.belowMinimumBy ?? 0,
+      aboveMaximumBy:
+        teacherLoadById.get(teacher.id)?.aboveMaximumBy ?? 0,
       unavailablePeriods:
         teacherLoadById.get(teacher.id)?.unavailablePeriods ?? [],
       unavailablePeriodCount:
