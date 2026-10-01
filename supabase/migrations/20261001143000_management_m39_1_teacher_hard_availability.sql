@@ -343,9 +343,7 @@ begin
   from public.schedule_card_candidate_assessments assessment
   join public.schedule_cards card
     on card.id = assessment.card_id
-  join public.schedule_revisions revision
-    on revision.id = card.schedule_revision_id
-  where revision.requirement_set_id = v_requirement_set_id
+  where card.schedule_revision_id = p_schedule_revision_id
     and assessment.teacher_id = p_teacher_id;
 
   -- No candidate combinations are rebuilt. Existing rows for this teacher are
@@ -353,10 +351,8 @@ begin
   update public.schedule_card_candidate_assessments assessment
   set generated_at = now()
   from public.schedule_cards card
-  join public.schedule_revisions revision
-    on revision.id = card.schedule_revision_id
   where assessment.card_id = card.id
-    and revision.requirement_set_id = v_requirement_set_id
+    and card.schedule_revision_id = p_schedule_revision_id
     and assessment.teacher_id = p_teacher_id;
 
   select entry.value
@@ -400,75 +396,113 @@ grant execute
 -- -------------------------------------------------------------------------
 -- C. PERSISTED CANDIDATE DOMAIN HARD FILTER
 -- -------------------------------------------------------------------------
+-- Run BEFORE M22's zz_management_apply_provisional_candidate_semantics_trigger
+-- so M22 sees the final availability reason set and can normalize every other
+-- reason exactly as before. Setting INVALID before M22 is intentional:
+-- TEACHER_UNAVAILABLE is a hard blocker, while M22 remains conservative for
+-- unknown future reason codes.
 
 create or replace function
-  public.management_apply_teacher_availability_candidate_batch()
+  public.management_apply_teacher_availability_candidate_semantics()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_requirement_set_id uuid;
+  v_duration_periods integer;
+  v_unavailable boolean := false;
+  v_reasons text[] := coalesce(new.reason_codes, array[]::text[]);
+begin
+  select
+    revision.requirement_set_id,
+    card.duration_periods
+  into
+    v_requirement_set_id,
+    v_duration_periods
+  from public.schedule_cards card
+  join public.schedule_revisions revision
+    on revision.id = card.schedule_revision_id
+  where card.id = new.card_id;
+
+  if v_requirement_set_id is not null
+     and new.teacher_id is not null
+     and new.day_of_week is not null
+     and new.start_period is not null then
+    select exists (
+      select 1
+      from public.management_teacher_unavailable_periods slot
+      where slot.requirement_set_id = v_requirement_set_id
+        and slot.teacher_id = new.teacher_id
+        and slot.day_of_week = new.day_of_week
+        and slot.period between
+          new.start_period
+          and new.start_period + v_duration_periods - 1
+    )
+    into v_unavailable;
+  end if;
+
+  v_reasons := array(
+    select reason
+    from unnest(v_reasons) reason
+    where reason <> 'TEACHER_UNAVAILABLE'
+  );
+
+  if v_unavailable then
+    v_reasons := v_reasons || array['TEACHER_UNAVAILABLE']::text[];
+    new.status := 'INVALID';
+    new.is_complete := false;
+  end if;
+
+  select coalesce(
+    array_agg(distinct reason order by reason),
+    array[]::text[]
+  )
+  into new.reason_codes
+  from unnest(v_reasons) reason;
+
+  new.details :=
+    coalesce(new.details, '{}'::jsonb)
+    || jsonb_build_object(
+      'teacher_availability_engine_version', 'M39.1-v1',
+      'teacher_unavailable', v_unavailable
+    );
+
+  return new;
+end
+$$;
+
+drop trigger if exists
+  zy_management_teacher_availability_candidate_semantics_trigger
+  on public.schedule_card_candidate_assessments;
+
+create trigger
+  zy_management_teacher_availability_candidate_semantics_trigger
+before insert or update
+on public.schedule_card_candidate_assessments
+for each row
+execute function
+  public.management_apply_teacher_availability_candidate_semantics();
+
+revoke all
+  on function
+    public.management_apply_teacher_availability_candidate_semantics()
+  from public, anon, authenticated;
+
+
+-- Candidate builders and M32.5 normally maintain domain summaries themselves.
+-- The explicit M39.1 "replace availability set" RPC reclassifies existing rows,
+-- so refresh the touched card summaries after any candidate statement as a
+-- deterministic safety net. This trigger does not mutate candidate rows.
+create or replace function
+  public.management_refresh_teacher_availability_domain_summary_batch()
 returns trigger
 language plpgsql
 security definer
 set search_path = pg_catalog, public
 as $$
 begin
-  if pg_trigger_depth() > 1 then
-    return null;
-  end if;
-
-  with target as materialized (
-    select
-      assessment.id as assessment_id,
-      assessment.card_id,
-      exists (
-        select 1
-        from public.management_teacher_unavailable_periods slot
-        where slot.requirement_set_id = revision.requirement_set_id
-          and slot.teacher_id = assessment.teacher_id
-          and slot.day_of_week = assessment.day_of_week
-          and slot.period between
-            assessment.start_period
-            and assessment.start_period + card.duration_periods - 1
-      ) as teacher_unavailable
-    from changed_rows changed
-    join public.schedule_card_candidate_assessments assessment
-      on assessment.id = changed.id
-    join public.schedule_cards card
-      on card.id = assessment.card_id
-    join public.schedule_revisions revision
-      on revision.id = card.schedule_revision_id
-  )
-  update public.schedule_card_candidate_assessments assessment
-  set
-    reason_codes = (
-      select coalesce(
-        array_agg(distinct reason order by reason),
-        array[]::text[]
-      )
-      from (
-        select existing.reason
-        from unnest(
-          coalesce(assessment.reason_codes, array[]::text[])
-        ) existing(reason)
-        where existing.reason <> 'TEACHER_UNAVAILABLE'
-
-        union all
-
-        select 'TEACHER_UNAVAILABLE'
-        where target.teacher_unavailable
-      ) combined(reason)
-    ),
-    status = case
-      when target.teacher_unavailable then 'INVALID'
-      else 'VALID'
-    end,
-    is_complete = not target.teacher_unavailable,
-    details = coalesce(assessment.details, '{}'::jsonb)
-      || jsonb_build_object(
-        'teacher_availability_engine_version', 'M39.1-v1',
-        'teacher_unavailable', target.teacher_unavailable
-      ),
-    generated_at = now()
-  from target
-  where assessment.id = target.assessment_id;
-
   with impacted_card as materialized (
     select distinct changed.card_id
     from changed_rows changed
@@ -541,35 +575,36 @@ end
 $$;
 
 drop trigger if exists
-  zzzz_management_teacher_availability_candidate_insert
+  zzzz_management_teacher_availability_domain_insert
   on public.schedule_card_candidate_assessments;
 
-create trigger zzzz_management_teacher_availability_candidate_insert
+create trigger zzzz_management_teacher_availability_domain_insert
 after insert
 on public.schedule_card_candidate_assessments
 referencing new table as changed_rows
 for each statement
 execute function
-  public.management_apply_teacher_availability_candidate_batch();
+  public.management_refresh_teacher_availability_domain_summary_batch();
 
 drop trigger if exists
-  zzzz_management_teacher_availability_candidate_update
+  zzzz_management_teacher_availability_domain_update
   on public.schedule_card_candidate_assessments;
 
-create trigger zzzz_management_teacher_availability_candidate_update
+create trigger zzzz_management_teacher_availability_domain_update
 after update
 on public.schedule_card_candidate_assessments
 referencing new table as changed_rows
 for each statement
 execute function
-  public.management_apply_teacher_availability_candidate_batch();
+  public.management_refresh_teacher_availability_domain_summary_batch();
 
 revoke all
-  on function public.management_apply_teacher_availability_candidate_batch()
+  on function
+    public.management_refresh_teacher_availability_domain_summary_batch()
   from public, anon, authenticated;
 
 
--- Reclassify existing candidate rows once under the new rule.
+-- Reclassify existing candidate rows once under the new hard rule.
 update public.schedule_card_candidate_assessments assessment
 set generated_at = now()
 where assessment.teacher_id is not null;
