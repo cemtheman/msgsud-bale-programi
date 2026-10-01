@@ -52,6 +52,14 @@ const BLOCK_META: Record<ManagementPublicationBlockReason, ReasonMeta> = {
     title: 'Aktif olmayan salonda ders var',
     detail: 'Tadilatta veya kullanım dışı bir salon üzerinde yerleşim bulunduğu için yayın kapalı.',
   },
+  MISSING_REQUIRED_TEACHER_PLACEMENT: {
+    title: 'Öğretmeni boş bırakılmış ders var',
+    detail: 'Gün ve saat yerleşimi korunmuş olsa da zorunlu öğretmen ataması tamamlanmadan yayın açılamaz.',
+  },
+  MISSING_REQUIRED_ROOM_PLACEMENT: {
+    title: 'Salonu boş bırakılmış ders var',
+    detail: 'Salon stratejisi tanımlı bir dersin yerleşiminde salon tamamlanmadan yayın açılamaz.',
+  },
 };
 
 const WARNING_META: Record<ManagementPublicationWarningReason, ReasonMeta> = {
@@ -73,6 +81,12 @@ function reasonCount(
   if (reason === 'INVALID_PERIOD_RANGE') return data.invalidPeriodCount;
   if (reason === 'PUBLIC_MEMBER_MAPPING_MISSING') return data.memberlessRequirementCount;
   if (reason === 'INACTIVE_ROOM_PLACEMENT') return data.inactiveRoomPlacementCount;
+  if (reason === 'MISSING_REQUIRED_TEACHER_PLACEMENT') {
+    return data.missingRequiredTeacherPlacementCount;
+  }
+  if (reason === 'MISSING_REQUIRED_ROOM_PLACEMENT') {
+    return data.missingRequiredRoomPlacementCount;
+  }
   return 1;
 }
 
