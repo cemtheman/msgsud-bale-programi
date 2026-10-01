@@ -2,7 +2,14 @@
 
 import { ManagementPublicationGate } from '@/components/management/ManagementPublicationGate';
 import { ManagementPublicationPreview } from '@/components/management/ManagementPublicationPreview';
-import type { ManagementStage } from '@/lib/managementBoard';
+import type {
+  ManagementBoardCard,
+  ManagementStage,
+} from '@/lib/managementBoard';
+import {
+  buildManagementOperationalQueue,
+  type ManagementOperationalQueueKind,
+} from '@/lib/managementOperations';
 import type {
   ManagementPublicationBlockReason,
   ManagementPublicationGateData,
@@ -39,6 +46,14 @@ function statusMeta(status: ManagementReadinessStatus) {
     description: 'Program tamamlanmadan önce aşağıdaki eksiklerin giderilmesi gerekiyor.',
   };
 }
+
+const DAY_SHORT: Record<number, string> = {
+  1: 'Pzt',
+  2: 'Sal',
+  3: 'Çar',
+  4: 'Per',
+  5: 'Cuma',
+};
 
 function originLabel(origin?: ManagementIssueOrigin) {
   if (origin === 'TOUCHED_INHERITED') return 'Bu taslakta işlem gördü';
@@ -129,7 +144,9 @@ export function ManagementProgramStatus({
   onStageChange,
   publicationPreview,
   publicationGate,
+  cards,
   onIssueAction,
+  onOperationalQueueAction,
 }: {
   snapshot: ManagementHealthSnapshot | null;
   versionNumber: number | null;
@@ -137,7 +154,12 @@ export function ManagementProgramStatus({
   onStageChange: (stage: ManagementStage) => void;
   publicationPreview: ManagementPublicationPreviewData | null;
   publicationGate: ManagementPublicationGateData | null;
+  cards: ManagementBoardCard[];
   onIssueAction?: (issue: ManagementHealthIssue) => void;
+  onOperationalQueueAction?: (
+    kind: ManagementOperationalQueueKind,
+    cardId: string,
+  ) => void;
 }) {
   if (!snapshot) {
     return (
@@ -152,6 +174,13 @@ export function ManagementProgramStatus({
   const meta = statusMeta(snapshot.status);
   const blockerCount = snapshot.blockers.reduce((sum, issue) => sum + issue.count, 0);
   const warningCount = snapshot.warnings.reduce((sum, issue) => sum + issue.count, 0);
+  const operationalQueue = buildManagementOperationalQueue(cards, stage);
+  const nonOperationalBlockers = snapshot.blockers.filter(
+    (issue) => (
+      issue.id !== 'placed-teacher-missing'
+      && issue.id !== 'placed-room-missing'
+    ),
+  );
 
   const healthBlockerIds = new Set(snapshot.blockers.map((issue) => issue.id));
   const healthWarningIds = new Set(snapshot.warnings.map((issue) => issue.id));
@@ -279,6 +308,100 @@ export function ManagementProgramStatus({
           </div>
         </div>
 
+        {operationalQueue.totalCount > 0 && (
+          <div className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
+                  Operasyon kuyruğu
+                </p>
+                <h3 className="mt-1 text-base font-bold text-slate-900">
+                  Kaynağı tamamlanacak dersler
+                </h3>
+                <p className="mt-1 text-[11px] font-medium leading-5 text-slate-500">
+                  Gün ve saat sırasıyla ilerleyin. Kaynak tamamlandığında kayıt bu listeden otomatik çıkar.
+                </p>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2">
+                {operationalQueue.teacherCount > 0 && (
+                  <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-700">
+                    Öğretmensiz · {operationalQueue.teacherCount}
+                  </span>
+                )}
+                {operationalQueue.roomCount > 0 && (
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-800">
+                    Salonsuz · {operationalQueue.roomCount}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="management-scrollbar mt-4 max-h-[360px] space-y-2 overflow-y-auto pr-1">
+              {operationalQueue.items.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="grid grid-cols-[34px_minmax(0,1fr)_150px_auto] items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-2.5"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-[10px] font-black text-slate-500 shadow-sm">
+                    {index + 1}
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span
+                        className={
+                          item.kind === 'TEACHER'
+                            ? 'shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-black text-rose-700'
+                            : 'shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-800'
+                        }
+                      >
+                        {item.kind === 'TEACHER' ? 'Öğretmen' : 'Salon'}
+                      </span>
+                      <p className="truncate text-[11px] font-black text-slate-900">
+                        {item.subjectName}
+                      </p>
+                    </div>
+                    <p className="mt-1 truncate text-[10px] font-semibold text-slate-500">
+                      {item.groupName}
+                      {item.classCodes.length > 0
+                        ? ` · ${item.classCodes.join(' + ')}`
+                        : ''}
+                    </p>
+                  </div>
+
+                  <div className="text-[10px] font-semibold text-slate-500">
+                    <p className="font-black text-slate-700">
+                      {DAY_SHORT[item.dayOfWeek] ?? `Gün ${item.dayOfWeek}`} · {item.startPeriod}. ders
+                    </p>
+                    <p className="mt-0.5 truncate">
+                      {item.kind === 'TEACHER'
+                        ? `Salon: ${item.fixedResourceLabel ?? 'belirsiz'}`
+                        : `Öğretmen: ${item.fixedResourceLabel ?? 'belirsiz'}`}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => onOperationalQueueAction?.(
+                      item.kind,
+                      item.cardId,
+                    )}
+                    disabled={!onOperationalQueueAction}
+                    className={
+                      item.kind === 'TEACHER'
+                        ? 'rounded-xl border border-rose-200 bg-white px-3 py-2 text-[10px] font-black text-rose-700 transition hover:bg-rose-100 disabled:opacity-40'
+                        : 'rounded-xl border border-amber-200 bg-white px-3 py-2 text-[10px] font-black text-amber-800 transition hover:bg-amber-100 disabled:opacity-40'
+                    }
+                  >
+                    Aç ve ata
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <ManagementPublicationGate
           data={publicationGate}
           suppressedBlockReasons={suppressedPublicationBlockReasons}
@@ -303,21 +426,23 @@ export function ManagementProgramStatus({
                     Programı tamamlamak için
                   </h3>
                 </div>
-                {snapshot.blockers.length > 0 && (
+                {nonOperationalBlockers.length > 0 && (
                   <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-black text-rose-700">
-                    {snapshot.blockers.length} başlık
+                    {nonOperationalBlockers.length} başlık
                   </span>
                 )}
               </div>
 
               <div className="mt-4 space-y-2">
-                {snapshot.blockers.length > 0 ? (
-                  snapshot.blockers.map((issue) => (
+                {nonOperationalBlockers.length > 0 ? (
+                  nonOperationalBlockers.map((issue) => (
                     <IssueCard key={issue.id} issue={issue} onAction={onIssueAction} />
                   ))
                 ) : (
                   <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
-                    Tamamlanması gereken bir durum görünmüyor.
+                    {operationalQueue.totalCount > 0
+                      ? 'Diğer tamamlanması gereken kayıtlar görünmüyor; kaynak eksikleri operasyon kuyruğunda.'
+                      : 'Tamamlanması gereken bir durum görünmüyor.'}
                   </div>
                 )}
               </div>
