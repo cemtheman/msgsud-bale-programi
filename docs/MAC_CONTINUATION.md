@@ -1314,3 +1314,33 @@ Final static proof:
 - files changed from M35.2 baseline: 11
 
 Runtime acceptance still required in Codespaces before applying the M36 migration.
+### M36 test-gate regression fix
+
+Codespaces first gate result:
+```
+18 test files
+91 passed / 1 failed / 92 total
+```
+
+Failure:
+`tests/managementTeacherPolicyCandidates.test.ts`
+`counts policy rows already invalidated by the persisted domain layer`
+
+Root cause:
+- `policyFilteredCount` counted only rows that changed from persisted VALID to final INVALID
+- this omitted rows already persisted as INVALID with `REQUIREMENT_TEACHER_MISMATCH`
+- the test contract requires policy filtering to be counted from the active policy semantics, not only from status transitions
+
+Fix:
+- recompute `policyFilteredCount` from live teacher membership/status plus active REQUIREMENT+REQUIRED continuity policy
+- persisted policy-invalid rows are counted
+- BLOCK-scoped independent candidates remain excluded from requirement-policy counting
+- M35 live `TEACHER_INACTIVE` / `TEACHER_NOT_IN_REQUIREMENT_POOL` enforcement remains intact
+
+Fix implementation HEAD: f2071126c49d879de5af586268768b14088cc0ac
+
+Required rerun before migration:
+```bash
+npm test
+npm run build
+```
