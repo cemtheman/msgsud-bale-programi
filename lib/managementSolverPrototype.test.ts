@@ -518,6 +518,39 @@ describe('M33.2 in-memory feasibility prototype', () => {
     );
   });
 
+  it('treats teacher hard unavailability as a structural solver constraint', () => {
+    const base = snapshot();
+    const result = runManagementFeasibilityPrototype(snapshot({
+      teacherUnavailablePeriods: [{
+        teacherId: 't1',
+        dayOfWeek: 1,
+        period: 1,
+      }],
+    }));
+
+    expect(result.status).toBe('FEASIBLE');
+    expect(result.baselineWasFeasible).toBe(false);
+    expect(
+      result.baselineIssues?.some((issue) =>
+        issue.codes.includes('BASELINE_TEACHER_UNAVAILABLE'),
+      ),
+    ).toBe(true);
+    expect(
+      result.placements.some((placement) => (
+        placement.teacherId === 't1'
+        && placement.dayOfWeek === 1
+        && placement.startPeriod === 1
+      )),
+    ).toBe(false);
+    expect(result.placements[0]).not.toMatchObject({
+      dayOfWeek: 1,
+      startPeriod: 1,
+      baseline: true,
+    });
+    expect(result.writesPerformed).toBe(false);
+    expect(base.teachers[0].operationalStatus).toBe('ACTIVE');
+  });
+
   it('rejects a locked card with no materialized baseline placement', () => {
     const base = snapshot();
     const result = runManagementFeasibilityPrototype(snapshot({
