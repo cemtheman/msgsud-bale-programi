@@ -2197,3 +2197,133 @@ Alongside hard teacher availability foundation, polish Resources → Teachers wi
 - improve row spacing/alignment while preserving the normalized management UI system
 - make configured vs undefined load targets visually clearer
 - keep all existing functionality and accepted information architecture intact
+
+
+## 32. M39.1 hard teacher availability — CLOSED / PASS
+
+Date: 1 Oct 2026
+
+Branch:
+`feat/management-m39-teacher-planning-inputs`
+
+Implementation checkpoint before diary close:
+`8ac11517018e1047c50bef46fe558903c91198a9`
+
+Delivered:
+- term-scoped `management_teacher_unavailable_periods`
+- hard candidate blocker `TEACHER_UNAVAILABLE`
+- manual placement/resource preview block
+- placement write guard
+- solver snapshot `teacherUnavailablePeriods`
+- solver hard rule `TEACHER_HARD_UNAVAILABLE`
+- baseline audit for existing unavailable placements
+- existing placements are never auto-moved by an availability edit
+
+Applied migrations:
+- `20261001143000_management_m39_1_teacher_hard_availability.sql`
+- `20261001185000_management_m39_1_1_candidate_summary_ownership.sql`
+- `20261001190000_management_m39_1_2_fast_availability_refresh.sql`
+
+Regression 1 — solver baseline:
+- initial test showed unavailable baseline could still be accepted
+- root cause: `tryBaseline()` reached `canAssign()` without a final availability gate
+- fix: hard availability is enforced inside `canAssign()`
+- baseline, search and future assignment paths now share one last-line rule
+
+Regression 2 — duplicate domain summary:
+```
+duplicate key value violates unique constraint
+"schedule_card_domain_summaries_pkey"
+```
+
+Root cause:
+- M39.1 availability summary trigger created a missing summary row
+- this violated M32.5.1 ownership semantics
+
+M39.1.1 fix:
+- domain builders remain the only creators of missing summary rows
+- availability summary trigger only updates summaries that already exist
+
+Regression 3 — save timeout:
+```
+canceling statement due to statement timeout
+```
+
+Root cause:
+- availability save touched all candidate rows for the teacher
+- M32.5 expanded this into a same-requirement candidate refresh
+
+M39.1.2 fix:
+- refresh only candidates that:
+  - overlap the new unavailable slots, or
+  - already carry `TEACHER_UNAVAILABLE`
+- availability-only refresh skips the M32.5 requirement-wide fan-out
+- M39.1 and M22 row semantics remain active
+- normal M32.5 behavior is unchanged outside this RPC
+
+Remote migration parity confirmed through:
+- `20261001143000`
+- `20261001185000`
+- `20261001190000`
+
+Live browser acceptance:
+- save of three unavailable periods succeeds
+- UI shows `3 saat uygun değil`
+- UI reports `1 mevcut blok çakışıyor`
+- existing program remains unchanged
+- manual teacher-change preview blocks the unavailable teacher
+- visible reason: `Öğretmen bu ders saatinde uygun değil.`
+
+Final gate:
+```
+Test Files  21 passed (21)
+Tests       110 passed (110)
+```
+
+Build:
+- Next.js 16.3.4 PASS
+- TypeScript PASS
+- PWA PASS
+- static generation PASS
+- `/yonetim` build PASS
+
+**M39.1 CLOSED / PASS**
+
+## 33. Partisyon branding and header polish
+
+Official MSGSÜ logo kit is now the brand source.
+
+Asset:
+- `public/brand/msgsu-owl.svg`
+- official blue `#06038d`
+
+Accepted management header:
+- official MSGSÜ owl
+- vertical divider
+- upper label `MSGSÜ İDK`
+- product wordmark `P mark + artisyon`
+
+UI acceptance:
+- P and `artisyon` read as one wordmark
+- no overlap/blob effect
+- optical baseline alignment corrected
+- active nav underline moved close to the menu label after header height increased
+- audience filter icons `📚 / 🩰 / 🎶` enlarged without increasing the filter capsule height
+
+Teacher-planning language was simplified:
+- `Mevcut ders yükü`
+- `Uygunluk kısıtları`
+- `En az / Hedef / En fazla`
+- internal engineering terms were removed from user-facing copy
+
+Next roadmap:
+- M40 teacher load readiness / health
+- then objective metric integration
+- no hidden institutional defaults
+- M39.1 hard availability remains a structural constraint
+
+Working method:
+- assistant patches and commits through GitHub
+- user validates with pull, tests, build, migration gates and browser smoke
+- DB changes follow migration list → dry-run → exact pending check → real push → live smoke
+- record regressions and checkpoint SHAs after PASS
