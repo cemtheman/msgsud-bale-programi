@@ -6,6 +6,8 @@ import type {
   ManagementResourceKnowledgeStatus,
   ManagementRoomOperationalStatus,
   ManagementTeacherOperationalStatus,
+  ManagementTeacherDepartureMode,
+  ManagementTeacherDeparturePreview,
   ManagementRoomProfilePreview,
   ManagementRoomResourceRow,
   ManagementRoomStatusPreview,
@@ -112,7 +114,8 @@ export function ManagementResources({
   onCreateTeacher,
   onCreateRoom,
   onSetTeacherStatus,
-  onDeleteTeacher,
+  onPreviewTeacherDeparture,
+  onApplyTeacherDeparture,
   onDeleteRoom,
   onPreviewRoomProfile,
   onApplyRoomProfile,
@@ -130,7 +133,14 @@ export function ManagementResources({
     teacherId: string,
     status: ManagementTeacherOperationalStatus,
   ) => Promise<void>;
-  onDeleteTeacher: (teacherId: string) => Promise<void>;
+  onPreviewTeacherDeparture: (
+    teacherId: string,
+  ) => Promise<ManagementTeacherDeparturePreview>;
+  onApplyTeacherDeparture: (
+    teacherId: string,
+    mode: ManagementTeacherDepartureMode,
+    expectedStateToken: string,
+  ) => Promise<void>;
   onDeleteRoom: (roomId: string) => Promise<void>;
   onPreviewRoomProfile: (
     roomId: string,
@@ -195,6 +205,18 @@ export function ManagementResources({
   const [statusError, setStatusError] = useState<string | null>(null);
   const [statusPreviewing, setStatusPreviewing] = useState(false);
   const [statusApplying, setStatusApplying] = useState(false);
+
+  const [teacherDepartureTarget, setTeacherDepartureTarget] = useState<{
+    row: ManagementTeacherResourceRow;
+    intent: 'INACTIVATE' | 'ARCHIVE';
+  } | null>(null);
+  const [teacherDeparturePreview, setTeacherDeparturePreview] =
+    useState<ManagementTeacherDeparturePreview | null>(null);
+  const [teacherDepartureMode, setTeacherDepartureMode] =
+    useState<ManagementTeacherDepartureMode>('INACTIVATE_CLEAR');
+  const [teacherDepartureLoading, setTeacherDepartureLoading] = useState(false);
+  const [teacherDepartureApplying, setTeacherDepartureApplying] = useState(false);
+  const [teacherDepartureError, setTeacherDepartureError] = useState<string | null>(null);
 
   const openEditor = (
     kind: 'TEACHER' | 'ROOM',
@@ -286,18 +308,62 @@ export function ManagementResources({
     }
   };
 
-  const deleteTeacher = async (row: ManagementTeacherResourceRow) => {
-    if (resourceActionBusy) return;
-    setResourceActionBusy(true);
-    setResourceActionError(null);
+  const openTeacherDeparture = async (
+    row: ManagementTeacherResourceRow,
+    intent: 'INACTIVATE' | 'ARCHIVE',
+  ) => {
+    if (resourceActionBusy || teacherDepartureLoading || teacherDepartureApplying) return;
+
+    setTeacherDepartureTarget({ row, intent });
+    setTeacherDepartureMode(
+      intent === 'ARCHIVE' ? 'ARCHIVE_CLEAR' : 'INACTIVATE_CLEAR',
+    );
+    setTeacherDeparturePreview(null);
+    setTeacherDepartureError(null);
+    setTeacherDepartureLoading(true);
+
     try {
-      await onDeleteTeacher(row.id);
+      setTeacherDeparturePreview(await onPreviewTeacherDeparture(row.id));
     } catch (reason: unknown) {
-      setResourceActionError(
-        reason instanceof Error ? reason.message : 'Öğretmen silinemedi.',
+      setTeacherDepartureError(
+        reason instanceof Error
+          ? reason.message
+          : 'Öğretmen değişikliğinin etkisi hesaplanamadı.',
       );
     } finally {
-      setResourceActionBusy(false);
+      setTeacherDepartureLoading(false);
+    }
+  };
+
+  const applyTeacherDeparture = async () => {
+    if (
+      !teacherDepartureTarget
+      || !teacherDeparturePreview
+      || teacherDepartureApplying
+      || teacherDepartureLoading
+    ) {
+      return;
+    }
+
+    setTeacherDepartureApplying(true);
+    setTeacherDepartureError(null);
+
+    try {
+      await onApplyTeacherDeparture(
+        teacherDepartureTarget.row.id,
+        teacherDepartureMode,
+        teacherDeparturePreview.stateToken,
+      );
+      setTeacherDepartureTarget(null);
+      setTeacherDeparturePreview(null);
+    } catch (reason: unknown) {
+      setTeacherDepartureError(
+        reason instanceof Error
+          ? reason.message
+          : 'Öğretmen değişikliği uygulanamadı.',
+      );
+    } finally {
+      setTeacherDepartureApplying(false);
     }
   };
 
@@ -798,7 +864,7 @@ export function ManagementResources({
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-[minmax(240px,1fr)_105px_120px_105px_190px] items-center border-b border-slate-100 px-4 py-3 last:border-b-0"
+                      className="grid grid-cols-[minmax(240px,1fr)_105px_120px_105px_300px] items-center border-b border-slate-100 px-4 py-3 last:border-b-0"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-[12px] font-bold text-slate-900">
@@ -849,27 +915,22 @@ export function ManagementResources({
                         </button>
                         <button
                           type="button"
-                          onClick={() => void changeTeacherStatus(
-                            row,
-                            row.operationalStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
-                          )}
-                          disabled={!canEdit || resourceActionBusy || (
-                            row.operationalStatus === 'ACTIVE'
-                            && row.placedBlockCount > 0
-                          )}
+                          onClick={() => {
+                            if (row.operationalStatus === 'ACTIVE') {
+                              void openTeacherDeparture(row, 'INACTIVATE');
+                            } else {
+                              void changeTeacherStatus(row, 'ACTIVE');
+                            }
+                          }}
+                          disabled={!canEdit || resourceActionBusy || teacherDepartureApplying}
                           className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-35"
                         >
                           {row.operationalStatus === 'ACTIVE' ? 'Atamaya kapat' : 'Atamaya aç'}
                         </button>
                         <button
                           type="button"
-                          onClick={() => void deleteTeacher(row)}
-                          disabled={
-                            !canEdit
-                            || resourceActionBusy
-                            || row.activeRequirementCount > 0
-                            || row.placedBlockCount > 0
-                          }
+                          onClick={() => void openTeacherDeparture(row, 'ARCHIVE')}
+                          disabled={!canEdit || resourceActionBusy || teacherDepartureApplying}
                           className="rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-30"
                         >
                           Sil
@@ -1100,6 +1161,167 @@ export function ManagementResources({
       {resourceActionError && (
         <div className="fixed bottom-4 right-4 z-[118] max-w-[430px] rounded-2xl border border-rose-200 bg-white px-4 py-3 text-[11px] font-bold text-rose-700 shadow-xl">
           {resourceActionError}
+        </div>
+      )}
+
+      {teacherDepartureTarget && (
+        <div className="fixed inset-0 z-[119] flex items-center justify-center bg-slate-950/35 p-4">
+          <div className="w-full max-w-[620px] overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-[0_32px_100px_rgba(15,23,42,0.28)]">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
+                Öğretmen kaynağı
+              </p>
+              <h3 className="mt-1 text-lg font-black text-slate-950">
+                {teacherDepartureTarget.intent === 'ARCHIVE'
+                  ? `${teacherDepartureTarget.row.name} kaydını sil`
+                  : `${teacherDepartureTarget.row.name} atamalarını kapat`}
+              </h3>
+              <p className="mt-1 text-[11px] font-medium leading-5 text-slate-500">
+                Programdaki gün, saat ve salonlar değiştirilmeden öğretmen bağlantısı yönetilebilir.
+              </p>
+            </div>
+
+            <div className="space-y-4 px-5 py-4">
+              {teacherDepartureLoading && (
+                <div className="rounded-2xl bg-slate-50 px-4 py-4 text-center text-[11px] font-bold text-slate-500">
+                  Etki hesaplanıyor…
+                </div>
+              )}
+
+              {teacherDepartureError && (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] font-bold text-rose-700">
+                  {teacherDepartureError}
+                </div>
+              )}
+
+              {teacherDeparturePreview && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
+                        Ders tanımı
+                      </p>
+                      <p className="mt-1 text-xl font-black text-slate-900">
+                        {teacherDeparturePreview.activeRequirementCount}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">
+                        Program bloğu
+                      </p>
+                      <p className="mt-1 text-xl font-black text-slate-900">
+                        {teacherDeparturePreview.placedBlockCount}
+                      </p>
+                    </div>
+                  </div>
+
+                  {teacherDepartureTarget.intent === 'INACTIVATE' ? (
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => setTeacherDepartureMode('INACTIVATE_CLEAR')}
+                        className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                          teacherDepartureMode === 'INACTIVATE_CLEAR'
+                            ? 'border-slate-950 bg-slate-950 text-white'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="block text-[11px] font-black">
+                          Derslerden çıkar ve atamaya kapat
+                        </span>
+                        <span className={`mt-1 block text-[10px] font-medium leading-4 ${
+                          teacherDepartureMode === 'INACTIVATE_CLEAR'
+                            ? 'text-slate-300'
+                            : 'text-slate-500'
+                        }`}>
+                          Öğretmen ders havuzlarından ve mevcut taslak yerleşimlerden çıkarılır.
+                          Dersler aynı gün, saat ve salonda öğretmensiz kalır.
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setTeacherDepartureMode('INACTIVATE_KEEP')}
+                        className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                          teacherDepartureMode === 'INACTIVATE_KEEP'
+                            ? 'border-slate-950 bg-slate-950 text-white'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="block text-[11px] font-black">
+                          Yalnız yeni atamalara kapat
+                        </span>
+                        <span className={`mt-1 block text-[10px] font-medium leading-4 ${
+                          teacherDepartureMode === 'INACTIVATE_KEEP'
+                            ? 'text-slate-300'
+                            : 'text-slate-500'
+                        }`}>
+                          Mevcut yerleşimlerde öğretmen adı kalır; yeni program adaylarında kullanılamaz.
+                        </span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
+                      <p className="text-[11px] font-black text-rose-800">
+                        Derslerden çıkar ve kaydı sil
+                      </p>
+                      <p className="mt-1 text-[10px] font-medium leading-5 text-rose-700">
+                        Öğretmen mevcut taslak derslerden çıkarılır; gün, saat ve salonlar korunur.
+                        Kayıt aktif listeden silinir. Geçmiş ve veri bütünlüğü için kimlik arşivde saklanır.
+                      </p>
+                    </div>
+                  )}
+
+                  {teacherDeparturePreview.placedBlockCount > 0 && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[10px] font-semibold leading-5 text-amber-800">
+                      {teacherDepartureMode === 'INACTIVATE_KEEP'
+                        ? `${teacherDeparturePreview.placedBlockCount} program bloğu mevcut öğretmeni göstermeye devam edecek.`
+                        : `${teacherDeparturePreview.placedBlockCount} program bloğu aynı slotta kalacak ve öğretmen alanı boşalacak.`}
+                      {' '}Daha sonra Program ekranından yeni veya geçici bir öğretmen atanabilir.
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  if (teacherDepartureApplying) return;
+                  setTeacherDepartureTarget(null);
+                  setTeacherDeparturePreview(null);
+                  setTeacherDepartureError(null);
+                }}
+                disabled={teacherDepartureApplying}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-bold text-slate-600 disabled:opacity-40"
+              >
+                Vazgeç
+              </button>
+              <button
+                type="button"
+                onClick={() => void applyTeacherDeparture()}
+                disabled={
+                  !teacherDeparturePreview
+                  || teacherDepartureLoading
+                  || teacherDepartureApplying
+                }
+                className={`rounded-xl px-4 py-2 text-[11px] font-black text-white disabled:opacity-35 ${
+                  teacherDepartureTarget.intent === 'ARCHIVE'
+                    ? 'bg-rose-700 hover:bg-rose-600'
+                    : 'bg-slate-950 hover:bg-slate-800'
+                }`}
+              >
+                {teacherDepartureApplying
+                  ? 'Uygulanıyor…'
+                  : teacherDepartureTarget.intent === 'ARCHIVE'
+                    ? 'Derslerden çıkar ve sil'
+                    : teacherDepartureMode === 'INACTIVATE_KEEP'
+                      ? 'Atamaya kapat'
+                      : 'Derslerden çıkar ve kapat'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
