@@ -192,6 +192,7 @@ interface TeacherOptionRow {
   id: string;
   name: string;
   operational_status: 'ACTIVE' | 'INACTIVE';
+  archived_at: string | null;
 }
 
 interface RoomOptionRow {
@@ -530,7 +531,7 @@ export async function fetchManagementCoursePlan(
       'course_requirement_teachers?select=requirement_id,teacher_id',
       accessToken,
     ),
-    authedGet<TeacherOptionRow[]>('teachers?select=id,name,operational_status', accessToken),
+    authedGet<TeacherOptionRow[]>('teachers?select=id,name,operational_status,archived_at', accessToken),
     authedGet<RequirementRoomRow[]>(
       'course_requirement_rooms?select=requirement_id,room_id',
       accessToken,
@@ -707,7 +708,10 @@ export async function fetchManagementCoursePlan(
     revisionId: revision.id,
     rows,
     teacherOptions: teachers
-      .filter((teacher) => teacher.operational_status === 'ACTIVE')
+      .filter((teacher) => (
+        teacher.operational_status === 'ACTIVE'
+        && !teacher.archived_at
+      ))
       .map((teacher) => ({
         id: teacher.id,
         name: teacherById.get(teacher.id) ?? teacher.name,
