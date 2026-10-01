@@ -219,7 +219,7 @@ function PartisyonBrand({
   return (
     <div className="flex items-center" aria-label="MSGSÜ İDK Partisyon">
       <img
-        src="/brand/msgsu-owl-reference.svg"
+        src="/brand/msgsu-owl.svg"
         alt=""
         aria-hidden="true"
         className={compact ? 'h-8 w-auto shrink-0' : 'h-12 w-auto shrink-0'}
