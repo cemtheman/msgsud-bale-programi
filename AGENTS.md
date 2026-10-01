@@ -13,16 +13,17 @@
 | Aktif çalışma ortamı | `GitHub Codespaces` |
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-m39-teacher-planning-inputs` |
-| Son doğrulanmış implementation checkpoint | `aad72347a5c87d15cba7c840bf2cdfa8cc39556e` — M39.0 CLOSED/PASS — code gate, DB migration and browser acceptance complete |
-| Implementation commit | `M39.0 teacher load planning foundation — term-scoped min/target/max + actual load audit + Resources editor` |
-| Son documentation checkpoint | `docs/MAC_CONTINUATION.md` section 31; yeni oturumda `git rev-parse HEAD` ile doğrula |
-| Son kullanıcı/QA kabulü | **M38.0 CLOSED/PASS + M38.1 CLOSED/PASS** — 20/20 test files, 104/104 tests PASS; Next/TypeScript build PASS; bulk apply/undo browser PASS; semantic history tooltip PASS |
-| Sıradaki iş paketi | **M39.1 hard teacher availability foundation + Resources/Teachers UI polish** |
+| Son doğrulanmış implementation checkpoint | `8ac11517018e1047c50bef46fe558903c91198a9` — M39.1 CLOSED/PASS; 21/21 test files, 110/110 tests, build + DB + browser hard-block acceptance PASS |
+| Aktif implementation checkpoint | `6c0899981dd92e00fa7da312576df073c0f9f13f` — M40 teacher load readiness/objective implementation; validation gate pending |
+| Implementation commit | `M40 teacher load readiness + contextual objective support + in-memory load metric + Resources/Öncelikler UI` |
+| Son documentation checkpoint | `docs/MAC_CONTINUATION.md` M39.1 close; M40 implementation handoff bu oturumda ekleniyor |
+| Son kullanıcı/QA kabulü | **M39.1 CLOSED/PASS** — 21/21 test files, 110/110 tests; Next/TypeScript/PWA build PASS; three-slot availability save + overlap audit + manual hard-block browser PASS |
+| Sıradaki iş paketi | **M40 code gate → migration dry-run → DB push → load readiness/objective browser smoke** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
 
-Not: M34–M38 stabilization/operations zinciri tamamlandı. Ana roadmap yeniden solver input completeness eksenine döndü. Yeni oturumda branch HEAD ayrıca `git rev-parse HEAD` ile doğrulanmalıdır; M38 merge edilmemişse önce merge tamamlanır.
+Not: M34–M39.1 stabilization/input zinciri tamamlandı. M40 kodu branch üzerinde hazırdır fakat henüz test/build/migration gate ile doğrulanmamıştır. Yeni oturumda branch HEAD ayrıca `git rev-parse HEAD` ile doğrulanmalıdır.
 
 ## 2. Çalışma yöntemi — değişmez sözleşme
 
@@ -5709,3 +5710,154 @@ Working method remains:
 - user only pulls, runs tests/build/migration gates and performs browser/runtime validation
 - never ask user to hand-edit patches
 - DB changes: migration list → dry-run → exact pending migration only → real push → live smoke
+
+
+## 84. 1 Ekim 2026 — M40 teacher load readiness/objective — IMPLEMENTATION READY / VALIDATION PENDING
+
+Branch:
+`feat/management-m39-teacher-planning-inputs`
+
+Implementation checkpoint before this diary commit:
+`6c0899981dd92e00fa7da312576df073c0f9f13f`
+
+### Product semantics frozen
+
+M40 does not invent load defaults.
+
+A teacher is load-relevant only when the teacher is ACTIVE and either:
+- belongs to the teacher pool of an ACTIVE requirement in the requirement set, or
+- is currently used by an ACTIVE placed card in the selected DRAFT.
+
+Readiness:
+- every relevant teacher must have an explicit `target_load`
+- `minimum_load` and `maximum_load` remain optional
+- no relevant teachers => load-balance readiness is false
+- unused/inactive teacher records do not block readiness
+
+Load values remain weekly timetable periods.
+
+Hard/soft boundary:
+- M39.1 hard availability remains structural
+- M40 load targets are NEVER hard placement constraints
+- min/max are soft planning bands
+- the optimizer may violate a min/max band when other weighted objectives justify it
+
+### M40 objective metric
+
+Teacher load score is explainable:
+
+```
+target deviation =
+  Σ abs(proposed teacher load - explicit target load)
+
+range violation =
+  Σ below-minimum periods + above-maximum periods
+
+teacherLoadBalance raw metric =
+  target deviation + range violation
+```
+
+The existing weighted objective normalization remains:
+- raw metric / card count
+- multiplied by preference weight
+- lower total score is better
+- weight 0 disables the objective
+
+Engine result version:
+`M40-v1`
+
+### New migration
+
+`20261001200000_management_m40_teacher_load_readiness_objective.sql`
+
+It adds/redefines:
+- `management_teacher_load_health(requirement_set_id, revision_id)`
+- contextual teacher-load readiness
+- generic objective validator now recognizes `teacherLoadBalance` as implemented
+- `subjectTimePreference` remains unsupported
+- ACTIVE profile with positive load-balance weight is rejected when target readiness is incomplete
+- teacher resource load audit gains per-teacher health fields
+- load-target save now reports `solverBehaviorChanged=true`
+- current M39.1 snapshot is wrapped as M40:
+  - `teacherLoadTargets`
+  - `teacherLoadReadiness`
+  - baseline target-deviation/range-violation metrics
+  - contextual objective catalog support
+  - `snapshotVersion = M40-v1`
+  - snapshot hash recomputed
+- existing dynamic snapshot capture remains compatible
+
+No published schedule mutation is introduced.
+
+### In-memory optimizer integration
+
+`lib/managementSolverPrototype.ts`:
+- context carries explicit teacher load targets
+- metric vector adds:
+  - `teacherLoadTargetDeviationPeriods`
+  - `teacherLoadRangeViolationPeriods`
+- weighted score adds `teacherLoadBalance`
+- single-objective seed search includes teacher load balance
+- tie-break includes load metrics
+- positive objective support count includes teacher load balance
+- load objective returns `TEACHER_LOAD_INPUT_NOT_READY` when readiness is false
+- proposal generation remains in-memory / no trial writes
+- hard feasibility still runs for every accepted move
+
+### UI integration
+
+Resources → Teachers:
+- summary shows `ready/relevant` target coverage
+- relevant teacher with no target: `Yük dengesi için hedef gerekli`
+- ready teacher shows target deviation
+- min/max range violation is shown explicitly
+- planning modal explains:
+  - target is used by load-balance preference
+  - min/max are soft bands
+  - every relevant teacher needs target before load-balance can be used
+  - these values are not hard placement rules
+
+Öncelikler:
+- new preference: `Öğretmen yüklerini hedeflere yaklaştır`
+- shows current target deviation / range violation
+- when readiness is incomplete, positive levels are disabled
+- an already-saved positive value can still be turned OFF
+- ACTIVE save and option generation are gated by readiness
+- result comparison adds load target deviation + band-out metric
+- future footer now only lists subject day/time preferences
+
+### Regression coverage added
+
+Expected suite after this package:
+- 21 test files
+- 112 tests
+
+New tests:
+1. load optimization is BLOCKED when relevant teacher targets are incomplete
+2. with complete targets, load-only weighting moves a card from overloaded teacher to underloaded teacher and reduces both target deviation and range violation to zero
+
+### Validation still required
+
+Do NOT call M40 CLOSED/PASS yet.
+
+Required Codespaces gate:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+git rev-parse HEAD
+npm test
+npm run build
+npx supabase migration list | tail -25
+npx supabase db push --dry-run
+```
+
+Dry-run must show ONLY:
+`20261001200000_management_m40_teacher_load_readiness_objective.sql`
+
+Only after code/build/dry-run PASS:
+- real DB push
+- migration parity check
+- Resources load-readiness browser smoke
+- Öncelikler load objective readiness/metric smoke
+- verify proposal remains explicit/read-only until user confirms apply
+- then update this diary to M40 CLOSED/PASS
