@@ -2291,14 +2291,14 @@ export function ManagementResources({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
-                  Öğretmen planlama girdileri
+                  Öğretmen planlama ayarları
                 </p>
                 <h3 className="mt-1 text-lg font-black text-slate-950">
                   {teacherLoadTarget.name}
                 </h3>
                 <p className="mt-1 max-w-[620px] text-[11px] font-medium leading-5 text-slate-500">
-                  Yük hedefleri planlama verisidir. “Uygun değil” olarak işaretlenen
-                  saatler ise yeni yerleştirmeler ve optimizasyon için hard constraint’tir.
+                  Ders yükü hedefleri planlama amaçlıdır. Öğretmenin uygun olmadığı saatleri
+                  işaretleyerek bu saatlere yeni ders atanmasını engelleyebilirsiniz.
                 </p>
               </div>
               <button
@@ -2314,7 +2314,7 @@ export function ManagementResources({
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
                 <p className="text-[10px] font-black uppercase tracking-wide text-blue-500">
-                  Mevcut gerçek yük
+                  Mevcut ders yükü
                 </p>
                 <div className="mt-1 flex items-end justify-between gap-3">
                   <p className="text-2xl font-black text-blue-950">
@@ -2337,7 +2337,7 @@ export function ManagementResources({
                     ? 'text-rose-500'
                     : 'text-slate-400'
                 }`}>
-                  Hard uygunluk
+                  Uygunluk kısıtları
                 </p>
                 <div className="mt-1 flex items-end justify-between gap-3">
                   <p className={`text-2xl font-black ${
@@ -2346,7 +2346,7 @@ export function ManagementResources({
                       : 'text-slate-800'
                   }`}>
                     {teacherUnavailablePeriods.length}
-                    <span className="ml-1 text-xs font-bold">saat kapalı</span>
+                    <span className="ml-1 text-xs font-bold">saat uygun değil</span>
                   </p>
                   <p className={`text-right text-[10px] font-semibold ${
                     teacherLoadTarget.unavailablePlacedBlockCount > 0
@@ -2388,7 +2388,7 @@ export function ManagementResources({
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                Uygun değil · {teacherUnavailablePeriods.length}
+                Uygunluk · {teacherUnavailablePeriods.length}
               </button>
             </div>
 
@@ -2397,7 +2397,7 @@ export function ManagementResources({
                 <div className="mt-4 grid grid-cols-3 gap-3">
                   {([
                     {
-                      label: 'Minimum',
+                      label: 'En az',
                       value: teacherMinimumLoad,
                       setValue: setTeacherMinimumLoad,
                     },
@@ -2407,7 +2407,7 @@ export function ManagementResources({
                       setValue: setTeacherTargetLoad,
                     },
                     {
-                      label: 'Maksimum',
+                      label: 'En fazla',
                       value: teacherMaximumLoad,
                       setValue: setTeacherMaximumLoad,
                     },
@@ -2436,8 +2436,8 @@ export function ManagementResources({
                 </div>
 
                 <p className="mt-3 text-[10px] font-medium leading-5 text-slate-500">
-                  Alanlar boş bırakılabilir. Minimum ≤ hedef ≤ maksimum olmalıdır.
-                  Bu değerler M39.1’de hâlâ optimizer puanlamasını değiştirmez.
+                  Alanları boş bırakabilirsiniz. En az ≤ hedef ≤ en fazla olmalıdır.
+                  Bu değerler şimdilik yalnızca planlama bilgisidir; otomatik yerleştirmeyi etkilemez.
                 </p>
               </>
             ) : (
@@ -2507,9 +2507,9 @@ export function ManagementResources({
                 </div>
 
                 <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold leading-5 text-amber-800">
-                  Seçili saatlerde bu öğretmen yeni aday olarak kullanılamaz ve solver
-                  bu saatleri seçemez. Mevcut program otomatik taşınmaz; oluşan
-                  çakışmalar Kaynaklar ve solver baseline audit’inde görünür.
+                  İşaretlediğiniz saatlere bu öğretmen için yeni ders yerleştirilmez.
+                  Mevcut program otomatik olarak değiştirilmez; varsa mevcut
+                  çakışmalar ayrıca gösterilir.
                 </div>
               </>
             )}
@@ -2538,7 +2538,7 @@ export function ManagementResources({
               >
                 {teacherPlanningTab === 'LOAD'
                   ? 'Hedefleri temizle'
-                  : 'Kısıtları temizle'}
+                  : 'Tüm işaretleri kaldır'}
               </button>
 
               <div className="flex gap-2">
