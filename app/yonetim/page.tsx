@@ -3709,9 +3709,64 @@ export default function ManagementPage() {
           publicationPreview={publicationPreview}
           publicationGate={publicationGate}
           cards={board?.cards ?? []}
+          teacherOptions={coursePlan?.teacherOptions ?? []}
+          roomOptions={coursePlan?.roomOptions ?? []}
+          canEdit={access?.canEdit === true}
+          commandBusy={commandBusy}
           onIssueAction={handleHealthIssueAction}
           onOperationalQueueAction={(kind, cardId) => {
             openOperationalGap(kind, [cardId]);
+          }}
+          onBulkPreview={async (cardIds, resourceType, resourceId) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            return previewManagementPlacementResourceChange(
+              session.accessToken,
+              cardIds,
+              resourceType,
+              resourceId,
+            );
+          }}
+          onBulkApply={async (
+            cardIds,
+            resourceType,
+            resourceId,
+            expectedStateToken,
+          ) => {
+            if (!session || !access?.canEdit) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity(
+              resourceType === 'TEACHER'
+                ? 'Toplu öğretmen ataması uygulanıyor.'
+                : 'Toplu salon ataması uygulanıyor.',
+            );
+
+            try {
+              const result = await applyManagementPlacementResourceChange(
+                session.accessToken,
+                cardIds,
+                resourceType,
+                resourceId,
+                expectedStateToken,
+              );
+
+              setCommandNotice({
+                kind: 'success',
+                text: resourceType === 'TEACHER'
+                  ? `Öğretmen “${result.resourceName}” toplu olarak atandı. ${result.affectedCardCount} kart güncellendi.`
+                  : `Salon “${result.resourceName}” toplu olarak atandı. ${result.affectedCardCount} kart güncellendi.`,
+              });
+              setRefreshToken((value) => value + 1);
+              return result;
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
           }}
         />
       )}
