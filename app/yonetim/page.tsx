@@ -24,6 +24,8 @@ import { useManagementSession } from '@/hooks/useManagementSession';
 import {
   buildManagementRowDisplayCards,
   cardBelongsToClassRow,
+  cardHasMissingRequiredRoom,
+  cardHasMissingRequiredTeacher,
   cardMatchesProgramResourceFilters,
   cardMatchesAudience,
   cardMatchesStage,
@@ -620,24 +622,12 @@ export default function ManagementPage() {
   );
 
   const visibleMissingTeacherCards = useMemo(
-    () => visibleCards.filter(
-      (card) => (
-        Boolean(card.placement)
-        && card.teacherRequirement === 'REQUIRED'
-        && !card.placement?.teacherId
-      ),
-    ),
+    () => visibleCards.filter(cardHasMissingRequiredTeacher),
     [visibleCards],
   );
 
   const visibleMissingRoomCards = useMemo(
-    () => visibleCards.filter(
-      (card) => (
-        Boolean(card.placement)
-        && card.resourceMode !== 'UNKNOWN'
-        && !card.placement?.roomId
-      ),
-    ),
+    () => visibleCards.filter(cardHasMissingRequiredRoom),
     [visibleCards],
   );
 
@@ -654,14 +644,8 @@ export default function ManagementPage() {
         if (!card.placement) return false;
 
         return programGapFilter === 'TEACHER'
-          ? (
-            card.teacherRequirement === 'REQUIRED'
-            && !card.placement.teacherId
-          )
-          : (
-            card.resourceMode !== 'UNKNOWN'
-            && !card.placement.roomId
-          );
+          ? cardHasMissingRequiredTeacher(card)
+          : cardHasMissingRequiredRoom(card);
       })
   ), [
     programFilterMode,
