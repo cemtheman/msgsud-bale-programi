@@ -943,3 +943,53 @@ Browser smoke:
 8. candidate diagnostics -> En sık engel summary appears when blockers exist
 9. global Undo/Redo hover text -> subject/resource and available placement/bundle context is more descriptive
 
+### M35 browser feedback round 1 — fixes applied
+
+User browser review:
+- right-click five-action menu: PASS
+- Alternatif yerler opened inspector but target accordion stayed closed and panel did not scroll
+- teacher/room shortcut selected the right mode but did not scroll/focus if inspector was already open and scrolled
+- Kaynaklar -> Program picked an arbitrary first card when a resource had many lessons
+- Kaynaklar teacher action buttons could overlap
+- history tooltip enrichment was acceptable; no major issue reported
+
+Fix commits:
+```
+7b0711e3d879461e6dc5785f1539e1183f4e3f4f  fix: scroll inspector shortcuts to their target sections
+7146f7ff1b91e8b110bf79c208bc94ded893eaa8  fix: size resource actions and pass resource label
+ea412bad7729e978aebd7140010bcc5ed4509d7c  fix: show resource program as an explicit filtered view
+344b82111621ee21a71393fdc0e1cadab47cf6a9  fix: preserve context-menu inspector intent across card reset
+55167a94fcf48b7b8a4650e9a29da812386b0e9e  polish: make resource program filtering explicit and dismissible
+```
+
+Behavior after fixes:
+- context-menu inspector shortcuts use target section refs + smooth scrollIntoView
+- target section receives a visible blue focus ring
+- candidate accordion is forced open for CANDIDATES intent
+- old card-change reset effects are intent-aware and no longer close the requested section
+- repeated click on same shortcut still re-focuses via openIntentNonce
+- resource Program no longer selects an arbitrary card
+- resource Program opens Teacher/Room Program view with a resource filter pill
+- only placements using that resource are shown
+- current stage/day are retained when they contain usage; otherwise first stage/day with usage is selected
+- filter is removable with the pill or by choosing a normal resource view / top Program navigation
+- teacher resource action column widened and actions can wrap safely
+- no migration / backend authority changes
+
+Acceptance rerun:
+```bash
+git switch feat/management-m35-ux-safety
+git pull --ff-only
+npm test
+npm run build
+```
+
+Browser:
+1. right-click placed card -> Alternatif yerler -> inspector scrolls to open candidate list
+2. right-click -> Öğretmeni değiştir -> scrolls to highlighted teacher edit section
+3. right-click -> Salonu değiştir -> scrolls to highlighted room edit section
+4. Kaynaklar -> used teacher/room -> Program -> no card is arbitrarily selected; one filtered resource row opens
+5. switch days/stage while filter is active -> browse that resource's usage
+6. click filter pill × or normal Program/resource-view navigation -> filter clears
+7. resource row actions no longer overlap
+
