@@ -3,7 +3,11 @@
 import { ManagementPublicationGate } from '@/components/management/ManagementPublicationGate';
 import { ManagementPublicationPreview } from '@/components/management/ManagementPublicationPreview';
 import type { ManagementStage } from '@/lib/managementBoard';
-import type { ManagementPublicationGateData } from '@/lib/managementPublicationGate';
+import type {
+  ManagementPublicationBlockReason,
+  ManagementPublicationGateData,
+  ManagementPublicationWarningReason,
+} from '@/lib/managementPublicationGate';
 import type { ManagementPublicationPreviewData } from '@/lib/managementPublicationPreview';
 import type {
   ManagementHealthIssue,
@@ -149,6 +153,35 @@ export function ManagementProgramStatus({
   const blockerCount = snapshot.blockers.reduce((sum, issue) => sum + issue.count, 0);
   const warningCount = snapshot.warnings.reduce((sum, issue) => sum + issue.count, 0);
 
+  const healthBlockerIds = new Set(snapshot.blockers.map((issue) => issue.id));
+  const healthWarningIds = new Set(snapshot.warnings.map((issue) => issue.id));
+
+  const suppressedPublicationBlockReasons: ManagementPublicationBlockReason[] = [
+    ...(healthBlockerIds.has('unplaced-untouched')
+      || healthBlockerIds.has('unplaced-touched')
+      ? ['UNPLACED_CARDS' as const]
+      : []),
+    ...(healthBlockerIds.has('contradiction-untouched')
+      || healthBlockerIds.has('contradiction-touched')
+      ? ['CONTRADICTIONS' as const]
+      : []),
+    ...(healthBlockerIds.has('unresolved-touched')
+      ? ['UNRESOLVED_TOUCHED' as const]
+      : []),
+    ...(healthBlockerIds.has('placed-teacher-missing')
+      ? ['MISSING_REQUIRED_TEACHER_PLACEMENT' as const]
+      : []),
+    ...(healthBlockerIds.has('placed-room-missing')
+      ? ['MISSING_REQUIRED_ROOM_PLACEMENT' as const]
+      : []),
+  ];
+
+  const suppressedPublicationWarningReasons: ManagementPublicationWarningReason[] = [
+    ...(healthWarningIds.has('unresolved-inherited')
+      ? ['UNRESOLVED_INHERITED' as const]
+      : []),
+  ];
+
   return (
     <section className="management-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
       <div className="mx-auto max-w-[1220px] space-y-4">
@@ -246,7 +279,11 @@ export function ManagementProgramStatus({
           </div>
         </div>
 
-        <ManagementPublicationGate data={publicationGate} />
+        <ManagementPublicationGate
+          data={publicationGate}
+          suppressedBlockReasons={suppressedPublicationBlockReasons}
+          suppressedWarningReasons={suppressedPublicationWarningReasons}
+        />
 
         <ManagementPublicationPreview
           data={publicationPreview}
