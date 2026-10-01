@@ -17,7 +17,7 @@
 | Implementation commit | `M39.0 teacher load planning foundation — term-scoped min/target/max + actual load audit + Resources editor` |
 | Son documentation checkpoint | `docs/MAC_CONTINUATION.md` section 31; yeni oturumda `git rev-parse HEAD` ile doğrula |
 | Son kullanıcı/QA kabulü | **M38.0 CLOSED/PASS + M38.1 CLOSED/PASS** — 20/20 test files, 104/104 tests PASS; Next/TypeScript build PASS; bulk apply/undo browser PASS; semantic history tooltip PASS |
-| Sıradaki iş paketi | **M39.1 hard teacher availability foundation** |
+| Sıradaki iş paketi | **M39.1 hard teacher availability foundation + Resources/Teachers UI polish** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
