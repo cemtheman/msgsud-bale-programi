@@ -167,6 +167,78 @@ export function executeManagementWorkspaceCommandV1(
   };
 }
 
+
+export interface ManagementWorkspaceBatchCommandResultV1 {
+  applied: boolean;
+  operations: ManagementWorkspaceOperationV1[];
+  issues: ManagementWorkspaceValidationIssueV1[];
+}
+
+export function executeManagementWorkspaceCommandsV1(
+  snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  commands: ManagementWorkspaceCommandV1[],
+): ManagementWorkspaceBatchCommandResultV1 {
+  if (commands.length === 0) {
+    return {
+      applied: true,
+      operations: [],
+      issues: [],
+    };
+  }
+
+  const trialCopy = cloneWorkingCopy(workingCopy);
+  const trialHistory = cloneHistory(history);
+  const currentValidation = validateManagementWorkspaceV1(
+    snapshot,
+    workingCopy,
+    'EDIT',
+  );
+
+  for (const command of commands) {
+    applyCommand(trialCopy, trialHistory, command);
+  }
+
+  const validation = validateManagementWorkspaceV1(
+    snapshot,
+    trialCopy,
+    'EDIT',
+  );
+
+  const issueKey = (issue: ManagementWorkspaceValidationIssueV1) => [
+    issue.code,
+    issue.requirementId ?? '',
+    issue.dayOfWeek ?? '',
+    [...issue.cardIds].sort((left, right) => left.localeCompare(right)).join(','),
+  ].join('|');
+
+  const currentIssueKeys = new Set(
+    currentValidation.issues.map(issueKey),
+  );
+  const introducedIssues = validation.issues.filter(
+    (issue) => !currentIssueKeys.has(issueKey(issue)),
+  );
+
+  if (introducedIssues.length > 0) {
+    return {
+      applied: false,
+      operations: [],
+      issues: introducedIssues,
+    };
+  }
+
+  const operations = commands.map((command) =>
+    applyCommand(workingCopy, history, command),
+  );
+
+  return {
+    applied: true,
+    operations,
+    issues: [],
+  };
+}
+
 export function resetManagementWorkspaceWorkingCopyV1(
   snapshot: ManagementWorkspaceSnapshotV1,
   target: ManagementWorkspaceWorkingCopyV1,
