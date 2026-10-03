@@ -10,6 +10,7 @@ import {
 } from '@/lib/managementWorkspaceHistory';
 import {
   executeManagementWorkspaceCommandV1,
+  executeManagementWorkspaceCommandsV1,
   resetManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceCommands';
 
@@ -379,6 +380,28 @@ describe('management workspace command executor v1', () => {
     expect(result.applied).toBe(true);
     expect(result.issues).toEqual([]);
     expect(copy.placementsByCardId['card-2'].dayOfWeek).toBeNull();
+  });
+
+  it('applies multi-card local remove atomically', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const result = executeManagementWorkspaceCommandsV1(
+      source,
+      copy,
+      history,
+      [
+        { type: 'REMOVE_PLACEMENT', cardId: 'card-1' },
+        { type: 'REMOVE_PLACEMENT', cardId: 'card-2' },
+      ],
+    );
+
+    expect(result.applied).toBe(true);
+    expect(result.operations).toHaveLength(2);
+    expect(copy.placementsByCardId['card-1'].dayOfWeek).toBeNull();
+    expect(copy.placementsByCardId['card-2'].dayOfWeek).toBeNull();
+    expect(history.undoStack).toHaveLength(2);
   });
 
 });
