@@ -556,6 +556,43 @@ export function removeManagementCard(
   });
 }
 
+export async function fetchManagementPlacedCardIds(
+  accessToken: string,
+  cardIds: string[],
+): Promise<string[]> {
+  const uniqueIds = Array.from(new Set(cardIds)).filter(Boolean);
+  if (uniqueIds.length === 0) return [];
+
+  const { url, key } = getSupabaseConfig();
+  const token = await getFreshManagementAccessToken(accessToken);
+  const filter = `in.(${uniqueIds.join(',')})`;
+
+  const response = await fetch(
+    `${url}/rest/v1/placements?select=card_id&card_id=${encodeURIComponent(filter)}`,
+    {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${token}`,
+      },
+      cache: 'no-store',
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readRpcError(
+        response,
+        'Kartların güncel yerleşim durumu doğrulanamadı.',
+      ),
+    );
+  }
+
+  const rows = await response.json() as Array<{ card_id?: string }>;
+  return rows
+    .map((row) => row.card_id)
+    .filter((value): value is string => typeof value === 'string');
+}
+
 function bundleItemsPayload(items: ManagementBundleCandidateInput[]) {
   return items.map((item) => ({
     card_id: item.cardId,
