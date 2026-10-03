@@ -555,6 +555,7 @@ export default function ManagementPage() {
   } | null>(null);
 
   const [dragCardIds, setDragCardIds] = useState<string[]>([]);
+  const dragCardIdsRef = useRef<string[]>([]);
   const [dragCandidateDetails, setDragCandidateDetails] =
     useState<Record<string, ManagementCandidateDetail>>({});
   const [dragLoading, setDragLoading] = useState(false);
@@ -1393,6 +1394,7 @@ export default function ManagementPage() {
     const sequence = dragSequenceRef.current + 1;
     dragSequenceRef.current = sequence;
 
+    dragCardIdsRef.current = ids;
     setDragCardIds(ids);
     setDragCandidateDetails({});
     setDragLoading(true);
@@ -1417,6 +1419,7 @@ export default function ManagementPage() {
       })
       .catch((reason: unknown) => {
         if (dragSequenceRef.current !== sequence) return;
+        dragCardIdsRef.current = [];
         setDragCardIds([]);
         setDragCandidateDetails({});
         setCommandNotice({
@@ -1436,6 +1439,7 @@ export default function ManagementPage() {
 
   const endDrag = () => {
     dragSequenceRef.current += 1;
+    dragCardIdsRef.current = [];
     setDragCardIds([]);
     setDragCandidateDetails({});
     setDragLoading(false);
@@ -2025,8 +2029,17 @@ export default function ManagementPage() {
   };
 
   const returnDraggedCardsToPool = () => {
-    const cardIds = [...dragCardIds];
+    const cardIds = [...dragCardIdsRef.current];
     endDrag();
+
+    if (cardIds.length === 0) {
+      setCommandNotice({
+        kind: 'info',
+        text: 'Sürüklenen dersin kimliği güncellendi. Kartı yeniden sürükleyin.',
+      });
+      return;
+    }
+
     void removeCardsNow(cardIds);
   };
 
