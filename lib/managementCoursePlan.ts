@@ -1,6 +1,7 @@
 'use client';
 
 import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+import { fetchLatestManagementDraftRevision } from '@/lib/managementRevision';
 
 const MANAGEMENT_ROOM_CAPABILITY_IDS = [
   'GENERAL_CLASSROOM_SMALL_GROUP',
@@ -137,11 +138,6 @@ export interface ManagementRequirementStructurePreview {
   ambiguities: ManagementRequirementStructureAmbiguity[];
   candidateRebuildCardCount: number;
   previewOnly: boolean;
-}
-
-interface RevisionRow {
-  id: string;
-  requirement_set_id: string;
 }
 
 interface RequirementRow {
@@ -489,12 +485,7 @@ export function coursePlanMatchesStage(
 export async function fetchManagementCoursePlan(
   accessToken: string,
 ): Promise<ManagementCoursePlanData | null> {
-  const revisions = await authedGet<RevisionRow[]>(
-    'schedule_revisions?select=id,requirement_set_id&status=eq.DRAFT&order=version_number.desc&limit=1',
-    accessToken,
-  );
-
-  const revision = revisions[0];
+  const revision = await fetchLatestManagementDraftRevision(accessToken);
   if (!revision) return null;
 
   const [
