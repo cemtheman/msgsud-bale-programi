@@ -1,6 +1,7 @@
 'use client';
 
 import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+import { fetchLatestManagementDraftRevision } from '@/lib/managementRevision';
 
 export type ManagementSolverObjectiveKey =
   | 'changeCost'
@@ -353,10 +354,6 @@ export function upsertManagementSolverProfile(
   );
 }
 
-interface SolverRevisionRow {
-  id: string;
-}
-
 async function authedSolverGet<T>(
   path: string,
   accessToken: string,
@@ -415,12 +412,7 @@ export async function fetchManagementSolverWorkspace(
 export async function fetchLatestManagementSolverWorkspace(
   accessToken: string,
 ): Promise<ManagementSolverWorkspace | null> {
-  const revisions = await authedSolverGet<SolverRevisionRow[]>(
-    'schedule_revisions?select=id&status=eq.DRAFT&order=version_number.desc&limit=1',
-    accessToken,
-  );
-
-  const revision = revisions[0];
+  const revision = await fetchLatestManagementDraftRevision(accessToken);
   if (!revision) return null;
 
   return fetchManagementSolverWorkspace(accessToken, revision.id);
