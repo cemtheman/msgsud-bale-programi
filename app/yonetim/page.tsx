@@ -2674,7 +2674,7 @@ export default function ManagementPage() {
             <button
               type="button"
               onClick={() => {
-                if (workspaceLocalSessionActive) {
+                if (workspaceDirty) {
                   setCommandNotice({
                     kind: 'info',
                     text: 'Yerel değişiklikler kaybolmasın diye yenileme engellendi. Önce Geri Al ile yerel değişiklikleri temizleyin.',
@@ -2691,7 +2691,7 @@ export default function ManagementPage() {
             <button
               type="button"
               onClick={() => {
-                if (workspaceLocalSessionActive) {
+                if (workspaceDirty) {
                   setCommandNotice({
                     kind: 'info',
                     text: 'Yerel değişiklikler kaybolmasın diye çıkış engellendi. Önce Geri Al ile yerel değişiklikleri temizleyin.',
