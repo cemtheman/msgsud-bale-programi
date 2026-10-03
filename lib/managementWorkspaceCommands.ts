@@ -124,6 +124,7 @@ export function executeManagementWorkspaceCommandV1(
   const validation = validateManagementWorkspaceV1(
     snapshot,
     trialCopy,
+    'EDIT',
   );
 
   if (!validation.valid) {
