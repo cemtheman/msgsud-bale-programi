@@ -224,11 +224,12 @@ describe('management workspace working copy v1', () => {
   it('rejects diffing a working copy created from another baseline', () => {
     const source = snapshot();
     const copy = createManagementWorkspaceWorkingCopyV1(source);
-    const other = snapshot();
-
-    other.identity = {
-      ...other.identity,
-      snapshotHash: 'different-snapshot',
+    const other = {
+      ...snapshot(),
+      identity: {
+        ...snapshot().identity,
+        snapshotHash: 'different-snapshot',
+      },
     };
 
     expect(() => diffManagementWorkspaceV1(other, copy))
