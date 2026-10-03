@@ -12,13 +12,13 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Aktif çalışma ortamı | `GitHub Codespaces` |
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
-| Aktif branch | `feat/management-m39-teacher-planning-inputs` |
-| Son doğrulanmış implementation checkpoint | `8ac11517018e1047c50bef46fe558903c91198a9` — M39.1 CLOSED/PASS; 21/21 test files, 110/110 tests, build + DB + browser hard-block acceptance PASS |
-| Aktif implementation checkpoint | `5b3ab1d0b5665dd390164027b8e4eb0aaa8dd817` — emergency rollback prepared; application code restored exactly to M39.1 stable, DB rollback migration pending apply |
+| Aktif branch | `feat/management-workspace-v1` |
+| Son doğrulanmış implementation checkpoint | `3c6a2329818b82bdda6a539f239ebd202b3ff07e` — Workspace UI checkpoint 1 PASS; 27/27 test files, 141/141 tests, build PASS, browser local remove + local undo/redo PASS |
+| Aktif implementation checkpoint | `3c6a2329818b82bdda6a539f239ebd202b3ff07e` — first Program UI integration for local workspace remove/undo/redo |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
-| Son documentation checkpoint | emergency M40/M40.1 rollback handoff; M39.1 is the target stable behavior |
-| Son kullanıcı/QA kabulü | **M39.1 CLOSED/PASS** — 21/21 test files, 110/110 tests; Next/TypeScript/PWA build PASS; three-slot availability save + overlap audit + manual hard-block browser PASS |
-| Sıradaki iş paketi | **rollback gate → DB rollback migration push → Program / drag-drop / undo-redo smoke only** |
+| Son documentation checkpoint | Management Workspace v1 Phase 1–2 + first browser acceptance documented |
+| Son kullanıcı/QA kabulü | **Workspace UI checkpoint 1 PASS** — single-card remove is local, local Undo/Redo restores instantly, MOVE still legacy DB-backed and slow |
+| Sıradaki iş paketi | **MOVE’u local workspace motoruna bağla; drag/drop sırasında DB write kaldır; sonra grouped/batch local history transaction semantiği** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -6109,3 +6109,216 @@ Still open and separate:
   `management_preview_candidate_forward_impacts` returns HTTP 500 in at
   least one live scenario
 - investigate this independently; do not destabilize Program drag/remove/history
+
+
+## 90. 3 Ekim 2026 — Management Workspace v1 — local editing foundation + UI checkpoint 1 PASS
+
+Branch:
+`feat/management-workspace-v1`
+
+Architecture goal confirmed by user:
+
+```text
+DB Snapshot
+  ↓
+Local Working Copy / Matrix
+  ↓
+Local trial edits + validation + undo/redo
+  ↓
+Atomic final commit to DB
+```
+
+The purpose is to stop the previous pattern where every drag/remove/resource trial
+read or wrote Supabase. The accepted direction is snapshot once, edit locally, then
+commit once with stale-baseline protection.
+
+### Baseline before workspace work
+
+- rollback to M39.1 behavior applied and migration parity confirmed through
+  `20261003150000_management_rollback_m40_to_m39_1.sql`
+- pre-workspace code gate: 21/21 test files, 110/110 tests, production build PASS
+- M33 snapshot was selected as the authoritative structural input instead of creating
+  a parallel snapshot source
+
+### Phase 1 — immutable Workspace Snapshot — PASS
+
+Files:
+- `lib/managementWorkspace.ts`
+- `tests/managementWorkspace.test.ts`
+
+Main properties:
+- immutable/deep-frozen app snapshot
+- revision / requirement-set / version / snapshotHash / baselineHash identity
+- requirements, cards, groups, relations, teacher/room pools, resources,
+  hard availability, baseline placements and metrics
+- source validation and referential-integrity checks
+- candidate domain intentionally excluded because it is occupancy-relative
+
+Checkpoint result:
+- 22/22 test files
+- 114/114 tests
+- build PASS
+
+### Phase 2A — local Working Copy + Diff — PASS
+
+Files:
+- `lib/managementWorkspaceWorkingCopy.ts`
+- `tests/managementWorkspaceWorkingCopy.test.ts`
+
+Behavior:
+- snapshot remains immutable
+- every card gets a mutable local placement state
+- local SET / REMOVE operations do not touch baseline
+- deterministic dirty-card diff against snapshot baseline
+- stale/different snapshot identity is rejected
+
+Checkpoint result:
+- 23/23 test files
+- 119/119 tests
+- build PASS
+
+### Phase 2B — local operation history / Undo / Redo — PASS
+
+Files:
+- `lib/managementWorkspaceHistory.ts`
+- `tests/managementWorkspaceHistory.test.ts`
+
+Behavior:
+- local operation sequence numbers
+- undo stack / redo stack
+- Undo Undo Redo Redo semantics
+- new edit after undo drops redo branch
+- full placement state restored on undo
+- no DB history required
+
+Checkpoint result:
+- 24/24 test files
+- 124/124 tests
+- build PASS
+
+### Local hard-rule validator — PASS
+
+Files:
+- `lib/managementWorkspaceValidation.ts`
+- `tests/managementWorkspaceValidation.test.ts`
+
+Covered rules:
+- day/time bounds
+- lunch-boundary crossing
+- locked-card pin
+- required/inactive/ineligible teacher
+- hard teacher unavailability
+- required/inactive/ineligible/capability-mismatched room
+- teacher / canonical-room / participant-group conflict
+- required teacher continuity
+- max blocks/day
+- max consecutive periods
+- min distinct days
+
+Validation modes were separated:
+- `EDIT`: temporary incomplete draft states may exist during editing
+- `COMMIT`: final hard requirements must hold
+
+Existing baseline violations do not block unrelated edits; only newly introduced
+hard violations reject a local command.
+
+Checkpoint result:
+- 25/25 test files, then 26/26 after command-mode refinements
+- 131/131, then 137/137 tests
+- build PASS
+
+### Local validated command executor — PASS
+
+Files:
+- `lib/managementWorkspaceCommands.ts`
+- `tests/managementWorkspaceCommands.test.ts`
+
+Flow:
+
+```text
+command
+  ↓
+trial copy
+  ↓
+EDIT validation
+  ↓
+invalid → no mutation
+valid   → apply to working copy + local history
+```
+
+Also added atomic local command batches for future grouped operations.
+
+### Board projection adapter — PASS
+
+Files:
+- `lib/managementWorkspaceBoardAdapter.ts`
+- `tests/managementWorkspaceBoardAdapter.test.ts`
+
+The server-fetched board remains the baseline. Local placement state is projected
+onto a derived board for display. This lets the UI show a local remove/move without
+mutating or refetching the server board.
+
+Checkpoint before UI integration:
+- 27/27 test files
+- 141/141 tests
+- build PASS
+
+### First Program UI integration — PASS
+
+Implementation checkpoint:
+`3c6a2329818b82bdda6a539f239ebd202b3ff07e`
+
+Integrated behavior:
+- single-card `Kaldır / Havuza kaldır` now executes locally
+- no Supabase write for that local remove
+- board immediately projects the card into the pool
+- local Undo restores the card immediately
+- local Redo removes it again immediately
+- dirty badge: `Yerel değişiklik · kaydedilmedi`
+- refresh and logout are blocked while local dirty changes exist, preventing loss
+- legacy write surfaces are locked while a local workspace session is active to
+  prevent mixing local state with old DB-write state
+- server board remains baseline and can be restored cleanly
+
+Browser acceptance performed by user:
+1. remove cards to pool → worked immediately
+2. Undo quickly restored them to their old positions → worked
+3. local remove/undo behavior felt fast and successful
+4. page reload transiently hit known Supabase/Cloudflare 522/CORS-looking noise,
+   but a reload recovered; this is not treated as a workspace failure
+5. dragging/moving a card still used the legacy DB path and therefore remained slow
+
+User verdict:
+**successful**
+
+### Current architectural boundary
+
+LOCAL now:
+- single-card REMOVE
+- Undo/Redo for local workspace history
+- board projection
+
+LEGACY DB-backed still:
+- MOVE / drag-drop
+- PLACE
+- grouped remove semantics
+- resource edits
+- assistant apply
+- final persistence
+
+Do not mix both write engines during a dirty local session.
+
+### Next implementation target
+
+**MOVE → local workspace**
+
+Acceptance target:
+- drag card to another valid slot
+- no placement write/RPC during drag/drop
+- local validator decides acceptance
+- board moves immediately via projection
+- Undo / Redo are local and instant
+- DB remains unchanged until future explicit Save/Commit
+
+After single-card MOVE passes browser acceptance, add grouped/batch history transaction
+semantics so one visual grouped move/remove is one Undo step.
