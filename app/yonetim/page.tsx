@@ -113,6 +113,7 @@ import {
 } from '@/lib/managementCoursePlan';
 import {
   fetchManagementCommandState,
+  fetchManagementPlacedCardIds,
   fetchManagementSlotBlockers,
   moveManagementCard,
   moveManagementCardBundle,
@@ -1964,10 +1965,53 @@ export default function ManagementPage() {
       setRefreshToken((value) => value + 1);
       return true;
     } catch (reason: unknown) {
+      const originalMessage = reason instanceof Error
+        ? reason.message
+        : 'Kart kaldırılamadı.';
+
+      try {
+        const stillPlacedIds = new Set(
+          await fetchManagementPlacedCardIds(
+            session.accessToken,
+            cardsBeingRemoved.map((card) => card.id),
+          ),
+        );
+
+        const placedCount = cardsBeingRemoved.filter(
+          (card) => stillPlacedIds.has(card.id),
+        ).length;
+
+        if (placedCount === 0) {
+          setCommandNotice({
+            kind: 'success',
+            text: `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan kaldırıldı. Bağlantı cevabı eksik kaldığı için ekran güncel durumla yeniden eşitleniyor.`,
+          });
+          setRefreshToken((value) => value + 1);
+          return true;
+        }
+
+        if (placedCount !== cardsBeingRemoved.length) {
+          setCommandNotice({
+            kind: 'info',
+            text: 'Kart grubunun yerleşim durumu işlem sırasında değişti. Yeni bir yazma işlemi uygulanmadı; ekran sunucudaki güncel durumla yenileniyor.',
+          });
+          setRefreshToken((value) => value + 1);
+          return false;
+        }
+      } catch {
+        // Reconciliation is read-only and best-effort. Preserve the original
+        // command error when the network is still unavailable.
+      }
+
       setCommandNotice({
         kind: 'error',
-        text: reason instanceof Error ? reason.message : 'Kart kaldırılamadı.',
+        text: originalMessage,
       });
+
+      // A failed write response can still be ambiguous at the browser/network
+      // layer. Refresh so the next user action never relies on stale placement
+      // state.
+      setRefreshToken((value) => value + 1);
       return false;
     } finally {
       setCommandBusy(false);
