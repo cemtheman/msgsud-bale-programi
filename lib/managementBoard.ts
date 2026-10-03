@@ -1,6 +1,7 @@
 'use client';
 
 import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+import { fetchLatestManagementDraftRevision } from '@/lib/managementRevision';
 
 export type ManagementResourceView = 'SINIFLAR' | 'ÖĞRETMENLER' | 'SALONLAR';
 export type ManagementStage = 'ORTAOKUL' | 'LISE';
@@ -155,11 +156,6 @@ export interface ManagementCandidateDetail {
   policyFilteredCount: number;
   policyResolvedTeacherId: string | null;
   policyConflict: boolean;
-}
-
-interface RevisionRow {
-  id: string;
-  requirement_set_id: string;
 }
 
 interface CardRow {
@@ -720,12 +716,7 @@ export function placementBelongsToRow(
 export async function fetchManagementBoard(
   accessToken: string,
 ): Promise<ManagementBoardData | null> {
-  const revisions = await authedGet<RevisionRow[]>(
-    'schedule_revisions?select=id,requirement_set_id&status=eq.DRAFT&order=version_number.desc&limit=1',
-    accessToken,
-  );
-
-  const revision = revisions[0];
+  const revision = await fetchLatestManagementDraftRevision(accessToken);
   if (!revision) return null;
 
   const [
