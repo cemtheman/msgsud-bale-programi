@@ -794,6 +794,7 @@ export default function ManagementPage() {
       return;
     }
 
+    const accessToken = accessToken;
     let active = true;
     setSectionDataError(null);
 
@@ -819,28 +820,28 @@ export default function ManagementPage() {
       if (activeSection === 'PLAN') {
         await loadOne(
           'Ders Planı',
-          () => fetchManagementCoursePlan(session.accessToken),
+          () => fetchManagementCoursePlan(accessToken),
           setCoursePlan,
           () => setCoursePlan(null),
         );
       } else if (activeSection === 'RESOURCES') {
         await loadOne(
           'Kaynaklar',
-          () => fetchManagementResources(session.accessToken),
+          () => fetchManagementResources(accessToken),
           setResources,
           () => setResources(null),
         );
       } else if (activeSection === 'SOLVER') {
         await loadOne(
           'Öncelikler',
-          () => fetchLatestManagementSolverWorkspace(session.accessToken),
+          () => fetchLatestManagementSolverWorkspace(accessToken),
           setSolverWorkspace,
           () => setSolverWorkspace(null),
         );
       } else if (activeSection === 'STATUS') {
         await loadOne(
           'Ders Planı',
-          () => fetchManagementCoursePlan(session.accessToken),
+          () => fetchManagementCoursePlan(accessToken),
           setCoursePlan,
           () => setCoursePlan(null),
         );
@@ -849,7 +850,7 @@ export default function ManagementPage() {
 
         await loadOne(
           'Yayın önizleme',
-          () => fetchManagementPublicationPreview(session.accessToken),
+          () => fetchManagementPublicationPreview(accessToken),
           setPublicationPreview,
           () => setPublicationPreview(null),
         );
@@ -858,7 +859,7 @@ export default function ManagementPage() {
 
         await loadOne(
           'Yayın güvenliği',
-          () => fetchManagementPublicationGate(session.accessToken),
+          () => fetchManagementPublicationGate(accessToken),
           setPublicationGate,
           () => setPublicationGate(null),
         );
@@ -868,7 +869,7 @@ export default function ManagementPage() {
         // opened.
         await loadOne(
           'Ders Planı',
-          () => fetchManagementCoursePlan(session.accessToken),
+          () => fetchManagementCoursePlan(accessToken),
           setCoursePlan,
           () => setCoursePlan(null),
         );
