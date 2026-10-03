@@ -194,8 +194,10 @@ export function validateManagementWorkspaceV1(
   snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   mode: ManagementWorkspaceValidationModeV1 = 'COMMIT',
+  coordinatedCardIds: readonly string[] = [],
 ): ManagementWorkspaceValidationResultV1 {
   const issues: ManagementWorkspaceValidationIssueV1[] = [];
+  const coordinatedCards = new Set(coordinatedCardIds);
   const requirements = new Map(
     snapshot.requirements.map((requirement) => [requirement.id, requirement]),
   );
@@ -438,6 +440,12 @@ export function validateManagementWorkspaceV1(
 
     for (let otherIndex = index + 1; otherIndex < placed.length; otherIndex += 1) {
       const right = placed[otherIndex];
+      if (
+        coordinatedCards.has(left.cardId)
+        && coordinatedCards.has(right.cardId)
+      ) {
+        continue;
+      }
       if (left.placement.dayOfWeek !== right.placement.dayOfWeek) continue;
 
       const rightEnd =
