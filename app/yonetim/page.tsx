@@ -794,7 +794,7 @@ export default function ManagementPage() {
       return;
     }
 
-    const accessToken = accessToken;
+    const accessToken = session.accessToken;
     let active = true;
     setSectionDataError(null);
 
