@@ -1981,6 +1981,40 @@ export default function ManagementPage() {
             return exact ? [{ cardId, candidate: exact }] : [];
           }
 
+          const siblingCard = board.cards.find((item) => item.id === cardId) ?? null;
+          const currentPlacement = siblingCard?.placement ?? null;
+
+          const preserveCurrentResources = currentPlacement
+            ? validAtSlot.find((assessment) => (
+              assessment.teacherId === currentPlacement.teacherId
+              && assessment.roomId === currentPlacement.roomId
+            ))
+            : null;
+
+          if (preserveCurrentResources) {
+            return [{ cardId, candidate: preserveCurrentResources }];
+          }
+
+          const preserveCurrentTeacher = currentPlacement?.teacherId
+            ? validAtSlot.filter((assessment) => (
+              assessment.teacherId === currentPlacement.teacherId
+            ))
+            : [];
+
+          if (preserveCurrentTeacher.length === 1) {
+            return [{ cardId, candidate: preserveCurrentTeacher[0] }];
+          }
+
+          const preserveCurrentRoom = currentPlacement?.roomId
+            ? validAtSlot.filter((assessment) => (
+              assessment.roomId === currentPlacement.roomId
+            ))
+            : [];
+
+          if (preserveCurrentRoom.length === 1) {
+            return [{ cardId, candidate: preserveCurrentRoom[0] }];
+          }
+
           return validAtSlot.length === 1
             ? [{ cardId, candidate: validAtSlot[0] }]
             : [];
@@ -1990,7 +2024,7 @@ export default function ManagementPage() {
       if (moves.length !== selectedCardIds.length) {
         setCommandNotice({
           kind: 'error',
-          text: 'Bu saat, birleşik dersin tüm sınıfları için tek ve kesin bir hedef oluşturmuyor. Uygun hedefi program üzerinde sürükle-bırak ile seçin.',
+          text: 'Bu saatte birleşik dersin diğer sınıflarından en az biri için birden fazla eşdeğer kaynak seçeneği kaldı. Mevcut kaynak korunamadığı için otomatik seçim yapılmadı.',
         });
         return;
       }
