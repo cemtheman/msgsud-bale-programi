@@ -88,7 +88,6 @@ import {
   type ManagementPublicationPreviewData,
 } from '@/lib/managementPublicationPreview';
 import {
-  attachManagementPlacementAssistantForwardImpacts,
   buildManagementPlacementAssistantGroups,
   buildManagementPlacementAssistantPlan,
   sortManagementPlacementAssistantPlans,
@@ -134,7 +133,6 @@ import {
   updateManagementRequirementTeachers,
   type ManagementCommandDescriptor,
   type ManagementCommandState,
-  type ManagementForwardImpact,
   type ManagementRootAction,
 } from '@/lib/managementCommands';
 
@@ -1329,8 +1327,11 @@ export default function ManagementPage() {
     try {
       // Always start from a fresh board snapshot. This prevents a just-placed
       // card from being analyzed again while the normal workbench refresh is
-      // still catching up.
-      const freshBoard = await fetchManagementBoard(session.accessToken);
+      // still catching up. A transient browser/network failure may be retried
+      // once because this is a read-only snapshot.
+      const freshBoard = await retryManagementRead(
+        () => fetchManagementBoard(session.accessToken),
+      );
       if (!freshBoard) {
         throw new Error('Güncel program verisi alınamadı.');
       }
@@ -1352,9 +1353,11 @@ export default function ManagementPage() {
       // Deliberately sequential: each refresh can be expensive and later
       // M32 phases may add many more pool cards. Avoid a database fan-out.
       for (const group of analyzableGroups) {
-        await refreshManagementCardGroupCandidates(
-          session.accessToken,
-          group.cardIds,
+        await retryManagementRead(
+          () => refreshManagementCardGroupCandidates(
+            session.accessToken,
+            group.cardIds,
+          ),
         );
 
         const entries = await Promise.all(
@@ -1375,35 +1378,14 @@ export default function ManagementPage() {
       }
 
       const sortedPlans = sortManagementPlacementAssistantPlans(nextPlans);
-      const impactScenarios = sortedPlans
-        .flatMap((plan) => plan.exactOptions)
-        .map((option) => ({
-          id: option.id,
-          items: option.moves.map(({ cardId, candidate }) => ({
-            cardId,
-            dayOfWeek: candidate.dayOfWeek,
-            startPeriod: candidate.startPeriod,
-            teacherId: candidate.teacherId,
-            roomId: candidate.roomId,
-          })),
-        }));
 
-      const impacts: ManagementForwardImpact[] = [];
-      for (let index = 0; index < impactScenarios.length; index += 60) {
-        impacts.push(
-          ...await previewManagementCandidateForwardImpacts(
-            session.accessToken,
-            impactScenarios.slice(index, index + 60),
-          ),
-        );
-      }
-
-      setPlacementAssistantPlans(
-        attachManagementPlacementAssistantForwardImpacts(
-          sortedPlans,
-          impacts,
-        ),
-      );
+      // Do not calculate forward-domain impact for every option up front.
+      // A single pool card can have 100+ exact options; the previous batch
+      // query rescanned the full candidate domain for each scenario and could
+      // hit the database statement timeout. Options are now shown immediately.
+      // The selected option is forward-impact checked immediately before any
+      // placement write.
+      setPlacementAssistantPlans(sortedPlans);
       setPlacementAssistantAnalyzed(true);
     } catch (reason: unknown) {
       setPlacementAssistantError(
@@ -1627,12 +1609,61 @@ export default function ManagementPage() {
     option: ManagementPlacementAssistantOption,
   ) => {
     if (
-      placementAssistantStale
+      !session
+      || placementAssistantStale
       || placementAssistantLoading
       || placementAssistantWaitingForRefresh
       || commandBusy
       || !access?.canEdit
     ) {
+      return;
+    }
+
+    setPlacementAssistantError(null);
+
+    try {
+      const impacts = await retryManagementRead(
+        () => previewManagementCandidateForwardImpacts(
+          session.accessToken,
+          [{
+            id: option.id,
+            items: option.moves.map(({ cardId, candidate }) => ({
+              cardId,
+              dayOfWeek: candidate.dayOfWeek,
+              startPeriod: candidate.startPeriod,
+              teacherId: candidate.teacherId,
+              roomId: candidate.roomId,
+            })),
+          }],
+        ),
+      );
+
+      const impact = impacts.find((item) => item.id === option.id) ?? null;
+
+      if (!impact) {
+        setPlacementAssistantError(
+          'Bu seçeneğin ileri etkisi doğrulanamadı. Program değiştirilmedi; yeniden deneyin.',
+        );
+        return;
+      }
+
+      if (!impact.safeToApply) {
+        setPlacementAssistantError(
+          impact.newContradictionCount > 0
+            ? `Bu seçenek ${impact.newContradictionCount} dersi seçeneksiz bırakacağı için uygulanmadı.`
+            : 'Bu seçeneğin başka derslere etkisi güvenli değil. Program değiştirilmedi.',
+        );
+        return;
+      }
+    } catch (reason: unknown) {
+      const raw = reason instanceof Error ? reason.message : '';
+      const timedOut = raw.toLocaleLowerCase('tr-TR').includes('timeout');
+
+      setPlacementAssistantError(
+        timedOut
+          ? 'İleri etki kontrolü zaman aşımına uğradı. Program değiştirilmedi; aynı seçeneği yeniden deneyin.'
+          : raw || 'İleri etki kontrolü tamamlanamadı. Program değiştirilmedi.',
+      );
       return;
     }
 
