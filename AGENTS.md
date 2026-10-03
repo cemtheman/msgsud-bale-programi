@@ -13,12 +13,12 @@
 | Aktif çalışma ortamı | `GitHub Codespaces` |
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
-| Son doğrulanmış implementation checkpoint | `f401b1ee12c54e41f504c717aa293490d5bd274a` — Workspace UI checkpoint 2 browser PASS; single-card MOVE local + local Undo/Redo PASS |
-| Aktif implementation checkpoint | `f401b1ee12c54e41f504c717aa293490d5bd274a` — single-card drag/drop moved into local workspace |
+| Son doğrulanmış implementation checkpoint | `754560f95680643eb81d8137eebb7028c1db2cee` — Workspace UI checkpoint 3 PASS; grouped inspector move fixed, grouped local MOVE/REMOVE + one-step Undo/Redo accepted |
+| Aktif implementation checkpoint | `754560f95680643eb81d8137eebb7028c1db2cee` — grouped local workspace interaction accepted in browser |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | Management Workspace v1 Phase 1–2 + first browser acceptance documented |
-| Son kullanıcı/QA kabulü | **Workspace UI checkpoint 2 PASS** — single-card remove and move are local; Undo/Redo work; move feels faster; grouped move/remove still legacy |
-| Sıradaki iş paketi | **Grouped/batch local transaction history: grouped MOVE/REMOVE = one local command group + one Undo/Redo step** |
+| Son kullanıcı/QA kabulü | **Workspace UI checkpoint 3 PASS** — grouped MOVE/REMOVE local, sibling resource preservation works, one-step Undo/Redo works, dirty-state guards visible |
+| Sıradaki iş paketi | **Atomic Save/Commit RPC: diff → stale baseline/version/hash guard → server hard validation → single transaction apply/rollback** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -6347,3 +6347,39 @@ Still open:
 - grouped/visual-combined card MOVE and REMOVE are not yet one local transaction
 - drag still performs candidate-detail reads, so it is not yet zero-network at drag start
 - final atomic DB Save/Commit RPC is not yet implemented
+
+
+### Workspace UI checkpoint 3 — grouped local editing browser PASS
+
+Browser acceptance after grouped batch integration and inspector resolver fix:
+- grouped/visual-combined card MOVE works locally
+- grouped REMOVE works locally
+- one Undo restores the whole grouped user action
+- one Redo reapplies the whole grouped user action
+- sibling cards are treated as coordinated and do not create false teacher/room/group conflicts against each other
+- inspector "Taşı" no longer requires every sibling to have exactly one raw candidate
+- primary card uses the user's explicit resource choice
+- sibling cards preserve current teacher+room when valid, then current teacher, then current room, and only auto-resolve when a unique option remains
+- ambiguous sibling resource choice is still not guessed arbitrarily
+- dirty badge remains visible and refresh is correctly blocked while unsaved local state exists
+
+Accepted browser evidence:
+- user confirmed the issue is fixed: `ok. düzeldi.`
+- screenshot showed local dirty state and successful moved timetable card
+
+Current local Program coverage:
+- single-card REMOVE: local
+- single-card MOVE/PLACE: local
+- grouped MOVE: local batch
+- grouped REMOVE: local batch
+- Undo/Redo: local, grouped batch = one user step
+- board projection: local
+
+Next architectural milestone:
+**Atomic Save / Commit**
+- compute deterministic diff from immutable snapshot
+- reject stale revision/version/snapshotHash/baselineHash
+- server revalidates hard constraints
+- apply all placement changes in one DB transaction
+- rollback everything on any error
+- refresh snapshot only after successful commit
