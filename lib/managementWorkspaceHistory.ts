@@ -11,6 +11,7 @@ export type ManagementWorkspaceOperationKindV1 =
 
 export interface ManagementWorkspaceOperationV1 {
   sequence: number;
+  batchId: number | null;
   kind: ManagementWorkspaceOperationKindV1;
   cardId: string;
   before: ManagementWorkspacePlacementStateV1;
@@ -19,6 +20,7 @@ export interface ManagementWorkspaceOperationV1 {
 
 export interface ManagementWorkspaceHistoryV1 {
   nextSequence: number;
+  nextBatchId: number;
   undoStack: ManagementWorkspaceOperationV1[];
   redoStack: ManagementWorkspaceOperationV1[];
 }
@@ -79,6 +81,7 @@ function recordOperation(
 ) {
   const entry: ManagementWorkspaceOperationV1 = {
     sequence: history.nextSequence,
+    batchId: null,
     kind: operation.kind,
     cardId: operation.cardId,
     before: clonePlacement(operation.before),
@@ -96,6 +99,7 @@ export function createManagementWorkspaceHistoryV1():
   ManagementWorkspaceHistoryV1 {
   return {
     nextSequence: 1,
+    nextBatchId: 1,
     undoStack: [],
     redoStack: [],
   };
@@ -156,11 +160,23 @@ export function undoManagementWorkspaceOperationV1(
   const operation = history.undoStack.pop() ?? null;
   if (!operation) return null;
 
-  applyPlacementState(
-    workingCopy,
-    operation.before,
-  );
-  history.redoStack.push(operation);
+  const batch = [operation];
+  if (operation.batchId !== null) {
+    while (
+      history.undoStack.length > 0
+      && history.undoStack[history.undoStack.length - 1].batchId === operation.batchId
+    ) {
+      batch.push(history.undoStack.pop()!);
+    }
+  }
+
+  batch.forEach((entry) => {
+    applyPlacementState(
+      workingCopy,
+      entry.before,
+    );
+    history.redoStack.push(entry);
+  });
 
   return operation;
 }
@@ -172,11 +188,23 @@ export function redoManagementWorkspaceOperationV1(
   const operation = history.redoStack.pop() ?? null;
   if (!operation) return null;
 
-  applyPlacementState(
-    workingCopy,
-    operation.after,
-  );
-  history.undoStack.push(operation);
+  const batch = [operation];
+  if (operation.batchId !== null) {
+    while (
+      history.redoStack.length > 0
+      && history.redoStack[history.redoStack.length - 1].batchId === operation.batchId
+    ) {
+      batch.push(history.redoStack.pop()!);
+    }
+  }
+
+  batch.forEach((entry) => {
+    applyPlacementState(
+      workingCopy,
+      entry.after,
+    );
+    history.undoStack.push(entry);
+  });
 
   return operation;
 }
