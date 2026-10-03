@@ -191,10 +191,16 @@ export function executeManagementWorkspaceCommandsV1(
 
   const trialCopy = cloneWorkingCopy(workingCopy);
   const trialHistory = cloneHistory(history);
+  const coordinatedCardIds = commands.map((command) =>
+    command.type === 'SET_PLACEMENT'
+      ? command.placement.cardId
+      : command.cardId,
+  );
   const currentValidation = validateManagementWorkspaceV1(
     snapshot,
     workingCopy,
     'EDIT',
+    coordinatedCardIds,
   );
 
   for (const command of commands) {
@@ -205,6 +211,7 @@ export function executeManagementWorkspaceCommandsV1(
     snapshot,
     trialCopy,
     'EDIT',
+    coordinatedCardIds,
   );
 
   const issueKey = (issue: ManagementWorkspaceValidationIssueV1) => [
