@@ -2486,3 +2486,28 @@ New invariant:
 Next:
 pull, test/build, reload browser and use the labeled error to identify any
 remaining backend/network failure.
+
+
+### 3 Oct — bounded startup fan-out
+
+After subsystem isolation, Safari reported browser-level `Load failed` for
+Genel özet, Program, Ders Planı, Kaynaklar and Yayın önizleme at the same time.
+
+This pattern points to startup request saturation rather than one broken DB
+contract.
+
+Checkpoint:
+`f5e95125aabe5f2b809c227f8f821432f2ddbdb1`
+
+Startup order is now:
+1. Program board alone
+2. light group: overview + solver + publication gate
+3. Course Plan
+4. Resources
+5. Publication Preview
+6. Undo/Redo
+
+Transient fetch/network failures are retried once after 300 ms.
+HTTP/DB errors are not retried.
+
+No migration.
