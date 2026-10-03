@@ -204,6 +204,37 @@ const RESOURCE_VIEWS: Array<{
   { id: 'SALONLAR', label: 'Salonlar' },
 ];
 
+function workspaceIssueLabel(code: string) {
+  const labels: Record<string, string> = {
+    TIME_OUTSIDE_DAY: 'Ders saati gün sınırlarının dışında',
+    LUNCH_BREAK_CROSSING: 'Ders öğle arasını bölüyor',
+    LOCKED_CARD_MOVED: 'Kilitli bir ders değiştirilmiş',
+    TEACHER_REQUIRED: 'Ders için öğretmen seçilmemiş',
+    TEACHER_INACTIVE: 'Seçilen öğretmen kullanılamıyor',
+    TEACHER_NOT_ELIGIBLE: 'Seçilen öğretmen bu ders için uygun değil',
+    TEACHER_UNAVAILABLE: 'Öğretmen bu saatte uygun değil',
+    ROOM_REQUIRED: 'Ders için salon seçilmemiş',
+    ROOM_INACTIVE: 'Seçilen salon kullanılamıyor',
+    ROOM_NOT_ELIGIBLE: 'Seçilen salon bu ders için uygun değil',
+    ROOM_CAPABILITY_MISMATCH: 'Salon dersin ihtiyacını karşılamıyor',
+    TEACHER_CONFLICT: 'Öğretmenin aynı saatte başka dersi var',
+    ROOM_CONFLICT: 'Salon aynı saatte başka derste kullanılıyor',
+    GROUP_CONFLICT: 'Aynı öğrenci grubu için saat çakışması var',
+    TEACHER_CONTINUITY: 'Dersin öğretmen sürekliliği bozuluyor',
+    MAX_BLOCKS_PER_DAY: 'Ders aynı güne fazla sayıda yerleştirilmiş',
+    MAX_CONSECUTIVE_PERIODS: 'Ders art arda fazla ders saati oluşturuyor',
+    MIN_DISTINCT_DAYS: 'Ders yeterli farklı güne dağıtılmamış',
+  };
+  return labels[code] ?? 'Program kuralıyla uyuşmayan bir değişiklik var';
+}
+
+function workspaceIssueSummary(codes: string[]) {
+  const unique = Array.from(new Set(codes.map(workspaceIssueLabel)));
+  if (unique.length === 1) return unique[0];
+  if (unique.length === 2) return `${unique[0]}; ${unique[1]}`;
+  return `${unique.slice(0, 2).join('; ')} ve ${unique.length - 2} başka sorun`;
+}
+
 function roleLabel(role: string | null | undefined) {
   if (role === 'ADMIN') return 'Yönetici';
   if (role === 'EDITOR') return 'Editör';
@@ -1562,6 +1593,34 @@ export default function ManagementPage() {
     setDragLoading(false);
   };
 
+  useEffect(() => {
+    if (dragCardIds.length === 0) return;
+
+    const clearDragSoon = () => {
+      window.setTimeout(() => {
+        if (dragCardIdsRef.current.length > 0) {
+          endDrag();
+        }
+      }, 0);
+    };
+    const clearOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') endDrag();
+    };
+
+    window.addEventListener('dragend', clearDragSoon);
+    window.addEventListener('drop', clearDragSoon);
+    window.addEventListener('blur', clearDragSoon);
+    window.addEventListener('keydown', clearOnEscape);
+
+    return () => {
+      window.removeEventListener('dragend', clearDragSoon);
+      window.removeEventListener('drop', clearDragSoon);
+      window.removeEventListener('blur', clearDragSoon);
+      window.removeEventListener('keydown', clearOnEscape);
+    };
+  }, [dragCardIds.length]);
+
+
   const runCandidateCommand = async (
     candidate: ManagementCandidateAssessment,
     cardOverride?: ManagementBoardData['cards'][number] | null,
@@ -1608,8 +1667,8 @@ export default function ManagementPage() {
         setCommandNotice({
           kind: 'error',
           text: result.issues.length > 0
-            ? `Bu konum yerel çalışma alanında uygun değil: ${result.issues.map((issue) => issue.code).join(', ')}.`
-            : 'Bu konum yerel çalışma alanında uygun değil.',
+            ? `Bu konuma taşınamıyor: ${workspaceIssueSummary(result.issues.map((issue) => issue.code))}.`
+            : 'Bu konuma taşınamıyor.',
         });
         return false;
       }
@@ -1631,8 +1690,8 @@ export default function ManagementPage() {
       setCommandNotice({
         kind: 'success',
         text: commandCard.placement
-          ? 'Kart yerel çalışma alanında yeni yerine taşındı. Henüz veritabanına yazılmadı.'
-          : 'Kart yerel çalışma alanında programa yerleştirildi. Henüz veritabanına yazılmadı.',
+          ? 'Kart yeni yerine taşındı. Değişiklik henüz kaydedilmedi.'
+          : 'Kart programa yerleştirildi. Değişiklik henüz kaydedilmedi.',
       });
       return true;
     }
@@ -1736,8 +1795,8 @@ export default function ManagementPage() {
         setCommandNotice({
           kind: 'error',
           text: result.issues.length > 0
-            ? `Birleşik ders için bu konum yerel olarak uygun değil: ${result.issues.map((issue) => issue.code).join(', ')}.`
-            : 'Birleşik ders için bu konum yerel olarak uygun değil.',
+            ? `Birleşik ders bu konuma taşınamıyor: ${workspaceIssueSummary(result.issues.map((issue) => issue.code))}.`
+            : 'Birleşik ders bu konuma taşınamıyor.',
         });
         return false;
       }
@@ -1758,7 +1817,7 @@ export default function ManagementPage() {
       setActiveDay(commands[0].candidate.dayOfWeek);
       setCommandNotice({
         kind: 'success',
-        text: `${commands[0].card.subjectName} · ${commands.length} kayıt yerel olarak birlikte taşındı. Tek Geri Al adımıyla geri döner.`,
+        text: `${commands[0].card.subjectName} birlikte taşındı. Değişiklik henüz kaydedilmedi; tek Geri Al ile eski yerine döner.`,
       });
       return true;
     }
@@ -2320,8 +2379,8 @@ export default function ManagementPage() {
         setCommandNotice({
           kind: 'error',
           text: result.issues.length > 0
-            ? `Kart grubu yerel çalışma alanında kaldırılamadı: ${result.issues.map((issue) => issue.code).join(', ')}.`
-            : 'Kart grubu yerel çalışma alanında kaldırılamadı.',
+            ? `Ders programdan kaldırılamıyor: ${workspaceIssueSummary(result.issues.map((issue) => issue.code))}.`
+            : 'Ders programdan kaldırılamıyor.',
         });
         return false;
       }
@@ -2341,8 +2400,8 @@ export default function ManagementPage() {
       setCommandNotice({
         kind: 'success',
         text: uniqueIds.length > 1
-          ? `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} · ${uniqueIds.length} kayıt yerel olarak havuza döndü. Tek Geri Al adımıyla geri getirilebilir.`
-          : `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan yerel olarak kaldırıldı ve havuza döndü. Henüz veritabanına yazılmadı.`,
+          ? `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan kaldırıldı. Değişiklik henüz kaydedilmedi; tek Geri Al ile geri getirilebilir.`
+          : `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan kaldırıldı. Değişiklik henüz kaydedilmedi.`,
       });
       return true;
     }
@@ -2658,15 +2717,15 @@ export default function ManagementPage() {
       setCommandNotice({
         kind: prepared.issues.length > 0 ? 'error' : 'info',
         text: prepared.issues.length > 0
-          ? `Kaydetmeden önce düzeltilmesi gereken program kuralları var: ${prepared.issues.map((issue) => issue.code).join(', ')}.`
-          : 'Kaydedilecek yerel değişiklik yok.',
+          ? `Kaydetmeden önce şu durumu düzeltin: ${workspaceIssueSummary(prepared.issues.map((issue) => issue.code))}.`
+          : 'Kaydedilecek değişiklik yok.',
       });
       return;
     }
 
     setCommandBusy(true);
     setCommandActivity(
-      `${prepared.payload.changes.length} yerel değişiklik tek işlem olarak doğrulanıp kaydediliyor.`,
+      `${prepared.payload.changes.length} değişiklik kontrol edilip kaydediliyor.`,
     );
     setCommandNotice(null);
 
@@ -2683,7 +2742,7 @@ export default function ManagementPage() {
       setCommandState({ undo: null, redo: null });
       setCommandNotice({
         kind: 'success',
-        text: `${result.changedCardCount} program değişikliği atomik olarak kaydedildi. Çalışma alanı yeni snapshot ile yenileniyor.`,
+        text: `${result.changedCardCount} program değişikliği kaydedildi. Program güncelleniyor.`,
       });
       setRefreshToken((value) => value + 1);
     } catch (reason: unknown) {
@@ -2927,7 +2986,7 @@ export default function ManagementPage() {
                 if (workspaceDirty) {
                   setCommandNotice({
                     kind: 'info',
-                    text: 'Yerel değişiklikler kaybolmasın diye yenileme engellendi. Önce Geri Al ile yerel değişiklikleri temizleyin.',
+                    text: 'Kaydedilmemiş değişiklikler var. Yenilemeden önce değişiklikleri kaydedin veya Geri Al ile geri alın.',
                   });
                   return;
                 }
@@ -2944,7 +3003,7 @@ export default function ManagementPage() {
                 if (workspaceDirty) {
                   setCommandNotice({
                     kind: 'info',
-                    text: 'Yerel değişiklikler kaybolmasın diye çıkış engellendi. Önce Geri Al ile yerel değişiklikleri temizleyin.',
+                    text: 'Kaydedilmemiş değişiklikler var. Çıkmadan önce değişiklikleri kaydedin veya Geri Al ile geri alın.',
                   });
                   return;
                 }
