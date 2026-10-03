@@ -5930,3 +5930,43 @@ Expected test gate after M40.1:
 - production build PASS
 
 M40.1 remains **VALIDATION PENDING** until code gate + dry-run + DB push + browser readiness smoke pass.
+
+
+## 86. 3 Ekim 2026 — management workspace load isolation
+
+Browser symptom:
+- red banner: `Load failed`
+- Program board showed 0 placed / 0 pool / 0 operations
+- whole management workspace became empty
+
+Root architectural issue:
+- page startup used one `Promise.all(...)` for seven independent reads:
+  overview, board, course plan, resources, solver workspace, publication preview,
+  publication gate
+- one network/RPC failure rejected the whole batch
+- successful board data was discarded together with the failed secondary module
+- Safari may surface a fetch/network failure as the raw message `Load failed`
+
+Fix:
+- startup now uses `Promise.allSettled(...)`
+- each data source is applied independently
+- failed modules are explicitly nulled to avoid stale misleading data
+- Program board remains usable when a secondary module fails
+- if the Program/board fetch itself fails, board is cleared for safety
+- command-state fetch is separately isolated
+- error banner identifies failed subsystem(s):
+  Genel özet / Program / Ders Planı / Kaynaklar / Öncelikler /
+  Yayın önizleme / Yayın güvenliği / Geri Al-Yinele
+- raw Safari `Load failed` is translated to
+  `ağ veya sunucu bağlantısı kurulamadı`
+
+No DB migration is associated with this UI resilience fix.
+
+Implementation checkpoint:
+`89c93c0b96b4deb221a87db5cf497dcfe0bebb98`
+
+Validation pending:
+- npm test
+- npm run build
+- browser reload
+- verify exact failing subsystem if any
