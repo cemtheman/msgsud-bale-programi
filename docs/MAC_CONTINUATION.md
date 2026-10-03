@@ -2,7 +2,7 @@
 
 > Not: Dosya adı tarihsel olarak `MAC_CONTINUATION.md` kaldı. Aktif çalışma ortamı GitHub Codespaces'tir.
 
-Tarih: 1 Ekim 2026
+Tarih: 3 Ekim 2026
 
 ## 1. Aktif çalışma ortamı
 
@@ -2579,3 +2579,116 @@ Separate remaining issue:
 `management_preview_candidate_forward_impacts` can return HTTP 500 in
 Yerleştirme Asistanı. Treat it as an isolated follow-up; preserve the now
 accepted Program interaction path.
+
+
+## 38. 3 Oct 2026 — Session close / next-session handoff
+
+### Current branch
+
+`feat/management-m39-teacher-planning-inputs`
+
+Current implementation HEAD before this documentation commit:
+`47f04534386d227e5ac3269a80941525b55d7ebe`
+
+### Proven good
+
+Firefox browser smoke:
+- Program grid PASS
+- drag/drop PASS
+- remove to pool PASS
+- undo PASS
+- redo PASS
+
+Accepted Program interaction checkpoint:
+`290debd16199b141d73ac811f5bfea0286025194`
+
+### Not closed
+
+Assistant:
+- bulk forward-impact analysis removed
+- selected option impact checked only at APPLY
+- assistant analysis now reads persisted candidates and no longer forces
+  candidate-domain rebuild
+- one option was successfully placed
+- post-apply recompute timeout was still observed before the final read-only
+  assistant change
+- final browser acceptance still pending
+
+Network:
+- Safari: persistent Supabase browser-level `Load failed`
+- Firefox: intermittent Supabase/Cloudflare `522`
+- accompanying CORS messages are secondary to the 522 error response
+- do not implement CORS workarounds for this symptom
+
+Revision lookup:
+- new `lib/managementRevision.ts`
+- concurrent management modules share one active-DRAFT request
+- 5-second short cache
+- transient one-retry
+- Board / Overview / CoursePlan / Resources / PublicationPreview /
+  PublicationGate / Solver migrated to helper
+- test/build gate for this final HEAD still pending
+
+Database:
+- M40/M40.1 were previously applied
+- emergency rollback migration exists:
+  `20261003150000_management_rollback_m40_to_m39_1.sql`
+- remote application/parity of that rollback is NOT proven in the close notes;
+  verify first next session
+
+### Architecture decision
+
+Next main package is:
+
+**Management Workspace v1 — Snapshot / Local Matrix / Atomic Commit**
+
+Do not continue RPC-by-RPC live editing fixes.
+
+Target behavior:
+1. load one immutable workspace snapshot
+2. keep revision/version/hash baseline
+3. make edits against local working copy
+4. local operation log drives undo/redo
+5. drag/remove/resource/assistant trials do not write DB
+6. final explicit Save/Apply builds diff
+7. server stale guard validates baseline
+8. hard rules are rechecked server-side
+9. one atomic transaction commits final state
+10. refresh workspace snapshot after success
+
+Do NOT hold a long PostgreSQL row lock.
+Use logical lease + optimistic concurrency.
+
+### New-session first gate
+
+```bash
+cd /workspaces/msgsud-bale-programi
+git fetch origin
+git switch feat/management-m39-teacher-planning-inputs
+git pull --ff-only
+git rev-parse HEAD
+git status --short
+npm test
+npm run build
+npx supabase migration list | tail -30
+```
+
+Expected pre-doc implementation HEAD:
+`47f04534386d227e5ac3269a80941525b55d7ebe`
+
+Then verify DB migration parity.
+
+Preferred next branch:
+`feat/management-workspace-v1`
+
+First task on that branch:
+**Workspace Snapshot Contract v1 — read-only, no UI behavior change.**
+
+Freeze until Workspace v1 foundation:
+- M40 load objective
+- M41 subject time prefs
+- M42 pin model
+- full-auto expansion
+- assistant-wide forward-impact optimization
+- app-level CORS hacks
+- more live candidate-refresh tuning
