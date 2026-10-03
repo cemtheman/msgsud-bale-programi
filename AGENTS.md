@@ -14,16 +14,16 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-m39-teacher-planning-inputs` |
 | Son doğrulanmış implementation checkpoint | `8ac11517018e1047c50bef46fe558903c91198a9` — M39.1 CLOSED/PASS; 21/21 test files, 110/110 tests, build + DB + browser hard-block acceptance PASS |
-| Aktif implementation checkpoint | `35ab923145ee39ec3c2c248d4e651934b91c3c70` — M40.1 approved teacher-load defaults implementation; validation gate pending |
-| Implementation commit | `M40 teacher load readiness + contextual objective support + in-memory load metric + Resources/Öncelikler UI` |
-| Son documentation checkpoint | `docs/MAC_CONTINUATION.md` M39.1 close; M40 implementation handoff bu oturumda ekleniyor |
+| Aktif implementation checkpoint | `5b3ab1d0b5665dd390164027b8e4eb0aaa8dd817` — emergency rollback prepared; application code restored exactly to M39.1 stable, DB rollback migration pending apply |
+| Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
+| Son documentation checkpoint | emergency M40/M40.1 rollback handoff; M39.1 is the target stable behavior |
 | Son kullanıcı/QA kabulü | **M39.1 CLOSED/PASS** — 21/21 test files, 110/110 tests; Next/TypeScript/PWA build PASS; three-slot availability save + overlap audit + manual hard-block browser PASS |
-| Sıradaki iş paketi | **M40.1 code gate → migration dry-run → DB push → readiness browser smoke** |
+| Sıradaki iş paketi | **rollback gate → DB rollback migration push → Program / drag-drop / undo-redo smoke only** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
 
-Not: M34–M39.1 stabilization/input zinciri tamamlandı. M40 kodu branch üzerinde hazırdır fakat henüz test/build/migration gate ile doğrulanmamıştır. Yeni oturumda branch HEAD ayrıca `git rev-parse HEAD` ile doğrulanmalıdır.
+Not: M40/M40.1 acceptance sırasında yönetim ekranı ve drag/drop regresyonları oluştu. Yeni özellik geliştirme durduruldu. Uygulama kaynak kodu M39.1 stable checkpoint `980b848...` ile birebir geri yüklendi. Uygulanmış M40/M40.1 migration geçmişi silinmedi; `20261003150000_management_rollback_m40_to_m39_1.sql` ile DB davranışı M39.1'e döndürülecek.
 
 ## 2. Çalışma yöntemi — değişmez sözleşme
 
@@ -6012,3 +6012,61 @@ Implementation checkpoint:
 `f5e95125aabe5f2b809c227f8f821432f2ddbdb1`
 
 No DB migration.
+
+
+## 88. 3 Ekim 2026 — emergency rollback to M39.1 stable
+
+User requested full rollback after Program/drag-drop regressions.
+
+Last fully accepted application checkpoint:
+`980b8487992c7a0ea1021143384eeb7e1b25a806`
+
+Evidence at that checkpoint:
+- M39.1 CLOSED/PASS
+- 21/21 test files
+- 110/110 tests
+- production build PASS
+- hard availability save PASS
+- existing-overlap audit PASS
+- manual unavailable-teacher hard block PASS
+- Program drag/drop and history had been working in the accepted management baseline
+
+Rollback implementation:
+- commit `b2670ace1705795e2c99f0a14e0a9e679cc64435`
+- application source files modified during M40+ were restored exactly from the
+  M39.1 stable tree
+- post-rollback compare against `980b848...` shows no application source
+  differences; only docs and migration-history files differ
+
+Applied DB history cannot be deleted:
+- `20261001200000_management_m40_teacher_load_readiness_objective.sql`
+- `20261001213000_management_m40_1_teacher_load_defaults.sql`
+
+Rollback migration prepared:
+- `20261003150000_management_rollback_m40_to_m39_1.sql`
+- commit `5b3ab1d0b5665dd390164027b8e4eb0aaa8dd817`
+
+It restores:
+- M33 objective validator/profile behavior
+- M39.1 teacher planning audit
+- M39.0 load-target write semantics (`solverBehaviorChanged=false`)
+- exact M39.1 solver snapshot wrapper by removing the M40 wrapper and renaming
+  the preserved `management_preview_solver_snapshot_m40_base` back
+- drops the now-unused M40-only `management_teacher_load_health` helper
+
+Data preservation:
+- M40.1-inserted 1/10/20 planning rows are NOT deleted during emergency rollback
+- deleting them cannot be safely distinguished from later user edits
+- under restored M39.1 semantics those rows are planning-only and do not affect
+  candidate/placement/solver behavior
+
+Do not resume M40 work until the restored baseline passes:
+1. test
+2. build
+3. rollback migration dry-run/push
+4. Program load
+5. drag/drop
+6. undo
+7. redo
+
+No other feature work before these pass.
