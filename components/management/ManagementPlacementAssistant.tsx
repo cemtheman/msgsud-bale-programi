@@ -331,7 +331,7 @@ export function ManagementPlacementAssistant({
                                                 {' · '}
                                                 {option.roomLabels.join(' · ')}
                                               </p>
-                                              {impact && (
+                                              {impact ? (
                                                 <div className="mt-1.5 flex flex-wrap gap-1 text-[8px] font-bold">
                                                   {impact.domainLossCount === 0 ? (
                                                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">
@@ -353,6 +353,10 @@ export function ManagementPlacementAssistant({
                                                     </span>
                                                   )}
                                                 </div>
+                                              ) : (
+                                                <p className="mt-1.5 text-[8px] font-bold text-slate-400">
+                                                  Etki, uygularken doğrulanır
+                                                </p>
                                               )}
                                             </>
                                           ) : (
