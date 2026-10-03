@@ -453,4 +453,43 @@ describe('management workspace command executor v1', () => {
       .toEqual(['card-1', 'card-2']);
   });
 
+  it('allows coordinated sibling placements that share one teacher in the same slot', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const result = executeManagementWorkspaceCommandsV1(
+      source,
+      copy,
+      history,
+      [
+        {
+          type: 'SET_PLACEMENT',
+          placement: {
+            cardId: 'card-1',
+            dayOfWeek: 3,
+            startPeriod: 1,
+            teacherId: 'teacher-1',
+            roomId: 'room-1',
+          },
+        },
+        {
+          type: 'SET_PLACEMENT',
+          placement: {
+            cardId: 'card-2',
+            dayOfWeek: 3,
+            startPeriod: 1,
+            teacherId: 'teacher-1',
+            roomId: 'room-2',
+          },
+        },
+      ],
+    );
+
+    expect(result.applied).toBe(true);
+    expect(result.issues).toEqual([]);
+    expect(copy.placementsByCardId['card-1'].startPeriod).toBe(1);
+    expect(copy.placementsByCardId['card-2'].startPeriod).toBe(1);
+  });
+
 });
