@@ -1051,13 +1051,35 @@ export async function fetchManagementCommandState(
     '&order=history_sequence.desc',
   ].join('');
 
-  const response = await fetch(`${url}/rest/v1/${path}`, {
+  const token = await getFreshManagementAccessToken(accessToken);
+  const request = () => fetch(`${url}/rest/v1/${path}`, {
     headers: {
       apikey: key,
-      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
+      Authorization: `Bearer ${token}`,
     },
     cache: 'no-store',
   });
+
+  let response: Response;
+  try {
+    response = await request();
+  } catch (reason: unknown) {
+    const message = reason instanceof Error
+      ? reason.message.toLocaleLowerCase('tr-TR')
+      : '';
+    const transient = (
+      message.includes('load failed')
+      || message.includes('failed to fetch')
+      || message.includes('networkerror')
+      || message.includes('network error')
+      || message.includes('network request failed')
+    );
+
+    if (!transient) throw reason;
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    response = await request();
+  }
 
   if (!response.ok) {
     throw new Error(
