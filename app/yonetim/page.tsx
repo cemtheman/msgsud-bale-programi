@@ -157,6 +157,11 @@ import {
 import {
   projectManagementBoardFromWorkspaceV1,
 } from '@/lib/managementWorkspaceBoardAdapter';
+import {
+  commitManagementWorkspaceV1,
+  prepareManagementWorkspaceCommitV1,
+  translateManagementWorkspaceCommitErrorV1,
+} from '@/lib/managementWorkspaceCommit';
 
 const DAYS = [
   { id: 1, label: 'Pzt' },
@@ -2629,6 +2634,72 @@ export default function ManagementPage() {
     }
   };
 
+  const saveWorkspace = async () => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+    if (
+      !session
+      || !access?.canEdit
+      || !localSnapshot
+      || !localWorkingCopy
+      || !workspaceDirty
+      || commandBusy
+    ) {
+      return;
+    }
+
+    const prepared = prepareManagementWorkspaceCommitV1(
+      localSnapshot,
+      localWorkingCopy,
+    );
+
+    if (!prepared.ready || !prepared.payload) {
+      setCommandNotice({
+        kind: prepared.issues.length > 0 ? 'error' : 'info',
+        text: prepared.issues.length > 0
+          ? `Kaydetmeden önce düzeltilmesi gereken program kuralları var: ${prepared.issues.map((issue) => issue.code).join(', ')}.`
+          : 'Kaydedilecek yerel değişiklik yok.',
+      });
+      return;
+    }
+
+    setCommandBusy(true);
+    setCommandActivity(
+      `${prepared.payload.changes.length} yerel değişiklik tek işlem olarak doğrulanıp kaydediliyor.`,
+    );
+    setCommandNotice(null);
+
+    try {
+      const result = await commitManagementWorkspaceV1(
+        session.accessToken,
+        prepared.payload,
+      );
+
+      workspaceSnapshotRef.current = null;
+      workspaceWorkingCopyRef.current = null;
+      workspaceHistoryRef.current = null;
+      setWorkspaceDirty(false);
+      setCommandState({ undo: null, redo: null });
+      setCommandNotice({
+        kind: 'success',
+        text: `${result.changedCardCount} program değişikliği atomik olarak kaydedildi. Çalışma alanı yeni snapshot ile yenileniyor.`,
+      });
+      setRefreshToken((value) => value + 1);
+    } catch (reason: unknown) {
+      const raw = reason instanceof Error
+        ? reason.message
+        : 'Yerel çalışma alanı kaydedilemedi.';
+      setCommandNotice({
+        kind: 'error',
+        text: translateManagementWorkspaceCommitErrorV1(raw),
+      });
+    } finally {
+      setCommandBusy(false);
+      setCommandActivity(null);
+    }
+  };
+
   if (status === 'loading') {
     return (
       <main className="management-workbench-root flex min-h-screen items-center justify-center bg-[#F5F3EE] text-sm font-semibold text-slate-400">
@@ -2811,6 +2882,17 @@ export default function ManagementPage() {
               <span className="rounded-full bg-amber-50 px-2 py-1 text-[9px] font-semibold text-amber-700">
                 Yerel değişiklik · kaydedilmedi
               </span>
+            )}
+            {access?.canEdit && workspaceDirty && (
+              <button
+                type="button"
+                onClick={() => void saveWorkspace()}
+                disabled={commandBusy || dataLoading}
+                className="rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-emerald-600 disabled:cursor-wait disabled:opacity-50"
+                title="Yerel program değişikliklerini tek işlem olarak kaydet"
+              >
+                Kaydet
+              </button>
             )}
             {access?.canEdit && (
               <ManagementHistoryActions
