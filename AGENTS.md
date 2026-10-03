@@ -13,17 +13,17 @@
 | Aktif çalışma ortamı | `GitHub Codespaces` |
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-m39-teacher-planning-inputs` |
-| Son doğrulanmış implementation checkpoint | `8ac11517018e1047c50bef46fe558903c91198a9` — M39.1 CLOSED/PASS; 21/21 test files, 110/110 tests, build + DB + browser hard-block acceptance PASS |
-| Aktif implementation checkpoint | `5b3ab1d0b5665dd390164027b8e4eb0aaa8dd817` — emergency rollback prepared; application code restored exactly to M39.1 stable, DB rollback migration pending apply |
-| Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
-| Son documentation checkpoint | emergency M40/M40.1 rollback handoff; M39.1 is the target stable behavior |
-| Son kullanıcı/QA kabulü | **M39.1 CLOSED/PASS** — 21/21 test files, 110/110 tests; Next/TypeScript/PWA build PASS; three-slot availability save + overlap audit + manual hard-block browser PASS |
-| Sıradaki iş paketi | **rollback gate → DB rollback migration push → Program / drag-drop / undo-redo smoke only** |
+| Son doğrulanmış implementation checkpoint | `290debd16199b141d73ac811f5bfea0286025194` — Program interaction recovery PASS: drag/drop, remove, undo, redo Firefox browser smoke |
+| Aktif implementation checkpoint | `47f04534386d227e5ac3269a80941525b55d7ebe` — assistant read-path + shared draft revision read dedupe; code/build/browser validation pending |
+| Implementation commit | stabilization after M40 rollback + Program interaction recovery + assistant read-only analysis + draft revision read dedupe |
+| Son documentation checkpoint | 3 Oct close: partial stabilization recorded; next architecture is Management Workspace v1 snapshot/local matrix/atomic commit |
+| Son kullanıcı/QA kabulü | **Program core interaction PASS in Firefox** — drag/drop, remove, undo, redo; assistant partial only; Safari still affected by 522 network failures |
+| Sıradaki iş paketi | **Management Workspace v1 — Snapshot / Local Matrix / Atomic Commit**; önce mevcut DB/migration ve code gate durumunu doğrula, sonra yeni mimariye geç |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
 
-Not: M40/M40.1 acceptance sırasında yönetim ekranı ve drag/drop regresyonları oluştu. Yeni özellik geliştirme durduruldu. Uygulama kaynak kodu M39.1 stable checkpoint `980b848...` ile birebir geri yüklendi. Uygulanmış M40/M40.1 migration geçmişi silinmedi; `20261003150000_management_rollback_m40_to_m39_1.sql` ile DB davranışı M39.1'e döndürülecek.
+Not: M40/M40.1 acceptance sırasında yönetim ekranı ve drag/drop regresyonları oluştu. Uygulama kaynak kodu M39.1 stable checkpoint'e geri yüklenip Program etkileşimleri yeniden çalışır hale getirildi. Sonrasında yalnız ağ/read dayanıklılığı ve Asistan timeout azaltımı için sınırlı değişiklikler yapıldı. DB rollback migration'ının remote'a gerçekten uygulanıp uygulanmadığı bu oturumda tekrar doğrulanmadı; yeni oturumda ilk iş migration parity kontrol edilmelidir. Supabase/Cloudflare 522 cevapları Safari ve Firefox'ta gözlendi; 522 ile birlikte görülen CORS mesajı ikincil semptom kabul edilmelidir.
 
 ## 2. Çalışma yöntemi — değişmez sözleşme
 
@@ -44,7 +44,7 @@ Yeni oturumda ilk iş bu dosya okunur. Aktif ortam burada `GitHub Codespaces` ol
 ```bash
 cd /workspaces/msgsud-bale-programi
 git fetch origin
-git switch main
+git switch feat/management-m39-teacher-planning-inputs
 git pull --ff-only
 git rev-parse HEAD
 git status --short
@@ -6109,3 +6109,221 @@ Still open and separate:
   `management_preview_candidate_forward_impacts` returns HTTP 500 in at
   least one live scenario
 - investigate this independently; do not destabilize Program drag/remove/history
+
+
+## 90. 3 Ekim 2026 — OTURUM KAPANIŞI / YARIM İŞLER / YENİ ANA MİMARİ
+
+### A. Bu oturumda gerçekten PASS olanlar
+
+Firefox browser smoke:
+- Program yüklenebildiğinde grid çalışıyor
+- kart drag/drop başka uygun slota taşınıyor
+- kartı havuza kaldırma çalışıyor
+- Geri Al çalışıyor
+- Yinele çalışıyor
+
+Accepted Program-interaction checkpoint:
+`290debd16199b141d73ac811f5bfea0286025194`
+
+Bu PASS'ten sonra Program write semantiğine bilinçli olarak dokunulmadı.
+
+### B. Hâlâ açık / yarım işler
+
+1. **Safari / Supabase 522**
+   - Safari normal ve private pencerede `Load failed`
+   - Firefox da aralıklı `522` gördü
+   - 522 cevaplarında CORS header bulunmadığı için browser ayrıca
+     `Access-Control-Allow-Origin` hatası yazıyor
+   - bunu uygulama CORS policy hatası olarak yorumlama
+   - Supabase/Cloudflare erişim hattı kararsızlığı ile uygulama fan-out'u birlikte
+     etkili olabilir
+
+2. **Yerleştirme Asistanı**
+   - ilk toplu forward-impact tasarımı timeout/500 verdi
+   - analizde tüm seçenekler için forward-impact kaldırıldı
+   - forward-impact yalnız seçilen tek seçenek için APPLY öncesi doğrulanıyor
+   - analiz sırasında candidate-domain refresh kaldırıldı; mevcut persisted candidate
+     snapshot okunuyor
+   - kullanıcı bir seçeneği başarıyla uyguladı
+   - ancak apply sonrası kalan havuz yeniden analizinde timeout görüldü
+   - son read-only assistant değişikliği bu timeout'u azaltmak için yapıldı fakat
+     final browser acceptance tamamlanmadı
+
+3. **Active DRAFT revision read fan-out**
+   - birden fazla management module aynı `schedule_revisions` sorgusunu ayrı
+     ayrı atıyordu
+   - yeni `lib/managementRevision.ts` helper ile in-flight dedupe + 5s short cache
+     + transient single retry eklendi
+   - Overview / Board / CoursePlan / Resources / PublicationPreview /
+     PublicationGate / Solver aynı helper'a bağlandı
+   - current HEAD: `47f04534386d227e5ac3269a80941525b55d7ebe`
+   - BU HEAD için user-side `npm test` + `npm run build` sonucu henüz kayda
+     geçmedi; yeni oturumda ilk gate budur
+
+4. **M40 / M40.1**
+   - teacher-load objective denemesi acceptance sırasında regresyon yarattı
+   - application code emergency rollback ile M39.1 stable'a döndürüldü
+   - M40/M40.1 migration dosyaları geçmişte uygulanmıştı ve silinmedi
+   - rollback migration hazırlandı:
+     `20261003150000_management_rollback_m40_to_m39_1.sql`
+   - BU OTURUM KAPANIŞINDA rollback migration'ın remote'a uygulanma/parity durumu
+     kullanıcı çıktısıyla yeniden doğrulanmış değildir
+   - yeni oturumda migration list ile kesinleştir
+   - M40 objective işine geri dönme; önce yeni workspace mimarisi
+
+### C. Asıl mimari karar — Management Workspace v1
+
+Eski hedef tekrar ana yol olarak kabul edildi:
+
+**Snapshot → Local Matrix → Atomic Commit**
+
+Amaç:
+- yönetim ekranında her drag/remove/resource edit denemesinde Supabase'e gitmemek
+- trial/preview hesaplarını DB üzerinde yapmamak
+- ağ kararsızlığı ile kullanıcı etkileşimini birbirinden ayırmak
+- final kaydı tek kontrollü transaction'a indirmek
+
+#### C1. Workspace başlangıcı
+
+Düzenleme oturumu başlarken tek immutable kaynak alınır:
+- revision_id
+- revision_version
+- baseline_hash / snapshot_hash
+- schedule cards
+- placements
+- requirements
+- instructional groups/relations
+- teacher pools / room pools
+- teacher availability
+- rooms / teachers
+- hard rules
+- gerekli candidate/policy girdileri
+
+Bu kaynak local/in-memory working copy'ye yüklenir.
+
+#### C2. Uzun DB lock YOK
+
+Dakikalarca PostgreSQL row lock tutulmayacak.
+
+Bunun yerine:
+- logical edit lease / workspace token
+- optimistic concurrency
+- baseline revision/version/hash
+- commit anında stale guard
+
+Başka bir istemci aynı revision'ı değiştirirse final commit:
+- baseline mismatch ile reddedilir
+- hiçbir partial write yapılmaz
+- kullanıcı yeniden snapshot alır / conflict çözümü yapar
+
+#### C3. Düzenleme boyunca local-only
+
+Aşağıdakiler local matrix / operation log üzerinde çalışacak:
+- drag/drop
+- remove to pool
+- teacher change
+- room change
+- assistant trial
+- solver trial
+- undo
+- redo
+- candidate feasibility
+- soft objective calculations
+
+Normal kullanıcı etkileşiminde write RPC yok.
+
+Hedef:
+**bir kartı sürüklerken 0 network write ve mümkün olduğunca 0 network read.**
+
+#### C4. Local operation history
+
+Undo/Redo artık DB transaction history'ye her ara adımda yazmak yerine workspace
+operation log üzerinde yapılacak.
+
+Örnek operation:
+- MOVE_CARD
+- REMOVE_CARD
+- SET_TEACHER
+- SET_ROOM
+- APPLY_ASSISTANT_OPTION
+
+Her op:
+- before
+- after
+- affected card ids
+- local validation result
+- timestamp/sequence
+tutar.
+
+#### C5. Final Atomic Commit
+
+Kullanıcı açıkça `Kaydet/Uygula` dediğinde:
+1. baseline snapshot ile working copy diff çıkar
+2. tek payload oluştur
+3. server current revision/version/hash ile baseline'i karşılaştırır
+4. hard rules server-side yeniden doğrulanır
+5. tek DB transaction içinde placements + history uygulanır
+6. herhangi bir hata => full rollback
+7. success => yeni snapshot alınır
+
+Trial write YOK.
+
+#### C6. Geçiş stratejisi
+
+Mevcut çalışan Program UI'yı bir anda yeniden yazma.
+
+Fazlar:
+1. Workspace snapshot contract + tests
+2. existing Program UI altına local working-copy adapter
+3. drag/remove/undo/redo local path
+4. resource edits local path
+5. assistant local path
+6. atomic commit RPC
+7. browser A/B acceptance
+8. ancak PASS'ten sonra legacy live-write path kapat
+
+Her fazda mevcut davranışla parity testi gerekir.
+
+### D. Yeni oturumda ilk yapılacaklar
+
+Yeni özellik eklemeden önce:
+
+```bash
+cd /workspaces/msgsud-bale-programi
+git fetch origin
+git switch feat/management-m39-teacher-planning-inputs
+git pull --ff-only
+git rev-parse HEAD
+git status --short
+npm test
+npm run build
+npx supabase migration list | tail -30
+```
+
+Beklenen code HEAD:
+`47f04534386d227e5ac3269a80941525b55d7ebe`
+
+Kontrol et:
+- rollback migration remote'da mı?
+- M40/M40.1 migration parity ne durumda?
+- pending unexpected migration var mı?
+- current HEAD test/build PASS mi?
+
+Sonra yeni bir architecture branch açılması tercih edilir:
+`feat/management-workspace-v1`
+
+Yeni branch'te ilk implementation işi:
+**Workspace Snapshot Contract v1 — read-only only, no UI behavior change.**
+
+### E. Dondurulan işler
+
+Aşağıdakilere yeni workspace foundation kurulmadan geri dönme:
+- M40 teacher load objective
+- M41 subject time preferences
+- M42 fine-grained pins
+- daha güçlü full-auto solver
+- Assistant forward-impact optimizasyonunun genişletilmesi
+- Safari için app-level CORS hack
+- live candidate refresh performans yamaları
+
+Önce veri erişim mimarisi düzelsin.
