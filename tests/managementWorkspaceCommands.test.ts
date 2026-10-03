@@ -7,6 +7,8 @@ import {
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
   createManagementWorkspaceHistoryV1,
+  redoManagementWorkspaceOperationV1,
+  undoManagementWorkspaceOperationV1,
 } from '@/lib/managementWorkspaceHistory';
 import {
   executeManagementWorkspaceCommandV1,
@@ -402,6 +404,53 @@ describe('management workspace command executor v1', () => {
     expect(copy.placementsByCardId['card-1'].dayOfWeek).toBeNull();
     expect(copy.placementsByCardId['card-2'].dayOfWeek).toBeNull();
     expect(history.undoStack).toHaveLength(2);
+  });
+
+  it('undoes and redoes a multi-card batch as one user history step', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const result = executeManagementWorkspaceCommandsV1(
+      source,
+      copy,
+      history,
+      [
+        {
+          type: 'SET_PLACEMENT',
+          placement: {
+            cardId: 'card-1',
+            dayOfWeek: 2,
+            startPeriod: 1,
+            teacherId: 'teacher-1',
+            roomId: 'room-1',
+          },
+        },
+        {
+          type: 'SET_PLACEMENT',
+          placement: {
+            cardId: 'card-2',
+            dayOfWeek: 2,
+            startPeriod: 2,
+            teacherId: 'teacher-1',
+            roomId: 'room-2',
+          },
+        },
+      ],
+    );
+
+    expect(result.applied).toBe(true);
+    expect(result.operations).toHaveLength(2);
+    expect(result.operations[0].batchId).toBe(result.operations[1].batchId);
+    expect(diffManagementWorkspaceV1(source, copy).dirtyCardIds)
+      .toEqual(['card-1', 'card-2']);
+
+    undoManagementWorkspaceOperationV1(copy, history);
+    expect(diffManagementWorkspaceV1(source, copy).hasChanges).toBe(false);
+
+    redoManagementWorkspaceOperationV1(copy, history);
+    expect(diffManagementWorkspaceV1(source, copy).dirtyCardIds)
+      .toEqual(['card-1', 'card-2']);
   });
 
 });
