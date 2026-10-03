@@ -1,6 +1,7 @@
 'use client';
 
 import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+import { fetchLatestManagementDraftRevision } from '@/lib/managementRevision';
 
 export interface ManagementOverview {
   revisionId: string;
@@ -15,11 +16,6 @@ export interface ManagementOverview {
   activeMoveCount: number;
   touchedCardIds: string[];
   placementsByDay: Record<number, number>;
-}
-
-interface RevisionRow {
-  id: string;
-  version_number: number;
 }
 
 interface CardRow {
@@ -80,12 +76,7 @@ async function authedGet<T>(path: string, accessToken: string): Promise<T> {
 export async function fetchManagementOverview(
   accessToken: string,
 ): Promise<ManagementOverview | null> {
-  const revisions = await authedGet<RevisionRow[]>(
-    'schedule_revisions?select=id,version_number&status=eq.DRAFT&order=version_number.desc&limit=1',
-    accessToken,
-  );
-
-  const revision = revisions[0];
+  const revision = await fetchLatestManagementDraftRevision(accessToken);
   if (!revision) return null;
 
   const cards = await authedGet<CardRow[]>(
