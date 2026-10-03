@@ -135,6 +135,27 @@ import {
   type ManagementCommandState,
   type ManagementRootAction,
 } from '@/lib/managementCommands';
+import {
+  fetchLatestManagementWorkspaceSnapshotV1,
+  type ManagementWorkspaceSnapshotV1,
+} from '@/lib/managementWorkspace';
+import {
+  createManagementWorkspaceWorkingCopyV1,
+  diffManagementWorkspaceV1,
+  type ManagementWorkspaceWorkingCopyV1,
+} from '@/lib/managementWorkspaceWorkingCopy';
+import {
+  createManagementWorkspaceHistoryV1,
+  redoManagementWorkspaceOperationV1,
+  undoManagementWorkspaceOperationV1,
+  type ManagementWorkspaceHistoryV1,
+} from '@/lib/managementWorkspaceHistory';
+import {
+  executeManagementWorkspaceCommandV1,
+} from '@/lib/managementWorkspaceCommands';
+import {
+  projectManagementBoardFromWorkspaceV1,
+} from '@/lib/managementWorkspaceBoardAdapter';
 
 const DAYS = [
   { id: 1, label: 'Pzt' },
@@ -515,6 +536,11 @@ export default function ManagementPage() {
 
   const [overview, setOverview] = useState<ManagementOverview | null>(null);
   const [board, setBoard] = useState<ManagementBoardData | null>(null);
+  const serverBoardRef = useRef<ManagementBoardData | null>(null);
+  const workspaceSnapshotRef = useRef<ManagementWorkspaceSnapshotV1 | null>(null);
+  const workspaceWorkingCopyRef = useRef<ManagementWorkspaceWorkingCopyV1 | null>(null);
+  const workspaceHistoryRef = useRef<ManagementWorkspaceHistoryV1 | null>(null);
+  const [workspaceDirty, setWorkspaceDirty] = useState(false);
   const [coursePlan, setCoursePlan] = useState<ManagementCoursePlanData | null>(null);
   const [resources, setResources] = useState<ManagementResourceInventoryData | null>(null);
   const [solverWorkspace, setSolverWorkspace] =
@@ -674,6 +700,11 @@ export default function ManagementPage() {
     if (status !== 'ready' || !session) {
       setOverview(null);
       setBoard(null);
+      serverBoardRef.current = null;
+      workspaceSnapshotRef.current = null;
+      workspaceWorkingCopyRef.current = null;
+      workspaceHistoryRef.current = null;
+      setWorkspaceDirty(false);
       setCoursePlan(null);
       setResources(null);
       setSolverWorkspace(null);
@@ -689,6 +720,7 @@ export default function ManagementPage() {
     Promise.all([
       fetchManagementOverview(session.accessToken),
       fetchManagementBoard(session.accessToken),
+      fetchLatestManagementWorkspaceSnapshotV1(session.accessToken),
       fetchManagementCoursePlan(session.accessToken),
       fetchManagementResources(session.accessToken),
       fetchLatestManagementSolverWorkspace(session.accessToken),
@@ -698,6 +730,7 @@ export default function ManagementPage() {
       .then(async ([
         nextOverview,
         nextBoard,
+        nextWorkspaceSnapshot,
         nextCoursePlan,
         nextResources,
         nextSolverWorkspace,
@@ -707,7 +740,33 @@ export default function ManagementPage() {
         if (!active) return;
 
         setOverview(nextOverview);
-        setBoard(nextBoard);
+        serverBoardRef.current = nextBoard;
+
+        if (
+          nextBoard
+          && nextWorkspaceSnapshot
+          && nextWorkspaceSnapshot.identity.revisionId === nextBoard.revisionId
+        ) {
+          const nextWorkingCopy =
+            createManagementWorkspaceWorkingCopyV1(nextWorkspaceSnapshot);
+          workspaceSnapshotRef.current = nextWorkspaceSnapshot;
+          workspaceWorkingCopyRef.current = nextWorkingCopy;
+          workspaceHistoryRef.current = createManagementWorkspaceHistoryV1();
+          setWorkspaceDirty(false);
+          setBoard(
+            projectManagementBoardFromWorkspaceV1(
+              nextBoard,
+              nextWorkingCopy,
+            ),
+          );
+        } else {
+          workspaceSnapshotRef.current = null;
+          workspaceWorkingCopyRef.current = null;
+          workspaceHistoryRef.current = null;
+          setWorkspaceDirty(false);
+          setBoard(nextBoard);
+        }
+
         setCoursePlan(nextCoursePlan);
         setResources(nextResources);
         setSolverWorkspace(nextSolverWorkspace);
@@ -743,6 +802,32 @@ export default function ManagementPage() {
       active = false;
     };
   }, [refreshToken, session, status]);
+
+  const localUndoAvailable = Boolean(
+    workspaceHistoryRef.current?.undoStack.length,
+  );
+  const localRedoAvailable = Boolean(
+    workspaceHistoryRef.current?.redoStack.length,
+  );
+  const workspaceLocalSessionActive = Boolean(
+    workspaceHistoryRef.current
+    && (
+      workspaceHistoryRef.current.nextSequence > 1
+      || workspaceHistoryRef.current.redoStack.length > 0
+    )
+  );
+
+  useEffect(() => {
+    if (!workspaceLocalSessionActive) return;
+
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [workspaceLocalSessionActive]);
 
   const visibleCards = useMemo(
     () => board?.cards.filter(
@@ -1528,6 +1613,14 @@ export default function ManagementPage() {
   const runDropCandidates = async (
     moves: ManagementGroupDropCandidate[],
   ) => {
+    if (workspaceLocalSessionActive) {
+      setCommandNotice({
+        kind: 'info',
+        text: 'Yerel çalışma alanında kaydedilmemiş değişiklik var. Önce bu değişikliği geri alın veya çalışma alanını yenileyin.',
+      });
+      return false;
+    }
+
     if (!session || !access?.canEdit || !board || commandBusy || moves.length === 0) {
       return false;
     }
@@ -1612,6 +1705,13 @@ export default function ManagementPage() {
   const applyPlacementAssistantOption = async (
     option: ManagementPlacementAssistantOption,
   ) => {
+    if (workspaceLocalSessionActive) {
+      setPlacementAssistantError(
+        'Yerel çalışma alanında kaydedilmemiş değişiklik var. Önce geri alın veya çalışma alanını yenileyin.',
+      );
+      return;
+    }
+
     if (
       !session
       || placementAssistantStale
@@ -2023,6 +2123,65 @@ export default function ManagementPage() {
       .sort((a, b) => a.localeCompare(b, 'tr', { numeric: true }))
       .join(' + ');
 
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      uniqueIds.length === 1
+      && localSnapshot
+      && localWorkingCopy
+      && localHistory
+      && serverBoard
+    ) {
+      const result = executeManagementWorkspaceCommandV1(
+        localSnapshot,
+        localWorkingCopy,
+        localHistory,
+        {
+          type: 'REMOVE_PLACEMENT',
+          cardId: primaryCard.id,
+        },
+      );
+
+      if (!result.applied) {
+        setCommandNotice({
+          kind: 'error',
+          text: result.issues.length > 0
+            ? `Kart yerel çalışma alanında kaldırılamadı: ${result.issues.map((issue) => issue.code).join(', ')}.`
+            : 'Kart yerel çalışma alanında kaldırılamadı.',
+        });
+        return false;
+      }
+
+      setBoard(
+        projectManagementBoardFromWorkspaceV1(
+          serverBoard,
+          localWorkingCopy,
+        ),
+      );
+      setWorkspaceDirty(
+        diffManagementWorkspaceV1(
+          localSnapshot,
+          localWorkingCopy,
+        ).hasChanges,
+      );
+      setCommandNotice({
+        kind: 'success',
+        text: `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan yerel olarak kaldırıldı ve havuza döndü. Henüz veritabanına yazılmadı.`,
+      });
+      return true;
+    }
+
+    if (workspaceLocalSessionActive) {
+      setCommandNotice({
+        kind: 'info',
+        text: 'Yerel çalışma alanında kaydedilmemiş değişiklik var. Toplu veya eski veritabanı yazma işlemleri şu anda kilitli.',
+      });
+      return false;
+    }
+
     setCommandBusy(true);
     setCommandActivity(
       cardsBeingRemoved.length > 1
@@ -2123,6 +2282,41 @@ export default function ManagementPage() {
   };
 
   const runUndo = async () => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      localSnapshot
+      && localWorkingCopy
+      && localHistory
+      && serverBoard
+      && localHistory.undoStack.length > 0
+    ) {
+      undoManagementWorkspaceOperationV1(
+        localWorkingCopy,
+        localHistory,
+      );
+      setBoard(
+        projectManagementBoardFromWorkspaceV1(
+          serverBoard,
+          localWorkingCopy,
+        ),
+      );
+      setWorkspaceDirty(
+        diffManagementWorkspaceV1(
+          localSnapshot,
+          localWorkingCopy,
+        ).hasChanges,
+      );
+      setCommandNotice({
+        kind: 'success',
+        text: 'Yerel program değişikliği geri alındı.',
+      });
+      return;
+    }
+
     const descriptor = commandState.undo;
 
     if (
@@ -2190,6 +2384,41 @@ export default function ManagementPage() {
   };
 
   const runRedo = async () => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      localSnapshot
+      && localWorkingCopy
+      && localHistory
+      && serverBoard
+      && localHistory.redoStack.length > 0
+    ) {
+      redoManagementWorkspaceOperationV1(
+        localWorkingCopy,
+        localHistory,
+      );
+      setBoard(
+        projectManagementBoardFromWorkspaceV1(
+          serverBoard,
+          localWorkingCopy,
+        ),
+      );
+      setWorkspaceDirty(
+        diffManagementWorkspaceV1(
+          localSnapshot,
+          localWorkingCopy,
+        ).hasChanges,
+      );
+      setCommandNotice({
+        kind: 'success',
+        text: 'Yerel program değişikliği yeniden uygulandı.',
+      });
+      return;
+    }
+
     const descriptor = commandState.redo;
 
     if (
@@ -2410,17 +2639,26 @@ export default function ManagementPage() {
                 Düzenleme açık
               </span>
             )}
+            {workspaceDirty && (
+              <span className="rounded-full bg-amber-50 px-2 py-1 text-[9px] font-semibold text-amber-700">
+                Yerel değişiklik · kaydedilmedi
+              </span>
+            )}
             {access?.canEdit && (
               <ManagementHistoryActions
-                undoAvailable={Boolean(commandState.undo) && !dataLoading}
-                redoAvailable={Boolean(commandState.redo) && !dataLoading}
+                undoAvailable={(localUndoAvailable || Boolean(commandState.undo)) && !dataLoading}
+                redoAvailable={(localRedoAvailable || Boolean(commandState.redo)) && !dataLoading}
                 busy={commandBusy || dataLoading}
-                undoTitle={commandState.undo
-                  ? `${commandContextLabel(commandState.undo, board)}${commandState.undo.bundleSize > 1 ? ` · ${commandState.undo.bundleSize} kayıt` : ''}${commandState.undo.autoCount > 0 ? ` + ${commandState.undo.autoCount} otomatik` : ''} geri al`
-                  : 'Geri alınabilecek işlem yok'}
-                redoTitle={commandState.redo
-                  ? `${commandContextLabel(commandState.redo, board)}${commandState.redo.bundleSize > 1 ? ` · ${commandState.redo.bundleSize} kayıt` : ''}${commandState.redo.autoCount > 0 ? ` + ${commandState.redo.autoCount} otomatik` : ''} yeniden uygula`
-                  : 'Yinelenecek işlem yok'}
+                undoTitle={localUndoAvailable
+                  ? 'Yerel program değişikliğini geri al'
+                  : commandState.undo
+                    ? `${commandContextLabel(commandState.undo, board)}${commandState.undo.bundleSize > 1 ? ` · ${commandState.undo.bundleSize} kayıt` : ''}${commandState.undo.autoCount > 0 ? ` + ${commandState.undo.autoCount} otomatik` : ''} geri al`
+                    : 'Geri alınabilecek işlem yok'}
+                redoTitle={localRedoAvailable
+                  ? 'Yerel program değişikliğini yeniden uygula'
+                  : commandState.redo
+                    ? `${commandContextLabel(commandState.redo, board)}${commandState.redo.bundleSize > 1 ? ` · ${commandState.redo.bundleSize} kayıt` : ''}${commandState.redo.autoCount > 0 ? ` + ${commandState.redo.autoCount} otomatik` : ''} yeniden uygula`
+                    : 'Yinelenecek işlem yok'}
                 onUndo={() => void runUndo()}
                 onRedo={() => void runRedo()}
               />
@@ -2435,7 +2673,16 @@ export default function ManagementPage() {
             </button>
             <button
               type="button"
-              onClick={() => setRefreshToken((value) => value + 1)}
+              onClick={() => {
+                if (workspaceLocalSessionActive) {
+                  setCommandNotice({
+                    kind: 'info',
+                    text: 'Yerel değişiklikler kaybolmasın diye yenileme engellendi. Önce Geri Al ile yerel değişiklikleri temizleyin.',
+                  });
+                  return;
+                }
+                setRefreshToken((value) => value + 1);
+              }}
               disabled={dataLoading}
               className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
             >
@@ -2443,7 +2690,16 @@ export default function ManagementPage() {
             </button>
             <button
               type="button"
-              onClick={() => void logout()}
+              onClick={() => {
+                if (workspaceLocalSessionActive) {
+                  setCommandNotice({
+                    kind: 'info',
+                    text: 'Yerel değişiklikler kaybolmasın diye çıkış engellendi. Önce Geri Al ile yerel değişiklikleri temizleyin.',
+                  });
+                  return;
+                }
+                void logout();
+              }}
               className="rounded-lg bg-slate-950 px-2.5 py-1.5 text-[10px] font-semibold text-white transition hover:bg-slate-800"
             >
               Çıkış
@@ -3128,6 +3384,9 @@ export default function ManagementPage() {
                 if (!session || !access?.canEdit) {
                   throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
                 }
+                if (workspaceLocalSessionActive) {
+                  throw new Error('Yerel çalışma alanında kaydedilmemiş değişiklik var. Bu kaynak işlemi şu anda kilitli.');
+                }
                 return previewManagementPlacementResourceChange(
                   session.accessToken,
                   cardIds,
@@ -3143,6 +3402,9 @@ export default function ManagementPage() {
               ) => {
                 if (!session || !access?.canEdit) {
                   throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+                }
+                if (workspaceLocalSessionActive) {
+                  throw new Error('Yerel çalışma alanında kaydedilmemiş değişiklik var. Bu kaynak işlemi şu anda kilitli.');
                 }
 
                 setCommandBusy(true);
@@ -3232,7 +3494,7 @@ export default function ManagementPage() {
       ) : activeSection === 'PLAN' ? (
         <ManagementCoursePlan
           data={coursePlan}
-          canEdit={access?.canEdit === true}
+          canEdit={access?.canEdit === true && !workspaceLocalSessionActive}
           onOpenProgram={(requirementId, planStage: ManagementPlanStage) => {
             const card = board?.cards.find(
               (item) => item.requirementId === requirementId,
@@ -3473,7 +3735,7 @@ export default function ManagementPage() {
       ) : activeSection === 'RESOURCES' ? (
         <ManagementResources
           data={resources}
-          canEdit={access?.canEdit === true}
+          canEdit={access?.canEdit === true && !workspaceLocalSessionActive}
           onUpdateTeacherName={async (teacherId, displayName) => {
             if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
@@ -3921,7 +4183,7 @@ export default function ManagementPage() {
         <ManagementSolverWorkspacePanel
           key={`solver-${refreshToken}-${solverWorkspace?.preview.snapshotHash ?? 'empty'}`}
           data={solverWorkspace}
-          canEdit={access?.canEdit === true}
+          canEdit={access?.canEdit === true && !workspaceLocalSessionActive}
           busy={commandBusy}
           onSave={async (input) => {
             if (!session || !access?.canEdit) {
@@ -4014,7 +4276,7 @@ export default function ManagementPage() {
           cards={board?.cards ?? []}
           teacherOptions={coursePlan?.teacherOptions ?? []}
           roomOptions={coursePlan?.roomOptions ?? []}
-          canEdit={access?.canEdit === true}
+          canEdit={access?.canEdit === true && !workspaceLocalSessionActive}
           commandBusy={commandBusy}
           onIssueAction={handleHealthIssueAction}
           onOperationalQueueAction={(kind, cardId) => {
@@ -4083,7 +4345,7 @@ export default function ManagementPage() {
         analyzed={placementAssistantAnalyzed}
         stale={placementAssistantStale}
         error={placementAssistantError}
-        canEdit={access?.canEdit === true}
+        canEdit={access?.canEdit === true && !workspaceLocalSessionActive}
         commandBusy={commandBusy || placementAssistantImpactChecking}
         refreshing={
           dataLoading
