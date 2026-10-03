@@ -13,12 +13,12 @@
 | Aktif çalışma ortamı | `GitHub Codespaces` |
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
-| Son doğrulanmış implementation checkpoint | `3c6a2329818b82bdda6a539f239ebd202b3ff07e` — Workspace UI checkpoint 1 PASS; 27/27 test files, 141/141 tests, build PASS, browser local remove + local undo/redo PASS |
-| Aktif implementation checkpoint | `3c6a2329818b82bdda6a539f239ebd202b3ff07e` — first Program UI integration for local workspace remove/undo/redo |
+| Son doğrulanmış implementation checkpoint | `f401b1ee12c54e41f504c717aa293490d5bd274a` — Workspace UI checkpoint 2 browser PASS; single-card MOVE local + local Undo/Redo PASS |
+| Aktif implementation checkpoint | `f401b1ee12c54e41f504c717aa293490d5bd274a` — single-card drag/drop moved into local workspace |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | Management Workspace v1 Phase 1–2 + first browser acceptance documented |
-| Son kullanıcı/QA kabulü | **Workspace UI checkpoint 1 PASS** — single-card remove is local, local Undo/Redo restores instantly, MOVE still legacy DB-backed and slow |
-| Sıradaki iş paketi | **MOVE’u local workspace motoruna bağla; drag/drop sırasında DB write kaldır; sonra grouped/batch local history transaction semantiği** |
+| Son kullanıcı/QA kabulü | **Workspace UI checkpoint 2 PASS** — single-card remove and move are local; Undo/Redo work; move feels faster; grouped move/remove still legacy |
+| Sıradaki iş paketi | **Grouped/batch local transaction history: grouped MOVE/REMOVE = one local command group + one Undo/Redo step** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -6322,3 +6322,28 @@ Acceptance target:
 
 After single-card MOVE passes browser acceptance, add grouped/batch history transaction
 semantics so one visual grouped move/remove is one Undo step.
+
+
+### Workspace UI checkpoint 2 — single-card MOVE browser PASS
+
+Implementation checkpoint:
+`f401b1ee12c54e41f504c717aa293490d5bd274a`
+
+Changes:
+- single-card drag/drop MOVE uses local `SET_PLACEMENT`
+- no placement write RPC on drop
+- local validator is authoritative at apply time
+- board projection updates the visible slot immediately
+- local Undo/Redo moves the card back/forward immediately
+- single-card drag skips `management_refresh_card_group_candidates`; persisted candidate detail is read and final safety is local validation
+
+User browser acceptance:
+- card move became noticeably faster
+- Undo works
+- Redo works
+- behavior accepted
+
+Still open:
+- grouped/visual-combined card MOVE and REMOVE are not yet one local transaction
+- drag still performs candidate-detail reads, so it is not yet zero-network at drag start
+- final atomic DB Save/Commit RPC is not yet implemented
