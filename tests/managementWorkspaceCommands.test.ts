@@ -325,4 +325,31 @@ describe('management workspace command executor v1', () => {
     expect(history.redoStack).toEqual([]);
     expect(history.nextSequence).toBe(1);
   });
+  it('allows a local remove that temporarily makes minDistinctDays incomplete', () => {
+    const source: ManagementWorkspaceSnapshotV1 = {
+      ...snapshot(),
+      requirements: snapshot().requirements.map((requirement) => (
+        requirement.id === 'requirement-1'
+          ? { ...requirement, minDistinctDays: 1 }
+          : requirement
+      )),
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const result = executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      {
+        type: 'REMOVE_PLACEMENT',
+        cardId: 'card-1',
+      },
+    );
+
+    expect(result.applied).toBe(true);
+    expect(copy.placementsByCardId['card-1'].dayOfWeek).toBeNull();
+    expect(history.undoStack).toHaveLength(1);
+  });
+
 });
