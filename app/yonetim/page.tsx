@@ -537,9 +537,15 @@ export default function ManagementPage() {
     useState<ManagementPublicationPreviewData | null>(null);
   const [publicationGate, setPublicationGate] =
     useState<ManagementPublicationGateData | null>(null);
-  const [dataError, setDataError] = useState<string | null>(null);
+  const [coreDataError, setCoreDataError] = useState<string | null>(null);
+  const [sectionDataError, setSectionDataError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
+
+  const dataError = [
+    coreDataError,
+    sectionDataError,
+  ].filter(Boolean).join(' · ') || null;
 
   const [activeSection, setActiveSection] =
     useState<'PROGRAM' | 'PLAN' | 'RESOURCES' | 'SOLVER' | 'STATUS'>('PROGRAM');
@@ -691,125 +697,81 @@ export default function ManagementPage() {
       setSolverWorkspace(null);
       setPublicationPreview(null);
       setPublicationGate(null);
+      setCommandState({ undo: null, redo: null });
+      setCoreDataError(null);
+      setSectionDataError(null);
       return;
     }
 
     let active = true;
     setDataLoading(true);
-    setDataError(null);
+    setCoreDataError(null);
+    setSectionDataError(null);
+
+    // Never leave stale data from a previous refresh visible while the
+    // canonical Program board is being reloaded.
+    setOverview(null);
+    setBoard(null);
+    setCoursePlan(null);
+    setResources(null);
+    setSolverWorkspace(null);
+    setPublicationPreview(null);
+    setPublicationGate(null);
+    setCommandState({ undo: null, redo: null });
 
     void (async () => {
       const failures: string[] = [];
+      let nextBoard: ManagementBoardData | null = null;
 
-      async function loadSection<T>(
-        label: string,
-        load: () => Promise<T>,
-        apply: (value: T) => void,
-        clear: () => void,
-      ): Promise<T | null> {
-        try {
-          const value = await withManagementLoadRetry(load);
-          if (active) apply(value);
-          return value;
-        } catch (reason: unknown) {
-          if (active) {
-            clear();
-            failures.push(managementLoadFailure(label, reason));
-          }
-          return null;
-        }
+      try {
+        nextBoard = await withManagementLoadRetry(
+          () => fetchManagementBoard(session.accessToken),
+        );
+        if (active) setBoard(nextBoard);
+      } catch (reason: unknown) {
+        failures.push(managementLoadFailure('Program', reason));
       }
 
-      // Program is the essential workbench payload. Load it first so the
-      // largest secondary modules cannot starve or abort the board request.
-      const nextBoard = await loadSection(
-        'Program',
-        () => fetchManagementBoard(session.accessToken),
-        setBoard,
-        () => setBoard(null),
-      );
-
       if (!active) return;
 
-      // These reads are comparatively light. Keep concurrency deliberately
-      // bounded while the board is already available.
-      await Promise.all([
-        loadSection(
-          'Genel özet',
+      try {
+        const nextOverview = await withManagementLoadRetry(
           () => fetchManagementOverview(session.accessToken),
-          setOverview,
-          () => setOverview(null),
-        ),
-        loadSection(
-          'Öncelikler',
-          () => fetchLatestManagementSolverWorkspace(session.accessToken),
-          setSolverWorkspace,
-          () => setSolverWorkspace(null),
-        ),
-        loadSection(
-          'Yayın güvenliği',
-          () => fetchManagementPublicationGate(session.accessToken),
-          setPublicationGate,
-          () => setPublicationGate(null),
-        ),
-      ]);
-
-      if (!active) return;
-
-      // The following modules each fan out to many REST reads internally.
-      // Run them one at a time to avoid Safari/WebKit connection saturation.
-      await loadSection(
-        'Ders Planı',
-        () => fetchManagementCoursePlan(session.accessToken),
-        setCoursePlan,
-        () => setCoursePlan(null),
-      );
-
-      if (!active) return;
-
-      await loadSection(
-        'Kaynaklar',
-        () => fetchManagementResources(session.accessToken),
-        setResources,
-        () => setResources(null),
-      );
-
-      if (!active) return;
-
-      await loadSection(
-        'Yayın önizleme',
-        () => fetchManagementPublicationPreview(session.accessToken),
-        setPublicationPreview,
-        () => setPublicationPreview(null),
-      );
+        );
+        if (active) setOverview(nextOverview);
+      } catch (reason: unknown) {
+        failures.push(managementLoadFailure('Genel özet', reason));
+      }
 
       if (!active) return;
 
       if (nextBoard) {
-        await loadSection(
-          'Geri Al/Yinele',
-          () => fetchManagementCommandState(
-            session.accessToken,
-            nextBoard.revisionId,
-          ),
-          setCommandState,
-          () => setCommandState({ undo: null, redo: null }),
-        );
-      } else {
-        setCommandState({ undo: null, redo: null });
+        try {
+          const nextCommandState = await withManagementLoadRetry(
+            () => fetchManagementCommandState(
+              session.accessToken,
+              nextBoard.revisionId,
+            ),
+          );
+          if (active) setCommandState(nextCommandState);
+        } catch (reason: unknown) {
+          failures.push(
+            managementLoadFailure('Geri Al/Yinele', reason),
+          );
+        }
       }
 
       if (!active) return;
 
-      setDataError(
+      setCoreDataError(
         failures.length > 0
-          ? `Bazı yönetim verileri yüklenemedi. ${failures.join(' · ')}`
+          ? `Temel yönetim verileri yüklenemedi. ${failures.join(' · ')}`
           : null,
       );
     })()
       .catch((reason: unknown) => {
         if (!active) return;
-        setDataError(
+        setCoreDataError(
           managementLoadFailure('Yönetim çalışma alanı', reason),
         );
       })
@@ -821,6 +783,120 @@ export default function ManagementPage() {
       active = false;
     };
   }, [refreshToken, session, status]);
+
+  useEffect(() => {
+    if (
+      status !== 'ready'
+      || !session
+      || !board
+      || dataLoading
+    ) {
+      return;
+    }
+
+    let active = true;
+    setSectionDataError(null);
+
+    async function loadOptionalSection() {
+      const failures: string[] = [];
+
+      async function loadOne<T>(
+        label: string,
+        load: () => Promise<T>,
+        apply: (value: T) => void,
+        clear: () => void,
+      ) {
+        try {
+          const value = await withManagementLoadRetry(load);
+          if (active) apply(value);
+        } catch (reason: unknown) {
+          if (!active) return;
+          clear();
+          failures.push(managementLoadFailure(label, reason));
+        }
+      }
+
+      if (activeSection === 'PLAN') {
+        await loadOne(
+          'Ders Planı',
+          () => fetchManagementCoursePlan(session.accessToken),
+          setCoursePlan,
+          () => setCoursePlan(null),
+        );
+      } else if (activeSection === 'RESOURCES') {
+        await loadOne(
+          'Kaynaklar',
+          () => fetchManagementResources(session.accessToken),
+          setResources,
+          () => setResources(null),
+        );
+      } else if (activeSection === 'SOLVER') {
+        await loadOne(
+          'Öncelikler',
+          () => fetchLatestManagementSolverWorkspace(session.accessToken),
+          setSolverWorkspace,
+          () => setSolverWorkspace(null),
+        );
+      } else if (activeSection === 'STATUS') {
+        await loadOne(
+          'Ders Planı',
+          () => fetchManagementCoursePlan(session.accessToken),
+          setCoursePlan,
+          () => setCoursePlan(null),
+        );
+
+        if (!active) return;
+
+        await loadOne(
+          'Yayın önizleme',
+          () => fetchManagementPublicationPreview(session.accessToken),
+          setPublicationPreview,
+          () => setPublicationPreview(null),
+        );
+
+        if (!active) return;
+
+        await loadOne(
+          'Yayın güvenliği',
+          () => fetchManagementPublicationGate(session.accessToken),
+          setPublicationGate,
+          () => setPublicationGate(null),
+        );
+      } else if (activeSection === 'PROGRAM' && inspectorOpen) {
+        // Program drag/drop does not need Course Plan data. Only fetch the
+        // richer teacher/room editor payload when the inspector is actually
+        // opened.
+        await loadOne(
+          'Ders Planı',
+          () => fetchManagementCoursePlan(session.accessToken),
+          setCoursePlan,
+          () => setCoursePlan(null),
+        );
+      }
+
+      if (!active) return;
+
+      setSectionDataError(
+        failures.length > 0
+          ? `Bu bölümün bazı verileri yüklenemedi. ${failures.join(' · ')}`
+          : null,
+      );
+    }
+
+    void loadOptionalSection();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    activeSection,
+    board,
+    dataLoading,
+    inspectorOpen,
+    refreshToken,
+    session,
+    status,
+  ]);
 
   const visibleCards = useMemo(
     () => board?.cards.filter(
