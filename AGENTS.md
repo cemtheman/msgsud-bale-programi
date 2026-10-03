@@ -6070,3 +6070,42 @@ Do not resume M40 work until the restored baseline passes:
 7. redo
 
 No other feature work before these pass.
+
+
+## 89. 3 Ekim 2026 — Program interaction recovery — PASS
+
+Browser validation after rollback + targeted network/read fixes:
+
+PASS:
+- Program board loads in Firefox
+- drag card to another valid slot works
+- remove to pool works
+- Undo works
+- Redo works
+
+Important diagnosis:
+- Safari remains affected by browser-level Supabase fetch failures
+  (`Load failed`), while Firefox can operate the app
+- Firefox also exposed intermittent Supabase/Cloudflare `522` responses
+- apparent CORS messages after 522 are secondary because the 522 error
+  response does not include the expected CORS header
+- do not change CORS policy based on these 522-derived console messages
+
+Targeted resilience added without retrying writes:
+- active drag IDs use a synchronous ref to prevent stale second-drag IDs
+- ambiguous remove results are reconciled read-only against `placements`
+- transient drag candidate reads retry once
+- transient command-history GET retries once
+- MOVE / PLACE / REMOVE writes are never blindly retried
+
+Accepted implementation checkpoint:
+`290debd16199b141d73ac811f5bfea0286025194`
+
+Core Program interaction status:
+**PASS**
+
+Still open and separate:
+- Yerleştirme Asistanı:
+  `management_preview_candidate_forward_impacts` returns HTTP 500 in at
+  least one live scenario
+- investigate this independently; do not destabilize Program drag/remove/history
