@@ -561,6 +561,7 @@ export default function ManagementPage() {
   const [placementAssistantPlans, setPlacementAssistantPlans] =
     useState<ManagementPlacementAssistantPlan[]>([]);
   const [placementAssistantLoading, setPlacementAssistantLoading] = useState(false);
+  const [placementAssistantImpactChecking, setPlacementAssistantImpactChecking] = useState(false);
   const [placementAssistantWaitingForRefresh, setPlacementAssistantWaitingForRefresh] = useState(false);
   const [placementAssistantSawRefreshLoading, setPlacementAssistantSawRefreshLoading] = useState(false);
   const [placementAssistantAnalyzed, setPlacementAssistantAnalyzed] = useState(false);
@@ -1613,6 +1614,7 @@ export default function ManagementPage() {
       || placementAssistantStale
       || placementAssistantLoading
       || placementAssistantWaitingForRefresh
+      || placementAssistantImpactChecking
       || commandBusy
       || !access?.canEdit
     ) {
@@ -1620,6 +1622,7 @@ export default function ManagementPage() {
     }
 
     setPlacementAssistantError(null);
+    setPlacementAssistantImpactChecking(true);
 
     try {
       const impacts = await retryManagementRead(
@@ -1644,6 +1647,7 @@ export default function ManagementPage() {
         setPlacementAssistantError(
           'Bu seçeneğin ileri etkisi doğrulanamadı. Program değiştirilmedi; yeniden deneyin.',
         );
+        setPlacementAssistantImpactChecking(false);
         return;
       }
 
@@ -1653,6 +1657,7 @@ export default function ManagementPage() {
             ? `Bu seçenek ${impact.newContradictionCount} dersi seçeneksiz bırakacağı için uygulanmadı.`
             : 'Bu seçeneğin başka derslere etkisi güvenli değil. Program değiştirilmedi.',
         );
+        setPlacementAssistantImpactChecking(false);
         return;
       }
     } catch (reason: unknown) {
@@ -1664,9 +1669,11 @@ export default function ManagementPage() {
           ? 'İleri etki kontrolü zaman aşımına uğradı. Program değiştirilmedi; aynı seçeneği yeniden deneyin.'
           : raw || 'İleri etki kontrolü tamamlanamadı. Program değiştirilmedi.',
       );
+      setPlacementAssistantImpactChecking(false);
       return;
     }
 
+    setPlacementAssistantImpactChecking(false);
     setPlacementAssistantWaitingForRefresh(true);
     setPlacementAssistantSawRefreshLoading(false);
     setPlacementAssistantPlans([]);
@@ -4074,8 +4081,12 @@ export default function ManagementPage() {
         stale={placementAssistantStale}
         error={placementAssistantError}
         canEdit={access?.canEdit === true}
-        commandBusy={commandBusy}
-        refreshing={dataLoading || placementAssistantWaitingForRefresh}
+        commandBusy={commandBusy || placementAssistantImpactChecking}
+        refreshing={
+          dataLoading
+          || placementAssistantWaitingForRefresh
+          || placementAssistantImpactChecking
+        }
         onAnalyze={() => {
           void analyzePlacementAssistant();
         }}
