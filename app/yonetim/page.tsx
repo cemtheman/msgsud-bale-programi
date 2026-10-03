@@ -2544,7 +2544,7 @@ export default function ManagementPage() {
       );
       setCommandNotice({
         kind: 'success',
-        text: 'Yerel program değişikliği geri alındı.',
+        text: 'Program değişikliği geri alındı.',
       });
       return;
     }
@@ -2646,7 +2646,7 @@ export default function ManagementPage() {
       );
       setCommandNotice({
         kind: 'success',
-        text: 'Yerel program değişikliği yeniden uygulandı.',
+        text: 'Program değişikliği yeniden uygulandı.',
       });
       return;
     }
@@ -2939,7 +2939,7 @@ export default function ManagementPage() {
             )}
             {workspaceDirty && (
               <span className="rounded-full bg-amber-50 px-2 py-1 text-[9px] font-semibold text-amber-700">
-                Yerel değişiklik · kaydedilmedi
+                Kaydedilmemiş değişiklik
               </span>
             )}
             {access?.canEdit && workspaceDirty && (
