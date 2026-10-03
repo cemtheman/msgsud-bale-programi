@@ -146,8 +146,8 @@ begin
     end;
 
     if v_card_id is null
-       or jsonb_typeof(v_change -> 'before') <> 'object'
-       or jsonb_typeof(v_change -> 'after') <> 'object' then
+       or jsonb_typeof(v_change -> 'before') is distinct from 'object'
+       or jsonb_typeof(v_change -> 'after') is distinct from 'object' then
       raise exception 'WORKSPACE_V1_INVALID_CHANGE_SHAPE';
     end if;
 
@@ -182,30 +182,38 @@ begin
       raise exception 'WORKSPACE_V1_REMOVED_CARD_HAS_RESOURCES';
     end if;
 
+    select card.locked
+    into v_locked
+    from public.schedule_cards card
+    where card.id = v_card_id
+      and card.schedule_revision_id = p_schedule_revision_id
+    for update;
+
+    if not found then
+      raise exception 'WORKSPACE_V1_CARD_NOT_IN_REVISION: %', v_card_id;
+    end if;
+
+    v_placement_id := null;
+    v_current_day := null;
+    v_current_start := null;
+    v_current_teacher := null;
+    v_current_room := null;
+
     select
-      card.locked,
       placement.id,
       placement.day_of_week,
       placement.start_period,
       placement.teacher_id,
       placement.room_id
     into
-      v_locked,
       v_placement_id,
       v_current_day,
       v_current_start,
       v_current_teacher,
       v_current_room
-    from public.schedule_cards card
-    left join public.placements placement
-      on placement.card_id = card.id
-    where card.id = v_card_id
-      and card.schedule_revision_id = p_schedule_revision_id
-    for update of card, placement;
-
-    if not found then
-      raise exception 'WORKSPACE_V1_CARD_NOT_IN_REVISION: %', v_card_id;
-    end if;
+    from public.placements placement
+    where placement.card_id = v_card_id
+    for update;
 
     if v_before_day is null then
       if v_placement_id is not null then
