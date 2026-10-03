@@ -389,6 +389,34 @@ function managementLoadFailure(
   return `${label}: ${detail}`;
 }
 
+function isTransientManagementLoadFailure(reason: unknown) {
+  if (!(reason instanceof Error)) return false;
+
+  const message = reason.message.trim().toLocaleLowerCase('tr-TR');
+  return (
+    message === 'load failed'
+    || message.includes('failed to fetch')
+    || message.includes('networkerror')
+    || message.includes('network request failed')
+    || message.includes('network connection was lost')
+  );
+}
+
+async function withManagementLoadRetry<T>(
+  load: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await load();
+  } catch (reason: unknown) {
+    if (!isTransientManagementLoadFailure(reason)) {
+      throw reason;
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
+    return load();
+  }
+}
+
 function completedCommandMessage(
   descriptor: ManagementCommandDescriptor | null,
   board: ManagementBoardData | null,
@@ -670,132 +698,116 @@ export default function ManagementPage() {
     setDataLoading(true);
     setDataError(null);
 
-    void Promise.allSettled([
-      fetchManagementOverview(session.accessToken),
-      fetchManagementBoard(session.accessToken),
-      fetchManagementCoursePlan(session.accessToken),
-      fetchManagementResources(session.accessToken),
-      fetchLatestManagementSolverWorkspace(session.accessToken),
-      fetchManagementPublicationPreview(session.accessToken),
-      fetchManagementPublicationGate(session.accessToken),
-    ])
-      .then(async ([
-        overviewResult,
-        boardResult,
-        coursePlanResult,
-        resourcesResult,
-        solverResult,
-        publicationPreviewResult,
-        publicationGateResult,
-      ]) => {
-        if (!active) return;
+    void (async () => {
+      const failures: string[] = [];
 
-        const failures: string[] = [];
-
-        if (overviewResult.status === 'fulfilled') {
-          setOverview(overviewResult.value);
-        } else {
-          setOverview(null);
-          failures.push(
-            managementLoadFailure('Genel özet', overviewResult.reason),
-          );
-        }
-
-        let nextBoard: ManagementBoardData | null = null;
-        if (boardResult.status === 'fulfilled') {
-          nextBoard = boardResult.value;
-          setBoard(nextBoard);
-        } else {
-          setBoard(null);
-          failures.push(
-            managementLoadFailure('Program', boardResult.reason),
-          );
-        }
-
-        if (coursePlanResult.status === 'fulfilled') {
-          setCoursePlan(coursePlanResult.value);
-        } else {
-          setCoursePlan(null);
-          failures.push(
-            managementLoadFailure('Ders Planı', coursePlanResult.reason),
-          );
-        }
-
-        if (resourcesResult.status === 'fulfilled') {
-          setResources(resourcesResult.value);
-        } else {
-          setResources(null);
-          failures.push(
-            managementLoadFailure('Kaynaklar', resourcesResult.reason),
-          );
-        }
-
-        if (solverResult.status === 'fulfilled') {
-          setSolverWorkspace(solverResult.value);
-        } else {
-          setSolverWorkspace(null);
-          failures.push(
-            managementLoadFailure('Öncelikler', solverResult.reason),
-          );
-        }
-
-        if (publicationPreviewResult.status === 'fulfilled') {
-          setPublicationPreview(publicationPreviewResult.value);
-        } else {
-          setPublicationPreview(null);
-          failures.push(
-            managementLoadFailure(
-              'Yayın önizleme',
-              publicationPreviewResult.reason,
-            ),
-          );
-        }
-
-        if (publicationGateResult.status === 'fulfilled') {
-          setPublicationGate(publicationGateResult.value);
-        } else {
-          setPublicationGate(null);
-          failures.push(
-            managementLoadFailure(
-              'Yayın güvenliği',
-              publicationGateResult.reason,
-            ),
-          );
-        }
-
-        if (nextBoard) {
-          try {
-            const nextCommandState = await fetchManagementCommandState(
-              session.accessToken,
-              nextBoard.revisionId,
-            );
-            if (active) setCommandState(nextCommandState);
-          } catch (reason: unknown) {
-            if (active) {
-              setCommandState({ undo: null, redo: null });
-              failures.push(
-                managementLoadFailure('Geri Al/Yinele', reason),
-              );
-            }
+      async function loadSection<T>(
+        label: string,
+        load: () => Promise<T>,
+        apply: (value: T) => void,
+        clear: () => void,
+      ): Promise<T | null> {
+        try {
+          const value = await withManagementLoadRetry(load);
+          if (active) apply(value);
+          return value;
+        } catch (reason: unknown) {
+          if (active) {
+            clear();
+            failures.push(managementLoadFailure(label, reason));
           }
-        } else {
-          setCommandState({
-            undo: null,
-            redo: null,
-          });
+          return null;
         }
+      }
 
-        if (!active) return;
+      // Program is the essential workbench payload. Load it first so the
+      // largest secondary modules cannot starve or abort the board request.
+      const nextBoard = await loadSection(
+        'Program',
+        () => fetchManagementBoard(session.accessToken),
+        setBoard,
+        () => setBoard(null),
+      );
 
-        setDataError(
-          failures.length > 0
-            ? `Bazı yönetim verileri yüklenemedi. ${failures.join(' · ')}`
-            : null,
+      if (!active) return;
+
+      // These reads are comparatively light. Keep concurrency deliberately
+      // bounded while the board is already available.
+      await Promise.all([
+        loadSection(
+          'Genel özet',
+          () => fetchManagementOverview(session.accessToken),
+          setOverview,
+          () => setOverview(null),
+        ),
+        loadSection(
+          'Öncelikler',
+          () => fetchLatestManagementSolverWorkspace(session.accessToken),
+          setSolverWorkspace,
+          () => setSolverWorkspace(null),
+        ),
+        loadSection(
+          'Yayın güvenliği',
+          () => fetchManagementPublicationGate(session.accessToken),
+          setPublicationGate,
+          () => setPublicationGate(null),
+        ),
+      ]);
+
+      if (!active) return;
+
+      // The following modules each fan out to many REST reads internally.
+      // Run them one at a time to avoid Safari/WebKit connection saturation.
+      await loadSection(
+        'Ders Planı',
+        () => fetchManagementCoursePlan(session.accessToken),
+        setCoursePlan,
+        () => setCoursePlan(null),
+      );
+
+      if (!active) return;
+
+      await loadSection(
+        'Kaynaklar',
+        () => fetchManagementResources(session.accessToken),
+        setResources,
+        () => setResources(null),
+      );
+
+      if (!active) return;
+
+      await loadSection(
+        'Yayın önizleme',
+        () => fetchManagementPublicationPreview(session.accessToken),
+        setPublicationPreview,
+        () => setPublicationPreview(null),
+      );
+
+      if (!active) return;
+
+      if (nextBoard) {
+        await loadSection(
+          'Geri Al/Yinele',
+          () => fetchManagementCommandState(
+            session.accessToken,
+            nextBoard.revisionId,
+          ),
+          setCommandState,
+          () => setCommandState({ undo: null, redo: null }),
         );
-      })
+      } else {
+        setCommandState({ undo: null, redo: null });
+      }
+
+      if (!active) return;
+
+      setDataError(
+        failures.length > 0
+          ? `Bazı yönetim verileri yüklenemedi. ${failures.join(' · ')}`
+          : null,
+      );
+    })()
       .catch((reason: unknown) => {
-        // allSettled does not reject for child-load failures. This guard is
-        // only for an unexpected client/runtime failure.
         if (!active) return;
         setDataError(
           managementLoadFailure('Yönetim çalışma alanı', reason),
