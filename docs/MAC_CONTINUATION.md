@@ -2511,3 +2511,48 @@ Transient fetch/network failures are retried once after 300 ms.
 HTTP/DB errors are not retried.
 
 No migration.
+
+
+## 36. Emergency rollback to M39.1 stable — 3 Oct 2026
+
+M40/M40.1 acceptance produced management load and drag/drop regressions.
+New feature work is stopped.
+
+Target stable checkpoint:
+`980b8487992c7a0ea1021143384eeb7e1b25a806`
+
+Application rollback:
+`b2670ace1705795e2c99f0a14e0a9e679cc64435`
+
+All application source files changed after the target checkpoint were restored
+from that exact tree. Compare now shows only docs + migration-history files
+different from M39.1 stable.
+
+DB rollback migration:
+`20261003150000_management_rollback_m40_to_m39_1.sql`
+
+Prepared commit:
+`5b3ab1d0b5665dd390164027b8e4eb0aaa8dd817`
+
+Important:
+- do not remove applied M40/M40.1 migration files
+- do not delete 1/10/20 teacher planning rows during emergency rollback
+- restored M39.1 semantics treat load targets as planning-only, so preserved
+  rows do not change solver/candidate/placement behavior
+
+Next gate only:
+```bash
+git pull --ff-only
+npm test
+npm run build
+npx supabase migration list | tail -25
+npx supabase db push --dry-run
+```
+
+Dry-run must show only:
+`20261003150000_management_rollback_m40_to_m39_1.sql`
+
+Then push it, verify migration parity, and smoke:
+Program load → drag/drop → undo → redo.
+
+Do not resume M40 until this baseline is accepted.
