@@ -152,6 +152,7 @@ import {
 } from '@/lib/managementWorkspaceHistory';
 import {
   executeManagementWorkspaceCommandV1,
+  executeManagementWorkspaceCommandsV1,
 } from '@/lib/managementWorkspaceCommands';
 import {
   projectManagementBoardFromWorkspaceV1,
@@ -1699,10 +1700,68 @@ export default function ManagementPage() {
       return runCandidateCommand(commands[0].candidate, commands[0].card);
     }
 
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      localSnapshot
+      && localWorkingCopy
+      && localHistory
+      && serverBoard
+    ) {
+      const result = executeManagementWorkspaceCommandsV1(
+        localSnapshot,
+        localWorkingCopy,
+        localHistory,
+        commands.map(({ card, candidate }) => ({
+          type: 'SET_PLACEMENT' as const,
+          placement: {
+            cardId: card.id,
+            dayOfWeek: candidate.dayOfWeek,
+            startPeriod: candidate.startPeriod,
+            teacherId: candidate.teacherId,
+            roomId: candidate.roomId,
+          },
+        })),
+      );
+
+      if (!result.applied) {
+        setCommandNotice({
+          kind: 'error',
+          text: result.issues.length > 0
+            ? `Birleşik ders için bu konum yerel olarak uygun değil: ${result.issues.map((issue) => issue.code).join(', ')}.`
+            : 'Birleşik ders için bu konum yerel olarak uygun değil.',
+        });
+        return false;
+      }
+
+      setBoard(
+        projectManagementBoardFromWorkspaceV1(
+          serverBoard,
+          localWorkingCopy,
+        ),
+      );
+      setWorkspaceDirty(
+        diffManagementWorkspaceV1(
+          localSnapshot,
+          localWorkingCopy,
+        ).hasChanges,
+      );
+      setCandidateFocus(null);
+      setActiveDay(commands[0].candidate.dayOfWeek);
+      setCommandNotice({
+        kind: 'success',
+        text: `${commands[0].card.subjectName} · ${commands.length} kayıt yerel olarak birlikte taşındı. Tek Geri Al adımıyla geri döner.`,
+      });
+      return true;
+    }
+
     if (workspaceLocalSessionActive) {
       setCommandNotice({
         kind: 'info',
-        text: 'Yerel çalışma alanında kaydedilmemiş değişiklik var. Birleşik ders işlemleri henüz local workspace’e taşınmadı.',
+        text: 'Yerel çalışma alanı hazır değilken birleşik ders işlemi güvenli biçimde uygulanamaz.',
       });
       return false;
     }
@@ -2193,28 +2252,37 @@ export default function ManagementPage() {
     const serverBoard = serverBoardRef.current;
 
     if (
-      uniqueIds.length === 1
-      && localSnapshot
+      localSnapshot
       && localWorkingCopy
       && localHistory
       && serverBoard
     ) {
-      const result = executeManagementWorkspaceCommandV1(
-        localSnapshot,
-        localWorkingCopy,
-        localHistory,
-        {
-          type: 'REMOVE_PLACEMENT',
-          cardId: primaryCard.id,
-        },
-      );
+      const result = uniqueIds.length === 1
+        ? executeManagementWorkspaceCommandV1(
+          localSnapshot,
+          localWorkingCopy,
+          localHistory,
+          {
+            type: 'REMOVE_PLACEMENT',
+            cardId: primaryCard.id,
+          },
+        )
+        : executeManagementWorkspaceCommandsV1(
+          localSnapshot,
+          localWorkingCopy,
+          localHistory,
+          uniqueIds.map((cardId) => ({
+            type: 'REMOVE_PLACEMENT' as const,
+            cardId,
+          })),
+        );
 
       if (!result.applied) {
         setCommandNotice({
           kind: 'error',
           text: result.issues.length > 0
-            ? `Kart yerel çalışma alanında kaldırılamadı: ${result.issues.map((issue) => issue.code).join(', ')}.`
-            : 'Kart yerel çalışma alanında kaldırılamadı.',
+            ? `Kart grubu yerel çalışma alanında kaldırılamadı: ${result.issues.map((issue) => issue.code).join(', ')}.`
+            : 'Kart grubu yerel çalışma alanında kaldırılamadı.',
         });
         return false;
       }
@@ -2233,7 +2301,9 @@ export default function ManagementPage() {
       );
       setCommandNotice({
         kind: 'success',
-        text: `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan yerel olarak kaldırıldı ve havuza döndü. Henüz veritabanına yazılmadı.`,
+        text: uniqueIds.length > 1
+          ? `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} · ${uniqueIds.length} kayıt yerel olarak havuza döndü. Tek Geri Al adımıyla geri getirilebilir.`
+          : `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan yerel olarak kaldırıldı ve havuza döndü. Henüz veritabanına yazılmadı.`,
       });
       return true;
     }
