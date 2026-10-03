@@ -168,3 +168,42 @@ export async function commitManagementWorkspaceV1(
 
   return response.json() as Promise<ManagementWorkspaceCommitResultV1>;
 }
+
+
+export function translateManagementWorkspaceCommitErrorV1(
+  message: string,
+) {
+  const normalized = message.toUpperCase();
+
+  if (
+    normalized.includes('WORKSPACE_V1_SNAPSHOT_STALE')
+    || normalized.includes('WORKSPACE_V1_BASELINE_STALE')
+    || normalized.includes('WORKSPACE_V1_REVISION_VERSION_STALE')
+    || normalized.includes('WORKSPACE_V1_REQUIREMENT_SET_STALE')
+    || normalized.includes('WORKSPACE_V1_BEFORE_STATE_STALE')
+  ) {
+    return 'Taslak program siz çalışırken değişmiş. Yerel değişiklikler korunuyor; güncel programı almadan kaydetme yapılmadı.';
+  }
+
+  if (normalized.includes('WORKSPACE_V1_LOCKED_CARD_CHANGED')) {
+    return 'Kilitli bir ders değiştirildiği için çalışma alanı kaydedilemedi.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V1_COMMIT_TOO_LARGE')
+    || normalized.includes('WORKSPACE_V1_OPERATION_GROUP_TOO_LARGE')
+  ) {
+    return 'Bu çalışma alanında tek seferde kaydedilebilecekten fazla değişiklik var. Değişiklikleri daha küçük bir paket halinde kaydedin.';
+  }
+
+  if (
+    normalized.includes('CANDIDATE')
+    || normalized.includes('BLOCKED')
+    || normalized.includes('CONFLICT')
+    || normalized.includes('UNAVAILABLE')
+  ) {
+    return 'Program sunucuda son kez doğrulanırken bir kural veya çakışma bulundu. Hiçbir değişiklik kaydedilmedi.';
+  }
+
+  return message || 'Yerel çalışma alanı kaydedilemedi.';
+}
