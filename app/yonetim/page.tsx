@@ -374,6 +374,21 @@ function commandContextLabel(
   return `${audience} ${card.subjectName} ${actionNoun(descriptor.action)}${placementContext ? ` · ${placementContext}` : ''}`;
 }
 
+function managementLoadFailure(
+  label: string,
+  reason: unknown,
+) {
+  const raw = reason instanceof Error
+    ? reason.message.trim()
+    : '';
+
+  const detail = !raw || raw.toLocaleLowerCase('tr-TR') === 'load failed'
+    ? 'ağ veya sunucu bağlantısı kurulamadı'
+    : raw;
+
+  return `${label}: ${detail}`;
+}
+
 function completedCommandMessage(
   descriptor: ManagementCommandDescriptor | null,
   board: ManagementBoardData | null,
@@ -655,7 +670,7 @@ export default function ManagementPage() {
     setDataLoading(true);
     setDataError(null);
 
-    Promise.all([
+    void Promise.allSettled([
       fetchManagementOverview(session.accessToken),
       fetchManagementBoard(session.accessToken),
       fetchManagementCoursePlan(session.accessToken),
@@ -665,43 +680,125 @@ export default function ManagementPage() {
       fetchManagementPublicationGate(session.accessToken),
     ])
       .then(async ([
-        nextOverview,
-        nextBoard,
-        nextCoursePlan,
-        nextResources,
-        nextSolverWorkspace,
-        nextPublicationPreview,
-        nextPublicationGate,
+        overviewResult,
+        boardResult,
+        coursePlanResult,
+        resourcesResult,
+        solverResult,
+        publicationPreviewResult,
+        publicationGateResult,
       ]) => {
         if (!active) return;
 
-        setOverview(nextOverview);
-        setBoard(nextBoard);
-        setCoursePlan(nextCoursePlan);
-        setResources(nextResources);
-        setSolverWorkspace(nextSolverWorkspace);
-        setPublicationPreview(nextPublicationPreview);
-        setPublicationGate(nextPublicationGate);
+        const failures: string[] = [];
+
+        if (overviewResult.status === 'fulfilled') {
+          setOverview(overviewResult.value);
+        } else {
+          setOverview(null);
+          failures.push(
+            managementLoadFailure('Genel özet', overviewResult.reason),
+          );
+        }
+
+        let nextBoard: ManagementBoardData | null = null;
+        if (boardResult.status === 'fulfilled') {
+          nextBoard = boardResult.value;
+          setBoard(nextBoard);
+        } else {
+          setBoard(null);
+          failures.push(
+            managementLoadFailure('Program', boardResult.reason),
+          );
+        }
+
+        if (coursePlanResult.status === 'fulfilled') {
+          setCoursePlan(coursePlanResult.value);
+        } else {
+          setCoursePlan(null);
+          failures.push(
+            managementLoadFailure('Ders Planı', coursePlanResult.reason),
+          );
+        }
+
+        if (resourcesResult.status === 'fulfilled') {
+          setResources(resourcesResult.value);
+        } else {
+          setResources(null);
+          failures.push(
+            managementLoadFailure('Kaynaklar', resourcesResult.reason),
+          );
+        }
+
+        if (solverResult.status === 'fulfilled') {
+          setSolverWorkspace(solverResult.value);
+        } else {
+          setSolverWorkspace(null);
+          failures.push(
+            managementLoadFailure('Öncelikler', solverResult.reason),
+          );
+        }
+
+        if (publicationPreviewResult.status === 'fulfilled') {
+          setPublicationPreview(publicationPreviewResult.value);
+        } else {
+          setPublicationPreview(null);
+          failures.push(
+            managementLoadFailure(
+              'Yayın önizleme',
+              publicationPreviewResult.reason,
+            ),
+          );
+        }
+
+        if (publicationGateResult.status === 'fulfilled') {
+          setPublicationGate(publicationGateResult.value);
+        } else {
+          setPublicationGate(null);
+          failures.push(
+            managementLoadFailure(
+              'Yayın güvenliği',
+              publicationGateResult.reason,
+            ),
+          );
+        }
 
         if (nextBoard) {
-          const nextCommandState = await fetchManagementCommandState(
-            session.accessToken,
-            nextBoard.revisionId,
-          );
-          if (active) setCommandState(nextCommandState);
+          try {
+            const nextCommandState = await fetchManagementCommandState(
+              session.accessToken,
+              nextBoard.revisionId,
+            );
+            if (active) setCommandState(nextCommandState);
+          } catch (reason: unknown) {
+            if (active) {
+              setCommandState({ undo: null, redo: null });
+              failures.push(
+                managementLoadFailure('Geri Al/Yinele', reason),
+              );
+            }
+          }
         } else {
           setCommandState({
             undo: null,
             redo: null,
           });
         }
+
+        if (!active) return;
+
+        setDataError(
+          failures.length > 0
+            ? `Bazı yönetim verileri yüklenemedi. ${failures.join(' · ')}`
+            : null,
+        );
       })
       .catch((reason: unknown) => {
+        // allSettled does not reject for child-load failures. This guard is
+        // only for an unexpected client/runtime failure.
         if (!active) return;
         setDataError(
-          reason instanceof Error
-            ? reason.message
-            : 'Taslak program verisi alınamadı.',
+          managementLoadFailure('Yönetim çalışma alanı', reason),
         );
       })
       .finally(() => {
