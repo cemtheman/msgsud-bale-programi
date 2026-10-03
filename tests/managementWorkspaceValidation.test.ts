@@ -407,4 +407,31 @@ describe('management workspace local validation v1', () => {
     expect(codes).toContain('MAX_BLOCKS_PER_DAY');
     expect(codes).toContain('MIN_DISTINCT_DAYS');
   });
+  it('allows temporary requirement incompleteness in edit mode but blocks it at commit', () => {
+    const source = {
+      ...baseSnapshot(),
+      requirements: baseSnapshot().requirements.map((requirement) => (
+        requirement.id === 'requirement-1'
+          ? { ...requirement, minDistinctDays: 2 }
+          : requirement
+      )),
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspacePlacementV1(copy, {
+      cardId: 'card-2',
+      dayOfWeek: null,
+      startPeriod: null,
+      teacherId: null,
+      roomId: null,
+    });
+
+    expect(validateManagementWorkspaceV1(source, copy, 'EDIT').issues
+      .map((issue) => issue.code))
+      .not.toContain('MIN_DISTINCT_DAYS');
+    expect(validateManagementWorkspaceV1(source, copy, 'COMMIT').issues
+      .map((issue) => issue.code))
+      .toContain('MIN_DISTINCT_DAYS');
+  });
+
 });
