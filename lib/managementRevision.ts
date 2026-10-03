@@ -35,7 +35,7 @@ async function loadLatestManagementDraftRevision(
   const { url, key } = getSupabaseConfig();
   const token = await getFreshManagementAccessToken(accessToken);
 
-  const response = await fetch(
+  const request = () => fetch(
     `${url}/rest/v1/schedule_revisions?select=id,requirement_set_id,version_number&status=eq.DRAFT&order=version_number.desc&limit=1`,
     {
       headers: {
@@ -45,6 +45,33 @@ async function loadLatestManagementDraftRevision(
       cache: 'no-store',
     },
   );
+
+  let response: Response;
+
+  try {
+    response = await request();
+  } catch (reason: unknown) {
+    const message = reason instanceof Error
+      ? reason.message.toLocaleLowerCase('tr-TR')
+      : '';
+    const transient = (
+      message.includes('load failed')
+      || message.includes('failed to fetch')
+      || message.includes('networkerror')
+      || message.includes('network error')
+      || message.includes('network request failed')
+    );
+
+    if (!transient) throw reason;
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    response = await request();
+  }
+
+  if (response.status === 522) {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    response = await request();
+  }
 
   if (!response.ok) {
     let message = 'Aktif taslak program bilgisi alınamadı.';
