@@ -5970,3 +5970,45 @@ Validation pending:
 - npm run build
 - browser reload
 - verify exact failing subsystem if any
+
+
+## 87. 3 Ekim 2026 — bounded management startup fan-out
+
+Observed after load-isolation diagnostics:
+- failed subsystems:
+  - Genel özet
+  - Program
+  - Ders Planı
+  - Kaynaklar
+  - Yayın önizleme
+- each failed with browser-level `Load failed`
+- lighter solver/publication-gate paths were not in the failure list
+
+Interpretation:
+- not a single table/RPC/schema failure
+- management startup was still launching all major modules at once
+- several modules internally issue large `Promise.all` REST batches
+- combined startup could create dozens of simultaneous requests
+- Safari/WebKit may surface connection saturation/transient fetch abort as
+  `Load failed`
+
+Fix:
+- Program board loads first and alone
+- then only the lighter reads run together:
+  - Genel özet
+  - Öncelikler
+  - Yayın güvenliği
+- heavy fan-out modules run sequentially:
+  - Ders Planı
+  - Kaynaklar
+  - Yayın önizleme
+- Geri Al/Yinele loads last
+- transient browser/network fetch failures get exactly one retry after 300 ms
+- only browser-network style failures are retried; HTTP/DB/application errors
+  remain immediate and visible
+- subsystem isolation from M40 diagnostic remains in place
+
+Implementation checkpoint:
+`f5e95125aabe5f2b809c227f8f821432f2ddbdb1`
+
+No DB migration.
