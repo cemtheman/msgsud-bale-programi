@@ -77,7 +77,7 @@ function applyPlacementState(
 
 function recordOperation(
   history: ManagementWorkspaceHistoryV1,
-  operation: Omit<ManagementWorkspaceOperationV1, 'sequence'>,
+  operation: Omit<ManagementWorkspaceOperationV1, 'sequence' | 'batchId'>,
 ) {
   const entry: ManagementWorkspaceOperationV1 = {
     sequence: history.nextSequence,
