@@ -1506,12 +1506,16 @@ export default function ManagementPage() {
     setSelectedCardIds(ids);
     setCommandNotice(null);
 
-    void retryManagementRead(
-      () => refreshManagementCardGroupCandidates(
-        session.accessToken,
-        ids,
-      ),
-    )
+    const prepareCandidates = ids.length === 1
+      ? Promise.resolve()
+      : retryManagementRead(
+        () => refreshManagementCardGroupCandidates(
+          session.accessToken,
+          ids,
+        ),
+      );
+
+    void prepareCandidates
       .then(() => Promise.all(
         ids.map(async (id) => [
           id,
@@ -1567,6 +1571,66 @@ export default function ManagementPage() {
       return false;
     }
 
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      localSnapshot
+      && localWorkingCopy
+      && localHistory
+      && serverBoard
+    ) {
+      const result = executeManagementWorkspaceCommandV1(
+        localSnapshot,
+        localWorkingCopy,
+        localHistory,
+        {
+          type: 'SET_PLACEMENT',
+          placement: {
+            cardId: commandCard.id,
+            dayOfWeek: candidate.dayOfWeek,
+            startPeriod: candidate.startPeriod,
+            teacherId: candidate.teacherId,
+            roomId: candidate.roomId,
+          },
+        },
+      );
+
+      if (!result.applied) {
+        setCommandNotice({
+          kind: 'error',
+          text: result.issues.length > 0
+            ? `Bu konum yerel çalışma alanında uygun değil: ${result.issues.map((issue) => issue.code).join(', ')}.`
+            : 'Bu konum yerel çalışma alanında uygun değil.',
+        });
+        return false;
+      }
+
+      setBoard(
+        projectManagementBoardFromWorkspaceV1(
+          serverBoard,
+          localWorkingCopy,
+        ),
+      );
+      setWorkspaceDirty(
+        diffManagementWorkspaceV1(
+          localSnapshot,
+          localWorkingCopy,
+        ).hasChanges,
+      );
+      setCandidateFocus(null);
+      setActiveDay(candidate.dayOfWeek);
+      setCommandNotice({
+        kind: 'success',
+        text: commandCard.placement
+          ? 'Kart yerel çalışma alanında yeni yerine taşındı. Henüz veritabanına yazılmadı.'
+          : 'Kart yerel çalışma alanında programa yerleştirildi. Henüz veritabanına yazılmadı.',
+      });
+      return true;
+    }
+
     setCommandBusy(true);
     setCommandActivity(
       commandCard.placement
@@ -1613,14 +1677,6 @@ export default function ManagementPage() {
   const runDropCandidates = async (
     moves: ManagementGroupDropCandidate[],
   ) => {
-    if (workspaceLocalSessionActive) {
-      setCommandNotice({
-        kind: 'info',
-        text: 'Yerel çalışma alanında kaydedilmemiş değişiklik var. Önce bu değişikliği geri alın veya çalışma alanını yenileyin.',
-      });
-      return false;
-    }
-
     if (!session || !access?.canEdit || !board || commandBusy || moves.length === 0) {
       return false;
     }
@@ -1641,6 +1697,14 @@ export default function ManagementPage() {
 
     if (commands.length === 1) {
       return runCandidateCommand(commands[0].candidate, commands[0].card);
+    }
+
+    if (workspaceLocalSessionActive) {
+      setCommandNotice({
+        kind: 'info',
+        text: 'Yerel çalışma alanında kaydedilmemiş değişiklik var. Birleşik ders işlemleri henüz local workspace’e taşınmadı.',
+      });
+      return false;
     }
 
     const placementStates = commands.map(({ card }) => Boolean(card.placement));
