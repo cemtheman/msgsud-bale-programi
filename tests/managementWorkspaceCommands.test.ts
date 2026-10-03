@@ -352,4 +352,33 @@ describe('management workspace command executor v1', () => {
     expect(history.undoStack).toHaveLength(1);
   });
 
+  it('allows edits that do not introduce new violations when baseline already has one', () => {
+    const source: ManagementWorkspaceSnapshotV1 = {
+      ...snapshot(),
+      teacherUnavailablePeriods: [
+        {
+          teacherId: 'teacher-1',
+          dayOfWeek: 1,
+          period: 1,
+        },
+      ],
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const result = executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      {
+        type: 'REMOVE_PLACEMENT',
+        cardId: 'card-2',
+      },
+    );
+
+    expect(result.applied).toBe(true);
+    expect(result.issues).toEqual([]);
+    expect(copy.placementsByCardId['card-2'].dayOfWeek).toBeNull();
+  });
+
 });
