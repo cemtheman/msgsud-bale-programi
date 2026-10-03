@@ -121,17 +121,36 @@ export function executeManagementWorkspaceCommandV1(
     throw reason;
   }
 
+  const currentValidation = validateManagementWorkspaceV1(
+    snapshot,
+    workingCopy,
+    'EDIT',
+  );
   const validation = validateManagementWorkspaceV1(
     snapshot,
     trialCopy,
     'EDIT',
   );
 
-  if (!validation.valid) {
+  const issueKey = (issue: ManagementWorkspaceValidationIssueV1) => [
+    issue.code,
+    issue.requirementId ?? '',
+    issue.dayOfWeek ?? '',
+    [...issue.cardIds].sort((left, right) => left.localeCompare(right)).join(','),
+  ].join('|');
+
+  const currentIssueKeys = new Set(
+    currentValidation.issues.map(issueKey),
+  );
+  const introducedIssues = validation.issues.filter(
+    (issue) => !currentIssueKeys.has(issueKey(issue)),
+  );
+
+  if (introducedIssues.length > 0) {
     return {
       applied: false,
       operation: null,
-      issues: validation.issues,
+      issues: introducedIssues,
     };
   }
 
