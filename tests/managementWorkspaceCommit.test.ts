@@ -208,4 +208,46 @@ describe('management workspace commit v1', () => {
     expect(prepared.issues.map((issue) => issue.code))
       .toContain('TEACHER_CONFLICT');
   });
+  it('allows commit when only inherited baseline issues remain unchanged', () => {
+    const source: ManagementWorkspaceSnapshotV1 = {
+      ...snapshot(),
+      teacherPools: [],
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspacePlacementV1(copy, {
+      cardId: 'card-b',
+      dayOfWeek: 2,
+      startPeriod: 3,
+      teacherId: 'teacher-1',
+      roomId: 'room-1',
+    });
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(true);
+    expect(prepared.issues).toEqual([]);
+    expect(prepared.payload?.changes.map((change) => change.card_id))
+      .toEqual(['card-b']);
+  });
+
+  it('still blocks commit when the local edit introduces a new hard issue', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspacePlacementV1(copy, {
+      cardId: 'card-b',
+      dayOfWeek: 1,
+      startPeriod: 1,
+      teacherId: 'teacher-1',
+      roomId: 'room-1',
+    });
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(false);
+    expect(prepared.issues.map((issue) => issue.code))
+      .toContain('TEACHER_CONFLICT');
+  });
+
 });
