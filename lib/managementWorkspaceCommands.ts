@@ -67,6 +67,7 @@ function cloneHistory(
 ): ManagementWorkspaceHistoryV1 {
   return {
     nextSequence: source.nextSequence,
+    nextBatchId: source.nextBatchId,
     undoStack: source.undoStack.map((entry) => ({
       ...entry,
       before: { ...entry.before },
@@ -228,9 +229,15 @@ export function executeManagementWorkspaceCommandsV1(
     };
   }
 
+  const batchId = history.nextBatchId;
+  history.nextBatchId += 1;
+
   const operations = commands.map((command) =>
     applyCommand(workingCopy, history, command),
   );
+  operations.forEach((operation) => {
+    operation.batchId = batchId;
+  });
 
   return {
     applied: true,
@@ -251,6 +258,7 @@ export function resetManagementWorkspaceWorkingCopyV1(
   target.placementsByCardId = clean.placementsByCardId;
 
   history.nextSequence = 1;
+  history.nextBatchId = 1;
   history.undoStack = [];
   history.redoStack = [];
 }
