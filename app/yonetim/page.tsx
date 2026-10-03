@@ -249,6 +249,36 @@ function PartisyonBrand({
 }
 
 
+function isTransientManagementReadError(reason: unknown) {
+  if (!(reason instanceof Error)) return false;
+
+  const message = reason.message.trim().toLocaleLowerCase('tr-TR');
+  return (
+    message === 'load failed'
+    || message.includes('failed to fetch')
+    || message.includes('networkerror')
+    || message.includes('network error')
+    || message.includes('network request failed')
+    || message.includes('network connection was lost')
+    || message.includes('status code: 522')
+  );
+}
+
+async function retryManagementRead<T>(
+  load: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await load();
+  } catch (reason: unknown) {
+    if (!isTransientManagementReadError(reason)) {
+      throw reason;
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+    return load();
+  }
+}
+
 function actionNoun(action: ManagementRootAction) {
   if (action === 'PLACE') return 'yerleştirmesi';
   if (action === 'MOVE') return 'taşıması';
@@ -936,7 +966,9 @@ export default function ManagementPage() {
     cardId: string,
     sourceBoard: ManagementBoardData | null = board,
   ) => {
-    const detail = await fetchManagementCardCandidates(accessToken, cardId);
+    const detail = await retryManagementRead(
+      () => fetchManagementCardCandidates(accessToken, cardId),
+    );
     const card = sourceBoard?.cards.find((item) => item.id === cardId) ?? null;
     return card
       ? applyManagementTeacherPolicyToCandidateDetail(
@@ -1403,14 +1435,18 @@ export default function ManagementPage() {
     setSelectedCardIds(ids);
     setCommandNotice(null);
 
-    void refreshManagementCardGroupCandidates(
-      session.accessToken,
-      ids,
+    void retryManagementRead(
+      () => refreshManagementCardGroupCandidates(
+        session.accessToken,
+        ids,
+      ),
     )
       .then(() => Promise.all(
         ids.map(async (id) => [
           id,
-          await fetchPolicyAwareCandidates(session.accessToken, id),
+          await retryManagementRead(
+            () => fetchPolicyAwareCandidates(session.accessToken, id),
+          ),
         ] as const),
       ))
       .then((entries) => {
@@ -1658,7 +1694,9 @@ export default function ManagementPage() {
       const details = await Promise.all(
         selectedCardIds.map(async (cardId) => ({
           cardId,
-          detail: await fetchPolicyAwareCandidates(session.accessToken, cardId, board),
+          detail: await retryManagementRead(
+            () => fetchPolicyAwareCandidates(session.accessToken, cardId, board),
+          ),
         })),
       );
 
