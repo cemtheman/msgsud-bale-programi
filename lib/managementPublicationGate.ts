@@ -1,6 +1,7 @@
 'use client';
 
 import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+import { fetchLatestManagementDraftRevision } from '@/lib/managementRevision';
 
 export type ManagementPublicationBlockReason =
   | 'PUBLICATION_CONTROL_MISSING'
@@ -55,10 +56,6 @@ export interface ManagementPublicationGateData {
   baseline: ManagementPublicationBaseline;
   runtimeAdjustmentsReconciled: boolean;
   stateToken: string;
-}
-
-interface RevisionRow {
-  id: string;
 }
 
 function getSupabaseConfig() {
@@ -118,12 +115,7 @@ async function authedGet<T>(
 export async function fetchManagementPublicationGate(
   accessToken: string,
 ): Promise<ManagementPublicationGateData | null> {
-  const revisions = await authedGet<RevisionRow[]>(
-    'schedule_revisions?select=id&status=eq.DRAFT&order=version_number.desc&limit=1',
-    accessToken,
-  );
-
-  const revision = revisions[0];
+  const revision = await fetchLatestManagementDraftRevision(accessToken);
   if (!revision) return null;
 
   const { url, key } = getSupabaseConfig();
