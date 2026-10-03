@@ -5,6 +5,7 @@ import type {
   ManagementWorkspaceSnapshotV1,
 } from '@/lib/managementWorkspace';
 import {
+  createManagementWorkspaceWorkingCopyV1,
   diffManagementWorkspaceV1,
   type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
@@ -70,16 +71,36 @@ export function prepareManagementWorkspaceCommitV1(
   snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
 ): ManagementWorkspaceCommitPreparationV1 {
+  const baselineCopy = createManagementWorkspaceWorkingCopyV1(snapshot);
+  const baselineValidation = validateManagementWorkspaceV1(
+    snapshot,
+    baselineCopy,
+    'COMMIT',
+  );
   const validation = validateManagementWorkspaceV1(
     snapshot,
     workingCopy,
     'COMMIT',
   );
 
-  if (!validation.valid) {
+  const issueKey = (issue: ManagementWorkspaceValidationIssueV1) => [
+    issue.code,
+    issue.requirementId ?? '',
+    issue.dayOfWeek ?? '',
+    [...issue.cardIds].sort((left, right) => left.localeCompare(right)).join(','),
+  ].join('|');
+
+  const baselineIssueKeys = new Set(
+    baselineValidation.issues.map(issueKey),
+  );
+  const introducedIssues = validation.issues.filter(
+    (issue) => !baselineIssueKeys.has(issueKey(issue)),
+  );
+
+  if (introducedIssues.length > 0) {
     return {
       ready: false,
-      issues: validation.issues,
+      issues: introducedIssues,
       payload: null,
     };
   }
