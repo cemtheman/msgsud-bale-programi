@@ -2464,3 +2464,25 @@ UI diagnostic added:
 - Program Kontrolü now renders each hard blocker with Turkish label + count
 - no DB semantics changed
 - next browser refresh should identify the actual blocker before any corrective migration is written
+
+
+### 3 Oct — management load isolation
+
+Observed browser failure:
+`Load failed` caused the entire Program workbench to render empty because all
+startup reads were coupled in one `Promise.all`.
+
+Fix checkpoint:
+`89c93c0b96b4deb221a87db5cf497dcfe0bebb98`
+
+New invariant:
+- startup reads are independent through `Promise.allSettled`
+- one optional module failure no longer erases Program board data
+- board failure itself clears board to avoid stale schedule display
+- error banner names the failing subsystem
+- Safari raw `Load failed` becomes a Turkish network/server connection message
+- no DB migration
+
+Next:
+pull, test/build, reload browser and use the labeled error to identify any
+remaining backend/network failure.
