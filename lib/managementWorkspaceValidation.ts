@@ -33,6 +33,8 @@ export interface ManagementWorkspaceValidationIssueV1 {
   dayOfWeek: number | null;
 }
 
+export type ManagementWorkspaceValidationModeV1 = 'EDIT' | 'COMMIT';
+
 export interface ManagementWorkspaceValidationResultV1 {
   valid: boolean;
   issues: ManagementWorkspaceValidationIssueV1[];
@@ -191,6 +193,7 @@ function pushIssue(
 export function validateManagementWorkspaceV1(
   snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
+  mode: ManagementWorkspaceValidationModeV1 = 'COMMIT',
 ): ManagementWorkspaceValidationResultV1 {
   const issues: ManagementWorkspaceValidationIssueV1[] = [];
   const requirements = new Map(
@@ -573,7 +576,7 @@ export function validateManagementWorkspaceV1(
       });
     }
 
-    if (requirement.minDistinctDays !== null) {
+    if (mode === 'COMMIT' && requirement.minDistinctDays !== null) {
       const distinctDays = new Set(
         requirementPlacements.map((item) => item.placement.dayOfWeek),
       );
