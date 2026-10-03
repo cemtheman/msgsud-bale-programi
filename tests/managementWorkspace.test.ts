@@ -4,7 +4,10 @@ import {
   createManagementWorkspaceSnapshotV1,
   MANAGEMENT_WORKSPACE_SNAPSHOT_SCHEMA_VERSION,
 } from '@/lib/managementWorkspace';
-import type { ManagementSolverSnapshotPreview } from '@/lib/managementSolver';
+import type {
+  ManagementSolverCard,
+  ManagementSolverSnapshotPreview,
+} from '@/lib/managementSolver';
 
 function preview(): ManagementSolverSnapshotPreview {
   return {
@@ -188,7 +191,7 @@ describe('management workspace snapshot v1', () => {
     expect(Object.isFrozen(snapshot.cards[0])).toBe(true);
 
     expect(() => {
-      snapshot.cards.push({
+      (snapshot.cards as ManagementSolverCard[]).push({
         id: 'card-2',
         requirementId: 'requirement-1',
         blockIndex: 2,
