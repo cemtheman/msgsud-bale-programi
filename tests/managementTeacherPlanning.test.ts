@@ -1,19 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MANAGEMENT_TEACHER_LOAD_DEFAULTS,
   validateManagementTeacherLoadTargets,
   validateManagementTeacherUnavailablePeriods,
 } from '@/lib/managementResources';
 
 describe('management teacher planning inputs', () => {
-  it('uses the approved 1 / 10 / 20 teacher load defaults', () => {
-    expect(MANAGEMENT_TEACHER_LOAD_DEFAULTS).toEqual({
-      minimumLoad: 1,
-      targetLoad: 10,
-      maximumLoad: 20,
-    });
-  });
-
   it('accepts empty and partial load targets', () => {
     expect(validateManagementTeacherLoadTargets({
       minimumLoad: null,

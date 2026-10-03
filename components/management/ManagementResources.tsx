@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import {
-  MANAGEMENT_TEACHER_LOAD_DEFAULTS,
   validateManagementTeacherLoadTargets,
   validateManagementTeacherUnavailablePeriods,
   type ManagementResourceInventoryData,
@@ -292,28 +291,14 @@ export function ManagementResources({
   const openTeacherLoadEditor = (row: ManagementTeacherResourceRow) => {
     setTeacherLoadTarget(row);
     setTeacherPlanningTab('LOAD');
-
-    const useDefaults = row.loadRelevant && !row.loadConfigured;
     setTeacherMinimumLoad(
-      useDefaults
-        ? String(MANAGEMENT_TEACHER_LOAD_DEFAULTS.minimumLoad)
-        : row.minimumLoad === null
-          ? ''
-          : String(row.minimumLoad),
+      row.minimumLoad === null ? '' : String(row.minimumLoad),
     );
     setTeacherTargetLoad(
-      useDefaults
-        ? String(MANAGEMENT_TEACHER_LOAD_DEFAULTS.targetLoad)
-        : row.targetLoad === null
-          ? ''
-          : String(row.targetLoad),
+      row.targetLoad === null ? '' : String(row.targetLoad),
     );
     setTeacherMaximumLoad(
-      useDefaults
-        ? String(MANAGEMENT_TEACHER_LOAD_DEFAULTS.maximumLoad)
-        : row.maximumLoad === null
-          ? ''
-          : String(row.maximumLoad),
+      row.maximumLoad === null ? '' : String(row.maximumLoad),
     );
     setTeacherUnavailablePeriods([...row.unavailablePeriods]);
     setTeacherLoadError(null);
@@ -1005,12 +990,8 @@ export function ManagementResources({
     (row) => row.placedBlockCount > 0,
   ).length;
 
-  const relevantTeacherLoadCount = visibleTeachers.filter(
-    (row) => row.loadRelevant,
-  ).length;
-
-  const readyTeacherLoadCount = visibleTeachers.filter(
-    (row) => row.loadRelevant && row.loadTargetReady,
+  const configuredTeacherLoadCount = visibleTeachers.filter(
+    (row) => row.loadConfigured,
   ).length;
 
   const configuredTeacherAvailabilityCount = visibleTeachers.filter(
@@ -1167,10 +1148,10 @@ export function ManagementResources({
                 <div className="mt-2 flex items-end gap-5">
                   <div>
                     <p className="text-2xl font-black text-slate-900">
-                      {readyTeacherLoadCount}/{relevantTeacherLoadCount}
+                      {configuredTeacherLoadCount}
                     </p>
                     <p className="text-[10px] font-bold text-slate-400">
-                      yük hedefi hazır
+                      yük hedefi
                     </p>
                   </div>
                   <div>
@@ -1262,26 +1243,7 @@ export function ManagementResources({
                               Yük hedefi tanımsız
                             </span>
                           )}
-                          {row.loadRelevant && (
-                            <p className={`mt-1 text-[9px] font-semibold ${
-                              !row.loadTargetReady
-                                ? 'text-amber-700'
-                                : row.belowMinimumBy > 0 || row.aboveMaximumBy > 0
-                                  ? 'text-rose-600'
-                                  : 'text-emerald-600'
-                            }`}>
-                              {!row.loadTargetReady
-                                ? 'Yük dengesi için hedef gerekli'
-                                : row.belowMinimumBy > 0
-                                  ? `En az yükün ${row.belowMinimumBy} saat altında`
-                                  : row.aboveMaximumBy > 0
-                                    ? `En fazla yükün ${row.aboveMaximumBy} saat üstünde`
-                                    : row.targetDeviationPeriods === 0
-                                      ? 'Hedef yükte'
-                                      : `Hedeften ${row.targetDeviationPeriods ?? 0} saat sapma`}
-                            </p>
-                          )}
-                                                    <p className={`mt-1 text-[9px] font-semibold ${
+                          <p className={`mt-1 text-[9px] font-semibold ${
                             row.availabilityConfigured
                               ? 'text-rose-600'
                               : 'text-slate-400'
@@ -2335,9 +2297,8 @@ export function ManagementResources({
                   {teacherLoadTarget.name}
                 </h3>
                 <p className="mt-1 max-w-[620px] text-[11px] font-medium leading-5 text-slate-500">
-                  Hedef yük, öğretmen yük dengesi tercihinde kullanılır; en az ve en fazla
-                  değerleri yumuşak planlama bandıdır. Uygun olmadığı saatler ise yeni ders
-                  atamalarını engeller.
+                  Ders yükü hedefleri planlama amaçlıdır. Öğretmenin uygun olmadığı saatleri
+                  işaretleyerek bu saatlere yeni ders atanmasını engelleyebilirsiniz.
                 </p>
               </div>
               <button
@@ -2475,10 +2436,8 @@ export function ManagementResources({
                 </div>
 
                 <p className="mt-3 text-[10px] font-medium leading-5 text-slate-500">
-                  En az ve en fazla isteğe bağlıdır; En az ≤ hedef ≤ en fazla olmalıdır.
-                  Yeni ve tanımsız planlama kayıtları 1 / 10 / 20 ile başlar. Öğretmen yük
-                  dengesi tercihini kullanmak için bu dönem planlamaya katılan her öğretmende
-                  Hedef değeri gerekir. Bu değerler zorunlu yerleştirme kuralı değildir.
+                  Alanları boş bırakabilirsiniz. En az ≤ hedef ≤ en fazla olmalıdır.
+                  Bu değerler şimdilik yalnızca planlama bilgisidir; otomatik yerleştirmeyi etkilemez.
                 </p>
               </>
             ) : (

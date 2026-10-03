@@ -374,49 +374,6 @@ function commandContextLabel(
   return `${audience} ${card.subjectName} ${actionNoun(descriptor.action)}${placementContext ? ` · ${placementContext}` : ''}`;
 }
 
-function managementLoadFailure(
-  label: string,
-  reason: unknown,
-) {
-  const raw = reason instanceof Error
-    ? reason.message.trim()
-    : '';
-
-  const detail = !raw || raw.toLocaleLowerCase('tr-TR') === 'load failed'
-    ? 'ağ veya sunucu bağlantısı kurulamadı'
-    : raw;
-
-  return `${label}: ${detail}`;
-}
-
-function isTransientManagementLoadFailure(reason: unknown) {
-  if (!(reason instanceof Error)) return false;
-
-  const message = reason.message.trim().toLocaleLowerCase('tr-TR');
-  return (
-    message === 'load failed'
-    || message.includes('failed to fetch')
-    || message.includes('networkerror')
-    || message.includes('network request failed')
-    || message.includes('network connection was lost')
-  );
-}
-
-async function withManagementLoadRetry<T>(
-  load: () => Promise<T>,
-): Promise<T> {
-  try {
-    return await load();
-  } catch (reason: unknown) {
-    if (!isTransientManagementLoadFailure(reason)) {
-      throw reason;
-    }
-
-    await new Promise((resolve) => window.setTimeout(resolve, 300));
-    return load();
-  }
-}
-
 function completedCommandMessage(
   descriptor: ManagementCommandDescriptor | null,
   board: ManagementBoardData | null,
@@ -537,15 +494,9 @@ export default function ManagementPage() {
     useState<ManagementPublicationPreviewData | null>(null);
   const [publicationGate, setPublicationGate] =
     useState<ManagementPublicationGateData | null>(null);
-  const [coreDataError, setCoreDataError] = useState<string | null>(null);
-  const [sectionDataError, setSectionDataError] = useState<string | null>(null);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
-
-  const dataError = [
-    coreDataError,
-    sectionDataError,
-  ].filter(Boolean).join(' · ') || null;
 
   const [activeSection, setActiveSection] =
     useState<'PROGRAM' | 'PLAN' | 'RESOURCES' | 'SOLVER' | 'STATUS'>('PROGRAM');
@@ -697,82 +648,60 @@ export default function ManagementPage() {
       setSolverWorkspace(null);
       setPublicationPreview(null);
       setPublicationGate(null);
-      setCommandState({ undo: null, redo: null });
-      setCoreDataError(null);
-      setSectionDataError(null);
       return;
     }
 
     let active = true;
     setDataLoading(true);
-    setCoreDataError(null);
-    setSectionDataError(null);
+    setDataError(null);
 
-    // Never leave stale data from a previous refresh visible while the
-    // canonical Program board is being reloaded.
-    setOverview(null);
-    setBoard(null);
-    setCoursePlan(null);
-    setResources(null);
-    setSolverWorkspace(null);
-    setPublicationPreview(null);
-    setPublicationGate(null);
-    setCommandState({ undo: null, redo: null });
+    Promise.all([
+      fetchManagementOverview(session.accessToken),
+      fetchManagementBoard(session.accessToken),
+      fetchManagementCoursePlan(session.accessToken),
+      fetchManagementResources(session.accessToken),
+      fetchLatestManagementSolverWorkspace(session.accessToken),
+      fetchManagementPublicationPreview(session.accessToken),
+      fetchManagementPublicationGate(session.accessToken),
+    ])
+      .then(async ([
+        nextOverview,
+        nextBoard,
+        nextCoursePlan,
+        nextResources,
+        nextSolverWorkspace,
+        nextPublicationPreview,
+        nextPublicationGate,
+      ]) => {
+        if (!active) return;
 
-    void (async () => {
-      const failures: string[] = [];
-      let nextBoard: ManagementBoardData | null = null;
+        setOverview(nextOverview);
+        setBoard(nextBoard);
+        setCoursePlan(nextCoursePlan);
+        setResources(nextResources);
+        setSolverWorkspace(nextSolverWorkspace);
+        setPublicationPreview(nextPublicationPreview);
+        setPublicationGate(nextPublicationGate);
 
-      try {
-        nextBoard = await withManagementLoadRetry(
-          () => fetchManagementBoard(session.accessToken),
-        );
-        if (active) setBoard(nextBoard);
-      } catch (reason: unknown) {
-        failures.push(managementLoadFailure('Program', reason));
-      }
-
-      if (!active) return;
-
-      try {
-        const nextOverview = await withManagementLoadRetry(
-          () => fetchManagementOverview(session.accessToken),
-        );
-        if (active) setOverview(nextOverview);
-      } catch (reason: unknown) {
-        failures.push(managementLoadFailure('Genel özet', reason));
-      }
-
-      if (!active) return;
-
-      if (nextBoard) {
-        try {
-          const nextCommandState = await withManagementLoadRetry(
-            () => fetchManagementCommandState(
-              session.accessToken,
-              nextBoard.revisionId,
-            ),
+        if (nextBoard) {
+          const nextCommandState = await fetchManagementCommandState(
+            session.accessToken,
+            nextBoard.revisionId,
           );
           if (active) setCommandState(nextCommandState);
-        } catch (reason: unknown) {
-          failures.push(
-            managementLoadFailure('Geri Al/Yinele', reason),
-          );
+        } else {
+          setCommandState({
+            undo: null,
+            redo: null,
+          });
         }
-      }
-
-      if (!active) return;
-
-      setCoreDataError(
-        failures.length > 0
-          ? `Temel yönetim verileri yüklenemedi. ${failures.join(' · ')}`
-          : null,
-      );
-    })()
+      })
       .catch((reason: unknown) => {
         if (!active) return;
-        setCoreDataError(
-          managementLoadFailure('Yönetim çalışma alanı', reason),
+        setDataError(
+          reason instanceof Error
+            ? reason.message
+            : 'Taslak program verisi alınamadı.',
         );
       })
       .finally(() => {
@@ -783,121 +712,6 @@ export default function ManagementPage() {
       active = false;
     };
   }, [refreshToken, session, status]);
-
-  useEffect(() => {
-    if (
-      status !== 'ready'
-      || !session
-      || !board
-      || dataLoading
-    ) {
-      return;
-    }
-
-    const accessToken = session.accessToken;
-    let active = true;
-    setSectionDataError(null);
-
-    async function loadOptionalSection() {
-      const failures: string[] = [];
-
-      async function loadOne<T>(
-        label: string,
-        load: () => Promise<T>,
-        apply: (value: T) => void,
-        clear: () => void,
-      ) {
-        try {
-          const value = await withManagementLoadRetry(load);
-          if (active) apply(value);
-        } catch (reason: unknown) {
-          if (!active) return;
-          clear();
-          failures.push(managementLoadFailure(label, reason));
-        }
-      }
-
-      if (activeSection === 'PLAN') {
-        await loadOne(
-          'Ders Planı',
-          () => fetchManagementCoursePlan(accessToken),
-          setCoursePlan,
-          () => setCoursePlan(null),
-        );
-      } else if (activeSection === 'RESOURCES') {
-        await loadOne(
-          'Kaynaklar',
-          () => fetchManagementResources(accessToken),
-          setResources,
-          () => setResources(null),
-        );
-      } else if (activeSection === 'SOLVER') {
-        await loadOne(
-          'Öncelikler',
-          () => fetchLatestManagementSolverWorkspace(accessToken),
-          setSolverWorkspace,
-          () => setSolverWorkspace(null),
-        );
-      } else if (activeSection === 'STATUS') {
-        await loadOne(
-          'Ders Planı',
-          () => fetchManagementCoursePlan(accessToken),
-          setCoursePlan,
-          () => setCoursePlan(null),
-        );
-
-        if (!active) return;
-
-        await loadOne(
-          'Yayın önizleme',
-          () => fetchManagementPublicationPreview(accessToken),
-          setPublicationPreview,
-          () => setPublicationPreview(null),
-        );
-
-        if (!active) return;
-
-        await loadOne(
-          'Yayın güvenliği',
-          () => fetchManagementPublicationGate(accessToken),
-          setPublicationGate,
-          () => setPublicationGate(null),
-        );
-      } else if (activeSection === 'PROGRAM' && inspectorOpen) {
-        // Program drag/drop does not need Course Plan data. Only fetch the
-        // richer teacher/room editor payload when the inspector is actually
-        // opened.
-        await loadOne(
-          'Ders Planı',
-          () => fetchManagementCoursePlan(accessToken),
-          setCoursePlan,
-          () => setCoursePlan(null),
-        );
-      }
-
-      if (!active) return;
-
-      setSectionDataError(
-        failures.length > 0
-          ? `Bu bölümün bazı verileri yüklenemedi. ${failures.join(' · ')}`
-          : null,
-      );
-    }
-
-    void loadOptionalSection();
-
-    return () => {
-      active = false;
-    };
-  }, [
-    activeSection,
-    board,
-    dataLoading,
-    inspectorOpen,
-    refreshToken,
-    session,
-    status,
-  ]);
 
   const visibleCards = useMemo(
     () => board?.cards.filter(
@@ -1586,18 +1400,14 @@ export default function ManagementPage() {
     setSelectedCardIds(ids);
     setCommandNotice(null);
 
-    void withManagementLoadRetry(
-      () => refreshManagementCardGroupCandidates(
-        session.accessToken,
-        ids,
-      ),
+    void refreshManagementCardGroupCandidates(
+      session.accessToken,
+      ids,
     )
       .then(() => Promise.all(
         ids.map(async (id) => [
           id,
-          await withManagementLoadRetry(
-            () => fetchPolicyAwareCandidates(session.accessToken, id),
-          ),
+          await fetchPolicyAwareCandidates(session.accessToken, id),
         ] as const),
       ))
       .then((entries) => {
@@ -3676,8 +3486,8 @@ export default function ManagementPage() {
               setCommandNotice({
                 kind: 'success',
                 text: result.configured
-                  ? `Öğretmen yük hedefleri ${label} olarak kaydedildi. Program ve yayın değişmedi; optimizasyon hazırlığı güncellendi.`
-                  : 'Öğretmen yük hedefleri temizlendi. Program ve yayın değişmedi; optimizasyon hazırlığı güncellendi.',
+                  ? `Öğretmen yük hedefleri ${label} olarak kaydedildi. Program ve yayın değişmedi.`
+                  : 'Öğretmen yük hedefleri temizlendi. Program ve yayın değişmedi.',
               });
               setRefreshToken((value) => value + 1);
             } finally {

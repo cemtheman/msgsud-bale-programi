@@ -57,7 +57,7 @@ export function prepareManagementSolverProposalApply(
     reasons.push('NO_CHANGED_PLACEMENTS');
   }
 
-  // M26.8 bundle RPC contract is 1..24 cards. M40-v1 currently
+  // M26.8 bundle RPC contract is 1..24 cards. M33.3-v0 currently
   // accepts at most eight local-improvement moves, so exceeding this
   // limit indicates that the proposal/apply contracts drifted apart.
   if (items.length > 24) {

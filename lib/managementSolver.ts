@@ -68,8 +68,6 @@ export interface ManagementSolverBaselineMetrics {
   preferredTeacherContinuityBreaks: number;
   teacherIdleGapPeriods: number;
   roomStabilityBreaks: number;
-  teacherLoadTargetDeviationPeriods?: number;
-  teacherLoadRangeViolationPeriods?: number;
 }
 
 export interface ManagementSolverRequirement {
@@ -140,28 +138,6 @@ export interface ManagementSolverTeacherUnavailablePeriod {
   period: number;
 }
 
-export interface ManagementSolverTeacherLoadTarget {
-  teacherId: string;
-  minimumLoad: number | null;
-  targetLoad: number | null;
-  maximumLoad: number | null;
-  actualLoadPeriods: number;
-  relevant: boolean;
-}
-
-export interface ManagementSolverTeacherLoadReadiness {
-  ready: boolean;
-  relevantTeacherCount: number;
-  configuredTeacherCount: number;
-  targetConfiguredTeacherCount: number;
-  missingTargetTeacherCount: number;
-  partialTeacherCount: number;
-  baselineBelowMinimumTeacherCount: number;
-  baselineAboveMaximumTeacherCount: number;
-  baselineTargetDeviationPeriods: number;
-  baselineRangeViolationPeriods: number;
-}
-
 export interface ManagementSolverRoom {
   id: string;
   name: string;
@@ -206,8 +182,6 @@ export interface ManagementSolverSnapshotPreview {
   roomPools: ManagementSolverRoomPoolEntry[];
   teachers: ManagementSolverTeacher[];
   teacherUnavailablePeriods?: ManagementSolverTeacherUnavailablePeriod[];
-  teacherLoadTargets?: ManagementSolverTeacherLoadTarget[];
-  teacherLoadReadiness?: ManagementSolverTeacherLoadReadiness;
   rooms: ManagementSolverRoom[];
   baselinePlacements: ManagementSolverBaselinePlacement[];
   baselineMetrics: ManagementSolverBaselineMetrics;
@@ -229,7 +203,6 @@ export interface ManagementSolverSnapshotPreview {
     provisionalInputs?: ManagementSolverProvisionalInput[];
     resourceUnknownSemantics?: string;
     missingOptionalModelInputs: string[];
-    teacherLoadReadiness?: ManagementSolverTeacherLoadReadiness;
     objectiveProfileValidation: ManagementSolverObjectiveValidation;
   };
 }
@@ -277,10 +250,6 @@ function translateSolverError(message: string, fallback: string) {
 
   if (normalized.includes('active objective profile requires at least one positive')) {
     return 'Etkin profil için en az bir hedefe Kapalı dışında bir öncelik verin.';
-  }
-
-  if (normalized.includes('m40 teacher load objective requires complete target loads')) {
-    return 'Öğretmen yük dengesi için planlamaya katılan tüm öğretmenlerde Hedef yük tanımlayın.';
   }
 
   if (normalized.includes('unsupported objective')) {
