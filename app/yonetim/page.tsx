@@ -1351,20 +1351,23 @@ export default function ManagementPage() {
       );
       const nextPlans: ManagementPlacementAssistantPlan[] = [];
 
-      // Deliberately sequential: each refresh can be expensive and later
-      // M32 phases may add many more pool cards. Avoid a database fan-out.
+      // Assistant analysis is read-only. Candidate domains are maintained by
+      // the placement/remove/resource flows themselves; forcing a fresh domain
+      // rebuild here made a simple comparison screen depend on an expensive
+      // write-heavy RPC and could hit statement timeout. Read the current
+      // persisted candidate snapshot instead. The selected option is still
+      // revalidated before any placement write.
       for (const group of analyzableGroups) {
-        await retryManagementRead(
-          () => refreshManagementCardGroupCandidates(
-            session.accessToken,
-            group.cardIds,
-          ),
-        );
-
         const entries = await Promise.all(
           group.cardIds.map(async (cardId) => [
             cardId,
-            await fetchPolicyAwareCandidates(session.accessToken, cardId, freshBoard),
+            await retryManagementRead(
+              () => fetchPolicyAwareCandidates(
+                session.accessToken,
+                cardId,
+                freshBoard,
+              ),
+            ),
           ] as const),
         );
 
