@@ -2556,3 +2556,26 @@ Then push it, verify migration parity, and smoke:
 Program load → drag/drop → undo → redo.
 
 Do not resume M40 until this baseline is accepted.
+
+
+## 37. Program interaction recovery — PASS
+
+Accepted browser smoke in Firefox:
+- drag/drop to another slot PASS
+- remove to pool PASS
+- undo PASS
+- redo PASS
+
+Accepted implementation checkpoint:
+`290debd16199b141d73ac811f5bfea0286025194`
+
+Network context:
+- Safari still shows browser-level `Load failed` against Supabase
+- Firefox works, but intermittent Supabase/Cloudflare 522 was observed
+- CORS console messages accompanying 522 are secondary symptoms
+- no write RPC receives automatic retry
+
+Separate remaining issue:
+`management_preview_candidate_forward_impacts` can return HTTP 500 in
+Yerleştirme Asistanı. Treat it as an isolated follow-up; preserve the now
+accepted Program interaction path.
