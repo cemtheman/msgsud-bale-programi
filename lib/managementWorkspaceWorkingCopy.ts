@@ -206,7 +206,8 @@ export function diffManagementWorkspaceV1(
     .filter(
       (change): change is ManagementWorkspacePlacementChangeV1 =>
         change !== null,
-    );
+    )
+    .sort((left, right) => left.cardId.localeCompare(right.cardId));
 
   const dirtyCardIds = placementChanges
     .map((change) => change.cardId)
