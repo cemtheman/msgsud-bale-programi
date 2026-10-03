@@ -24,43 +24,45 @@ export const MANAGEMENT_WORKSPACE_SNAPSHOT_SCHEMA_VERSION =
   'management-workspace-v1' as const;
 
 export interface ManagementWorkspaceSnapshotIdentityV1 {
-  revisionId: string;
-  requirementSetId: string;
-  revisionVersion: number;
-  academicYear: string;
-  term: number;
-  snapshotHash: string;
-  baselineHash: string;
+  readonly revisionId: string;
+  readonly requirementSetId: string;
+  readonly revisionVersion: number;
+  readonly academicYear: string;
+  readonly term: number;
+  readonly snapshotHash: string;
+  readonly baselineHash: string;
 }
 
 export interface ManagementWorkspaceSnapshotReadinessV1 {
-  hardInputReady: boolean;
-  hardBlockers: ManagementSolverReadinessBlocker[];
-  provisionalInputs: ManagementSolverProvisionalInput[];
-  resourceUnknownSemantics: string | null;
-  missingOptionalModelInputs: string[];
+  readonly hardInputReady: boolean;
+  readonly hardBlockers: readonly ManagementSolverReadinessBlocker[];
+  readonly provisionalInputs: readonly ManagementSolverProvisionalInput[];
+  readonly resourceUnknownSemantics: string | null;
+  readonly missingOptionalModelInputs: readonly string[];
 }
 
 export interface ManagementWorkspaceSnapshotV1 {
-  schemaVersion: typeof MANAGEMENT_WORKSPACE_SNAPSHOT_SCHEMA_VERSION;
-  sourceSnapshotVersion: string;
-  identity: ManagementWorkspaceSnapshotIdentityV1;
-  hardConstraintContract: ManagementSolverHardConstraintContract;
-  requirements: ManagementSolverRequirement[];
-  cards: ManagementSolverCard[];
-  instructionalGroups: ManagementSolverInstructionalGroup[];
-  instructionalGroupRelations: ManagementSolverInstructionalGroupRelation[];
-  teacherPools: ManagementSolverTeacherPoolEntry[];
-  roomPools: ManagementSolverRoomPoolEntry[];
-  teachers: ManagementSolverTeacher[];
-  teacherUnavailablePeriods: ManagementSolverTeacherUnavailablePeriod[];
-  rooms: ManagementSolverRoom[];
-  baselinePlacements: ManagementSolverBaselinePlacement[];
-  baselineMetrics: ManagementSolverBaselineMetrics;
-  readiness: ManagementWorkspaceSnapshotReadinessV1;
-  candidateDomain: {
-    included: boolean;
-    omissionReason: string;
+  readonly schemaVersion: typeof MANAGEMENT_WORKSPACE_SNAPSHOT_SCHEMA_VERSION;
+  readonly sourceSnapshotVersion: string;
+  readonly identity: ManagementWorkspaceSnapshotIdentityV1;
+  readonly hardConstraintContract: ManagementSolverHardConstraintContract;
+  readonly requirements: readonly ManagementSolverRequirement[];
+  readonly cards: readonly ManagementSolverCard[];
+  readonly instructionalGroups: readonly ManagementSolverInstructionalGroup[];
+  readonly instructionalGroupRelations:
+    readonly ManagementSolverInstructionalGroupRelation[];
+  readonly teacherPools: readonly ManagementSolverTeacherPoolEntry[];
+  readonly roomPools: readonly ManagementSolverRoomPoolEntry[];
+  readonly teachers: readonly ManagementSolverTeacher[];
+  readonly teacherUnavailablePeriods:
+    readonly ManagementSolverTeacherUnavailablePeriod[];
+  readonly rooms: readonly ManagementSolverRoom[];
+  readonly baselinePlacements: readonly ManagementSolverBaselinePlacement[];
+  readonly baselineMetrics: ManagementSolverBaselineMetrics;
+  readonly readiness: ManagementWorkspaceSnapshotReadinessV1;
+  readonly candidateDomain: {
+    readonly included: boolean;
+    readonly omissionReason: string;
   };
 }
 
