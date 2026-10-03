@@ -1585,14 +1585,18 @@ export default function ManagementPage() {
     setSelectedCardIds(ids);
     setCommandNotice(null);
 
-    void refreshManagementCardGroupCandidates(
-      session.accessToken,
-      ids,
+    void withManagementLoadRetry(
+      () => refreshManagementCardGroupCandidates(
+        session.accessToken,
+        ids,
+      ),
     )
       .then(() => Promise.all(
         ids.map(async (id) => [
           id,
-          await fetchPolicyAwareCandidates(session.accessToken, id),
+          await withManagementLoadRetry(
+            () => fetchPolicyAwareCandidates(session.accessToken, id),
+          ),
         ] as const),
       ))
       .then((entries) => {
