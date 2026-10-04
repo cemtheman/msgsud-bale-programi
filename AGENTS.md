@@ -6519,3 +6519,34 @@ Safety status:
 - full offset-preserving drag of a compound K. Bale/Point geometry is not yet
   implemented; until it is, an individual move that would break that geometry
   is intentionally blocked rather than guessed
+
+
+### DRAFT v3 solver/readiness verification
+
+Post-reset solver snapshot was checked directly against the live database:
+
+- snapshotVersion: `M39.1-v1`
+- revisionVersion: `3`
+- snapshotHash: `4f3163cd984b8cb8ab1661c14e6fd0f4`
+- baselineHash: `8138922e54b3895bbd3230093fcb2c12`
+- hardInputReady: `true`
+- hardBlockers: `[]`
+- baseline metrics:
+  - cards 299
+  - placed 299
+  - unplaced 0
+  - locked 0
+  - changeCost 0
+  - preferred teacher continuity breaks 0
+
+Interpretation:
+- reset DRAFT v3 is structurally ready for the local workspace
+- no server-side hard-input blocker was introduced by the reset
+- browser reload should therefore initialize the immutable workspace snapshot
+  from v3 without requiring any recovery step
+
+Current expected test count after parallel-bundle validator tests:
+- previous accepted: 28 files / 146 tests
+- two new validation tests were added
+- expected next gate: 28 files / 148 tests (unless another existing test file
+  has changed count independently)
