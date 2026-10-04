@@ -163,6 +163,9 @@ import {
   findManagementWorkspaceParallelBundleV1,
 } from '@/lib/managementWorkspaceValidation';
 import {
+  buildManagementWorkspaceMoveCandidateDetailV1,
+} from '@/lib/managementWorkspaceCandidates';
+import {
   projectManagementBoardFromWorkspaceV1,
 } from '@/lib/managementWorkspaceBoardAdapter';
 import {
@@ -1856,6 +1859,43 @@ export default function ManagementPage() {
     setSelectedCardId(cardId);
     setSelectedCardIds(ids);
     setCommandNotice(null);
+
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localMoveEntries = (
+      localSnapshot
+      && localWorkingCopy
+      && ids.every((id) => {
+        const placement = localWorkingCopy.placementsByCardId[id];
+        return Boolean(
+          placement
+          && placement.dayOfWeek !== null
+          && placement.startPeriod !== null
+        );
+      })
+    )
+      ? ids.map((id) => [
+        id,
+        buildManagementWorkspaceMoveCandidateDetailV1(
+          localSnapshot,
+          localWorkingCopy,
+          id,
+        ),
+      ] as const)
+      : null;
+
+    if (
+      localMoveEntries
+      && localMoveEntries.every(([, detail]) => detail !== null)
+    ) {
+      setDragCandidateDetails(
+        Object.fromEntries(localMoveEntries) as Record<
+          string,
+          ManagementCandidateDetail
+        >,
+      );
+      setDragLoading(false);
+      return;
+    }
 
     const prepareCandidates = ids.length === 1
       ? Promise.resolve()
