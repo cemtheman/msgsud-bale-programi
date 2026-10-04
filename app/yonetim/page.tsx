@@ -3092,11 +3092,6 @@ export default function ManagementPage() {
       <main className="management-workbench-root min-h-screen bg-[#F5F3EE]">
         <ManagementBusyOverlay
           title="Partisyon hazırlanıyor"
-          detail={
-            startupStep === 1
-              ? 'Hesabınız doğrulanıyor ve yönetim yetkileriniz kontrol ediliyor.'
-              : 'Sunucuyla bağlantı kuruluyor ve mevcut oturum kontrol ediliyor.'
-          }
           steps={[...MANAGEMENT_STARTUP_STEPS]}
           activeStep={startupStep}
         />
@@ -5086,7 +5081,6 @@ export default function ManagementPage() {
       {!startupComplete && dataLoading && (
         <ManagementBusyOverlay
           title="Partisyon hazırlanıyor"
-          detail={MANAGEMENT_STARTUP_STEPS[startupStep] ?? 'Yönetim alanı hazırlanıyor.'}
           steps={[...MANAGEMENT_STARTUP_STEPS]}
           activeStep={startupStep}
         />
