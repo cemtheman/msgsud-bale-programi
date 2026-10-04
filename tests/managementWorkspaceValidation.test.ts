@@ -6,6 +6,7 @@ import {
   setManagementWorkspacePlacementV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
+  findManagementWorkspaceParallelBundleV1,
   validateManagementWorkspaceV1,
 } from '@/lib/managementWorkspaceValidation';
 
@@ -625,6 +626,23 @@ describe('management workspace local validation v1', () => {
       instructionalGroups: [...source.instructionalGroups, ...groups],
       baselinePlacements: [...source.baselinePlacements, ...placements],
     };
+    const bundle = findManagementWorkspaceParallelBundleV1(
+      snapshot,
+      'bundle-card-point',
+    );
+
+    expect(bundle).not.toBeNull();
+    expect(bundle?.cardIds.sort()).toEqual([
+      'bundle-card-a',
+      'bundle-card-b',
+      'bundle-card-point',
+    ]);
+    expect(bundle?.offsetsByCardId).toEqual({
+      'bundle-card-a': 0,
+      'bundle-card-b': 0,
+      'bundle-card-point': 1,
+    });
+
     const copy = createManagementWorkspaceWorkingCopyV1(snapshot);
 
     [
