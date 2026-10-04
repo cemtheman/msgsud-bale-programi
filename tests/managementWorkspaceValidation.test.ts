@@ -407,6 +407,246 @@ describe('management workspace local validation v1', () => {
     expect(codes).toContain('MAX_BLOCKS_PER_DAY');
     expect(codes).toContain('MIN_DISTINCT_DAYS');
   });
+
+  it('rejects breaking a baseline-linked parallel lesson bundle', () => {
+    const source = baseSnapshot();
+    const parallelRequirements = [
+      {
+        ...source.requirements[0],
+        id: 'parallel-k1',
+        subjectId: 'subject-k',
+        subjectName: 'K. Bale',
+        groupId: 'parallel-group-1',
+        groupName: 'PARALLEL • 6A BALLET / 1 + 7A BALLET / 1',
+        groupType: 'PARALLEL',
+        weeklyLoad: 1,
+        teacherRequirement: 'NONE',
+        teacherMode: 'UNKNOWN',
+        teacherAssignmentScope: 'CARD',
+        teacherContinuity: 'NONE',
+        resourceMode: 'UNKNOWN',
+      },
+      {
+        ...source.requirements[0],
+        id: 'parallel-k2',
+        subjectId: 'subject-k',
+        subjectName: 'K. Bale',
+        groupId: 'parallel-group-2',
+        groupName: 'PARALLEL • 6A BALLET / 2 + 7A BALLET / 2',
+        groupType: 'PARALLEL',
+        weeklyLoad: 2,
+        teacherRequirement: 'NONE',
+        teacherMode: 'UNKNOWN',
+        teacherAssignmentScope: 'CARD',
+        teacherContinuity: 'NONE',
+        resourceMode: 'UNKNOWN',
+      },
+      {
+        ...source.requirements[0],
+        id: 'parallel-point',
+        subjectId: 'subject-point',
+        subjectName: 'Point',
+        groupId: 'parallel-group-1',
+        groupName: 'PARALLEL • 6A BALLET / 1 + 7A BALLET / 1',
+        groupType: 'PARALLEL',
+        weeklyLoad: 1,
+        teacherRequirement: 'NONE',
+        teacherMode: 'UNKNOWN',
+        teacherAssignmentScope: 'CARD',
+        teacherContinuity: 'NONE',
+        resourceMode: 'UNKNOWN',
+      },
+    ];
+    const parallelCards = [
+      {
+        id: 'parallel-card-k1',
+        requirementId: 'parallel-k1',
+        blockIndex: 1,
+        durationPeriods: 1,
+        locked: false,
+      },
+      {
+        id: 'parallel-card-k2',
+        requirementId: 'parallel-k2',
+        blockIndex: 1,
+        durationPeriods: 2,
+        locked: false,
+      },
+      {
+        id: 'parallel-card-point',
+        requirementId: 'parallel-point',
+        blockIndex: 1,
+        durationPeriods: 1,
+        locked: false,
+      },
+    ];
+    const parallelGroups = [
+      {
+        id: 'parallel-group-1',
+        classGroupId: null,
+        name: 'PARALLEL • 6A BALLET / 1 + 7A BALLET / 1',
+        groupType: 'PARALLEL',
+        termStatus: 'ACTIVE',
+        knowledgeStatus: 'CONFIRMED',
+      },
+      {
+        id: 'parallel-group-2',
+        classGroupId: null,
+        name: 'PARALLEL • 6A BALLET / 2 + 7A BALLET / 2',
+        groupType: 'PARALLEL',
+        termStatus: 'ACTIVE',
+        knowledgeStatus: 'CONFIRMED',
+      },
+    ];
+    const parallelPlacements = [
+      {
+        cardId: 'parallel-card-k1',
+        dayOfWeek: 4,
+        startPeriod: 7,
+        teacherId: null,
+        roomId: null,
+      },
+      {
+        cardId: 'parallel-card-k2',
+        dayOfWeek: 4,
+        startPeriod: 7,
+        teacherId: null,
+        roomId: null,
+      },
+      {
+        cardId: 'parallel-card-point',
+        dayOfWeek: 4,
+        startPeriod: 8,
+        teacherId: null,
+        roomId: null,
+      },
+    ];
+    const snapshot = {
+      ...source,
+      requirements: [...source.requirements, ...parallelRequirements],
+      cards: [...source.cards, ...parallelCards],
+      instructionalGroups: [...source.instructionalGroups, ...parallelGroups],
+      baselinePlacements: [...source.baselinePlacements, ...parallelPlacements],
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(snapshot);
+
+    setManagementWorkspacePlacementV1(copy, {
+      cardId: 'parallel-card-point',
+      dayOfWeek: 4,
+      startPeriod: 9,
+      teacherId: null,
+      roomId: null,
+    });
+
+    expect(
+      validateManagementWorkspaceV1(snapshot, copy, 'EDIT').issues
+        .map((issue) => issue.code),
+    ).toContain('PARALLEL_BUNDLE_BROKEN');
+  });
+
+  it('allows a linked parallel lesson bundle to translate as one geometry', () => {
+    const source = baseSnapshot();
+    const requirements = [
+      {
+        ...source.requirements[0],
+        id: 'bundle-a',
+        subjectId: 'subject-k',
+        subjectName: 'K. Bale',
+        groupId: 'bundle-group-1',
+        groupName: 'PARALLEL • 6A BALLET / 1 + 7A BALLET / 1',
+        groupType: 'PARALLEL',
+        teacherRequirement: 'NONE',
+        teacherMode: 'UNKNOWN',
+        teacherAssignmentScope: 'CARD',
+        teacherContinuity: 'NONE',
+        resourceMode: 'UNKNOWN',
+      },
+      {
+        ...source.requirements[0],
+        id: 'bundle-b',
+        subjectId: 'subject-k',
+        subjectName: 'K. Bale',
+        groupId: 'bundle-group-2',
+        groupName: 'PARALLEL • 6A BALLET / 2 + 7A BALLET / 2',
+        groupType: 'PARALLEL',
+        teacherRequirement: 'NONE',
+        teacherMode: 'UNKNOWN',
+        teacherAssignmentScope: 'CARD',
+        teacherContinuity: 'NONE',
+        resourceMode: 'UNKNOWN',
+      },
+      {
+        ...source.requirements[0],
+        id: 'bundle-point',
+        subjectId: 'subject-point',
+        subjectName: 'Point',
+        groupId: 'bundle-group-1',
+        groupName: 'PARALLEL • 6A BALLET / 1 + 7A BALLET / 1',
+        groupType: 'PARALLEL',
+        teacherRequirement: 'NONE',
+        teacherMode: 'UNKNOWN',
+        teacherAssignmentScope: 'CARD',
+        teacherContinuity: 'NONE',
+        resourceMode: 'UNKNOWN',
+      },
+    ];
+    const cards = [
+      { id: 'bundle-card-a', requirementId: 'bundle-a', blockIndex: 1, durationPeriods: 1, locked: false },
+      { id: 'bundle-card-b', requirementId: 'bundle-b', blockIndex: 1, durationPeriods: 2, locked: false },
+      { id: 'bundle-card-point', requirementId: 'bundle-point', blockIndex: 1, durationPeriods: 1, locked: false },
+    ];
+    const groups = [
+      {
+        id: 'bundle-group-1',
+        classGroupId: null,
+        name: 'PARALLEL • 6A BALLET / 1 + 7A BALLET / 1',
+        groupType: 'PARALLEL',
+        termStatus: 'ACTIVE',
+        knowledgeStatus: 'CONFIRMED',
+      },
+      {
+        id: 'bundle-group-2',
+        classGroupId: null,
+        name: 'PARALLEL • 6A BALLET / 2 + 7A BALLET / 2',
+        groupType: 'PARALLEL',
+        termStatus: 'ACTIVE',
+        knowledgeStatus: 'CONFIRMED',
+      },
+    ];
+    const placements = [
+      { cardId: 'bundle-card-a', dayOfWeek: 4, startPeriod: 7, teacherId: null, roomId: null },
+      { cardId: 'bundle-card-b', dayOfWeek: 4, startPeriod: 7, teacherId: null, roomId: null },
+      { cardId: 'bundle-card-point', dayOfWeek: 4, startPeriod: 8, teacherId: null, roomId: null },
+    ];
+    const snapshot = {
+      ...source,
+      requirements: [...source.requirements, ...requirements],
+      cards: [...source.cards, ...cards],
+      instructionalGroups: [...source.instructionalGroups, ...groups],
+      baselinePlacements: [...source.baselinePlacements, ...placements],
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(snapshot);
+
+    [
+      ['bundle-card-a', 9],
+      ['bundle-card-b', 9],
+      ['bundle-card-point', 10],
+    ].forEach(([cardId, startPeriod]) => {
+      setManagementWorkspacePlacementV1(copy, {
+        cardId: cardId as string,
+        dayOfWeek: 5,
+        startPeriod: startPeriod as number,
+        teacherId: null,
+        roomId: null,
+      });
+    });
+
+    expect(
+      validateManagementWorkspaceV1(snapshot, copy, 'EDIT').issues
+        .map((issue) => issue.code),
+    ).not.toContain('PARALLEL_BUNDLE_BROKEN');
+  });
+
   it('allows temporary requirement incompleteness in edit mode but blocks it at commit', () => {
     const source = {
       ...baseSnapshot(),
