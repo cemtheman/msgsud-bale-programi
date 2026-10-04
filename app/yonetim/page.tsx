@@ -219,7 +219,6 @@ const MANAGEMENT_STARTUP_STEPS = [
   'Salon listesi alınıyor',
   'Kart ve yerleşimler okunuyor',
   'Ders planı kontrolleri yapılıyor',
-  'Kaynak bilgileri hazırlanıyor',
   'Hazır',
 ] as const;
 
@@ -864,19 +863,12 @@ export default function ManagementPage() {
         if (!active) return;
         setCoursePlan(nextCoursePlan);
 
-        if (showStartup) setStartupStep(9);
-        const nextResources = await fetchManagementResources(
-          session.accessToken,
-        );
-        if (!active) return;
-        setResources(nextResources);
-
-        // Core Program/Plan/Resources data is ready here. Solver and
-        // publication diagnostics are intentionally lazy-loaded by their own
-        // sections so transient 5xx/522 failures there can never block the
-        // whole management application from opening.
+        // Program + Course Plan is enough to open the management app.
+        // Resource inventory is intentionally lazy-loaded when the Resources
+        // section is opened so a slow/failed resource read can never keep the
+        // whole application behind the startup overlay.
         if (showStartup) {
-          setStartupStep(10);
+          setStartupStep(9);
           setStartupComplete(true);
         }
       } catch (reason: unknown) {
@@ -895,6 +887,37 @@ export default function ManagementPage() {
       active = false;
     };
   }, [refreshToken, session, status]);
+
+  useEffect(() => {
+    if (
+      status !== 'ready'
+      || !session
+      || !startupComplete
+      || activeSection !== 'RESOURCES'
+    ) {
+      return;
+    }
+
+    let active = true;
+
+    void fetchManagementResources(session.accessToken)
+      .then((nextResources) => {
+        if (active) setResources(nextResources);
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        setCommandNotice({
+          kind: 'info',
+          text: reason instanceof Error
+            ? `Kaynak bilgileri şu anda alınamadı: ${reason.message}`
+            : 'Kaynak bilgileri şu anda alınamadı. Biraz sonra yeniden deneyin.',
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [activeSection, refreshToken, session, startupComplete, status]);
 
   useEffect(() => {
     if (
