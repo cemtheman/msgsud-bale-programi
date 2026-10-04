@@ -335,6 +335,19 @@ async function authedGet<T>(path: string, accessToken: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function optionalAuthedGet<T>(
+  path: string,
+  accessToken: string,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await authedGet<T>(path, accessToken);
+  } catch {
+    return fallback;
+  }
+}
+
+
 function classCode(row: ClassGroupRow) {
   return `${row.grade}${row.section}`;
 }
@@ -822,9 +835,10 @@ export async function fetchManagementBoard(
       'placements?select=card_id,day_of_week,start_period,teacher_id,room_id,move_transaction_id',
       accessToken,
     ),
-    authedGet<DomainRow[]>(
+    optionalAuthedGet<DomainRow[]>(
       'schedule_card_domain_summaries?select=card_id,domain_status,valid_count,invalid_count,unresolved_count,is_forced,is_contradiction',
       accessToken,
+      [],
     ),
     authedGet<TeacherNameOverrideRow[]>(
       `management_teacher_name_overrides?select=teacher_id,display_name&schedule_revision_id=eq.${revision.id}`,
