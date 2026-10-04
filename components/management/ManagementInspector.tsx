@@ -170,6 +170,19 @@ export function ManagementInspector({
 
   const [focusTeacherId, setFocusTeacherId] = useState<string | null>(null);
   const [focusRoomId, setFocusRoomId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Teacher/room choices belong to one exact card + target cell. Carrying
+    // them into another card/cell can leave a stale teacher selected with no
+    // matching room choices, which makes the move panel appear stuck.
+    setFocusTeacherId(null);
+    setFocusRoomId(null);
+  }, [
+    card?.id,
+    candidateFocus?.dayOfWeek,
+    candidateFocus?.startPeriod,
+    candidateFocus?.candidates,
+  ]);
   const [showGeneralCandidates, setShowGeneralCandidates] = useState(false);
   const [candidateHelpOpen, setCandidateHelpOpen] = useState(false);
   const [placementEditMode, setPlacementEditMode] = useState<'TEACHER' | 'ROOM' | null>(null);
