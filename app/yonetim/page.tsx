@@ -220,7 +220,6 @@ const MANAGEMENT_STARTUP_STEPS = [
   'Kart ve yerleşimler okunuyor',
   'Ders planı kontrolleri yapılıyor',
   'Kaynak bilgileri hazırlanıyor',
-  'Program kontrolleri yapılıyor',
   'Hazır',
 ] as const;
 
@@ -872,24 +871,12 @@ export default function ManagementPage() {
         if (!active) return;
         setResources(nextResources);
 
-        if (showStartup) setStartupStep(10);
-        const [
-          nextSolverWorkspace,
-          nextPublicationPreview,
-          nextPublicationGate,
-        ] = await Promise.all([
-          fetchLatestManagementSolverWorkspace(session.accessToken),
-          fetchManagementPublicationPreview(session.accessToken),
-          fetchManagementPublicationGate(session.accessToken),
-        ]);
-        if (!active) return;
-
-        setSolverWorkspace(nextSolverWorkspace);
-        setPublicationPreview(nextPublicationPreview);
-        setPublicationGate(nextPublicationGate);
-
+        // Core Program/Plan/Resources data is ready here. Solver and
+        // publication diagnostics are intentionally lazy-loaded by their own
+        // sections so transient 5xx/522 failures there can never block the
+        // whole management application from opening.
         if (showStartup) {
-          setStartupStep(11);
+          setStartupStep(10);
           setStartupComplete(true);
         }
       } catch (reason: unknown) {
@@ -908,6 +895,81 @@ export default function ManagementPage() {
       active = false;
     };
   }, [refreshToken, session, status]);
+
+  useEffect(() => {
+    if (
+      status !== 'ready'
+      || !session
+      || !startupComplete
+      || activeSection !== 'SOLVER'
+    ) {
+      return;
+    }
+
+    let active = true;
+
+    void fetchLatestManagementSolverWorkspace(session.accessToken)
+      .then((nextSolverWorkspace) => {
+        if (active) setSolverWorkspace(nextSolverWorkspace);
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        setCommandNotice({
+          kind: 'info',
+          text: reason instanceof Error
+            ? `Tercih ayarları şu anda alınamadı: ${reason.message}`
+            : 'Tercih ayarları şu anda alınamadı. Biraz sonra yeniden deneyin.',
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [activeSection, refreshToken, session, startupComplete, status]);
+
+  useEffect(() => {
+    if (
+      status !== 'ready'
+      || !session
+      || !startupComplete
+      || activeSection !== 'STATUS'
+    ) {
+      return;
+    }
+
+    let active = true;
+
+    void (async () => {
+      const [previewResult, gateResult] = await Promise.allSettled([
+        fetchManagementPublicationPreview(session.accessToken),
+        fetchManagementPublicationGate(session.accessToken),
+      ]);
+
+      if (!active) return;
+
+      if (previewResult.status === 'fulfilled') {
+        setPublicationPreview(previewResult.value);
+      }
+
+      if (gateResult.status === 'fulfilled') {
+        setPublicationGate(gateResult.value);
+      }
+
+      if (
+        previewResult.status === 'rejected'
+        || gateResult.status === 'rejected'
+      ) {
+        setCommandNotice({
+          kind: 'info',
+          text: 'Program durumu kontrollerinin bir bölümü şu anda alınamadı. Ana program etkilenmedi; biraz sonra yeniden deneyebilirsiniz.',
+        });
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [activeSection, refreshToken, session, startupComplete, status]);
 
   const localUndoAvailable = Boolean(
     workspaceHistoryRef.current?.undoStack.length,
