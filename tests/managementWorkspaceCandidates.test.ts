@@ -1,0 +1,156 @@
+import { describe, expect, it } from 'vitest';
+
+import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
+import {
+  buildManagementWorkspaceMoveCandidateDetailV1,
+} from '@/lib/managementWorkspaceCandidates';
+import {
+  createManagementWorkspaceWorkingCopyV1,
+  removeManagementWorkspacePlacementV1,
+} from '@/lib/managementWorkspaceWorkingCopy';
+
+function snapshot(): ManagementWorkspaceSnapshotV1 {
+  return {
+    schemaVersion: 'management-workspace-v1',
+    sourceSnapshotVersion: 'M39.1-v1',
+    identity: {
+      revisionId: 'revision-1',
+      requirementSetId: 'requirement-set-1',
+      revisionVersion: 1,
+      academicYear: '2026-2027',
+      term: 1,
+      snapshotHash: 'snapshot-hash',
+      baselineHash: 'baseline-hash',
+    },
+    hardConstraintContract: {
+      days: [1, 2, 3, 4, 5],
+      periods: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      rules: [],
+    },
+    requirements: [{
+      id: 'requirement-1',
+      subjectId: 'subject-1',
+      subjectName: 'K. Bale',
+      groupId: 'group-1',
+      groupName: '6A BALLET',
+      groupType: 'BALLET',
+      weeklyLoad: 2,
+      preferredPartition: null,
+      allowedPartitions: null,
+      minDistinctDays: null,
+      maxBlocksPerDay: null,
+      maxConsecutivePeriods: null,
+      courseCharacter: null,
+      deliveryMode: null,
+      teacherRequirement: 'REQUIRED',
+      teacherMode: 'FIXED',
+      teacherAssignmentScope: 'REQUIREMENT',
+      teacherContinuity: 'REQUIRED',
+      resourceMode: 'ELIGIBLE_POOL',
+      requiredCapability: null,
+    }],
+    cards: [{
+      id: 'card-1',
+      requirementId: 'requirement-1',
+      blockIndex: 1,
+      durationPeriods: 2,
+      locked: false,
+    }],
+    instructionalGroups: [{
+      id: 'group-1',
+      classGroupId: null,
+      name: '6A BALLET',
+      groupType: 'BALLET',
+      termStatus: 'ACTIVE',
+      knowledgeStatus: 'CONFIRMED',
+    }],
+    instructionalGroupRelations: [],
+    teacherPools: [{
+      requirementId: 'requirement-1',
+      teacherId: 'teacher-1',
+    }],
+    roomPools: [{
+      requirementId: 'requirement-1',
+      roomId: 'room-1',
+    }],
+    teachers: [{
+      id: 'teacher-1',
+      name: 'Öğretmen 1',
+      operationalStatus: 'ACTIVE',
+    }],
+    teacherUnavailablePeriods: [],
+    rooms: [{
+      id: 'room-1',
+      name: 'Salon 1',
+      canonicalRoomId: null,
+      operationalStatus: 'ACTIVE',
+      capabilities: [],
+    }],
+    baselinePlacements: [{
+      cardId: 'card-1',
+      dayOfWeek: 2,
+      startPeriod: 3,
+      teacherId: 'teacher-1',
+      roomId: 'room-1',
+    }],
+    baselineMetrics: {
+      cardCount: 1,
+      placedCardCount: 1,
+      unplacedCardCount: 0,
+      lockedCardCount: 0,
+      changeCost: 0,
+      roomStabilityBreaks: 0,
+      teacherIdleGapPeriods: 0,
+      preferredTeacherContinuityBreaks: 0,
+    },
+    readiness: {
+      hardInputReady: true,
+      hardBlockers: [],
+      provisionalInputs: [],
+      resourceUnknownSemantics: null,
+      missingOptionalModelInputs: [],
+    },
+    candidateDomain: {
+      included: false,
+      omissionReason: 'occupancy-relative',
+    },
+  };
+}
+
+describe('management workspace local move candidates', () => {
+  it('builds the drag matrix locally while preserving current resources', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    const detail = buildManagementWorkspaceMoveCandidateDetailV1(
+      source,
+      copy,
+      'card-1',
+    );
+
+    expect(detail).not.toBeNull();
+    expect(detail?.assessments).toHaveLength(60);
+    expect(detail?.validCandidates).toHaveLength(60);
+    expect(detail?.assessments.every((candidate) => (
+      candidate.teacherId === 'teacher-1'
+      && candidate.roomId === 'room-1'
+      && candidate.status === 'VALID'
+      && candidate.isComplete
+    ))).toBe(true);
+  });
+
+  it('returns null for an unplaced card so resource-aware fallback can run', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    removeManagementWorkspacePlacementV1(copy, 'card-1');
+
+    expect(
+      buildManagementWorkspaceMoveCandidateDetailV1(
+        source,
+        copy,
+        'card-1',
+      ),
+    ).toBeNull();
+  });
+});
