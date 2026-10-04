@@ -137,8 +137,12 @@ import {
 } from '@/lib/managementCommands';
 import {
   fetchLatestManagementWorkspaceSnapshotV1,
+  fetchManagementWorkspaceSnapshotV1,
   type ManagementWorkspaceSnapshotV1,
 } from '@/lib/managementWorkspace';
+import {
+  invalidateManagementDraftRevisionCache,
+} from '@/lib/managementRevision';
 import {
   createManagementWorkspaceWorkingCopyV1,
   diffManagementWorkspaceV1,
@@ -2782,15 +2786,64 @@ export default function ManagementPage() {
         prepared.payload,
       );
 
-      workspaceSnapshotRef.current = null;
-      workspaceWorkingCopyRef.current = null;
-      workspaceHistoryRef.current = null;
+      // The successful DB commit becomes the new local baseline immediately.
+      // Do not wait for the broad management refresh, otherwise the short-lived
+      // draft revision cache or stale inspector state can make the previous
+      // placement look like the baseline for the next edit.
+      invalidateManagementDraftRevisionCache();
+
+      const [freshSnapshot, freshBoard] = await Promise.all([
+        fetchManagementWorkspaceSnapshotV1(
+          session.accessToken,
+          result.revisionId,
+        ),
+        fetchManagementBoard(session.accessToken),
+      ]);
+
+      if (
+        freshSnapshot.identity.snapshotHash !== result.snapshotHash
+        || freshSnapshot.identity.baselineHash !== result.baselineHash
+      ) {
+        throw new Error(
+          'Kaydedilen programın güncel hali yeniden okunamadı. Değişiklikler kaydedildi; ekranı yenileyin.',
+        );
+      }
+
+      const freshWorkingCopy =
+        createManagementWorkspaceWorkingCopyV1(freshSnapshot);
+
+      workspaceSnapshotRef.current = freshSnapshot;
+      workspaceWorkingCopyRef.current = freshWorkingCopy;
+      workspaceHistoryRef.current = createManagementWorkspaceHistoryV1();
+      serverBoardRef.current = freshBoard;
+
+      setBoard(
+        projectManagementBoardFromWorkspaceV1(
+          freshBoard,
+          freshWorkingCopy,
+        ),
+      );
       setWorkspaceDirty(false);
       setCommandState({ undo: null, redo: null });
+
+      // Candidate/inspector state belongs to the previous baseline and must not
+      // leak into the next edit.
+      setCandidateFocus(null);
+      setCandidateDetail(null);
+      setCandidateError(null);
+      setCandidateLoading(false);
+      setDragCandidateDetails({});
+      setDragLoading(false);
+      dragCardIdsRef.current = [];
+      setDragCardIds([]);
+
       setCommandNotice({
         kind: 'success',
-        text: `${result.changedCardCount} program değişikliği kaydedildi. Program güncelleniyor.`,
+        text: `${result.changedCardCount} program değişikliği kaydedildi.`,
       });
+
+      // Refresh the secondary management panels after the fresh Program
+      // baseline is already established.
       setRefreshToken((value) => value + 1);
     } catch (reason: unknown) {
       const raw = reason instanceof Error
