@@ -6475,3 +6475,47 @@ After gate PASS:
 - confirm Program visually matches live student schedule
 - test that a linked parallel bundle cannot be broken by a single-card move
 - test that a coordinated whole-bundle move remains allowed
+
+
+### 4 Oct continuation — reset parity + UI reason translation
+
+Repository parity:
+- local migration file added for remote version
+  `20261004170240_management_reset_draft_to_live_baseline.sql`
+- this file records the already executed live operational reset and reproduces
+  its persistent audit-table/RLS schema idempotently
+- it intentionally does NOT replay the destructive data reset on another DB;
+  the original live reset was pinned to the exact live DRAFT/hash state
+- repo commit: `082870791f6de4645809d4ed8ffa4f563c317f4a`
+- remote migration history currently ends with:
+  - 20261003150000 rollback M40 -> M39.1
+  - 20261003202000 workspace atomic commit
+  - 20261004170240 live-baseline reset
+- active DB state rechecked:
+  - DRAFT v3 `16d8cb8e-1ea2-4af2-899c-a9df052bde8c`
+  - 299 cards
+  - 299 placements
+  - 0 move transactions
+
+Parallel-bundle blocker is now translated consistently in the UI:
+- Program command notice:
+  `Bağlı paralel ders paketi birlikte taşınmalı`
+- candidate reason:
+  `Bağlı paralel dersler birlikte taşınmalı`
+- board drop marker:
+  `Paralel paket`
+
+UI commits:
+- `6a84b8026dbba37c544ad88cf7c3cb14d5817a3c`
+- `b3ceed62e40c9f8786c86a8f6e579b0ea4dd43f8`
+- `0a34f661d2baaaaefdf33337ee7bcb662fffa4e9`
+
+Safety status:
+- a move that would break a baseline-linked parallel bundle should now be
+  marked unsuitable before drop by the same local preview validator used at
+  apply time
+- this specifically prevents the previous UX mismatch where a target appeared
+  green/valid but was rejected only after dropping
+- full offset-preserving drag of a compound K. Bale/Point geometry is not yet
+  implemented; until it is, an individual move that would break that geometry
+  is intentionally blocked rather than guessed
