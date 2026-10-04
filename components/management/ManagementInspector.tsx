@@ -241,15 +241,27 @@ export function ManagementInspector({
   ]);
 
 
+  const focusNeedsTeacherSelection = focusTeacherIds.length > 0;
+
   const focusCandidatesForTeacher = useMemo(
-    () => (
-      focusTeacherId
-        ? (candidateFocus?.candidates ?? []).filter(
-          (candidate) => candidate.teacherId === focusTeacherId,
-        )
-        : []
-    ),
-    [candidateFocus, focusTeacherId],
+    () => {
+      const candidates = candidateFocus?.candidates ?? [];
+
+      if (!focusNeedsTeacherSelection) {
+        return candidates.filter((candidate) => candidate.teacherId === null);
+      }
+
+      if (!focusTeacherId) return [];
+
+      return candidates.filter(
+        (candidate) => candidate.teacherId === focusTeacherId,
+      );
+    },
+    [
+      candidateFocus,
+      focusNeedsTeacherSelection,
+      focusTeacherId,
+    ],
   );
 
   const focusRoomIds = useMemo(
@@ -261,15 +273,29 @@ export function ManagementInspector({
     [focusCandidatesForTeacher],
   );
 
+  const focusNeedsRoomSelection = focusRoomIds.length > 0;
+
   const focusCandidate = useMemo(
-    () => (
-      focusTeacherId && focusRoomId
-        ? focusCandidatesForTeacher.find(
-          (candidate) => candidate.roomId === focusRoomId,
-        ) ?? null
-        : null
-    ),
-    [focusCandidatesForTeacher, focusRoomId, focusTeacherId],
+    () => {
+      if (focusCandidatesForTeacher.length === 0) return null;
+
+      if (!focusNeedsRoomSelection) {
+        return focusCandidatesForTeacher.find(
+          (candidate) => candidate.roomId === null,
+        ) ?? focusCandidatesForTeacher[0] ?? null;
+      }
+
+      if (!focusRoomId) return null;
+
+      return focusCandidatesForTeacher.find(
+        (candidate) => candidate.roomId === focusRoomId,
+      ) ?? null;
+    },
+    [
+      focusCandidatesForTeacher,
+      focusNeedsRoomSelection,
+      focusRoomId,
+    ],
   );
 
 
@@ -437,7 +463,11 @@ export function ManagementInspector({
   }, [candidateFocus, focusTeacherIds]);
 
   useEffect(() => {
-    if (!candidateFocus || !focusTeacherId) {
+    if (
+      !candidateFocus
+      || (focusNeedsTeacherSelection && !focusTeacherId)
+      || !focusNeedsRoomSelection
+    ) {
       setFocusRoomId(null);
       return;
     }
@@ -445,7 +475,13 @@ export function ManagementInspector({
     setFocusRoomId(
       focusRoomIds.length === 1 ? focusRoomIds[0] : null,
     );
-  }, [candidateFocus, focusRoomIds, focusTeacherId]);
+  }, [
+    candidateFocus,
+    focusNeedsRoomSelection,
+    focusNeedsTeacherSelection,
+    focusRoomIds,
+    focusTeacherId,
+  ]);
 
 
   useEffect(() => {
@@ -1038,7 +1074,11 @@ export function ManagementInspector({
               Öğretmen
             </p>
 
-            {focusTeacherIds.length === 1 ? (
+            {focusTeacherIds.length === 0 ? (
+              <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] font-semibold text-slate-500">
+                Öğretmen seçimi gerekmiyor
+              </div>
+            ) : focusTeacherIds.length === 1 ? (
               <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-bold text-slate-700">
                 {teacherNamesById[focusTeacherIds[0]] ?? 'Öğretmen'}
                 <span className="ml-2 text-[9px] font-semibold text-slate-400">
@@ -1070,10 +1110,14 @@ export function ManagementInspector({
               Salon
             </p>
 
-            {!focusTeacherId ? (
+            {focusNeedsTeacherSelection && !focusTeacherId ? (
               <p className="mt-2 rounded-xl bg-white/70 px-3 py-2.5 text-[10px] font-semibold text-slate-400">
                 Önce öğretmeni seçin.
               </p>
+            ) : !focusNeedsRoomSelection ? (
+              <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] font-semibold text-slate-500">
+                Salon seçimi gerekmiyor
+              </div>
             ) : focusRoomIds.length === 1 ? (
               <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-bold text-slate-700">
                 {roomNamesById[focusRoomIds[0]] ?? 'Salon'}
@@ -1104,9 +1148,13 @@ export function ManagementInspector({
           <div className="mt-4 border-t border-blue-100 pt-3">
             {focusCandidate ? (
               <p className="mb-2 text-[10px] font-semibold text-slate-500">
-                {teacherNamesById[focusCandidate.teacherId ?? ''] ?? 'Öğretmen'}
+                {focusCandidate.teacherId
+                  ? teacherNamesById[focusCandidate.teacherId] ?? 'Öğretmen'
+                  : 'Öğretmen gerekmiyor'}
                 {' · '}
-                {roomNamesById[focusCandidate.roomId ?? ''] ?? 'Salon'}
+                {focusCandidate.roomId
+                  ? roomNamesById[focusCandidate.roomId] ?? 'Salon'
+                  : 'Salon gerekmiyor'}
               </p>
             ) : (
               <p className="mb-2 text-[10px] font-semibold text-slate-400">
