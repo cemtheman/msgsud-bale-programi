@@ -349,7 +349,7 @@ describe('management grade-group audience rows', () => {
       subjectId: 'subject-k-bale',
       subjectName: 'K. Bale',
       groupId: 'parallel-group-1',
-      groupName: 'Parallel · 6A 🩰 · 1 + 7A 🩰 · 1',
+      groupName: 'Paralel · 6A 🩰 · 1 + 7A 🩰 · 1',
       groupType: 'BALLET',
       durationPeriods: 2,
       placement: {
@@ -362,7 +362,7 @@ describe('management grade-group audience rows', () => {
       id: 'parallel-family-2',
       requirementId: 'req-parallel-2',
       groupId: 'parallel-group-2',
-      groupName: 'Parallel · 6A 🩰 · 2 + 7A 🩰 · 2',
+      groupName: 'Paralel · 6A 🩰 · 2 + 7A 🩰 · 2',
       // Parallel sub-requirements may carry different low-level metadata.
       // Those differences must not split one visible lesson block.
       audienceTargets: ['BALLET', 'SECTION'],
