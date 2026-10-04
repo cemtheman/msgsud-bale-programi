@@ -2819,7 +2819,8 @@ export default function ManagementPage() {
       ]);
 
       if (
-        freshSnapshot.identity.snapshotHash !== result.snapshotHash
+        !freshBoard
+        || freshSnapshot.identity.snapshotHash !== result.snapshotHash
         || freshSnapshot.identity.baselineHash !== result.baselineHash
       ) {
         throw new Error(
