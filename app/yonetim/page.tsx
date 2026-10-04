@@ -157,6 +157,7 @@ import {
 import {
   executeManagementWorkspaceCommandV1,
   executeManagementWorkspaceCommandsV1,
+  previewManagementWorkspaceCommandsV1,
 } from '@/lib/managementWorkspaceCommands';
 import {
   projectManagementBoardFromWorkspaceV1,
@@ -3749,6 +3750,50 @@ export default function ManagementPage() {
               dragLoading={dragLoading}
               onDragStart={beginDrag}
               onDragEnd={endDrag}
+              validateDropTarget={(target) => {
+                if (
+                  target.state !== 'VALID'
+                  || !target.groupCandidates
+                  || target.groupCandidates.length === 0
+                ) {
+                  return target;
+                }
+
+                const localSnapshot = workspaceSnapshotRef.current;
+                const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+                if (!localSnapshot || !localWorkingCopy) {
+                  return target;
+                }
+
+                const preview = previewManagementWorkspaceCommandsV1(
+                  localSnapshot,
+                  localWorkingCopy,
+                  target.groupCandidates.map(({ cardId, candidate }) => ({
+                    type: 'SET_PLACEMENT' as const,
+                    placement: {
+                      cardId,
+                      dayOfWeek: candidate.dayOfWeek,
+                      startPeriod: candidate.startPeriod,
+                      teacherId: candidate.teacherId,
+                      roomId: candidate.roomId,
+                    },
+                  })),
+                );
+
+                if (preview.applied) {
+                  return target;
+                }
+
+                return {
+                  ...target,
+                  state: 'INVALID' as const,
+                  validCandidates: [],
+                  reasonCodes: Array.from(new Set(
+                    preview.issues.map((issue) => issue.code),
+                  )),
+                };
+              }}
               onDropCandidates={(moves) => {
                 endDrag();
                 void runDropCandidates(moves);
