@@ -489,6 +489,7 @@ function invalidReasonLabel(reasonCodes: string[]) {
     LUNCH_BREAK_CROSSING: 'Öğle',
     TIME_OUTSIDE_DAY: 'Saat',
     ROOM_INACTIVE: 'Salon kapalı',
+    PARALLEL_BUNDLE_BROKEN: 'Paralel paket',
   };
 
   const mapped = Array.from(new Set(
