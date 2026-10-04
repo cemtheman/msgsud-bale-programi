@@ -446,7 +446,8 @@ export function managementCardStatus(card: ManagementBoardCard) {
 
 function parallelGroupFamilyKey(groupName: string) {
   const normalized = groupName.trim();
-  if (!normalized.toLocaleLowerCase('tr-TR').startsWith('parallel')) {
+  const lower = normalized.toLocaleLowerCase('tr-TR');
+  if (!lower.startsWith('paralel') && !lower.startsWith('parallel')) {
     return null;
   }
 
