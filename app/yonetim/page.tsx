@@ -833,12 +833,20 @@ export default function ManagementPage() {
         }
 
         if (nextBoard) {
-          const nextCommandState = await fetchManagementCommandState(
-            session.accessToken,
-            nextBoard.revisionId,
-          );
-          if (!active) return;
-          setCommandState(nextCommandState);
+          try {
+            const nextCommandState = await fetchManagementCommandState(
+              session.accessToken,
+              nextBoard.revisionId,
+            );
+            if (!active) return;
+            setCommandState(nextCommandState);
+          } catch {
+            // Server-side history is secondary during startup. Local workspace
+            // history becomes authoritative for edits in this session, and a
+            // transient history read must never keep Program behind the loader.
+            if (!active) return;
+            setCommandState({ undo: null, redo: null });
+          }
         } else {
           setCommandState({ undo: null, redo: null });
         }
