@@ -18,7 +18,7 @@ export function ManagementBusyOverlay({
       aria-live="polite"
       aria-busy="true"
     >
-      <div className="flex min-w-[300px] max-w-[420px] flex-col items-center rounded-[28px] border border-white/80 bg-white/95 px-8 py-7 text-center shadow-[0_28px_90px_rgba(15,23,42,0.22)]">
+      <div className="flex w-[380px] max-w-[calc(100vw-32px)] flex-col items-center rounded-[28px] border border-white/80 bg-white/95 px-8 py-7 text-center shadow-[0_28px_90px_rgba(15,23,42,0.22)]">
         <div className="management-busy-mark" aria-hidden="true">
           <div className="management-busy-ring" />
           <div className="management-busy-dot" />
