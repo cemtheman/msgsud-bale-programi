@@ -486,11 +486,16 @@ export function buildManagementRowDisplayCards(
     ].join('::');
 
     const existing = groups.get(key);
+    const sameRequirement = existing?.card.requirementId === card.requirementId;
     const overlapsExistingClass = existing?.classCodes.some((code) =>
       card.classCodes.includes(code),
     ) ?? false;
 
-    if (!existing || overlapsExistingClass) {
+    // Distinct lesson records for the same class must stay separate, but
+    // sibling cards belonging to the *same requirement* are one logical
+    // lesson block when they share the same slot/duration. Previously the
+    // class-overlap guard split those siblings into stacked duplicate cards.
+    if (!existing || (overlapsExistingClass && !sameRequirement)) {
       const uniqueKey = existing ? `${key}::card:${card.id}` : key;
       groups.set(uniqueKey, {
         id: `group:${uniqueKey}`,
