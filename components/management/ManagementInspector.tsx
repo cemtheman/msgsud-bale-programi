@@ -159,6 +159,8 @@ export function ManagementInspector({
   onRemove: () => void;
   onClose: () => void;
 }) {
+  const focusHasCandidates = (candidateFocus?.candidates.length ?? 0) > 0;
+
   const focusTeacherIds = useMemo(
     () => Array.from(new Set(
       (candidateFocus?.candidates ?? [])
@@ -1065,10 +1067,14 @@ export function ManagementInspector({
               {DAY_LABELS[candidateFocus.dayOfWeek]} · {candidateFocus.startPeriod}. ders
             </p>
             <p className="mt-1 text-[10px] font-medium text-blue-700">
-              Yalnızca kararsız kalan bilgiyi seçin.
+              {focusHasCandidates
+                ? 'Yalnızca kararsız kalan bilgiyi seçin.'
+                : 'Bu hücre mevcut program durumunda artık uygun değil.'}
             </p>
           </div>
 
+          {focusHasCandidates && (
+          <>
           <div className="mt-4">
             <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
               Öğretmen
@@ -1175,6 +1181,8 @@ export function ManagementInspector({
               </button>
             )}
           </div>
+          </>
+          )}
         </div>
       )}
 
