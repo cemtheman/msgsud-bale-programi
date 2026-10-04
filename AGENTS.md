@@ -6383,3 +6383,95 @@ Next architectural milestone:
 - apply all placement changes in one DB transaction
 - rollback everything on any error
 - refresh snapshot only after successful commit
+
+
+## 91. 4 Ekim 2026 — Live student baseline reset + DRAFT v3
+
+Reason:
+- browser acceptance and workspace development produced many deliberate test moves
+- management DRAFT v2 had drifted far from the student-facing live schedule
+- user requested a clean reset to the current live student program without
+  weakening future placement validation
+
+Authoritative source:
+- public `schedule_sessions` / `session_groups`
+- M25 clean-bootstrap source evidence
+- M25 runtime adjustments
+- public baseline hashes were verified unchanged from M25:
+  - sessions hash: `a0bb49d37440119271457d0f678456d4`
+  - groups hash: `e9ff78dfe6bc55cc98c5aa589a80142e`
+- public baseline health: PASS
+- public projection remained untouched: 517 sessions / 609 session-group rows
+
+Reset migration applied directly to Supabase:
+`20261004170240_management_reset_draft_to_live_baseline`
+
+Result:
+- old DRAFT v2:
+  `02a42aa9-b6e1-47e2-8e4d-188d5dcfd0b5`
+  - ARCHIVED
+  - 300 cards
+  - 300 placements
+  - 552 move transactions retained for audit/history
+- new clean DRAFT v3:
+  `16d8cb8e-1ea2-4af2-899c-a9df052bde8c`
+  - 299 cards
+  - 299 placements
+  - 0 move transactions
+  - base revision = archived v2
+  - source = EFFECTIVE_STUDENT_SCHEDULE
+- one test-era extra card was intentionally discarded:
+  - 10A MUSIC / Müzik Teorisi
+- reset is audited in `management_live_baseline_reset_runs`
+
+Important interpretation discovered after reset:
+- the 6A/7A K. Bale + Point pattern that looked asymmetric in the Program UI is
+  present in the authoritative live student baseline
+- example Friday:
+  - Parallel group 1: K. Bale period 4, Point period 5
+  - Parallel group 2: K. Bale periods 4-5
+- therefore "equal block lengths for both parallel groups" is NOT a valid hard
+  rule and must not be introduced
+
+### Parallel-bundle safety rule — implementation pending gate
+
+New local validator rule:
+`PARALLEL_BUNDLE_BROKEN`
+
+Purpose:
+- infer linked parallel lesson bundles from the immutable baseline
+- normalize Turkish/English Parallel/Paralel group-family labels
+- build connected baseline components from overlapping/adjacent cards
+- preserve each component's relative day/start geometry
+- allow a whole bundle to translate to another day/time when relative offsets
+  stay unchanged
+- reject moving/removing only one member in a way that breaks the live-baseline
+  geometry
+
+Implementation:
+- `lib/managementWorkspaceValidation.ts`
+- commit `eb4173ee22b71693060bb7f419843e83d7cdfb7d`
+
+Tests:
+- reject moving only Point away from its linked K. Bale bundle
+- allow translating the complete K. Bale/Point bundle while preserving offsets
+- commit `5d77a747a3bcef6699e9c42168ed13d624a83a8f`
+
+Required next gate:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
+npx supabase migration list | tail -10
+```
+
+Expected DB state:
+- migration `20261004170240_management_reset_draft_to_live_baseline` present remotely
+- new active DRAFT is v3 / `16d8cb8e-1ea2-4af2-899c-a9df052bde8c`
+
+After gate PASS:
+- browser reload must pick up DRAFT v3
+- confirm Program visually matches live student schedule
+- test that a linked parallel bundle cannot be broken by a single-card move
+- test that a coordinated whole-bundle move remains allowed
