@@ -484,26 +484,22 @@ export function coursePlanMatchesStage(
 
 export async function fetchManagementCoursePlan(
   accessToken: string,
+  onStage?: (stage:
+    | 'STRUCTURE'
+    | 'TEACHERS'
+    | 'ROOMS'
+    | 'PLACEMENTS'
+    | 'CHECKS'
+  ) => void,
 ): Promise<ManagementCoursePlanData | null> {
   const revision = await fetchLatestManagementDraftRevision(accessToken);
   if (!revision) return null;
 
-  const [
-    requirements,
-    groups,
-    groupRelations,
-    classGroups,
-    subjects,
-    requirementTeachers,
-    teachers,
-    requirementRooms,
-    rooms,
-    cards,
-    placements,
-    teacherNameOverrides,
-    roomNameOverrides,
-    teacherPolicyAudit,
-  ] = await Promise.all([
+  // Keep request concurrency bounded. The previous implementation launched
+  // fourteen REST/RPC calls at once, which could amplify transient Supabase
+  // edge 522 failures into a complete Course Plan load failure.
+  onStage?.('STRUCTURE');
+  const [requirements, groups, groupRelations] = await Promise.all([
     authedGet<RequirementRow[]>(
       `course_requirements?select=id,subject_id,instructional_group_id,weekly_load,preferred_partition,allowed_partitions,min_distinct_days,max_blocks_per_day,max_consecutive_periods,course_character,delivery_mode,term_status,knowledge_status,teacher_mode,teacher_requirement,teacher_assignment_scope,teacher_continuity,resource_mode,required_capability&requirement_set_id=eq.${revision.requirement_set_id}`,
       accessToken,
@@ -516,16 +512,34 @@ export async function fetchManagementCoursePlan(
       'instructional_group_relations?select=left_group_id,right_group_id,relation',
       accessToken,
     ),
+  ]);
+
+  const [classGroups, subjects] = await Promise.all([
     authedGet<ClassGroupRow[]>(
       'class_groups?select=id,grade,section&academic_year=eq.2026-2027&order=grade.asc,section.asc',
       accessToken,
     ),
     authedGet<NamedRow[]>('subjects?select=id,name', accessToken),
+  ]);
+
+  onStage?.('TEACHERS');
+  const [requirementTeachers, teachers, teacherNameOverrides] = await Promise.all([
     authedGet<RequirementTeacherRow[]>(
       'course_requirement_teachers?select=requirement_id,teacher_id',
       accessToken,
     ),
-    authedGet<TeacherOptionRow[]>('teachers?select=id,name,operational_status,archived_at', accessToken),
+    authedGet<TeacherOptionRow[]>(
+      'teachers?select=id,name,operational_status,archived_at',
+      accessToken,
+    ),
+    authedGet<TeacherNameOverrideRow[]>(
+      `management_teacher_name_overrides?select=teacher_id,display_name&schedule_revision_id=eq.${revision.id}`,
+      accessToken,
+    ),
+  ]);
+
+  onStage?.('ROOMS');
+  const [requirementRooms, rooms, roomNameOverrides] = await Promise.all([
     authedGet<RequirementRoomRow[]>(
       'course_requirement_rooms?select=requirement_id,room_id',
       accessToken,
@@ -534,6 +548,14 @@ export async function fetchManagementCoursePlan(
       'rooms?select=id,name,canonical_room_id,capabilities,operational_status,archived_at',
       accessToken,
     ),
+    authedGet<RoomNameOverrideRow[]>(
+      `management_room_name_overrides?select=room_id,display_name&schedule_revision_id=eq.${revision.id}`,
+      accessToken,
+    ),
+  ]);
+
+  onStage?.('PLACEMENTS');
+  const [cards, placements] = await Promise.all([
     authedGet<CardRow[]>(
       `schedule_cards?select=id,requirement_id&schedule_revision_id=eq.${revision.id}`,
       accessToken,
@@ -542,20 +564,14 @@ export async function fetchManagementCoursePlan(
       'placements?select=card_id',
       accessToken,
     ),
-    authedGet<TeacherNameOverrideRow[]>(
-      `management_teacher_name_overrides?select=teacher_id,display_name&schedule_revision_id=eq.${revision.id}`,
-      accessToken,
-    ),
-    authedGet<RoomNameOverrideRow[]>(
-      `management_room_name_overrides?select=room_id,display_name&schedule_revision_id=eq.${revision.id}`,
-      accessToken,
-    ),
-    authedRpc<TeacherPolicyAuditResult>(
-      'management_diagnose_teacher_assignment_policy',
-      accessToken,
-      { p_schedule_revision_id: revision.id },
-    ),
   ]);
+
+  onStage?.('CHECKS');
+  const teacherPolicyAudit = await authedRpc<TeacherPolicyAuditResult>(
+    'management_diagnose_teacher_assignment_policy',
+    accessToken,
+    { p_schedule_revision_id: revision.id },
+  );
 
   const groupById = new Map(groups.map((row) => [row.id, row]));
   const classById = new Map(classGroups.map((row) => [row.id, row]));
