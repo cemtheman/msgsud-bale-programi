@@ -141,6 +141,7 @@ function dropTargetForCell({
   view,
   activeDay,
   startPeriod,
+  startOffsetsByCardId,
   loading,
 }: {
   card: ManagementBoardCard;
@@ -149,6 +150,7 @@ function dropTargetForCell({
   view: ManagementResourceView;
   activeDay: number;
   startPeriod: number;
+  startOffsetsByCardId: Record<string, number>;
   loading: boolean;
 }): ManagementDropTarget {
   if (
@@ -324,18 +326,36 @@ function groupDropTargetForCell({
     };
   }
 
-  const targets = cards.map((card) => ({
-    card,
-    target: dropTargetForCell({
+  const targets = cards.map((card) => {
+    const targetStartPeriod = startPeriod + (startOffsetsByCardId[card.id] ?? 0);
+
+    if (targetStartPeriod < 1 || targetStartPeriod > 12) {
+      return {
+        card,
+        target: {
+          cardId: card.id,
+          dayOfWeek: activeDay,
+          startPeriod: targetStartPeriod,
+          state: 'INVALID' as const,
+          validCandidates: [],
+          reasonCodes: ['TIME_OUTSIDE_DAY'],
+        },
+      };
+    }
+
+    return {
       card,
-      detail: detailsByCardId[card.id] ?? null,
-      row,
-      view,
-      activeDay,
-      startPeriod,
-      loading,
-    }),
-  }));
+      target: dropTargetForCell({
+        card,
+        detail: detailsByCardId[card.id] ?? null,
+        row,
+        view,
+        activeDay,
+        startPeriod: targetStartPeriod,
+        loading,
+      }),
+    };
+  });
 
   const reasonCodes = Array.from(new Set(
     targets.flatMap(({ target }) => target.reasonCodes),
@@ -411,36 +431,35 @@ function resolveFootprintTarget<
 >(
   targets: T[],
   period: number,
-  duration: number,
+  minOffset: number,
+  maxOffset: number,
 ) {
   const own = targets.find((target) => target.startPeriod === period) ?? null;
 
-  if (!own) {
-    return {
-      target: null,
-      continuation: false,
-    };
-  }
-
-  if (isFootprintAnchorState(own.state) || duration <= 1) {
+  if (own && isFootprintAnchorState(own.state)) {
     return {
       target: own,
       continuation: false,
     };
   }
 
-  const earliestStart = Math.max(1, period - duration + 1);
-
-  for (let start = period - 1; start >= earliestStart; start -= 1) {
-    const candidate = targets.find((target) => target.startPeriod === start);
+  for (
+    let anchorPeriod = period - maxOffset;
+    anchorPeriod <= period - minOffset;
+    anchorPeriod += 1
+  ) {
+    const candidate = targets.find(
+      (target) => target.startPeriod === anchorPeriod,
+    );
     if (
       candidate
       && isFootprintAnchorState(candidate.state)
-      && start + duration - 1 >= period
+      && anchorPeriod + minOffset <= period
+      && anchorPeriod + maxOffset >= period
     ) {
       return {
         target: candidate,
-        continuation: true,
+        continuation: anchorPeriod !== period,
       };
     }
   }
@@ -550,6 +569,7 @@ export function ManagementBoardGrid({
   canEdit,
   dragCard,
   dragCardIds,
+  dragStartOffsetsByCardId,
   dragCandidateDetails,
   dragLoading,
   onDragStart,
@@ -568,6 +588,7 @@ export function ManagementBoardGrid({
   canEdit: boolean;
   dragCard: ManagementBoardCard | null;
   dragCardIds: string[];
+  dragStartOffsetsByCardId: Record<string, number>;
   dragCandidateDetails: Record<string, ManagementCandidateDetail>;
   dragLoading: boolean;
   onDragStart: (cardId: string, sourceCardIds?: string[]) => void;
@@ -820,10 +841,21 @@ export function ManagementBoardGrid({
                       })}
 
                       {dragCard && (() => {
-                        const duration = Math.max(
-                          1,
-                          ...dragCards.map((card) => card.durationPeriods),
+                        const minOffset = Math.min(
+                          0,
+                          ...dragCards.map(
+                            (card) => dragStartOffsetsByCardId[card.id] ?? 0,
+                          ),
                         );
+                        const maxOffset = Math.max(
+                          0,
+                          ...dragCards.map((card) => (
+                            (dragStartOffsetsByCardId[card.id] ?? 0)
+                            + card.durationPeriods
+                            - 1
+                          )),
+                        );
+                        const duration = maxOffset - minOffset + 1;
                         const targets = PERIODS.map((period) => {
                           const candidateTarget = groupDropTargetForCell({
                             cards: dragCards,
@@ -832,6 +864,7 @@ export function ManagementBoardGrid({
                             view,
                             activeDay,
                             startPeriod: period.number,
+                            startOffsetsByCardId: dragStartOffsetsByCardId,
                             loading: dragLoading,
                           });
 
@@ -846,7 +879,8 @@ export function ManagementBoardGrid({
                               const footprint = resolveFootprintTarget(
                                 targets,
                                 period.number,
-                                duration,
+                                minOffset,
+                                maxOffset,
                               );
                               const target = footprint.target;
 
@@ -900,7 +934,7 @@ export function ManagementBoardGrid({
                                   }`}
                                   title={
                                     footprint.continuation
-                                      ? `${targetDisplayLabel(target)} · ${target.startPeriod}. derste başlayan ${duration} derslik blok`
+                                      ? `${targetDisplayLabel(target)} · bağlı paketin ${duration} derslik izi`
                                       : duration > 1
                                         ? `${targetDisplayTitle(target)} · ${duration} derslik blok`
                                         : targetDisplayTitle(target)
