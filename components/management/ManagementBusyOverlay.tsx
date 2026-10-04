@@ -82,9 +82,11 @@ export function ManagementBusyOverlay({
         <p className="mt-4 text-sm font-bold text-slate-900">
           {title}
         </p>
-        <p className="mt-1.5 max-w-[330px] text-[11px] font-medium leading-5 text-slate-500">
-          {detail}
-        </p>
+        {(!steps || steps.length === 0) && (
+          <p className="mt-1.5 max-w-[330px] text-[11px] font-medium leading-5 text-slate-500">
+            {detail}
+          </p>
+        )}
 
         {steps && steps.length > 0 && (
           <div className="mt-5 w-full rounded-2xl border border-slate-100 bg-slate-50/80 p-3 text-left">
