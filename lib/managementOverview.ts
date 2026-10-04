@@ -86,11 +86,12 @@ export async function fetchManagementOverview(
 
   const cardIds = new Set(cards.map((card) => card.id));
 
-  const [placements, summaries, moves] = await Promise.all([
-    authedGet<PlacementRow[]>(
-      'placements?select=card_id,day_of_week',
-      accessToken,
-    ),
+  const placements = await authedGet<PlacementRow[]>(
+    'placements?select=card_id,day_of_week',
+    accessToken,
+  );
+
+  const [summaryResult, moveResult] = await Promise.allSettled([
     authedGet<DomainSummaryRow[]>(
       'schedule_card_domain_summaries?select=card_id,unresolved_count,is_forced,is_contradiction',
       accessToken,
@@ -100,6 +101,13 @@ export async function fetchManagementOverview(
       accessToken,
     ),
   ]);
+
+  const summaries = summaryResult.status === 'fulfilled'
+    ? summaryResult.value
+    : [];
+  const moves = moveResult.status === 'fulfilled'
+    ? moveResult.value
+    : [];
 
   const revisionPlacements = placements.filter((placement) => cardIds.has(placement.card_id));
   const revisionSummaries = summaries.filter((summary) => cardIds.has(summary.card_id));
