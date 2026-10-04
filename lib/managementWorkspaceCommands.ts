@@ -9,6 +9,7 @@ import {
 import {
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
+  createManagementWorkspaceHistoryV1,
   type ManagementWorkspaceHistoryV1,
   type ManagementWorkspaceOperationV1,
 } from '@/lib/managementWorkspaceHistory';
