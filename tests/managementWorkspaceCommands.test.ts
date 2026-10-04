@@ -13,6 +13,7 @@ import {
 import {
   executeManagementWorkspaceCommandV1,
   executeManagementWorkspaceCommandsV1,
+  previewManagementWorkspaceCommandsV1,
   resetManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceCommands';
 
@@ -490,6 +491,34 @@ describe('management workspace command executor v1', () => {
     expect(result.issues).toEqual([]);
     expect(copy.placementsByCardId['card-1'].startPeriod).toBe(1);
     expect(copy.placementsByCardId['card-2'].startPeriod).toBe(1);
+  });
+
+  it('previews a conflicting local batch without mutating the working copy', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const before = JSON.stringify(copy);
+
+    const result = previewManagementWorkspaceCommandsV1(
+      source,
+      copy,
+      [
+        {
+          type: 'SET_PLACEMENT',
+          placement: {
+            cardId: 'card-2',
+            dayOfWeek: 1,
+            startPeriod: 1,
+            teacherId: 'teacher-1',
+            roomId: 'room-2',
+          },
+        },
+      ],
+    );
+
+    expect(result.applied).toBe(false);
+    expect(result.issues.map((issue) => issue.code))
+      .toContain('TEACHER_CONFLICT');
+    expect(JSON.stringify(copy)).toBe(before);
   });
 
 });
