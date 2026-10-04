@@ -6596,3 +6596,48 @@ Browser acceptance after gate:
 4. drop should apply locally as one batch
 5. one Undo should restore the entire geometry
 6. Save should remain the only DB persistence point
+
+
+### 4 Oct continuation — zero-network MOVE drag for placed cards
+
+Workspace goal advanced:
+- ordinary MOVE drag of an already placed card no longer needs candidate-detail
+  reads from Supabase
+- grouped/baseline-linked placed moves also stay local at drag start
+
+New module:
+- `lib/managementWorkspaceCandidates.ts`
+- `buildManagementWorkspaceMoveCandidateDetailV1(...)`
+
+Behavior:
+- uses immutable workspace snapshot + current local working-copy placement
+- preserves the card's current teacher and room while testing MOVE positions
+- builds the day/period matrix synchronously in memory
+- hard conflicts/time/lunch/group/teacher/room/parallel-bundle safety remain
+  authoritative through the existing local preview validator
+- no DB candidate refresh/read is needed for a fully placed MOVE drag
+- unplaced/pool cards intentionally keep the existing resource-aware network
+  fallback for now because teacher/room selection may still be unresolved
+
+Parallel package interaction:
+- all placed members use the local candidate matrix
+- anchor-relative offsets from the previous parallel-bundle milestone remain in
+  force
+- complete package validation still happens as one local preview/batch
+
+Commits:
+- `220ce629ade1a8f2ca7909cf1855091dc490a5cd` local MOVE candidate builder
+- `2273894ece06510a030e0877a63f2f2e9f0b2541` local-first drag integration
+- `718a52fdb840b2603baf38460e7ca4970bf8d307` candidate tests
+- `7c9125ed72d5e3f69ca8e0ad576667a2bfb1580f` test fixture completion
+
+Expected browser effect:
+- grabbing/moving an already placed card should immediately show targets
+- no `schedule_card_candidate_assessments` or group-candidate refresh request
+  should be required merely to start MOVE drag
+- DROP remains local and DB is untouched until Save
+
+Next remaining local-write boundaries:
+1. PLACE from pool still may read server candidates
+2. resource edits are still legacy DB-backed
+3. Placement Assistant still has legacy server-analysis/apply paths
