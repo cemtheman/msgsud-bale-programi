@@ -363,6 +363,12 @@ describe('management grade-group audience rows', () => {
       requirementId: 'req-parallel-2',
       groupId: 'parallel-group-2',
       groupName: 'Parallel · 6A 🩰 · 2 + 7A 🩰 · 2',
+      // Parallel sub-requirements may carry different low-level metadata.
+      // Those differences must not split one visible lesson block.
+      audienceTargets: ['BALLET', 'SECTION'],
+      groupType: 'PARALLEL',
+      courseCharacter: 'TECHNIQUE',
+      deliveryMode: 'GROUP',
     };
 
     const displayCards = buildManagementRowDisplayCards(
