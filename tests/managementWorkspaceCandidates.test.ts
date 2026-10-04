@@ -85,6 +85,7 @@ function snapshot(): ManagementWorkspaceSnapshotV1 {
       canonicalRoomId: null,
       operationalStatus: 'ACTIVE',
       capabilities: [],
+      knowledgeStatus: 'CONFIRMED',
     }],
     baselinePlacements: [{
       cardId: 'card-1',
