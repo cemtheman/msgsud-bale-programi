@@ -11,6 +11,14 @@ export function ManagementBusyOverlay({
   steps?: string[];
   activeStep?: number;
 }) {
+  const stepRows = steps && steps.length > 0
+    ? [
+      steps[activeStep - 1] ?? null,
+      steps[activeStep] ?? null,
+      steps[activeStep + 1] ?? null,
+    ]
+    : [];
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/20 backdrop-blur-[1px]"
@@ -80,38 +88,54 @@ export function ManagementBusyOverlay({
 
         {steps && steps.length > 0 && (
           <div className="mt-5 w-full rounded-2xl border border-slate-100 bg-slate-50/80 p-3 text-left">
-            <div className="space-y-2">
-              {steps.map((step, index) => {
-                const complete = index < activeStep;
-                const active = index === activeStep;
+            <div className="overflow-hidden rounded-xl">
+              <div
+                key={activeStep}
+                className="management-step-window grid h-[132px] grid-rows-3"
+              >
+                {stepRows.map((step, rowIndex) => {
+                  const sourceIndex = activeStep + rowIndex - 1;
+                  const isPrevious = rowIndex === 0;
+                  const isActive = rowIndex === 1;
+                  const isNext = rowIndex === 2;
 
-                return (
-                  <div
-                    key={step}
-                    className={
-                      active
-                        ? 'flex items-center gap-2.5 rounded-xl bg-white px-2.5 py-2 text-[10px] font-semibold text-slate-900 shadow-sm'
-                        : complete
-                          ? 'flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[10px] font-semibold text-emerald-700'
-                          : 'flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[10px] font-semibold text-slate-400'
-                    }
-                  >
-                    <span
-                      aria-hidden="true"
+                  return (
+                    <div
+                      key={step ?? `empty-${rowIndex}`}
                       className={
-                        complete
-                          ? 'grid h-5 w-5 shrink-0 place-items-center rounded-full border border-emerald-200 bg-emerald-50 text-[9px] font-black text-emerald-700'
-                          : active
-                            ? 'grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[#A63D48]/30 bg-[#A63D48]/10 text-[9px] font-black text-[#A63D48]'
-                            : 'grid h-5 w-5 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-[9px] font-black text-slate-300'
+                        isActive
+                          ? 'management-step-slide flex items-center gap-2.5 rounded-xl bg-white px-3 text-[10px] font-semibold text-slate-900 shadow-sm'
+                          : isPrevious
+                            ? 'management-step-slide flex items-center gap-2.5 px-3 text-[10px] font-semibold text-emerald-700/80'
+                            : 'management-step-slide flex items-center gap-2.5 px-3 text-[10px] font-semibold text-slate-400'
                       }
+                      style={{
+                        animationDelay: `${rowIndex * 35}ms`,
+                      }}
                     >
-                      {complete ? '✓' : active ? '•' : index + 1}
-                    </span>
-                    <span>{step}</span>
-                  </div>
-                );
-              })}
+                      {step ? (
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className={
+                              isPrevious
+                                ? 'grid h-5 w-5 shrink-0 place-items-center rounded-full border border-emerald-200 bg-emerald-50 text-[9px] font-black text-emerald-700'
+                                : isActive
+                                  ? 'grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[#A63D48]/30 bg-[#A63D48]/10 text-[9px] font-black text-[#A63D48]'
+                                  : 'grid h-5 w-5 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-[9px] font-black text-slate-300'
+                            }
+                          >
+                            {isPrevious ? '✓' : isActive ? '•' : sourceIndex + 1}
+                          </span>
+                          <span className="truncate">{step}</span>
+                        </>
+                      ) : (
+                        <span className="h-5" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
