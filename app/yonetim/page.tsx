@@ -754,26 +754,26 @@ export default function ManagementPage() {
     setDataLoading(true);
     setDataError(null);
 
-    Promise.all([
-      fetchManagementOverview(session.accessToken),
-      fetchManagementBoard(session.accessToken),
-      fetchLatestManagementWorkspaceSnapshotV1(session.accessToken),
-      fetchManagementCoursePlan(session.accessToken),
-      fetchManagementResources(session.accessToken),
-      fetchLatestManagementSolverWorkspace(session.accessToken),
-      fetchManagementPublicationPreview(session.accessToken),
-      fetchManagementPublicationGate(session.accessToken),
-    ])
-      .then(async ([
-        nextOverview,
-        nextBoard,
-        nextWorkspaceSnapshot,
-        nextCoursePlan,
-        nextResources,
-        nextSolverWorkspace,
-        nextPublicationPreview,
-        nextPublicationGate,
-      ]) => {
+    void (async () => {
+      try {
+        // Avoid opening every management data fan-out at once. Several of
+        // these loaders issue their own parallel REST requests; starting all
+        // of them together can create dozens of simultaneous Supabase calls
+        // and has repeatedly produced transient edge 522 responses.
+        //
+        // Load the Program workspace first, then secondary management panels
+        // in small stages. This keeps the existing contracts intact while
+        // sharply reducing peak request concurrency.
+        const nextWorkspaceSnapshot =
+          await fetchLatestManagementWorkspaceSnapshotV1(
+            session.accessToken,
+          );
+        if (!active) return;
+
+        const [nextOverview, nextBoard] = await Promise.all([
+          fetchManagementOverview(session.accessToken),
+          fetchManagementBoard(session.accessToken),
+        ]);
         if (!active) return;
 
         setOverview(nextOverview);
@@ -804,36 +804,54 @@ export default function ManagementPage() {
           setBoard(nextBoard);
         }
 
-        setCoursePlan(nextCoursePlan);
-        setResources(nextResources);
-        setSolverWorkspace(nextSolverWorkspace);
-        setPublicationPreview(nextPublicationPreview);
-        setPublicationGate(nextPublicationGate);
-
         if (nextBoard) {
           const nextCommandState = await fetchManagementCommandState(
             session.accessToken,
             nextBoard.revisionId,
           );
-          if (active) setCommandState(nextCommandState);
+          if (!active) return;
+          setCommandState(nextCommandState);
         } else {
-          setCommandState({
-            undo: null,
-            redo: null,
-          });
+          setCommandState({ undo: null, redo: null });
         }
-      })
-      .catch((reason: unknown) => {
+
+        const nextCoursePlan = await fetchManagementCoursePlan(
+          session.accessToken,
+        );
+        if (!active) return;
+        setCoursePlan(nextCoursePlan);
+
+        const nextResources = await fetchManagementResources(
+          session.accessToken,
+        );
+        if (!active) return;
+        setResources(nextResources);
+
+        const [
+          nextSolverWorkspace,
+          nextPublicationPreview,
+          nextPublicationGate,
+        ] = await Promise.all([
+          fetchLatestManagementSolverWorkspace(session.accessToken),
+          fetchManagementPublicationPreview(session.accessToken),
+          fetchManagementPublicationGate(session.accessToken),
+        ]);
+        if (!active) return;
+
+        setSolverWorkspace(nextSolverWorkspace);
+        setPublicationPreview(nextPublicationPreview);
+        setPublicationGate(nextPublicationGate);
+      } catch (reason: unknown) {
         if (!active) return;
         setDataError(
           reason instanceof Error
             ? reason.message
             : 'Taslak program verisi alınamadı.',
         );
-      })
-      .finally(() => {
+      } finally {
         if (active) setDataLoading(false);
-      });
+      }
+    })();
 
     return () => {
       active = false;
