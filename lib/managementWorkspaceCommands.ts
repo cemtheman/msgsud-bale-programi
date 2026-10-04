@@ -175,6 +175,67 @@ export interface ManagementWorkspaceBatchCommandResultV1 {
   issues: ManagementWorkspaceValidationIssueV1[];
 }
 
+
+export function previewManagementWorkspaceCommandsV1(
+  snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  commands: ManagementWorkspaceCommandV1[],
+): ManagementWorkspaceBatchCommandResultV1 {
+  if (commands.length === 0) {
+    return {
+      applied: true,
+      operations: [],
+      issues: [],
+    };
+  }
+
+  const trialCopy = cloneWorkingCopy(workingCopy);
+  const trialHistory = createManagementWorkspaceHistoryV1();
+  const coordinatedCardIds = commands.map((command) =>
+    command.type === 'SET_PLACEMENT'
+      ? command.placement.cardId
+      : command.cardId,
+  );
+
+  const currentValidation = validateManagementWorkspaceV1(
+    snapshot,
+    workingCopy,
+    'EDIT',
+    coordinatedCardIds,
+  );
+
+  for (const command of commands) {
+    applyCommand(trialCopy, trialHistory, command);
+  }
+
+  const validation = validateManagementWorkspaceV1(
+    snapshot,
+    trialCopy,
+    'EDIT',
+    coordinatedCardIds,
+  );
+
+  const issueKey = (issue: ManagementWorkspaceValidationIssueV1) => [
+    issue.code,
+    issue.requirementId ?? '',
+    issue.dayOfWeek ?? '',
+    [...issue.cardIds].sort((left, right) => left.localeCompare(right)).join(','),
+  ].join('|');
+
+  const currentIssueKeys = new Set(
+    currentValidation.issues.map(issueKey),
+  );
+  const introducedIssues = validation.issues.filter(
+    (issue) => !currentIssueKeys.has(issueKey(issue)),
+  );
+
+  return {
+    applied: introducedIssues.length === 0,
+    operations: [],
+    issues: introducedIssues,
+  };
+}
+
 export function executeManagementWorkspaceCommandsV1(
   snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
