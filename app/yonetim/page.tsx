@@ -1225,6 +1225,130 @@ export default function ManagementPage() {
     [selectedCards],
   );
 
+  const previewSelectedCandidate = useCallback((
+    candidate: ManagementCandidateAssessment,
+  ) => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+    if (!selectedCardId || !localSnapshot || !localWorkingCopy) {
+      return {
+        applied: true,
+        issues: [] as Array<{ code: string }>,
+      };
+    }
+
+    return previewManagementWorkspaceCommandsV1(
+      localSnapshot,
+      localWorkingCopy,
+      [{
+        type: 'SET_PLACEMENT' as const,
+        placement: {
+          cardId: selectedCardId,
+          dayOfWeek: candidate.dayOfWeek,
+          startPeriod: candidate.startPeriod,
+          teacherId: candidate.teacherId,
+          roomId: candidate.roomId,
+        },
+      }],
+    );
+  }, [board, selectedCardId]);
+
+  const locallyValidatedCandidateDetail = useMemo(() => {
+    if (!candidateDetail) return null;
+
+    const assessments = candidateDetail.assessments.map((assessment) => {
+      if (
+        assessment.status !== 'VALID'
+        || !assessment.isComplete
+      ) {
+        return assessment;
+      }
+
+      const preview = previewSelectedCandidate(assessment);
+      if (preview.applied) return assessment;
+
+      const localCodes = preview.issues.map((issue) => issue.code);
+      return {
+        ...assessment,
+        status: 'INVALID' as const,
+        isComplete: false,
+        reasonCodes: Array.from(new Set([
+          ...assessment.reasonCodes,
+          ...localCodes,
+        ])),
+      };
+    });
+
+    const reasonMap = new Map<string, number>();
+    assessments.forEach((assessment) => {
+      assessment.reasonCodes.forEach((code) => {
+        reasonMap.set(code, (reasonMap.get(code) ?? 0) + 1);
+      });
+    });
+
+    return {
+      ...candidateDetail,
+      assessments,
+      validCandidates: assessments.filter(
+        (assessment) => assessment.status === 'VALID' && assessment.isComplete,
+      ),
+      reasonCounts: Array.from(reasonMap.entries())
+        .map(([code, count]) => ({ code, count }))
+        .sort((left, right) => (
+          right.count - left.count
+          || left.code.localeCompare(right.code)
+        )),
+    };
+  }, [
+    board,
+    candidateDetail,
+    previewSelectedCandidate,
+    workspaceDirty,
+  ]);
+
+  const locallyValidatedCandidateFocus = useMemo(() => {
+    if (!candidateFocus) return null;
+
+    return {
+      ...candidateFocus,
+      candidates: candidateFocus.candidates.filter(
+        (candidate) => previewSelectedCandidate(candidate).applied,
+      ),
+    };
+  }, [
+    board,
+    candidateFocus,
+    previewSelectedCandidate,
+    workspaceDirty,
+  ]);
+
+  const inspectorCard = useMemo(() => {
+    if (!selectedCard || !locallyValidatedCandidateDetail) {
+      return selectedCard;
+    }
+
+    const validCount = locallyValidatedCandidateDetail.assessments.filter(
+      (assessment) => assessment.status === 'VALID' && assessment.isComplete,
+    ).length;
+    const unresolvedCount = locallyValidatedCandidateDetail.assessments.filter(
+      (assessment) => assessment.status === 'UNRESOLVED',
+    ).length;
+    const invalidCount = locallyValidatedCandidateDetail.assessments.length
+      - validCount
+      - unresolvedCount;
+
+    return {
+      ...selectedCard,
+      validCount,
+      unresolvedCount,
+      invalidCount,
+    };
+  }, [
+    locallyValidatedCandidateDetail,
+    selectedCard,
+  ]);
+
   const dragCard = useMemo(
     () => board?.cards.find((card) => card.id === dragCardIds[0]) ?? null,
     [board, dragCardIds],
@@ -3917,12 +4041,12 @@ export default function ManagementPage() {
               aria-label="Ders ayrıntıları"
             >
             <ManagementInspector
-              card={selectedCard}
+              card={inspectorCard}
               cardIds={selectedCardIds}
-              candidateDetail={candidateDetail}
+              candidateDetail={locallyValidatedCandidateDetail}
               candidateLoading={candidateLoading}
               candidateError={candidateError}
-              candidateFocus={candidateFocus}
+              candidateFocus={locallyValidatedCandidateFocus}
               teacherNamesById={board?.teacherNamesById ?? {}}
               roomNamesById={board?.roomNamesById ?? {}}
               planRow={
