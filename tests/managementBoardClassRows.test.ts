@@ -306,6 +306,42 @@ describe('management grade-group audience rows', () => {
     });
   });
 
+
+  it('coalesces sibling cards from the same requirement even when they share the same class', () => {
+    const first = {
+      ...card('same-requirement-1', ['BALLET'], ['6A']),
+      requirementId: 'req-k-bale-6a',
+      subjectId: 'subject-k-bale',
+      subjectName: 'K. Bale',
+      groupId: 'group-6a-ballet',
+      groupName: '6A Bale',
+      groupType: 'BALLET',
+      blockIndex: 1,
+      durationPeriods: 2,
+      placement: {
+        ...card('base-1', ['BALLET'], ['6A']).placement!,
+        startPeriod: 3,
+      },
+    };
+    const second = {
+      ...first,
+      id: 'same-requirement-2',
+      blockIndex: 2,
+    };
+
+    const displayCards = buildManagementRowDisplayCards(
+      [first, second],
+      'SINIFLAR',
+    );
+
+    expect(displayCards).toHaveLength(1);
+    expect(displayCards[0]).toMatchObject({
+      grouped: true,
+      sourceCardIds: ['same-requirement-1', 'same-requirement-2'],
+      classCodes: ['6A'],
+    });
+  });
+
   it('does not collapse two distinct cards belonging to the same class', () => {
     const first = {
       ...card('same-class-1', ['SECTION'], ['5A']),
