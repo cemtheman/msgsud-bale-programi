@@ -144,6 +144,11 @@ function parallelFamilyKey(groupName: string) {
     .trim();
 }
 
+export interface ManagementWorkspaceParallelBundleV1 {
+  cardIds: string[];
+  offsetsByCardId: Record<string, number>;
+}
+
 function buildBaselineParallelBundles(
   snapshot: ManagementWorkspaceSnapshotV1,
 ) {
@@ -245,6 +250,21 @@ function buildBaselineParallelBundles(
   });
 
   return bundles;
+}
+
+export function findManagementWorkspaceParallelBundleV1(
+  snapshot: ManagementWorkspaceSnapshotV1,
+  cardId: string,
+): ManagementWorkspaceParallelBundleV1 | null {
+  const bundle = buildBaselineParallelBundles(snapshot)
+    .find((item) => item.cardIds.includes(cardId));
+
+  if (!bundle) return null;
+
+  return {
+    cardIds: [...bundle.cardIds],
+    offsetsByCardId: Object.fromEntries(bundle.offsetsByCardId.entries()),
+  };
 }
 
 function longestConsecutiveRun(periods: Set<number>) {
