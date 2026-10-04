@@ -6,7 +6,7 @@ export function ManagementBusyOverlay({
   steps,
   activeStep = 0,
 }: {
-  detail: string;
+  detail?: string;
   title?: string;
   steps?: string[];
   activeStep?: number;
@@ -82,7 +82,7 @@ export function ManagementBusyOverlay({
         <p className="mt-4 text-sm font-bold text-slate-900">
           {title}
         </p>
-        {(!steps || steps.length === 0) && (
+        {(!steps || steps.length === 0) && detail && (
           <p className="mt-1.5 max-w-[330px] text-[11px] font-medium leading-5 text-slate-500">
             {detail}
           </p>
