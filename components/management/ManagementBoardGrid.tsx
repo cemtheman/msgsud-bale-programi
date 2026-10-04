@@ -877,11 +877,14 @@ export function ManagementBoardGrid({
                                     if (!droppable) return;
                                     event.preventDefault();
 
+                                    const groupCandidates =
+                                      target.groupCandidates ?? [];
+
                                     if (
                                       target.state === 'VALID'
-                                      && target.groupCandidates.length === dragCards.length
+                                      && groupCandidates.length === dragCards.length
                                     ) {
-                                      onDropCandidates(target.groupCandidates);
+                                      onDropCandidates(groupCandidates);
                                       return;
                                     }
 
