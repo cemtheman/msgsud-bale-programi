@@ -486,23 +486,31 @@ export function buildManagementRowDisplayCards(
     const placementKey = card.placement
       ? `placed:${card.placement.dayOfWeek}:${card.placement.startPeriod}`
       : `pool:${card.blockIndex}`;
-    const key = [
-      card.subjectId,
-      gradeKey,
-      placementKey,
-      card.durationPeriods,
-      audienceKey,
-      card.groupType,
-      card.courseCharacter,
-      card.deliveryMode,
-    ].join('::');
+    const cardParallelFamily = parallelGroupFamilyKey(card.groupName);
+    const key = card.placement && cardParallelFamily
+      ? [
+        'parallel',
+        card.subjectId,
+        placementKey,
+        card.durationPeriods,
+        cardParallelFamily,
+      ].join('::')
+      : [
+        card.subjectId,
+        gradeKey,
+        placementKey,
+        card.durationPeriods,
+        audienceKey,
+        card.groupType,
+        card.courseCharacter,
+        card.deliveryMode,
+      ].join('::');
 
     const existing = groups.get(key);
     const sameRequirement = existing?.card.requirementId === card.requirementId;
     const existingParallelFamily = existing
       ? parallelGroupFamilyKey(existing.card.groupName)
       : null;
-    const cardParallelFamily = parallelGroupFamilyKey(card.groupName);
     const sameParallelFamily = Boolean(
       existingParallelFamily
       && cardParallelFamily
