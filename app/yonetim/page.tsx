@@ -214,8 +214,12 @@ const MANAGEMENT_STARTUP_STEPS = [
   'Oturum doğrulanıyor',
   'Çalışma alanı hazırlanıyor',
   'Ders programı indiriliyor',
-  'Ders planı hazırlanıyor',
-  'Öğretmen ve salon listeleri alınıyor',
+  'Ders planı okunuyor',
+  'Öğretmen listesi alınıyor',
+  'Salon listesi alınıyor',
+  'Kart ve yerleşimler okunuyor',
+  'Ders planı kontrolleri yapılıyor',
+  'Kaynak bilgileri hazırlanıyor',
   'Program kontrolleri yapılıyor',
   'Hazır',
 ] as const;
@@ -844,18 +848,31 @@ export default function ManagementPage() {
         if (showStartup) setStartupStep(4);
         const nextCoursePlan = await fetchManagementCoursePlan(
           session.accessToken,
+          (courseStage) => {
+            if (!showStartup || !active) return;
+
+            const stepByStage = {
+              STRUCTURE: 4,
+              TEACHERS: 5,
+              ROOMS: 6,
+              PLACEMENTS: 7,
+              CHECKS: 8,
+            } as const;
+
+            setStartupStep(stepByStage[courseStage]);
+          },
         );
         if (!active) return;
         setCoursePlan(nextCoursePlan);
 
-        if (showStartup) setStartupStep(5);
+        if (showStartup) setStartupStep(9);
         const nextResources = await fetchManagementResources(
           session.accessToken,
         );
         if (!active) return;
         setResources(nextResources);
 
-        if (showStartup) setStartupStep(6);
+        if (showStartup) setStartupStep(10);
         const [
           nextSolverWorkspace,
           nextPublicationPreview,
@@ -872,7 +889,7 @@ export default function ManagementPage() {
         setPublicationGate(nextPublicationGate);
 
         if (showStartup) {
-          setStartupStep(7);
+          setStartupStep(11);
           setStartupComplete(true);
         }
       } catch (reason: unknown) {
