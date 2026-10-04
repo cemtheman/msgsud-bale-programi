@@ -482,6 +482,7 @@ export function translateCandidateReason(code: string) {
     TEACHER_UNAVAILABLE: 'Öğretmen bu saatte uygun değil',
     TEACHER_NOT_IN_REQUIREMENT_POOL: 'Öğretmen artık bu dersin öğretmen havuzunda değil',
     GROUP_CONFLICT: 'Öğrenci grubu aynı saatte başka derste',
+    PARALLEL_BUNDLE_BROKEN: 'Bağlı paralel dersler birlikte taşınmalı',
     REQUIREMENT_TEACHER_MISMATCH: 'Bu dersin diğer bloklarında kullanılan öğretmenle eşleşmiyor',
     REQUIREMENT_TEACHER_CONFLICT: 'Bu dersin yerleşmiş bloklarında birden fazla öğretmen kullanılıyor',
   };
