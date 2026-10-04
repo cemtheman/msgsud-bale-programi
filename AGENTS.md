@@ -6550,3 +6550,49 @@ Current expected test count after parallel-bundle validator tests:
 - two new validation tests were added
 - expected next gate: 28 files / 148 tests (unless another existing test file
   has changed count independently)
+
+
+### 4 Oct continuation — offset-preserving parallel bundle drag
+
+Goal:
+- move from "bundle break is blocked" to "linked K. Bale/Point geometry can be
+  moved as one user action"
+- preserve the exact relative timing of the live-baseline bundle
+- the card the user actually grabs is the drag anchor
+
+Implementation:
+- exported baseline bundle lookup:
+  `findManagementWorkspaceParallelBundleV1(snapshot, cardId)`
+- drag start expands a selected parallel card to all baseline-linked bundle
+  members
+- drag offsets are converted from baseline offsets to anchor-relative offsets
+  so grabbing Point vs grabbing K. Bale behaves naturally
+- grouped candidate evaluation checks each sibling at its own target period
+- the drag overlay footprint now supports offsets before and after the grabbed
+  card, not just same-start multi-card blocks
+- final local preview remains authoritative before the drop is accepted
+- grouped application remains one local batch / one Undo step
+
+Commits:
+- `9d764878f9c2321986048ada0c92bd77fab28e48` expose bundle geometry
+- `c411d57adca69e8012cba4fc4097084dd7f26f3a` expand drag to linked bundle
+- `5140cd3a172f8ce31c6e987e0facbc2eb06dd2f8` offset-aware board targets
+- `ffd5ae7e5a6f2ef401b573ed0f6081d33c32c971` correct helper typing
+- `c23056ae97ac3898f19952d91146a384faa65a47` bundle membership/offset test
+
+Next gate:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
+```
+
+Browser acceptance after gate:
+1. drag a linked K. Bale card: whole linked package should be evaluated
+2. drag the Point member itself: Point remains the anchor; sibling offsets move
+   relative to it
+3. only cells valid for the complete geometry should appear placeable
+4. drop should apply locally as one batch
+5. one Undo should restore the entire geometry
+6. Save should remain the only DB persistence point
