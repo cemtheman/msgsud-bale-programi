@@ -141,7 +141,6 @@ function dropTargetForCell({
   view,
   activeDay,
   startPeriod,
-  startOffsetsByCardId,
   loading,
 }: {
   card: ManagementBoardCard;
@@ -150,7 +149,6 @@ function dropTargetForCell({
   view: ManagementResourceView;
   activeDay: number;
   startPeriod: number;
-  startOffsetsByCardId: Record<string, number>;
   loading: boolean;
 }): ManagementDropTarget {
   if (
@@ -300,6 +298,7 @@ function groupDropTargetForCell({
   view,
   activeDay,
   startPeriod,
+  startOffsetsByCardId,
   loading,
 }: {
   cards: ManagementBoardCard[];
@@ -308,6 +307,7 @@ function groupDropTargetForCell({
   view: ManagementResourceView;
   activeDay: number;
   startPeriod: number;
+  startOffsetsByCardId: Record<string, number>;
   loading: boolean;
 }): ManagementDropTarget & {
   groupCandidates: ManagementGroupDropCandidate[];
