@@ -204,6 +204,18 @@ const RESOURCE_VIEWS: Array<{
   { id: 'SALONLAR', label: 'Salonlar' },
 ];
 
+const MANAGEMENT_STARTUP_STEPS = [
+  'Sunucuya bağlanılıyor',
+  'Oturum doğrulanıyor',
+  'Çalışma alanı hazırlanıyor',
+  'Ders programı indiriliyor',
+  'Ders planı hazırlanıyor',
+  'Öğretmen ve salon listeleri alınıyor',
+  'Program kontrolleri yapılıyor',
+  'Hazır',
+] as const;
+
+
 function workspaceIssueLabel(code: string) {
   const labels: Record<string, string> = {
     TIME_OUTSIDE_DAY: 'Ders saati gün sınırlarının dışında',
@@ -589,6 +601,8 @@ export default function ManagementPage() {
   const [dataError, setDataError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [startupStep, setStartupStep] = useState(0);
+  const [startupComplete, setStartupComplete] = useState(false);
 
   const [activeSection, setActiveSection] =
     useState<'PROGRAM' | 'PLAN' | 'RESOURCES' | 'SOLVER' | 'STATUS'>('PROGRAM');
@@ -747,12 +761,18 @@ export default function ManagementPage() {
       setSolverWorkspace(null);
       setPublicationPreview(null);
       setPublicationGate(null);
+      if (status === 'anonymous') {
+        setStartupStep(0);
+        setStartupComplete(false);
+      }
       return;
     }
 
     let active = true;
+    const showStartup = !startupComplete;
     setDataLoading(true);
     setDataError(null);
+    if (showStartup) setStartupStep(2);
 
     void (async () => {
       try {
@@ -770,6 +790,7 @@ export default function ManagementPage() {
           );
         if (!active) return;
 
+        if (showStartup) setStartupStep(3);
         const [nextOverview, nextBoard] = await Promise.all([
           fetchManagementOverview(session.accessToken),
           fetchManagementBoard(session.accessToken),
@@ -815,18 +836,21 @@ export default function ManagementPage() {
           setCommandState({ undo: null, redo: null });
         }
 
+        if (showStartup) setStartupStep(4);
         const nextCoursePlan = await fetchManagementCoursePlan(
           session.accessToken,
         );
         if (!active) return;
         setCoursePlan(nextCoursePlan);
 
+        if (showStartup) setStartupStep(5);
         const nextResources = await fetchManagementResources(
           session.accessToken,
         );
         if (!active) return;
         setResources(nextResources);
 
+        if (showStartup) setStartupStep(6);
         const [
           nextSolverWorkspace,
           nextPublicationPreview,
@@ -841,6 +865,11 @@ export default function ManagementPage() {
         setSolverWorkspace(nextSolverWorkspace);
         setPublicationPreview(nextPublicationPreview);
         setPublicationGate(nextPublicationGate);
+
+        if (showStartup) {
+          setStartupStep(7);
+          setStartupComplete(true);
+        }
       } catch (reason: unknown) {
         if (!active) return;
         setDataError(
@@ -2779,8 +2808,17 @@ export default function ManagementPage() {
 
   if (status === 'loading') {
     return (
-      <main className="management-workbench-root flex min-h-screen items-center justify-center bg-[#F5F3EE] text-sm font-semibold text-slate-400">
-        Yönetim alanı hazırlanıyor…
+      <main className="management-workbench-root min-h-screen bg-[#F5F3EE]">
+        <ManagementBusyOverlay
+          title="Partisyon hazırlanıyor"
+          detail={
+            startupStep === 1
+              ? 'Hesabınız doğrulanıyor ve yönetim yetkileriniz kontrol ediliyor.'
+              : 'Sunucuyla bağlantı kuruluyor ve mevcut oturum kontrol ediliyor.'
+          }
+          steps={[...MANAGEMENT_STARTUP_STEPS]}
+          activeStep={startupStep}
+        />
       </main>
     );
   }
@@ -2791,6 +2829,8 @@ export default function ManagementPage() {
         error={error}
         loading={false}
         onSubmit={async (email, password) => {
+          setStartupComplete(false);
+          setStartupStep(1);
           await login(email, password);
         }}
       />
@@ -4715,6 +4755,15 @@ export default function ManagementPage() {
             void runRemove();
           }}
           onCancel={() => setRemoveConfirmOpen(false)}
+        />
+      )}
+
+      {!startupComplete && dataLoading && (
+        <ManagementBusyOverlay
+          title="Partisyon hazırlanıyor"
+          detail={MANAGEMENT_STARTUP_STEPS[startupStep] ?? 'Yönetim alanı hazırlanıyor.'}
+          steps={[...MANAGEMENT_STARTUP_STEPS]}
+          activeStep={startupStep}
         />
       )}
 
