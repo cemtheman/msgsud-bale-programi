@@ -21,6 +21,7 @@ export type ManagementWorkspaceValidationCodeV1 =
   | 'TEACHER_CONFLICT'
   | 'ROOM_CONFLICT'
   | 'GROUP_CONFLICT'
+  | 'PARALLEL_BUNDLE_BROKEN'
   | 'TEACHER_CONTINUITY'
   | 'MAX_BLOCKS_PER_DAY'
   | 'MAX_CONSECUTIVE_PERIODS'
@@ -126,6 +127,124 @@ function groupsConflict(
   }
 
   return false;
+}
+
+function parallelFamilyKey(groupName: string) {
+  const normalized = groupName.trim();
+  const lower = normalized.toLocaleLowerCase('tr-TR');
+
+  if (!lower.startsWith('parallel') && !lower.startsWith('paralel')) {
+    return null;
+  }
+
+  return normalized
+    .replace(/^\s*(?:PARALLEL|PARALEL)\s*[•·-]?\s*/i, '')
+    .replace(/\/\s*\d+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildBaselineParallelBundles(
+  snapshot: ManagementWorkspaceSnapshotV1,
+) {
+  const requirements = new Map(
+    snapshot.requirements.map((requirement) => [requirement.id, requirement]),
+  );
+  const placements = new Map(
+    snapshot.baselinePlacements.map((placement) => [placement.cardId, placement]),
+  );
+
+  const grouped = new Map<string, Array<{
+    cardId: string;
+    startPeriod: number;
+    endPeriod: number;
+  }>>();
+
+  snapshot.cards.forEach((card) => {
+    const requirement = requirements.get(card.requirementId);
+    const placement = placements.get(card.id);
+    if (
+      !requirement
+      || !placement
+      || placement.dayOfWeek === null
+      || placement.startPeriod === null
+    ) return;
+
+    const family = parallelFamilyKey(requirement.groupName);
+    if (!family) return;
+
+    const key = `${family}|${placement.dayOfWeek}`;
+    const items = grouped.get(key) ?? [];
+    items.push({
+      cardId: card.id,
+      startPeriod: placement.startPeriod,
+      endPeriod: placement.startPeriod + card.durationPeriods - 1,
+    });
+    grouped.set(key, items);
+  });
+
+  const bundles: Array<{
+    cardIds: string[];
+    offsetsByCardId: Map<string, number>;
+  }> = [];
+
+  grouped.forEach((items) => {
+    const remaining = new Set(items.map((item) => item.cardId));
+    const byId = new Map(items.map((item) => [item.cardId, item]));
+
+    while (remaining.size > 0) {
+      const [seed] = remaining;
+      const component = new Set<string>([seed]);
+      remaining.delete(seed);
+
+      let expanded = true;
+      while (expanded) {
+        expanded = false;
+
+        for (const candidateId of [...remaining]) {
+          const candidate = byId.get(candidateId);
+          if (!candidate) continue;
+
+          const connected = [...component].some((memberId) => {
+            const member = byId.get(memberId);
+            if (!member) return false;
+
+            return (
+              candidate.startPeriod <= member.endPeriod + 1
+              && member.startPeriod <= candidate.endPeriod + 1
+            );
+          });
+
+          if (connected) {
+            component.add(candidateId);
+            remaining.delete(candidateId);
+            expanded = true;
+          }
+        }
+      }
+
+      if (component.size < 2) continue;
+
+      const componentItems = [...component]
+        .map((cardId) => byId.get(cardId))
+        .filter((item): item is NonNullable<typeof item> => Boolean(item));
+      const anchorStart = Math.min(
+        ...componentItems.map((item) => item.startPeriod),
+      );
+
+      bundles.push({
+        cardIds: componentItems.map((item) => item.cardId),
+        offsetsByCardId: new Map(
+          componentItems.map((item) => [
+            item.cardId,
+            item.startPeriod - anchorStart,
+          ]),
+        ),
+      });
+    }
+  });
+
+  return bundles;
 }
 
 function longestConsecutiveRun(periods: Set<number>) {
@@ -499,6 +618,61 @@ export function validateManagementWorkspaceV1(
       }
     }
   }
+
+  buildBaselineParallelBundles(snapshot).forEach((bundle) => {
+    const current = bundle.cardIds.map((cardId) => ({
+      cardId,
+      placement: workingCopy.placementsByCardId[cardId],
+    }));
+
+    if (current.some(({ placement }) => !placement || !isPlaced(placement))) {
+      pushIssue(issues, {
+        code: 'PARALLEL_BUNDLE_BROKEN',
+        cardIds: bundle.cardIds,
+        requirementId: null,
+        dayOfWeek: null,
+      });
+      return;
+    }
+
+    const placedCurrent = current.map(({ cardId, placement }) => ({
+      cardId,
+      placement: placement as ManagementWorkspacePlacementStateV1 & {
+        dayOfWeek: number;
+        startPeriod: number;
+      },
+    }));
+    const days = new Set(
+      placedCurrent.map(({ placement }) => placement.dayOfWeek),
+    );
+
+    if (days.size !== 1) {
+      pushIssue(issues, {
+        code: 'PARALLEL_BUNDLE_BROKEN',
+        cardIds: bundle.cardIds,
+        requirementId: null,
+        dayOfWeek: null,
+      });
+      return;
+    }
+
+    const anchorStart = Math.min(
+      ...placedCurrent.map(({ placement }) => placement.startPeriod),
+    );
+    const geometryChanged = placedCurrent.some(({ cardId, placement }) => (
+      placement.startPeriod - anchorStart
+      !== bundle.offsetsByCardId.get(cardId)
+    ));
+
+    if (geometryChanged) {
+      pushIssue(issues, {
+        code: 'PARALLEL_BUNDLE_BROKEN',
+        cardIds: bundle.cardIds,
+        requirementId: null,
+        dayOfWeek: placedCurrent[0]?.placement.dayOfWeek ?? null,
+      });
+    }
+  });
 
   snapshot.requirements.forEach((requirement) => {
     const requirementPlacements = placed.filter(
