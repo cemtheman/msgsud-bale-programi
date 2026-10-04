@@ -444,6 +444,18 @@ export function managementCardStatus(card: ManagementBoardCard) {
   return 'Uygun';
 }
 
+function parallelGroupFamilyKey(groupName: string) {
+  const normalized = groupName.trim();
+  if (!normalized.toLocaleLowerCase('tr-TR').startsWith('parallel')) {
+    return null;
+  }
+
+  return normalized
+    .replace(/\s*·\s*\d+(?=\s*(?:\+|$))/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function buildManagementRowDisplayCards(
   cards: ManagementBoardCard[],
   view: ManagementResourceView,
@@ -487,15 +499,32 @@ export function buildManagementRowDisplayCards(
 
     const existing = groups.get(key);
     const sameRequirement = existing?.card.requirementId === card.requirementId;
+    const existingParallelFamily = existing
+      ? parallelGroupFamilyKey(existing.card.groupName)
+      : null;
+    const cardParallelFamily = parallelGroupFamilyKey(card.groupName);
+    const sameParallelFamily = Boolean(
+      existingParallelFamily
+      && cardParallelFamily
+      && existingParallelFamily === cardParallelFamily
+    );
     const overlapsExistingClass = existing?.classCodes.some((code) =>
       card.classCodes.includes(code),
     ) ?? false;
 
-    // Distinct lesson records for the same class must stay separate, but
-    // sibling cards belonging to the *same requirement* are one logical
-    // lesson block when they share the same slot/duration. Previously the
-    // class-overlap guard split those siblings into stacked duplicate cards.
-    if (!existing || (overlapsExistingClass && !sameRequirement)) {
+    // Distinct lesson records for the same class normally stay separate.
+    // Two exceptions represent one logical visual block:
+    //  1) sibling cards from the same requirement;
+    //  2) different requirements that belong to the same named Parallel
+    //     family (e.g. "... · 1" / "... · 2") and share the same slot/duration.
+    if (
+      !existing
+      || (
+        overlapsExistingClass
+        && !sameRequirement
+        && !sameParallelFamily
+      )
+    ) {
       const uniqueKey = existing ? `${key}::card:${card.id}` : key;
       groups.set(uniqueKey, {
         id: `group:${uniqueKey}`,
