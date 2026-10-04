@@ -301,38 +301,78 @@ function translateManagementReadError(message: string, fallback: string) {
 
 async function authedGet<T>(path: string, accessToken: string): Promise<T> {
   const { url, key } = getSupabaseConfig();
+  const delays = [0, 350, 900];
+  let lastError: unknown = null;
 
-  const response = await fetch(`${url}/rest/v1/${path}`, {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
-    },
-    cache: 'no-store',
-  });
-
-  if (!response.ok) {
-    let message = '';
-
-    try {
-      const body = await response.json() as {
-        message?: string;
-        details?: string;
-        hint?: string;
-      };
-      message = body.message ?? body.details ?? body.hint ?? '';
-    } catch {
-      message = '';
+  for (let attempt = 0; attempt < delays.length; attempt += 1) {
+    if (delays[attempt] > 0) {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, delays[attempt]);
+      });
     }
 
-    throw new Error(
-      translateManagementReadError(
+    try {
+      const response = await fetch(`${url}/rest/v1/${path}`, {
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
+        },
+        cache: 'no-store',
+      });
+
+      if (response.ok) {
+        return response.json() as Promise<T>;
+      }
+
+      let message = '';
+
+      try {
+        const body = await response.json() as {
+          message?: string;
+          details?: string;
+          hint?: string;
+        };
+        message = body.message ?? body.details ?? body.hint ?? '';
+      } catch {
+        message = '';
+      }
+
+      const translated = translateManagementReadError(
         message,
         `Yönetim çalışma verisi alınamadı (${response.status}).`,
-      ),
-    );
+      );
+
+      if (response.status < 500 && response.status !== 429) {
+        throw new Error(translated);
+      }
+
+      lastError = new Error(translated);
+    } catch (reason: unknown) {
+      lastError = reason;
+
+      const message = reason instanceof Error
+        ? reason.message.toLocaleLowerCase('tr-TR')
+        : '';
+      const transient = (
+        message.includes('load failed')
+        || message.includes('failed to fetch')
+        || message.includes('networkerror')
+        || message.includes('network error')
+        || message.includes('network request failed')
+        || message.includes('(500)')
+        || message.includes('(502)')
+        || message.includes('(503)')
+        || message.includes('(504)')
+        || message.includes('(522)')
+      );
+
+      if (!transient) throw reason;
+    }
   }
 
-  return response.json() as Promise<T>;
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('Yönetim çalışma verisi alınamadı.');
 }
 
 async function optionalAuthedGet<T>(
@@ -775,22 +815,7 @@ export async function fetchManagementBoard(
   const revision = await fetchLatestManagementDraftRevision(accessToken);
   if (!revision) return null;
 
-  const [
-    cards,
-    requirements,
-    groups,
-    groupRelations,
-    classGroups,
-    subjects,
-    requirementTeachers,
-    teachers,
-    requirementRooms,
-    rooms,
-    placements,
-    domains,
-    teacherNameOverrides,
-    roomNameOverrides,
-  ] = await Promise.all([
+  const [cards, requirements, groups] = await Promise.all([
     authedGet<CardRow[]>(
       `schedule_cards?select=id,requirement_id,block_index,duration_periods,locked&schedule_revision_id=eq.${revision.id}`,
       accessToken,
@@ -803,6 +828,9 @@ export async function fetchManagementBoard(
       `instructional_groups?select=id,class_group_id,name,group_type,audience_target&requirement_set_id=eq.${revision.requirement_set_id}`,
       accessToken,
     ),
+  ]);
+
+  const [groupRelations, classGroups, subjects] = await Promise.all([
     authedGet<GroupRelationRow[]>(
       'instructional_group_relations?select=left_group_id,right_group_id,relation',
       accessToken,
@@ -815,6 +843,9 @@ export async function fetchManagementBoard(
       'subjects?select=id,name',
       accessToken,
     ),
+  ]);
+
+  const [requirementTeachers, teachers] = await Promise.all([
     authedGet<RequirementTeacherRow[]>(
       'course_requirement_teachers?select=requirement_id,teacher_id',
       accessToken,
@@ -823,6 +854,9 @@ export async function fetchManagementBoard(
       'teachers?select=id,name,operational_status,archived_at',
       accessToken,
     ),
+  ]);
+
+  const [requirementRooms, rooms] = await Promise.all([
     authedGet<RequirementRoomRow[]>(
       'course_requirement_rooms?select=requirement_id,room_id',
       accessToken,
@@ -831,22 +865,32 @@ export async function fetchManagementBoard(
       'rooms?select=id,name,canonical_room_id,operational_status,archived_at',
       accessToken,
     ),
-    authedGet<PlacementRow[]>(
-      'placements?select=card_id,day_of_week,start_period,teacher_id,room_id,move_transaction_id',
-      accessToken,
-    ),
+  ]);
+
+  const placements = await authedGet<PlacementRow[]>(
+    'placements?select=card_id,day_of_week,start_period,teacher_id,room_id,move_transaction_id',
+    accessToken,
+  );
+
+  const [
+    domains,
+    teacherNameOverrides,
+    roomNameOverrides,
+  ] = await Promise.all([
     optionalAuthedGet<DomainRow[]>(
       'schedule_card_domain_summaries?select=card_id,domain_status,valid_count,invalid_count,unresolved_count,is_forced,is_contradiction',
       accessToken,
       [],
     ),
-    authedGet<TeacherNameOverrideRow[]>(
+    optionalAuthedGet<TeacherNameOverrideRow[]>(
       `management_teacher_name_overrides?select=teacher_id,display_name&schedule_revision_id=eq.${revision.id}`,
       accessToken,
+      [],
     ),
-    authedGet<RoomNameOverrideRow[]>(
+    optionalAuthedGet<RoomNameOverrideRow[]>(
       `management_room_name_overrides?select=room_id,display_name&schedule_revision_id=eq.${revision.id}`,
       accessToken,
+      [],
     ),
   ]);
 
