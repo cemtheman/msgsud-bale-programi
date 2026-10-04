@@ -555,6 +555,7 @@ export function ManagementBoardGrid({
   onDragEnd,
   onDropCandidates,
   onDropNeedsAttention,
+  validateDropTarget,
   onCardContextMenu,
 }: {
   rows: ManagementBoardRow[];
@@ -572,6 +573,11 @@ export function ManagementBoardGrid({
   onDragEnd: () => void;
   onDropCandidates: (candidates: ManagementGroupDropCandidate[]) => void;
   onDropNeedsAttention: (target: ManagementDropTarget) => void;
+  validateDropTarget?: (target: ManagementDropTarget & {
+    groupCandidates?: ManagementGroupDropCandidate[];
+  }) => ManagementDropTarget & {
+    groupCandidates?: ManagementGroupDropCandidate[];
+  };
   onCardContextMenu: (
     cardId: string,
     sourceCardIds: string[],
@@ -817,8 +823,8 @@ export function ManagementBoardGrid({
                           1,
                           ...dragCards.map((card) => card.durationPeriods),
                         );
-                        const targets = PERIODS.map((period) =>
-                          groupDropTargetForCell({
+                        const targets = PERIODS.map((period) => {
+                          const candidateTarget = groupDropTargetForCell({
                             cards: dragCards,
                             detailsByCardId: dragCandidateDetails,
                             row,
@@ -826,8 +832,12 @@ export function ManagementBoardGrid({
                             activeDay,
                             startPeriod: period.number,
                             loading: dragLoading,
-                          }),
-                        );
+                          });
+
+                          return validateDropTarget
+                            ? validateDropTarget(candidateTarget)
+                            : candidateTarget;
+                        });
 
                         return (
                           <div className="absolute inset-0 z-30 grid grid-cols-12">
