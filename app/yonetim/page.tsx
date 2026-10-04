@@ -160,6 +160,9 @@ import {
   previewManagementWorkspaceCommandsV1,
 } from '@/lib/managementWorkspaceCommands';
 import {
+  findManagementWorkspaceParallelBundleV1,
+} from '@/lib/managementWorkspaceValidation';
+import {
   projectManagementBoardFromWorkspaceV1,
 } from '@/lib/managementWorkspaceBoardAdapter';
 import {
@@ -664,6 +667,8 @@ export default function ManagementPage() {
   } | null>(null);
 
   const [dragCardIds, setDragCardIds] = useState<string[]>([]);
+  const [dragStartOffsetsByCardId, setDragStartOffsetsByCardId] =
+    useState<Record<string, number>>({});
   const dragCardIdsRef = useRef<string[]>([]);
   const [dragCandidateDetails, setDragCandidateDetails] =
     useState<Record<string, ManagementCandidateDetail>>({});
@@ -1820,14 +1825,31 @@ export default function ManagementPage() {
   const beginDrag = (cardId: string, sourceCardIds?: string[]) => {
     if (!session || !access?.canEdit || status !== 'ready') return;
 
-    const ids = Array.from(new Set(
+    const baseIds = Array.from(new Set(
       sourceCardIds?.length ? sourceCardIds : [cardId],
     ));
+    const localSnapshot = workspaceSnapshotRef.current;
+    const parallelBundle = localSnapshot
+      ? findManagementWorkspaceParallelBundleV1(localSnapshot, cardId)
+      : null;
+    const ids = Array.from(new Set(
+      parallelBundle
+        ? [...baseIds, ...parallelBundle.cardIds]
+        : baseIds,
+    ));
+    const anchorOffset = parallelBundle?.offsetsByCardId[cardId] ?? 0;
+    const startOffsetsByCardId = parallelBundle
+      ? Object.fromEntries(ids.map((id) => [
+        id,
+        (parallelBundle.offsetsByCardId[id] ?? anchorOffset) - anchorOffset,
+      ]))
+      : Object.fromEntries(ids.map((id) => [id, 0]));
     const sequence = dragSequenceRef.current + 1;
     dragSequenceRef.current = sequence;
 
     dragCardIdsRef.current = ids;
     setDragCardIds(ids);
+    setDragStartOffsetsByCardId(startOffsetsByCardId);
     setDragCandidateDetails({});
     setDragLoading(true);
     setCandidateFocus(null);
@@ -1861,6 +1883,7 @@ export default function ManagementPage() {
         if (dragSequenceRef.current !== sequence) return;
         dragCardIdsRef.current = [];
         setDragCardIds([]);
+        setDragStartOffsetsByCardId({});
         setDragCandidateDetails({});
         setCommandNotice({
           kind: 'error',
@@ -1881,6 +1904,7 @@ export default function ManagementPage() {
     dragSequenceRef.current += 1;
     dragCardIdsRef.current = [];
     setDragCardIds([]);
+    setDragStartOffsetsByCardId({});
     setDragCandidateDetails({});
     setDragLoading(false);
   };
@@ -3982,6 +4006,7 @@ export default function ManagementPage() {
               canEdit={access?.canEdit === true}
               dragCard={dragCard}
               dragCardIds={dragCardIds}
+              dragStartOffsetsByCardId={dragStartOffsetsByCardId}
               dragCandidateDetails={dragCandidateDetails}
               dragLoading={dragLoading}
               onDragStart={beginDrag}
