@@ -214,11 +214,6 @@ const MANAGEMENT_STARTUP_STEPS = [
   'Oturum doğrulanıyor',
   'Çalışma alanı hazırlanıyor',
   'Ders programı indiriliyor',
-  'Ders planı okunuyor',
-  'Öğretmen listesi alınıyor',
-  'Salon listesi alınıyor',
-  'Kart ve yerleşimler okunuyor',
-  'Ders planı kontrolleri yapılıyor',
   'Hazır',
 ] as const;
 
@@ -851,32 +846,11 @@ export default function ManagementPage() {
           setCommandState({ undo: null, redo: null });
         }
 
-        if (showStartup) setStartupStep(4);
-        const nextCoursePlan = await fetchManagementCoursePlan(
-          session.accessToken,
-          (courseStage) => {
-            if (!showStartup || !active) return;
-
-            const stepByStage = {
-              STRUCTURE: 4,
-              TEACHERS: 5,
-              ROOMS: 6,
-              PLACEMENTS: 7,
-              CHECKS: 8,
-            } as const;
-
-            setStartupStep(stepByStage[courseStage]);
-          },
-        );
-        if (!active) return;
-        setCoursePlan(nextCoursePlan);
-
-        // Program + Course Plan is enough to open the management app.
-        // Resource inventory is intentionally lazy-loaded when the Resources
-        // section is opened so a slow/failed resource read can never keep the
-        // whole application behind the startup overlay.
+        // The Program workspace is the only startup-critical surface.
+        // Plan/Resources/Solver/Status data is lazy-loaded by its own section
+        // so transient failures there can never keep the app behind the loader.
         if (showStartup) {
-          setStartupStep(9);
+          setStartupStep(4);
           setStartupComplete(true);
         }
       } catch (reason: unknown) {
@@ -895,6 +869,37 @@ export default function ManagementPage() {
       active = false;
     };
   }, [refreshToken, session, status]);
+
+  useEffect(() => {
+    if (
+      status !== 'ready'
+      || !session
+      || !startupComplete
+      || activeSection !== 'PLAN'
+    ) {
+      return;
+    }
+
+    let active = true;
+
+    void fetchManagementCoursePlan(session.accessToken)
+      .then((nextCoursePlan) => {
+        if (active) setCoursePlan(nextCoursePlan);
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        setCommandNotice({
+          kind: 'info',
+          text: reason instanceof Error
+            ? `Ders planı şu anda alınamadı: ${reason.message}`
+            : 'Ders planı şu anda alınamadı. Biraz sonra yeniden deneyin.',
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [activeSection, refreshToken, session, startupComplete, status]);
 
   useEffect(() => {
     if (
