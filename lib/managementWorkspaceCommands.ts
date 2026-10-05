@@ -6,6 +6,7 @@ import {
   type ManagementWorkspaceInventoryStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
+  type ManagementWorkspaceTeacherPlanningStateV1,
   type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
@@ -13,6 +14,7 @@ import {
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
   applyManagementWorkspaceRequirementResourceOperationV1,
+  applyManagementWorkspaceTeacherPlanningOperationV1,
   cloneManagementWorkspaceOperationV1,
   createManagementWorkspaceHistoryV1,
   type ManagementWorkspaceHistoryV1,
@@ -39,6 +41,10 @@ export type ManagementWorkspaceCommandV1 =
   | {
       type: 'SET_INVENTORY_RESOURCE';
       resource: ManagementWorkspaceInventoryStateV1;
+    }
+  | {
+      type: 'SET_TEACHER_PLANNING';
+      planning: ManagementWorkspaceTeacherPlanningStateV1;
     };
 
 export interface ManagementWorkspaceCommandResultV1 {
@@ -102,6 +108,12 @@ function cloneWorkingCopy(
         { ...resource },
       ]),
     ),
+    teacherPlanningById: Object.fromEntries(
+      Object.entries(source.teacherPlanningById).map(([id, planning]) => [
+        id,
+        { ...planning },
+      ]),
+    ),
   };
 }
 
@@ -146,6 +158,14 @@ function applyCommand(
       workingCopy,
       history,
       command.resource,
+    );
+  }
+
+  if (command.type === 'SET_TEACHER_PLANNING') {
+    return applyManagementWorkspaceTeacherPlanningOperationV1(
+      workingCopy,
+      history,
+      command.planning,
     );
   }
 
@@ -394,6 +414,7 @@ export function resetManagementWorkspaceWorkingCopyV1(
   target.requirementResourcesById = clean.requirementResourcesById;
   target.teacherInventoryById = clean.teacherInventoryById;
   target.roomInventoryById = clean.roomInventoryById;
+  target.teacherPlanningById = clean.teacherPlanningById;
 
   history.nextSequence = 1;
   history.nextBatchId = 1;
