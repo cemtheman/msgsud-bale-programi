@@ -16,9 +16,7 @@ export function projectManagementCoursePlanFromWorkspaceV1(
     coursePlan.roomOptions.map((option) => [option.id, option.name]),
   );
 
-  return {
-    ...coursePlan,
-    rows: coursePlan.rows.map((row) => {
+  const projectedRows = coursePlan.rows.map((row) => {
       const resource =
         workingCopy.requirementResourcesById[row.requirementId] ?? null;
 
@@ -40,6 +38,28 @@ export function projectManagementCoursePlanFromWorkspaceV1(
         ),
         requiredCapability: resource.requiredCapability,
       };
-    }),
+    });
+
+  const policyByRequirement = new Map(
+    projectedRows.map((row) => [
+      row.requirementId,
+      {
+        scope: row.teacherAssignmentScope,
+        continuity: row.teacherContinuity,
+      },
+    ]),
+  );
+
+  return {
+    ...coursePlan,
+    rows: projectedRows,
+    teacherContinuityViolations:
+      coursePlan.teacherContinuityViolations.filter((violation) => {
+        const policy = policyByRequirement.get(violation.requirementId);
+        return (
+          policy?.scope === 'REQUIREMENT'
+          && policy.continuity === 'REQUIRED'
+        );
+      }),
   };
 }
