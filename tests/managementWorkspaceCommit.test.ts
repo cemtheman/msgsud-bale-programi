@@ -8,6 +8,7 @@ import {
   setManagementWorkspaceRequirementTeacherPolicyV1,
   setManagementWorkspaceRequirementTeachersV1,
   setManagementWorkspaceTeacherInventoryV1,
+  setManagementWorkspaceTeacherPlanningV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import { prepareManagementWorkspaceCommitV1 } from '@/lib/managementWorkspaceCommit';
 
@@ -401,6 +402,43 @@ describe('management workspace commit v1', () => {
     expect(prepared.ready).toBe(false);
     expect(prepared.issues.map((issue) => issue.code))
       .toContain('TEACHER_CONFLICT');
+  });
+
+
+  it('includes deterministic teacher planning changes in the atomic payload', () => {
+    const source = {
+      ...snapshot(),
+      teacherLoadTargets: [{
+        teacherId: 'teacher-1',
+        minimumLoad: 4,
+        targetLoad: 6,
+        maximumLoad: 8,
+      }],
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspaceTeacherPlanningV1(copy, 'teacher-1', {
+      minimumLoad: 5,
+      targetLoad: 7,
+      maximumLoad: 9,
+    });
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(true);
+    expect(prepared.payload?.teacherPlanningChanges).toEqual([{
+      teacher_id: 'teacher-1',
+      before: {
+        minimum_load: 4,
+        target_load: 6,
+        maximum_load: 8,
+      },
+      after: {
+        minimum_load: 5,
+        target_load: 7,
+        maximum_load: 9,
+      },
+    }]);
   });
 
 });
