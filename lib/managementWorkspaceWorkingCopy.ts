@@ -1520,20 +1520,28 @@ export function diffManagementWorkspaceV1(
     }
   });
 
-  const placementChanges = Object.values(workingCopy.cardsById)
-    .map((card) => {
-      const after = workingCopy.placementsByCardId[card.id];
+  const placementCardIds = Array.from(new Set([
+    ...Object.keys(baselineCards),
+    ...Object.keys(workingCopy.cardsById),
+  ]));
+
+  const placementChanges = placementCardIds
+    .map((cardId) => {
+      const currentCard = workingCopy.cardsById[cardId];
+      const after = currentCard
+        ? workingCopy.placementsByCardId[cardId]
+        : emptyPlacement(cardId);
       if (!after) {
         throw new Error(
-          `Workspace working copy kart durumu eksik (${card.id}).`,
+          `Workspace working copy kart durumu eksik (${cardId}).`,
         );
       }
 
-      const before = baselineByCardId[card.id] ?? emptyPlacement(card.id);
+      const before = baselineByCardId[cardId] ?? emptyPlacement(cardId);
       if (equalPlacement(before, after)) return null;
 
       return {
-        cardId: card.id,
+        cardId,
         before: cloneManagementWorkspacePlacementV1(before),
         after: cloneManagementWorkspacePlacementV1(after),
       };
