@@ -205,9 +205,20 @@ export function prepareManagementWorkspaceRoomStatusEditV1(
     .map((card) => card.id);
 
   const hasChanges = current.operationalStatus !== operationalStatus;
-  const canApply = hasChanges && validation.applied;
+  const familyPlacementBlocked = (
+    operationalStatus !== 'ACTIVE'
+    && placedImpacts.length > 0
+  );
+  const canApply = (
+    hasChanges
+    && validation.applied
+    && !familyPlacementBlocked
+  );
   const blockReasons = hasChanges
-    ? validation.issues.map((issue) => issue.code)
+    ? Array.from(new Set([
+        ...validation.issues.map((issue) => issue.code),
+        ...(familyPlacementBlocked ? ['ROOM_INACTIVE'] : []),
+      ]))
     : ['NO_CHANGES'];
 
   const affectedRequirements = snapshot.requirements
