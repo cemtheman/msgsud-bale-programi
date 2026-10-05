@@ -338,7 +338,22 @@ export function validateManagementWorkspaceV1(
   const issues: ManagementWorkspaceValidationIssueV1[] = [];
   const coordinatedCards = new Set(coordinatedCardIds);
   const requirements = new Map(
-    snapshot.requirements.map((requirement) => [requirement.id, requirement]),
+    snapshot.requirements.map((requirement) => {
+      const resource =
+        workingCopy.requirementResourcesById[requirement.id] ?? null;
+
+      return [
+        requirement.id,
+        resource
+          ? {
+              ...requirement,
+              teacherMode: resource.teacherMode,
+              resourceMode: resource.resourceMode,
+              requiredCapability: resource.requiredCapability,
+            }
+          : requirement,
+      ];
+    }),
   );
   const cards = new Map(
     snapshot.cards.map((card) => [card.id, card]),
@@ -352,16 +367,15 @@ export function validateManagementWorkspaceV1(
   const teacherPools = new Map<string, Set<string>>();
   const roomPools = new Map<string, Set<string>>();
 
-  snapshot.teacherPools.forEach((entry) => {
-    const values = teacherPools.get(entry.requirementId) ?? new Set<string>();
-    values.add(entry.teacherId);
-    teacherPools.set(entry.requirementId, values);
-  });
-
-  snapshot.roomPools.forEach((entry) => {
-    const values = roomPools.get(entry.requirementId) ?? new Set<string>();
-    values.add(entry.roomId);
-    roomPools.set(entry.requirementId, values);
+  Object.values(workingCopy.requirementResourcesById).forEach((resource) => {
+    teacherPools.set(
+      resource.requirementId,
+      new Set(resource.teacherIds),
+    );
+    roomPools.set(
+      resource.requirementId,
+      new Set(resource.roomIds),
+    );
   });
 
   const unavailable = new Set(
