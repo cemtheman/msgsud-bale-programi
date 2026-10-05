@@ -243,6 +243,7 @@ function workspaceIssueLabel(code: string) {
     ROOM_CONFLICT: 'Salon aynı saatte başka derste kullanılıyor',
     GROUP_CONFLICT: 'Aynı öğrenci grubu için saat çakışması var',
     PARALLEL_BUNDLE_BROKEN: 'Bağlı paralel ders paketi birlikte taşınmalı',
+    REQUIREMENT_RESOURCES_REQUIRE_UNPLACED: 'Ders Planı kaynaklarını değiştirmek için ders önce programdan kaldırılıp kaydedilmeli',
     TEACHER_CONTINUITY: 'Dersin öğretmen sürekliliği bozuluyor',
     MAX_BLOCKS_PER_DAY: 'Ders aynı güne fazla sayıda yerleştirilmiş',
     MAX_CONSECUTIVE_PERIODS: 'Ders art arda fazla ders saati oluşturuyor',
