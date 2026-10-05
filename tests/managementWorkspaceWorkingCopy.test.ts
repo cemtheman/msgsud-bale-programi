@@ -190,6 +190,7 @@ describe('management workspace working copy v1', () => {
       dirtyRequirementIds: [],
       dirtyResourceIds: [],
       placementChanges: [],
+      requirementStructureChanges: [],
       requirementResourceChanges: [],
       inventoryChanges: [],
       teacherPlanningChanges: [],
