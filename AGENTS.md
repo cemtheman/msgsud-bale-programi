@@ -7757,3 +7757,18 @@ npx supabase migration list | tail -10
 ```
 
 Do not start hard-availability localization until this gate is green.
+
+
+### 5 Oct 2026 — Teacher load gate fixture regression fix
+
+Gate from `63d7681` exposed fixture/type regressions only:
+- empty diff expectation lacked `teacherPlanningChanges: []`
+- Resources projection fixtures lacked `teacherPlanningById`
+- Board/Course Plan direct working-copy fixtures lacked `teacherPlanningById`
+- new Resources projection test referenced nonexistent `snapshot()` helper
+- projection now tolerates legacy runtime fixtures without `teacherPlanningById`
+
+No DB contract or migration behavior changed.
+
+Gate status remains: **PENDING**
+Rerun focused/full/build/parity gate before closing teacher-load localization.
