@@ -26,13 +26,13 @@ export interface ManagementWorkspaceCommitPayloadV1 {
       weekly_load: number;
       preferred_partition: number[];
       allowed_partitions: number[][];
-      term_status: 'ACTIVE';
+      term_status: 'ACTIVE' | 'INACTIVE';
     };
     after: {
       weekly_load: number;
       preferred_partition: number[];
       allowed_partitions: number[][];
-      term_status: 'ACTIVE';
+      term_status: 'ACTIVE' | 'INACTIVE';
     };
     final_cards: Array<{
       card_id: string;
@@ -419,7 +419,7 @@ export async function commitManagementWorkspaceV1(
   const token = await getFreshManagementAccessToken(accessToken);
 
   const response = await fetch(
-    `${url}/rest/v1/rpc/management_commit_workspace_v10`,
+    `${url}/rest/v1/rpc/management_commit_workspace_v11`,
     {
       method: 'POST',
       headers: {
@@ -521,6 +521,21 @@ export function translateManagementWorkspaceCommitErrorV1(
 
   if (normalized.includes('WORKSPACE_V1_LOCKED_CARD_CHANGED')) {
     return 'Kilitli bir ders değiştirildiği için çalışma alanı kaydedilemedi.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V11_LIFECYCLE_BEFORE_STALE')
+    || normalized.includes('WORKSPACE_V11_LIFECYCLE_CARD_GRAPH_STALE')
+  ) {
+    return 'Dersin dönem durumu çalışma alanı açıldıktan sonra değişmiş. Ders Planı verisini yenileyip tekrar deneyin.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V11_LIFECYCLE_BLOCKED')
+    || normalized.includes('WORKSPACE_V11_LIFECYCLE_GRAPH_MISMATCH')
+    || normalized.includes('WORKSPACE_V11_LIFECYCLE_INVALID')
+  ) {
+    return 'Dersin aktif/pasif geçişi mevcut kartlarla güvenli biçimde uygulanamıyor. Etki önizlemesini yeniden kontrol edin.';
   }
 
   if (
