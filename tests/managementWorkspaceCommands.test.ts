@@ -521,6 +521,8 @@ describe('management workspace command executor v1', () => {
           requirementId: 'requirement-1',
           teacherIds: ['teacher-1'],
           teacherMode: 'FIXED',
+          teacherAssignmentScope: 'BLOCK',
+          teacherContinuity: 'NONE',
           resourceMode: 'UNKNOWN',
           roomIds: [],
           requiredCapability: null,
