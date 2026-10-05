@@ -7488,3 +7488,25 @@ Accepted local-workspace state now covers:
 Next major boundary:
 **Resources inventory / operational status editing**
 (teacher and room identity/status/departure/inactivation flows).
+
+
+### 5 Oct 2026 — Resources inventory/status full code gate
+
+Validation at branch `feat/management-workspace-v1` after regression fixes:
+- Test Files: **34/34 PASS**
+- Tests: **196/196 PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: **PASS**
+
+Regression fixes included:
+- parallel-bundle validation fixtures aligned with accepted teacher assignment scope contract
+- lazy Resources inventory hydration guarded against null data
+
+Code/build gate: **PASS**
+Final phase closure still requires migration tail parity confirming:
+- `20261005092501 management_workspace_resource_inventory`
+- `20261005094055 management_workspace_resource_ordering`
+
+Do not start departure/load/availability/profile localization until migration parity is confirmed.
