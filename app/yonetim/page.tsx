@@ -108,6 +108,8 @@ import {
   type ManagementCoursePlanData,
   type ManagementPlanStage,
   type ManagementRoomStrategy,
+  type ManagementTeacherAssignmentScope,
+  type ManagementTeacherContinuity,
 } from '@/lib/managementCoursePlan';
 import {
   fetchManagementCommandState,
