@@ -30,7 +30,9 @@ export type ManagementTeacherRequirement =
 
 export interface ManagementCoursePlanRow {
   requirementId: string;
+  subjectId: string;
   subjectName: string;
+  groupId: string;
   groupName: string;
   groupType: string;
   classCodes: string[];
@@ -675,7 +677,9 @@ export async function fetchManagementCoursePlan(
 
     return [{
       requirementId: requirement.id,
+      subjectId: requirement.subject_id,
       subjectName: subjectById.get(requirement.subject_id) ?? 'Ders',
+      groupId: group.id,
       groupName: formatGroupName(group.name),
       groupType: group.group_type,
       classCodes: resolveClassCodes(group.id),
