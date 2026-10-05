@@ -2913,7 +2913,7 @@ export default function ManagementPage() {
       && serverBoard
       && localHistory.undoStack.length > 0
     ) {
-      undoManagementWorkspaceOperationV1(
+      const localOperation = undoManagementWorkspaceOperationV1(
         localWorkingCopy,
         localHistory,
       );
@@ -2931,7 +2931,9 @@ export default function ManagementPage() {
       );
       setCommandNotice({
         kind: 'success',
-        text: 'Program değişikliği geri alındı.',
+        text: localOperation?.kind === 'SET_REQUIREMENT_RESOURCES'
+          ? 'Ders Planı kaynak değişikliği geri alındı.'
+          : 'Program değişikliği geri alındı.',
       });
       return;
     }
@@ -3015,7 +3017,7 @@ export default function ManagementPage() {
       && serverBoard
       && localHistory.redoStack.length > 0
     ) {
-      redoManagementWorkspaceOperationV1(
+      const localOperation = redoManagementWorkspaceOperationV1(
         localWorkingCopy,
         localHistory,
       );
@@ -3033,7 +3035,9 @@ export default function ManagementPage() {
       );
       setCommandNotice({
         kind: 'success',
-        text: 'Program değişikliği yeniden uygulandı.',
+        text: localOperation?.kind === 'SET_REQUIREMENT_RESOURCES'
+          ? 'Ders Planı kaynak değişikliği yeniden uygulandı.'
+          : 'Program değişikliği yeniden uygulandı.',
       });
       return;
     }
