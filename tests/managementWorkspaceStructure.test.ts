@@ -352,4 +352,47 @@ describe('management workspace active requirement structure', () => {
     expect(candidates!.validCandidates.length).toBeGreaterThan(0);
   });
 
+
+  it('requires undo or save before a second unsaved structure decision for the same requirement', () => {
+    const source = snapshot(false);
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+    const firstInput = {
+      requirementId: 'requirement-1',
+      weeklyLoad: 3,
+      preferredPartition: [1, 1, 1],
+      allowedPartitions: [[1, 1, 1]],
+      termStatus: 'ACTIVE' as const,
+    };
+    const firstPreview = previewManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      firstInput,
+    );
+    const first = prepareManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      firstInput,
+      firstPreview.structureToken,
+    );
+    executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      first.command,
+    );
+
+    expect(() => previewManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      {
+        requirementId: 'requirement-1',
+        weeklyLoad: 4,
+        preferredPartition: [2, 1, 1],
+        allowedPartitions: [[2, 1, 1]],
+        termStatus: 'ACTIVE',
+      },
+    )).toThrow(/önce Geri Al veya ana Kaydet/i);
+  });
+
 });
