@@ -7,7 +7,7 @@ export function buildManagementWorkspaceMoveCandidateDetailV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   cardId: string,
 ): ManagementCandidateDetail | null {
-  const card = snapshot.cards.find((item) => item.id === cardId);
+  const card = workingCopy.cardsById[cardId];
   if (!card) return null;
 
   const requirement = snapshot.requirements.find(
@@ -171,7 +171,7 @@ export function buildManagementWorkspacePlacementCandidateDetailV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   cardId: string,
 ): ManagementCandidateDetail | null {
-  const card = snapshot.cards.find((item) => item.id === cardId);
+  const card = workingCopy.cardsById[cardId];
   if (!card) return null;
 
   const requirement = snapshot.requirements.find(
