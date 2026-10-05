@@ -400,4 +400,43 @@ describe('management workspace history v1', () => {
       .toEqual([{ dayOfWeek: 2, period: 3 }]);
   });
 
+
+  it('undoes and redoes room profile edits locally', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const result = executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      {
+        type: 'SET_ROOM_PROFILE',
+        profile: {
+          roomId: 'room-1',
+          capabilities: ['STUDIO_SMALL_GROUP'],
+          knowledgeStatus: 'OBSERVED',
+        },
+      },
+    );
+
+    expect(result.applied).toBe(true);
+    expect(copy.roomProfileById['room-1']).toMatchObject({
+      capabilities: ['STUDIO_SMALL_GROUP'],
+      knowledgeStatus: 'OBSERVED',
+    });
+
+    undoManagementWorkspaceOperationV1(copy, history);
+    expect(copy.roomProfileById['room-1']).toMatchObject({
+      capabilities: [],
+      knowledgeStatus: 'CONFIRMED',
+    });
+
+    redoManagementWorkspaceOperationV1(copy, history);
+    expect(copy.roomProfileById['room-1']).toMatchObject({
+      capabilities: ['STUDIO_SMALL_GROUP'],
+      knowledgeStatus: 'OBSERVED',
+    });
+  });
+
 });
