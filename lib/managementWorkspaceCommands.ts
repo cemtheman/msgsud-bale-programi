@@ -4,11 +4,14 @@ import type {
 import {
   createManagementWorkspaceWorkingCopyV1,
   type ManagementWorkspacePlacementStateV1,
+  type ManagementWorkspaceRequirementResourceStateV1,
   type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
+  applyManagementWorkspaceRequirementResourceOperationV1,
+  cloneManagementWorkspaceOperationV1,
   createManagementWorkspaceHistoryV1,
   type ManagementWorkspaceHistoryV1,
   type ManagementWorkspaceOperationV1,
@@ -26,6 +29,10 @@ export type ManagementWorkspaceCommandV1 =
   | {
       type: 'REMOVE_PLACEMENT';
       cardId: string;
+    }
+  | {
+      type: 'SET_REQUIREMENT_RESOURCES';
+      resource: ManagementWorkspaceRequirementResourceStateV1;
     };
 
 export interface ManagementWorkspaceCommandResultV1 {
@@ -84,16 +91,12 @@ function cloneHistory(
   return {
     nextSequence: source.nextSequence,
     nextBatchId: source.nextBatchId,
-    undoStack: source.undoStack.map((entry) => ({
-      ...entry,
-      before: { ...entry.before },
-      after: { ...entry.after },
-    })),
-    redoStack: source.redoStack.map((entry) => ({
-      ...entry,
-      before: { ...entry.before },
-      after: { ...entry.after },
-    })),
+    undoStack: source.undoStack.map(
+      (entry) => cloneManagementWorkspaceOperationV1(entry),
+    ),
+    redoStack: source.redoStack.map(
+      (entry) => cloneManagementWorkspaceOperationV1(entry),
+    ),
   };
 }
 
@@ -107,6 +110,14 @@ function applyCommand(
       workingCopy,
       history,
       command.placement,
+    );
+  }
+
+  if (command.type === 'SET_REQUIREMENT_RESOURCES') {
+    return applyManagementWorkspaceRequirementResourceOperationV1(
+      workingCopy,
+      history,
+      command.resource,
     );
   }
 
@@ -207,11 +218,15 @@ export function previewManagementWorkspaceCommandsV1(
 
   const trialCopy = cloneWorkingCopy(workingCopy);
   const trialHistory = createManagementWorkspaceHistoryV1();
-  const coordinatedCardIds = commands.map((command) =>
-    command.type === 'SET_PLACEMENT'
-      ? command.placement.cardId
-      : command.cardId,
-  );
+  const coordinatedCardIds = commands.flatMap((command) => {
+    if (command.type === 'SET_PLACEMENT') {
+      return [command.placement.cardId];
+    }
+    if (command.type === 'REMOVE_PLACEMENT') {
+      return [command.cardId];
+    }
+    return [];
+  });
 
   const currentValidation = validateManagementWorkspaceV1(
     snapshot,
@@ -268,11 +283,15 @@ export function executeManagementWorkspaceCommandsV1(
 
   const trialCopy = cloneWorkingCopy(workingCopy);
   const trialHistory = cloneHistory(history);
-  const coordinatedCardIds = commands.map((command) =>
-    command.type === 'SET_PLACEMENT'
-      ? command.placement.cardId
-      : command.cardId,
-  );
+  const coordinatedCardIds = commands.flatMap((command) => {
+    if (command.type === 'SET_PLACEMENT') {
+      return [command.placement.cardId];
+    }
+    if (command.type === 'REMOVE_PLACEMENT') {
+      return [command.cardId];
+    }
+    return [];
+  });
   const currentValidation = validateManagementWorkspaceV1(
     snapshot,
     workingCopy,
