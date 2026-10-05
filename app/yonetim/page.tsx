@@ -118,8 +118,6 @@ import {
   moveManagementCardBundle,
   placeManagementCard,
   placeManagementCardBundle,
-  previewManagementPlacementResourceChange,
-  applyManagementPlacementResourceChange,
   applyManagementSolverProposalBundle,
   previewManagementCandidateForwardImpacts,
   redoManagement,
@@ -165,6 +163,9 @@ import {
   buildManagementWorkspaceMoveCandidateDetailV1,
   buildManagementWorkspacePlacementCandidateDetailV1,
 } from '@/lib/managementWorkspaceCandidates';
+import {
+  prepareManagementWorkspaceResourceEditV1,
+} from '@/lib/managementWorkspaceResources';
 import {
   projectManagementBoardFromWorkspaceV1,
 } from '@/lib/managementWorkspaceBoardAdapter';
@@ -4172,15 +4173,21 @@ export default function ManagementPage() {
                 if (!session || !access?.canEdit) {
                   throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
                 }
-                if (workspaceLocalSessionActive) {
-                  throw new Error('Yerel çalışma alanında kaydedilmemiş değişiklik var. Bu kaynak işlemi şu anda kilitli.');
+
+                const localSnapshot = workspaceSnapshotRef.current;
+                const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+                if (!localSnapshot || !localWorkingCopy) {
+                  throw new Error('Yerel çalışma alanı hazır değil.');
                 }
-                return previewManagementPlacementResourceChange(
-                  session.accessToken,
+
+                return prepareManagementWorkspaceResourceEditV1(
+                  localSnapshot,
+                  localWorkingCopy,
                   cardIds,
                   resourceType,
                   resourceId,
-                );
+                ).preview;
               }}
               onApplyPlacementResource={async (
                 cardIds,
@@ -4191,36 +4198,77 @@ export default function ManagementPage() {
                 if (!session || !access?.canEdit) {
                   throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
                 }
-                if (workspaceLocalSessionActive) {
-                  throw new Error('Yerel çalışma alanında kaydedilmemiş değişiklik var. Bu kaynak işlemi şu anda kilitli.');
+
+                const localSnapshot = workspaceSnapshotRef.current;
+                const localWorkingCopy = workspaceWorkingCopyRef.current;
+                const localHistory = workspaceHistoryRef.current;
+                const serverBoard = serverBoardRef.current;
+
+                if (
+                  !localSnapshot
+                  || !localWorkingCopy
+                  || !localHistory
+                  || !serverBoard
+                ) {
+                  throw new Error('Yerel çalışma alanı hazır değil.');
                 }
 
-                setCommandBusy(true);
-                setCommandActivity(
-                  resourceType === 'TEACHER'
-                    ? 'Öğretmen değişikliğinin güvenli uygulaması yapılıyor.'
-                    : 'Salon değişikliğinin güvenli uygulaması yapılıyor.',
+                const prepared = prepareManagementWorkspaceResourceEditV1(
+                  localSnapshot,
+                  localWorkingCopy,
+                  cardIds,
+                  resourceType,
+                  resourceId,
                 );
 
-                try {
-                  const result = await applyManagementPlacementResourceChange(
-                    session.accessToken,
-                    cardIds,
-                    resourceType,
-                    resourceId,
-                    expectedStateToken,
+                if (prepared.preview.stateToken !== expectedStateToken) {
+                  throw new Error(
+                    'Kaynak değişikliği önizlemeden sonra değişti. Lütfen yeniden kontrol edin.',
                   );
-                  setCommandNotice({
-                    kind: 'success',
-                    text: resourceType === 'TEACHER'
-                      ? `Öğretmen “${result.resourceName}” olarak değiştirildi. ${result.affectedCardCount} kart güncellendi.`
-                      : `Salon “${result.resourceName}” olarak değiştirildi. ${result.affectedCardCount} kart güncellendi.`,
-                  });
-                  setRefreshToken((value) => value + 1);
-                } finally {
-                  setCommandBusy(false);
-                  setCommandActivity(null);
                 }
+
+                if (!prepared.preview.canApply || prepared.commands.length === 0) {
+                  throw new Error('Kaynak değişikliği artık uygulanamıyor.');
+                }
+
+                const result = executeManagementWorkspaceCommandsV1(
+                  localSnapshot,
+                  localWorkingCopy,
+                  localHistory,
+                  prepared.commands,
+                );
+
+                if (!result.applied) {
+                  throw new Error(
+                    result.issues.length > 0
+                      ? `Kaynak değişikliği uygulanamıyor: ${workspaceIssueSummary(
+                        result.issues.map((issue) => issue.code),
+                      )}.`
+                      : 'Kaynak değişikliği uygulanamıyor.',
+                  );
+                }
+
+                setBoard(
+                  projectManagementBoardFromWorkspaceV1(
+                    serverBoard,
+                    localWorkingCopy,
+                  ),
+                );
+                setWorkspaceDirty(
+                  diffManagementWorkspaceV1(
+                    localSnapshot,
+                    localWorkingCopy,
+                  ).hasChanges,
+                );
+                setCandidateFocus(null);
+                setCandidateDetail(null);
+
+                setCommandNotice({
+                  kind: 'success',
+                  text: resourceType === 'TEACHER'
+                    ? `${prepared.preview.affectedCardCount} yerleşimde öğretmen yerel olarak güncellendi.`
+                    : `${prepared.preview.affectedCardCount} yerleşimde salon yerel olarak güncellendi.`,
+                });
               }}
               onUpdatePlanTeachers={async (requirementId, teacherIds) => {
                 if (!session || !access?.canEdit) {
