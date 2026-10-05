@@ -51,6 +51,21 @@ export interface ManagementWorkspaceRoomProfileStateV1 {
   knowledgeStatus: 'CONFIRMED' | 'OBSERVED' | 'UNKNOWN';
 }
 
+export interface ManagementWorkspaceResourceLifecycleStateV1 {
+  resourceType: 'TEACHER' | 'ROOM';
+  resourceId: string;
+  baselineExists: boolean;
+  exists: boolean;
+}
+
+export interface ManagementWorkspaceResourceBundleV1 {
+  lifecycle: ManagementWorkspaceResourceLifecycleStateV1;
+  inventory: ManagementWorkspaceInventoryStateV1;
+  teacherPlanning?: ManagementWorkspaceTeacherPlanningStateV1;
+  teacherAvailability?: ManagementWorkspaceTeacherAvailabilityStateV1;
+  roomProfile?: ManagementWorkspaceRoomProfileStateV1;
+}
+
 function normalizeWorkspaceRoomKnowledgeStatus(
   value: string | null | undefined,
 ): ManagementWorkspaceRoomProfileStateV1['knowledgeStatus'] {
@@ -89,6 +104,8 @@ export interface ManagementWorkspaceWorkingCopyV1 {
     Record<string, ManagementWorkspaceTeacherAvailabilityStateV1>;
   roomProfileById:
     Record<string, ManagementWorkspaceRoomProfileStateV1>;
+  resourceLifecycleById:
+    Record<string, ManagementWorkspaceResourceLifecycleStateV1>;
 }
 
 export interface ManagementWorkspacePlacementChangeV1 {
@@ -128,6 +145,16 @@ export interface ManagementWorkspaceRoomProfileChangeV1 {
   after: ManagementWorkspaceRoomProfileStateV1;
 }
 
+export interface ManagementWorkspaceResourceCreateV1 {
+  resourceType: 'TEACHER' | 'ROOM';
+  resourceId: string;
+}
+
+export interface ManagementWorkspaceResourceDeleteV1 {
+  resourceType: 'TEACHER' | 'ROOM';
+  resourceId: string;
+}
+
 export interface ManagementWorkspaceDiffV1 {
   baseline: ManagementWorkspaceSnapshotIdentityV1;
   hasChanges: boolean;
@@ -141,6 +168,8 @@ export interface ManagementWorkspaceDiffV1 {
   teacherPlanningChanges: ManagementWorkspaceTeacherPlanningChangeV1[];
   teacherAvailabilityChanges: ManagementWorkspaceTeacherAvailabilityChangeV1[];
   roomProfileChanges: ManagementWorkspaceRoomProfileChangeV1[];
+  resourceCreates: ManagementWorkspaceResourceCreateV1[];
+  resourceDeletes: ManagementWorkspaceResourceDeleteV1[];
 }
 
 function cloneIdentity(
@@ -183,6 +212,26 @@ export function cloneManagementWorkspaceInventoryV1(
   value: ManagementWorkspaceInventoryStateV1,
 ): ManagementWorkspaceInventoryStateV1 {
   return { ...value };
+}
+
+export function cloneManagementWorkspaceResourceBundleV1(
+  value: ManagementWorkspaceResourceBundleV1,
+): ManagementWorkspaceResourceBundleV1 {
+  return {
+    lifecycle: { ...value.lifecycle },
+    inventory: cloneManagementWorkspaceInventoryV1(value.inventory),
+    teacherPlanning: value.teacherPlanning
+      ? { ...value.teacherPlanning }
+      : undefined,
+    teacherAvailability: value.teacherAvailability
+      ? cloneManagementWorkspaceTeacherAvailabilityV1(
+          value.teacherAvailability,
+        )
+      : undefined,
+    roomProfile: value.roomProfile
+      ? cloneManagementWorkspaceRoomProfileV1(value.roomProfile)
+      : undefined,
+  };
 }
 
 export function cloneManagementWorkspaceTeacherPlanningV1(
@@ -530,6 +579,31 @@ export function baselineTeacherAvailabilityById(
   );
 }
 
+export function baselineResourceLifecycleById(
+  snapshot: ManagementWorkspaceSnapshotV1,
+): Record<string, ManagementWorkspaceResourceLifecycleStateV1> {
+  return Object.fromEntries([
+    ...snapshot.teachers.map((teacher) => [
+      teacher.id,
+      {
+        resourceType: 'TEACHER' as const,
+        resourceId: teacher.id,
+        baselineExists: true,
+        exists: true,
+      },
+    ]),
+    ...snapshot.rooms.map((room) => [
+      room.id,
+      {
+        resourceType: 'ROOM' as const,
+        resourceId: room.id,
+        baselineExists: true,
+        exists: true,
+      },
+    ]),
+  ]);
+}
+
 export function hydrateManagementWorkspaceInventoryDisplayNamesV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   input: {
@@ -591,6 +665,182 @@ export function createManagementWorkspaceWorkingCopyV1(
     teacherPlanningById: baselineTeacherPlanningById(snapshot),
     teacherAvailabilityById: baselineTeacherAvailabilityById(snapshot),
     roomProfileById: baselineRoomProfileById(snapshot),
+    resourceLifecycleById: baselineResourceLifecycleById(snapshot),
+  };
+}
+
+export function getManagementWorkspaceResourceBundleV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resourceType: 'TEACHER' | 'ROOM',
+  resourceId: string,
+): ManagementWorkspaceResourceBundleV1 | null {
+  const lifecycle = workingCopy.resourceLifecycleById[resourceId];
+  if (!lifecycle || lifecycle.resourceType !== resourceType) return null;
+
+  const inventory = resourceType === 'TEACHER'
+    ? workingCopy.teacherInventoryById[resourceId]
+    : workingCopy.roomInventoryById[resourceId];
+  if (!inventory) return null;
+
+  return cloneManagementWorkspaceResourceBundleV1({
+    lifecycle,
+    inventory,
+    teacherPlanning: resourceType === 'TEACHER'
+      ? workingCopy.teacherPlanningById[resourceId]
+      : undefined,
+    teacherAvailability: resourceType === 'TEACHER'
+      ? workingCopy.teacherAvailabilityById[resourceId]
+      : undefined,
+    roomProfile: resourceType === 'ROOM'
+      ? workingCopy.roomProfileById[resourceId]
+      : undefined,
+  });
+}
+
+export function applyManagementWorkspaceResourceBundleV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resourceType: 'TEACHER' | 'ROOM',
+  resourceId: string,
+  bundle: ManagementWorkspaceResourceBundleV1 | null,
+) {
+  if (bundle === null) {
+    delete workingCopy.resourceLifecycleById[resourceId];
+    if (resourceType === 'TEACHER') {
+      delete workingCopy.teacherInventoryById[resourceId];
+      delete workingCopy.teacherPlanningById[resourceId];
+      delete workingCopy.teacherAvailabilityById[resourceId];
+    } else {
+      delete workingCopy.roomInventoryById[resourceId];
+      delete workingCopy.roomProfileById[resourceId];
+    }
+    return;
+  }
+
+  if (
+    bundle.lifecycle.resourceType !== resourceType
+    || bundle.lifecycle.resourceId !== resourceId
+    || bundle.inventory.resourceType !== resourceType
+    || bundle.inventory.resourceId !== resourceId
+  ) {
+    throw new Error('Workspace kaynak yaşam döngüsü paketi geçersiz.');
+  }
+
+  workingCopy.resourceLifecycleById[resourceId] = {
+    ...bundle.lifecycle,
+  };
+
+  if (resourceType === 'TEACHER') {
+    workingCopy.teacherInventoryById[resourceId] =
+      cloneManagementWorkspaceInventoryV1(
+        bundle.inventory,
+      ) as ManagementWorkspaceTeacherInventoryStateV1;
+    workingCopy.teacherPlanningById[resourceId] = bundle.teacherPlanning
+      ? { ...bundle.teacherPlanning }
+      : {
+          teacherId: resourceId,
+          minimumLoad: null,
+          targetLoad: null,
+          maximumLoad: null,
+        };
+    workingCopy.teacherAvailabilityById[resourceId] =
+      bundle.teacherAvailability
+        ? cloneManagementWorkspaceTeacherAvailabilityV1(
+            bundle.teacherAvailability,
+          )
+        : {
+            teacherId: resourceId,
+            unavailablePeriods: [],
+          };
+    return;
+  }
+
+  workingCopy.roomInventoryById[resourceId] =
+    cloneManagementWorkspaceInventoryV1(
+      bundle.inventory,
+    ) as ManagementWorkspaceRoomInventoryStateV1;
+  workingCopy.roomProfileById[resourceId] = bundle.roomProfile
+    ? cloneManagementWorkspaceRoomProfileV1(bundle.roomProfile)
+    : {
+        roomId: resourceId,
+        capabilities: [],
+        knowledgeStatus: 'UNKNOWN',
+      };
+}
+
+export function createManagementWorkspaceResourceBundleV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resourceType: 'TEACHER' | 'ROOM',
+  resourceId: string,
+  displayName: string,
+): ManagementWorkspaceResourceBundleV1 {
+  const name = displayName.trim();
+  if (name.length === 0 || name.length > 120) {
+    throw new Error('Kaynak adı 1–120 karakter olmalı.');
+  }
+  if (workingCopy.resourceLifecycleById[resourceId]) {
+    throw new Error('Kaynak kimliği çalışma alanında zaten kullanılıyor.');
+  }
+
+  const sameNameExists = Object.values(
+    resourceType === 'TEACHER'
+      ? workingCopy.teacherInventoryById
+      : workingCopy.roomInventoryById,
+  ).some((resource) => (
+    workingCopy.resourceLifecycleById[resource.resourceId]?.exists !== false
+    && resource.displayName.trim().toLocaleLowerCase('tr-TR')
+      === name.toLocaleLowerCase('tr-TR')
+  ));
+  if (sameNameExists) {
+    throw new Error('Bu adla bir kaynak zaten var.');
+  }
+
+  if (resourceType === 'TEACHER') {
+    return {
+      lifecycle: {
+        resourceType,
+        resourceId,
+        baselineExists: false,
+        exists: true,
+      },
+      inventory: {
+        resourceType,
+        resourceId,
+        baselineDisplayName: name,
+        displayName: name,
+        operationalStatus: 'ACTIVE',
+      },
+      teacherPlanning: {
+        teacherId: resourceId,
+        minimumLoad: null,
+        targetLoad: null,
+        maximumLoad: null,
+      },
+      teacherAvailability: {
+        teacherId: resourceId,
+        unavailablePeriods: [],
+      },
+    };
+  }
+
+  return {
+    lifecycle: {
+      resourceType,
+      resourceId,
+      baselineExists: false,
+      exists: true,
+    },
+    inventory: {
+      resourceType,
+      resourceId,
+      baselineDisplayName: name,
+      displayName: name,
+      operationalStatus: 'ACTIVE',
+    },
+    roomProfile: {
+      roomId: resourceId,
+      capabilities: [],
+      knowledgeStatus: 'UNKNOWN',
+    },
   };
 }
 
@@ -869,6 +1119,7 @@ export function diffManagementWorkspaceV1(
   const baselineTeacherPlanning = baselineTeacherPlanningById(snapshot);
   const baselineTeacherAvailability = baselineTeacherAvailabilityById(snapshot);
   const baselineRoomProfiles = baselineRoomProfileById(snapshot);
+  const baselineResourceLifecycle = baselineResourceLifecycleById(snapshot);
   const snapshotCardIds = new Set(snapshot.cards.map((card) => card.id));
   const snapshotRequirementIds = new Set(
     snapshot.requirements.map((requirement) => requirement.id),
@@ -890,8 +1141,46 @@ export function diffManagementWorkspaceV1(
     }
   });
 
+  Object.values(workingCopy.resourceLifecycleById).forEach((lifecycle) => {
+    const baseline = baselineResourceLifecycle[lifecycle.resourceId];
+    if (lifecycle.baselineExists) {
+      if (
+        !baseline
+        || baseline.resourceType !== lifecycle.resourceType
+      ) {
+        throw new Error(
+          `Workspace working copy geçersiz kaynak yaşam döngüsü içeriyor (${lifecycle.resourceId}).`,
+        );
+      }
+    } else if (baseline) {
+      throw new Error(
+        `Workspace working copy oluşturulan kaynak baseline ile çakışıyor (${lifecycle.resourceId}).`,
+      );
+    }
+
+    if (lifecycle.resourceType === 'TEACHER') {
+      if (
+        !workingCopy.teacherInventoryById[lifecycle.resourceId]
+        || !workingCopy.teacherPlanningById[lifecycle.resourceId]
+        || !workingCopy.teacherAvailabilityById[lifecycle.resourceId]
+      ) {
+        throw new Error(
+          `Workspace working copy öğretmen kaynak paketi eksik (${lifecycle.resourceId}).`,
+        );
+      }
+    } else if (
+      !workingCopy.roomInventoryById[lifecycle.resourceId]
+      || !workingCopy.roomProfileById[lifecycle.resourceId]
+    ) {
+      throw new Error(
+        `Workspace working copy salon kaynak paketi eksik (${lifecycle.resourceId}).`,
+      );
+    }
+  });
+
   Object.keys(workingCopy.teacherInventoryById).forEach((resourceId) => {
-    if (!baselineTeacherInventory[resourceId]) {
+    const lifecycle = workingCopy.resourceLifecycleById[resourceId];
+    if (!lifecycle || lifecycle.resourceType !== 'TEACHER') {
       throw new Error(
         `Workspace working copy bilinmeyen öğretmen içeriyor (${resourceId}).`,
       );
@@ -899,33 +1188,10 @@ export function diffManagementWorkspaceV1(
   });
 
   Object.keys(workingCopy.roomInventoryById).forEach((resourceId) => {
-    if (!baselineRoomInventory[resourceId]) {
+    const lifecycle = workingCopy.resourceLifecycleById[resourceId];
+    if (!lifecycle || lifecycle.resourceType !== 'ROOM') {
       throw new Error(
         `Workspace working copy bilinmeyen salon içeriyor (${resourceId}).`,
-      );
-    }
-  });
-
-  Object.keys(workingCopy.teacherPlanningById).forEach((teacherId) => {
-    if (!baselineTeacherPlanning[teacherId]) {
-      throw new Error(
-        `Workspace working copy bilinmeyen öğretmen planlama girdisi içeriyor (${teacherId}).`,
-      );
-    }
-  });
-
-  Object.keys(workingCopy.teacherAvailabilityById).forEach((teacherId) => {
-    if (!baselineTeacherAvailability[teacherId]) {
-      throw new Error(
-        `Workspace working copy bilinmeyen öğretmen uygunluk girdisi içeriyor (${teacherId}).`,
-      );
-    }
-  });
-
-  Object.keys(workingCopy.roomProfileById).forEach((roomId) => {
-    if (!baselineRoomProfiles[roomId]) {
-      throw new Error(
-        `Workspace working copy bilinmeyen salon profili içeriyor (${roomId}).`,
       );
     }
   });
@@ -988,7 +1254,8 @@ export function diffManagementWorkspaceV1(
     ...snapshot.teachers.flatMap((teacher) => {
       const sourceBefore = baselineTeacherInventory[teacher.id];
       const after = workingCopy.teacherInventoryById[teacher.id];
-      if (!sourceBefore || !after) return [];
+      const lifecycle = workingCopy.resourceLifecycleById[teacher.id];
+      if (!sourceBefore || !after || lifecycle?.exists === false) return [];
 
       const before: ManagementWorkspaceTeacherInventoryStateV1 = {
         ...sourceBefore,
@@ -1008,7 +1275,8 @@ export function diffManagementWorkspaceV1(
     ...snapshot.rooms.flatMap((room) => {
       const sourceBefore = baselineRoomInventory[room.id];
       const after = workingCopy.roomInventoryById[room.id];
-      if (!sourceBefore || !after) return [];
+      const lifecycle = workingCopy.resourceLifecycleById[room.id];
+      if (!sourceBefore || !after || lifecycle?.exists === false) return [];
 
       const before: ManagementWorkspaceRoomInventoryStateV1 = {
         ...sourceBefore,
@@ -1034,6 +1302,9 @@ export function diffManagementWorkspaceV1(
     .map((teacher) => {
       const before = baselineTeacherPlanning[teacher.id];
       const after = workingCopy.teacherPlanningById[teacher.id];
+      if (workingCopy.resourceLifecycleById[teacher.id]?.exists === false) {
+        return null;
+      }
       if (!before || !after) {
         throw new Error(
           `Workspace working copy öğretmen planlama durumu eksik (${teacher.id}).`,
@@ -1057,6 +1328,9 @@ export function diffManagementWorkspaceV1(
     .map((teacher) => {
       const before = baselineTeacherAvailability[teacher.id];
       const after = workingCopy.teacherAvailabilityById[teacher.id];
+      if (workingCopy.resourceLifecycleById[teacher.id]?.exists === false) {
+        return null;
+      }
       if (!before || !after) {
         throw new Error(
           `Workspace working copy öğretmen uygunluk durumu eksik (${teacher.id}).`,
@@ -1079,6 +1353,9 @@ export function diffManagementWorkspaceV1(
     .map((room) => {
       const before = baselineRoomProfiles[room.id];
       const after = workingCopy.roomProfileById[room.id];
+      if (workingCopy.resourceLifecycleById[room.id]?.exists === false) {
+        return null;
+      }
       if (!before || !after) {
         throw new Error(`Workspace working copy salon profili eksik (${room.id}).`);
       }
@@ -1095,6 +1372,30 @@ export function diffManagementWorkspaceV1(
     )
     .sort((left, right) => left.roomId.localeCompare(right.roomId));
 
+  const resourceCreates: ManagementWorkspaceResourceCreateV1[] =
+    Object.values(workingCopy.resourceLifecycleById)
+      .filter((lifecycle) => !lifecycle.baselineExists && lifecycle.exists)
+      .map((lifecycle) => ({
+        resourceType: lifecycle.resourceType,
+        resourceId: lifecycle.resourceId,
+      }))
+      .sort((left, right) =>
+        left.resourceType.localeCompare(right.resourceType)
+        || left.resourceId.localeCompare(right.resourceId),
+      );
+
+  const resourceDeletes: ManagementWorkspaceResourceDeleteV1[] =
+    Object.values(workingCopy.resourceLifecycleById)
+      .filter((lifecycle) => lifecycle.baselineExists && !lifecycle.exists)
+      .map((lifecycle) => ({
+        resourceType: lifecycle.resourceType,
+        resourceId: lifecycle.resourceId,
+      }))
+      .sort((left, right) =>
+        left.resourceType.localeCompare(right.resourceType)
+        || left.resourceId.localeCompare(right.resourceId),
+      );
+
   const dirtyCardIds = placementChanges
     .map((change) => change.cardId)
     .sort((left, right) => left.localeCompare(right));
@@ -1108,6 +1409,8 @@ export function diffManagementWorkspaceV1(
     ...teacherPlanningChanges.map((change) => change.teacherId),
     ...teacherAvailabilityChanges.map((change) => change.teacherId),
     ...roomProfileChanges.map((change) => change.roomId),
+    ...resourceCreates.map((change) => change.resourceId),
+    ...resourceDeletes.map((change) => change.resourceId),
   ])).sort((left, right) => left.localeCompare(right));
 
   return {
@@ -1118,7 +1421,9 @@ export function diffManagementWorkspaceV1(
       || inventoryChanges.length > 0
       || teacherPlanningChanges.length > 0
       || teacherAvailabilityChanges.length > 0
-      || roomProfileChanges.length > 0,
+      || roomProfileChanges.length > 0
+      || resourceCreates.length > 0
+      || resourceDeletes.length > 0,
     dirtyCardIds,
     dirtyRequirementIds,
     dirtyResourceIds,
@@ -1128,5 +1433,7 @@ export function diffManagementWorkspaceV1(
     teacherPlanningChanges,
     teacherAvailabilityChanges,
     roomProfileChanges,
+    resourceCreates,
+    resourceDeletes,
   };
 }
