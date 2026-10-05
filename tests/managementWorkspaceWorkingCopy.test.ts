@@ -11,6 +11,7 @@ import {
   setManagementWorkspaceRequirementRoomsV1,
   setManagementWorkspaceRoomInventoryV1,
   setManagementWorkspaceTeacherInventoryV1,
+  setManagementWorkspaceTeacherAvailabilityV1,
   setManagementWorkspaceTeacherPlanningV1,
   setManagementWorkspaceRequirementTeachersV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
@@ -189,6 +190,7 @@ describe('management workspace working copy v1', () => {
       requirementResourceChanges: [],
       inventoryChanges: [],
       teacherPlanningChanges: [],
+      teacherAvailabilityChanges: [],
     });
   });
 
@@ -496,6 +498,35 @@ describe('management workspace working copy v1', () => {
         minimumLoad: 5,
         targetLoad: 7,
         maximumLoad: 9,
+      },
+    }]);
+  });
+
+
+  it('tracks teacher hard availability changes in the local diff', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspaceTeacherAvailabilityV1(copy, 'teacher-1', [
+      { dayOfWeek: 2, period: 3 },
+      { dayOfWeek: 2, period: 4 },
+    ]);
+
+    const diff = diffManagementWorkspaceV1(source, copy);
+
+    expect(diff.hasChanges).toBe(true);
+    expect(diff.teacherAvailabilityChanges).toEqual([{
+      teacherId: 'teacher-1',
+      before: {
+        teacherId: 'teacher-1',
+        unavailablePeriods: [],
+      },
+      after: {
+        teacherId: 'teacher-1',
+        unavailablePeriods: [
+          { dayOfWeek: 2, period: 3 },
+          { dayOfWeek: 2, period: 4 },
+        ],
       },
     }]);
   });
