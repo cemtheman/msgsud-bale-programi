@@ -304,6 +304,8 @@ describe('management workspace history v1', () => {
         requirementId: 'requirement-1',
         teacherIds: [],
         teacherMode: 'UNKNOWN',
+        teacherAssignmentScope: 'BLOCK',
+        teacherContinuity: 'NONE',
         resourceMode: 'CAPABILITY',
         roomIds: [],
         requiredCapability: 'BALLET_STUDIO',
