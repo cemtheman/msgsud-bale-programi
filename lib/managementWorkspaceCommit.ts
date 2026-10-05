@@ -20,6 +20,29 @@ export interface ManagementWorkspaceCommitPayloadV1 {
   revisionVersion: number;
   snapshotHash: string;
   baselineHash: string;
+  resourceCreates: Array<{
+    resource_type: 'TEACHER' | 'ROOM';
+    resource_id: string;
+    display_name: string;
+    operational_status: string;
+    teacher_planning: {
+      minimum_load: number | null;
+      target_load: number | null;
+      maximum_load: number | null;
+    } | null;
+    teacher_availability: Array<{
+      day_of_week: number;
+      period: number;
+    }> | null;
+    room_profile: {
+      capabilities: string[];
+      knowledge_status: 'CONFIRMED' | 'OBSERVED' | 'UNKNOWN';
+    } | null;
+  }>;
+  resourceDeletes: Array<{
+    resource_type: 'TEACHER' | 'ROOM';
+    resource_id: string;
+  }>;
   changes: Array<{
     card_id: string;
     before: {
@@ -193,6 +216,58 @@ export function prepareManagementWorkspaceCommitV1(
       revisionVersion: diff.baseline.revisionVersion,
       snapshotHash: diff.baseline.snapshotHash,
       baselineHash: diff.baseline.baselineHash,
+      resourceCreates: diff.resourceCreates.map((change) => {
+        const lifecycle = workingCopy.resourceLifecycleById[change.resourceId];
+        const inventory = change.resourceType === 'TEACHER'
+          ? workingCopy.teacherInventoryById[change.resourceId]
+          : workingCopy.roomInventoryById[change.resourceId];
+        if (!lifecycle || !inventory || !lifecycle.exists) {
+          throw new Error(
+            `Workspace oluşturulan kaynak paketi eksik (${change.resourceId}).`,
+          );
+        }
+
+        if (change.resourceType === 'TEACHER') {
+          const planning = workingCopy.teacherPlanningById[change.resourceId];
+          const availability =
+            workingCopy.teacherAvailabilityById[change.resourceId];
+          return {
+            resource_type: change.resourceType,
+            resource_id: change.resourceId,
+            display_name: inventory.displayName,
+            operational_status: inventory.operationalStatus,
+            teacher_planning: {
+              minimum_load: planning?.minimumLoad ?? null,
+              target_load: planning?.targetLoad ?? null,
+              maximum_load: planning?.maximumLoad ?? null,
+            },
+            teacher_availability:
+              availability?.unavailablePeriods.map((slot) => ({
+                day_of_week: slot.dayOfWeek,
+                period: slot.period,
+              })) ?? [],
+            room_profile: null,
+          };
+        }
+
+        const profile = workingCopy.roomProfileById[change.resourceId];
+        return {
+          resource_type: change.resourceType,
+          resource_id: change.resourceId,
+          display_name: inventory.displayName,
+          operational_status: inventory.operationalStatus,
+          teacher_planning: null,
+          teacher_availability: null,
+          room_profile: {
+            capabilities: [...(profile?.capabilities ?? [])],
+            knowledge_status: profile?.knowledgeStatus ?? 'UNKNOWN',
+          },
+        };
+      }),
+      resourceDeletes: diff.resourceDeletes.map((change) => ({
+        resource_type: change.resourceType,
+        resource_id: change.resourceId,
+      })),
       changes: diff.placementChanges.map((change) => ({
         card_id: change.cardId,
         before: {
@@ -288,7 +363,7 @@ export async function commitManagementWorkspaceV1(
   const token = await getFreshManagementAccessToken(accessToken);
 
   const response = await fetch(
-    `${url}/rest/v1/rpc/management_commit_workspace_v8`,
+    `${url}/rest/v1/rpc/management_commit_workspace_v9`,
     {
       method: 'POST',
       headers: {
@@ -308,6 +383,8 @@ export async function commitManagementWorkspaceV1(
         p_teacher_planning_changes: payload.teacherPlanningChanges,
         p_teacher_availability_changes: payload.teacherAvailabilityChanges,
         p_room_profile_changes: payload.roomProfileChanges,
+        p_resource_creates: payload.resourceCreates,
+        p_resource_deletes: payload.resourceDeletes,
       }),
     },
   );
@@ -387,6 +464,20 @@ export function translateManagementWorkspaceCommitErrorV1(
 
   if (normalized.includes('WORKSPACE_V1_LOCKED_CARD_CHANGED')) {
     return 'Kilitli bir ders değiştirildiği için çalışma alanı kaydedilemedi.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V9_RESOURCE_CREATE_CONFLICT')
+    || normalized.includes('WORKSPACE_V9_RESOURCE_NAME_CONFLICT')
+  ) {
+    return 'Yeni kaynak kaydedilemedi: aynı kimlik veya ad veritabanında artık kullanılıyor. Çalışma alanını yenileyip tekrar deneyin.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V9_RESOURCE_DELETE_STALE')
+    || normalized.includes('WORKSPACE_V9_RESOURCE_DELETE_REFERENCED')
+  ) {
+    return 'Silinecek kaynak çalışma alanı açıldıktan sonra değişmiş veya hâlâ kullanılıyor. Bağları temizleyip çalışma alanını yenileyin.';
   }
 
   if (
