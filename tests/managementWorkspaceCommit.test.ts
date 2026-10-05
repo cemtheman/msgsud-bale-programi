@@ -217,6 +217,8 @@ describe('management workspace commit v1', () => {
         before: {
           teacher_ids: ['teacher-1'],
           teacher_mode: 'FIXED',
+          teacher_assignment_scope: 'REQUIREMENT',
+          teacher_continuity: 'REQUIRED',
           resource_mode: 'ELIGIBLE_POOL',
           room_ids: ['room-1'],
           required_capability: null,
@@ -224,6 +226,8 @@ describe('management workspace commit v1', () => {
         after: {
           teacher_ids: [],
           teacher_mode: 'UNKNOWN',
+          teacher_assignment_scope: 'REQUIREMENT',
+          teacher_continuity: 'REQUIRED',
           resource_mode: 'CAPABILITY',
           room_ids: [],
           required_capability: 'BALLET_STUDIO',
