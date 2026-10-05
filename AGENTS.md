@@ -8050,3 +8050,20 @@ Fix:
 - no DB or behavioral contract change
 
 Gate status remains: **PENDING BUILD RECHECK**
+
+
+### 5 Oct 2026 — Room profile TypeScript narrowing fix
+
+Second build recheck still failed at room-profile baseline typing because:
+- solver snapshot type is `knowledgeStatus: string | null`
+- `room.knowledgeStatus ?? 'UNKNOWN'` therefore inferred as general `string`
+- workspace profile requires the strict union `'CONFIRMED' | 'OBSERVED' | 'UNKNOWN'`
+
+Fix:
+- added `normalizeWorkspaceRoomKnowledgeStatus(...)`
+- only `CONFIRMED` and `OBSERVED` pass through
+- every other / null / undefined value normalizes to `UNKNOWN`
+- commit: `83ddd436e9bfa85a3cafcb60ca3655378d31e1b9`
+- no DB contract change
+
+Gate status remains: **PENDING BUILD RECHECK**
