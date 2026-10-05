@@ -34,8 +34,6 @@ export function projectManagementResourcesFromWorkspaceV1(
       workingCopy.resourceLifecycleById[teacher.id]?.exists !== false
     )
     .map((teacher) => {
-    ...resources,
-
       const local = workingCopy.teacherInventoryById[teacher.id];
       const planning = workingCopy.teacherPlanningById?.[teacher.id];
       const availability = workingCopy.teacherAvailabilityById?.[teacher.id];
@@ -75,7 +73,8 @@ export function projectManagementResourcesFromWorkspaceV1(
             ? local.displayName
             : teacher.name
         ) !== teacher.baseName,
-        operationalStatus: local?.operationalStatus ?? teacher.operationalStatus,
+        operationalStatus:
+          local?.operationalStatus ?? teacher.operationalStatus,
         minimumLoad: planning?.minimumLoad ?? teacher.minimumLoad,
         targetLoad: planning?.targetLoad ?? teacher.targetLoad,
         maximumLoad: planning?.maximumLoad ?? teacher.maximumLoad,
@@ -224,6 +223,8 @@ export function projectManagementResourcesFromWorkspaceV1(
       };
     });
 
+  return {
+    ...resources,
     teachers: [...existingTeachers, ...createdTeachers]
       .sort((left, right) => left.name.localeCompare(right.name, 'tr')),
     rooms: [...existingRooms, ...createdRooms]
