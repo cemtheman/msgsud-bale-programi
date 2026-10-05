@@ -443,6 +443,8 @@ describe('management workspace command executor v1', () => {
     expect(result.applied).toBe(true);
     expect(result.operations).toHaveLength(2);
     expect(result.operations[0].batchId).toBe(result.operations[1].batchId);
+    expect(history.undoStack[0].batchId).toBe(result.operations[0].batchId);
+    expect(history.undoStack[1].batchId).toBe(result.operations[0].batchId);
     expect(diffManagementWorkspaceV1(source, copy).dirtyCardIds)
       .toEqual(['card-1', 'card-2']);
 
@@ -494,7 +496,18 @@ describe('management workspace command executor v1', () => {
   });
 
   it('applies requirement resource changes through the shared command layer', () => {
-    const source = snapshot();
+    const base = snapshot();
+    const source: ManagementWorkspaceSnapshotV1 = {
+      ...base,
+      baselinePlacements: base.baselinePlacements.filter(
+        (placement) => placement.cardId !== 'card-1',
+      ),
+      baselineMetrics: {
+        ...base.baselineMetrics,
+        placedCardCount: 1,
+        unplacedCardCount: 1,
+      },
+    };
     const copy = createManagementWorkspaceWorkingCopyV1(source);
     const history = createManagementWorkspaceHistoryV1();
 
