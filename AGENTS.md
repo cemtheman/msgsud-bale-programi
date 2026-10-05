@@ -8272,3 +8272,29 @@ Tests added:
 - coordinated reconciliation detects final-state teacher conflict
 
 Gate status: **PENDING**
+
+
+### 5 Oct 2026 — Course Plan teacher reconciliation localization CLOSED / PASS
+
+Acceptance gate:
+- full suite: **34/34 files, 223/223 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: **PASS**
+- `git diff --check`: PASS
+
+Status: **CLOSED / PASS**
+
+Accepted behavior:
+- single-requirement teacher reconciliation is local-workspace-native
+- coordinated teacher reconciliation is local-workspace-native
+- day/start/room are preserved
+- teacher pools are unchanged
+- only placed blocks are modified
+- final coordinated state is validated before apply
+- all placement changes are written as one Undo/Redo batch
+- persistence uses existing v9 atomic Save; no migration required
+
+Next active sub-phase:
+**Course Plan requirement structure localization**
