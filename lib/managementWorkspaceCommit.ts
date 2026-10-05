@@ -35,6 +35,18 @@ export interface ManagementWorkspaceCommitPayloadV1 {
       room_id: string | null;
     };
   }>;
+  resourceChanges: Array<{
+    resource_type: 'TEACHER' | 'ROOM';
+    resource_id: string;
+    before: {
+      display_name: string;
+      operational_status: string;
+    };
+    after: {
+      display_name: string;
+      operational_status: string;
+    };
+  }>;
   requirementChanges: Array<{
     requirement_id: string;
     before: {
@@ -63,6 +75,7 @@ export interface ManagementWorkspaceCommitResultV1 {
   revisionId: string;
   changedCardCount: number;
   changedRequirementCount: number;
+  changedResourceCount: number;
   removeCount: number;
   moveCount: number;
   placeCount: number;
@@ -160,6 +173,18 @@ export function prepareManagementWorkspaceCommitV1(
           room_id: change.after.roomId,
         },
       })),
+      resourceChanges: diff.inventoryChanges.map((change) => ({
+        resource_type: change.resourceType,
+        resource_id: change.resourceId,
+        before: {
+          display_name: change.before.displayName,
+          operational_status: change.before.operationalStatus,
+        },
+        after: {
+          display_name: change.after.displayName,
+          operational_status: change.after.operationalStatus,
+        },
+      })),
       requirementChanges: diff.requirementResourceChanges.map((change) => ({
         requirement_id: change.requirementId,
         before: {
@@ -193,7 +218,7 @@ export async function commitManagementWorkspaceV1(
   const token = await getFreshManagementAccessToken(accessToken);
 
   const response = await fetch(
-    `${url}/rest/v1/rpc/management_commit_workspace_v2`,
+    `${url}/rest/v1/rpc/management_commit_workspace_v3`,
     {
       method: 'POST',
       headers: {
@@ -209,6 +234,7 @@ export async function commitManagementWorkspaceV1(
         p_expected_baseline_hash: payload.baselineHash,
         p_changes: payload.changes,
         p_requirement_changes: payload.requirementChanges,
+        p_resource_changes: payload.resourceChanges,
       }),
     },
   );
@@ -247,6 +273,8 @@ export function translateManagementWorkspaceCommitErrorV1(
     || normalized.includes('WORKSPACE_V1_BEFORE_STATE_STALE')
     || normalized.includes('WORKSPACE_V2_REQUIREMENT_BEFORE_STALE')
     || normalized.includes('WORKSPACE_V2_REQUIREMENT_NOT_IN_SET')
+    || normalized.includes('WORKSPACE_V3_RESOURCE_BEFORE_STALE')
+    || normalized.includes('WORKSPACE_V3_RESOURCE_NOT_FOUND')
   ) {
     return 'Taslak program siz çalışırken değişmiş. Yerel değişiklikler korunuyor; güncel programı almadan kaydetme yapılmadı.';
   }
