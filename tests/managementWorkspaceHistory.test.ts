@@ -5,6 +5,7 @@ import {
   executeManagementWorkspaceCommandV1,
 } from '@/lib/managementWorkspaceCommands';
 import {
+  createManagementWorkspaceResourceBundleV1,
   createManagementWorkspaceWorkingCopyV1,
   diffManagementWorkspaceV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
@@ -437,6 +438,45 @@ describe('management workspace history v1', () => {
       capabilities: ['STUDIO_SMALL_GROUP'],
       knowledgeStatus: 'OBSERVED',
     });
+  });
+
+
+  it('undoes and redoes a locally created resource as one history operation', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+    const bundle = createManagementWorkspaceResourceBundleV1(
+      copy,
+      'ROOM',
+      '22222222-2222-4222-8222-222222222222',
+      'Yeni Salon',
+    );
+
+    const result = executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      {
+        type: 'SET_RESOURCE_BUNDLE',
+        resourceType: 'ROOM',
+        resourceId: bundle.lifecycle.resourceId,
+        bundle,
+      },
+    );
+
+    expect(result.applied).toBe(true);
+    expect(copy.resourceLifecycleById[bundle.lifecycle.resourceId]?.exists)
+      .toBe(true);
+
+    undoManagementWorkspaceOperationV1(copy, history);
+    expect(copy.resourceLifecycleById[bundle.lifecycle.resourceId])
+      .toBeUndefined();
+
+    redoManagementWorkspaceOperationV1(copy, history);
+    expect(copy.resourceLifecycleById[bundle.lifecycle.resourceId]?.exists)
+      .toBe(true);
+    expect(copy.roomInventoryById[bundle.lifecycle.resourceId]?.displayName)
+      .toBe('Yeni Salon');
   });
 
 });
