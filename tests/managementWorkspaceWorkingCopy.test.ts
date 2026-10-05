@@ -5,6 +5,7 @@ import {
   MANAGEMENT_WORKSPACE_COPY_SCHEMA_VERSION,
   createManagementWorkspaceWorkingCopyV1,
   diffManagementWorkspaceV1,
+  hydrateManagementWorkspaceInventoryDisplayNamesV1,
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
   setManagementWorkspaceRequirementRoomsV1,
@@ -227,6 +228,86 @@ describe('management workspace working copy v1', () => {
       roomId: null,
     });
     expect(source.baselinePlacements[0].dayOfWeek).toBe(1);
+  });
+
+  it('hydrates effective draft display names without creating a dirty diff', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    hydrateManagementWorkspaceInventoryDisplayNamesV1(
+      copy,
+      {
+        teachers: [{
+          id: 'teacher-1',
+          name: 'Taslak Öğretmen Override',
+        }],
+        rooms: [{
+          id: 'room-1',
+          name: 'Taslak Salon Override',
+        }],
+      },
+    );
+
+    expect(copy.teacherInventoryById['teacher-1']).toMatchObject({
+      baselineDisplayName: 'Taslak Öğretmen Override',
+      displayName: 'Taslak Öğretmen Override',
+    });
+    expect(copy.roomInventoryById['room-1']).toMatchObject({
+      baselineDisplayName: 'Taslak Salon Override',
+      displayName: 'Taslak Salon Override',
+    });
+    expect(diffManagementWorkspaceV1(source, copy).hasChanges).toBe(false);
+
+    setManagementWorkspaceTeacherInventoryV1(
+      copy,
+      'teacher-1',
+      {
+        displayName: 'Yerel Öğretmen Adı',
+      },
+    );
+
+    const diff = diffManagementWorkspaceV1(source, copy);
+
+    expect(diff.inventoryChanges).toHaveLength(1);
+    expect(diff.inventoryChanges[0]).toMatchObject({
+      resourceType: 'TEACHER',
+      resourceId: 'teacher-1',
+      before: {
+        displayName: 'Taslak Öğretmen Override',
+      },
+      after: {
+        displayName: 'Yerel Öğretmen Adı',
+      },
+    });
+  });
+
+  it('does not overwrite an unsaved local rename during name hydration', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspaceTeacherInventoryV1(
+      copy,
+      'teacher-1',
+      {
+        displayName: 'Yerel Öğretmen Adı',
+      },
+    );
+
+    hydrateManagementWorkspaceInventoryDisplayNamesV1(
+      copy,
+      {
+        teachers: [{
+          id: 'teacher-1',
+          name: 'Daha Sonra Gelen Server Adı',
+        }],
+        rooms: [],
+      },
+    );
+
+    expect(copy.teacherInventoryById['teacher-1']).toMatchObject({
+      baselineDisplayName: 'Türkçe Öğretmeni',
+      displayName: 'Yerel Öğretmen Adı',
+    });
   });
 
   it('tracks local resource inventory name and status changes', () => {
