@@ -7270,3 +7270,31 @@ Re-run:
 npm test -- tests/managementWorkspaceWorkingCopy.test.ts
 npm run build
 ```
+
+
+#### Teacher-policy milestone accepted — 5 Oct 2026
+
+Final re-gate:
+- focused working-copy test: **7/7 PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9**
+- `/yonetim`: PASS
+
+Teacher assignment scope / continuity policy localization is now accepted.
+
+Accepted local-workspace surface now includes:
+- placement MOVE/PLACE/REMOVE
+- grouped/parallel placement editing
+- Inspector placement teacher/room edits
+- Program Durumu bulk teacher/room edits
+- Course Plan teacher pool
+- Course Plan room strategy
+- Course Plan teacher assignment scope / continuity
+- shared local Undo/Redo
+- atomic Save v2
+
+Next milestone:
+**Resources inventory/status localization**
+starting with teacher/room identity + operational status. Departure/load/availability
+will remain separate sub-phases.
