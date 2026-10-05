@@ -465,4 +465,31 @@ describe('management workspace commit v1', () => {
     }]);
   });
 
+
+  it('includes deterministic room profile changes in the atomic payload', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    copy.roomProfileById['room-1'] = {
+      roomId: 'room-1',
+      capabilities: ['STUDIO_SMALL_GROUP'],
+      knowledgeStatus: 'OBSERVED',
+    };
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(true);
+    expect(prepared.payload?.roomProfileChanges).toEqual([{
+      room_id: 'room-1',
+      before: {
+        capabilities: [],
+        knowledge_status: 'CONFIRMED',
+      },
+      after: {
+        capabilities: ['STUDIO_SMALL_GROUP'],
+        knowledge_status: 'OBSERVED',
+      },
+    }]);
+  });
+
 });
