@@ -12,9 +12,11 @@ import {
   previewManagementWorkspaceCommandsV1,
   type ManagementWorkspaceCommandV1,
 } from '@/lib/managementWorkspaceCommands';
-import type {
-  ManagementWorkspaceInventoryStateV1,
-  ManagementWorkspaceWorkingCopyV1,
+import {
+  createManagementWorkspaceResourceBundleV1,
+  getManagementWorkspaceResourceBundleV1,
+  type ManagementWorkspaceInventoryStateV1,
+  type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 
 export interface ManagementWorkspaceInventoryEditPlanV1 {
