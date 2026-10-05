@@ -450,10 +450,31 @@ export function validateManagementWorkspaceV1(
       && change.before.roomIds.join('|') === change.after.roomIds.join('|')
     );
 
+    const removedRoomIds = change.before.roomIds.filter(
+      (roomId) => !change.after.roomIds.includes(roomId),
+    );
+    const roomDepartureOnly = (
+      removedRoomIds.length > 0
+      && change.after.roomIds.every(
+        (roomId) => change.before.roomIds.includes(roomId),
+      )
+      && removedRoomIds.every(
+        (roomId) =>
+          workingCopy.roomInventoryById[roomId]?.operationalStatus
+          === 'OUT_OF_SERVICE',
+      )
+      && change.before.teacherIds.join('|') === change.after.teacherIds.join('|')
+      && change.before.teacherMode === change.after.teacherMode
+      && change.before.teacherAssignmentScope
+          === change.after.teacherAssignmentScope
+      && change.before.teacherContinuity === change.after.teacherContinuity
+    );
+
     if (
       sourceResourcesChanged
       && baselinePlacedRequirementIds.has(change.requirementId)
       && !teacherDepartureOnly
+      && !roomDepartureOnly
     ) {
       pushIssue(issues, {
         code: 'REQUIREMENT_RESOURCES_REQUIRE_UNPLACED',
@@ -479,6 +500,12 @@ export function validateManagementWorkspaceV1(
     snapshot.baselinePlacements.map((placement) => [
       placement.cardId,
       placement.teacherId,
+    ]),
+  );
+  const baselineRoomByCardId = new Map(
+    snapshot.baselinePlacements.map((placement) => [
+      placement.cardId,
+      placement.roomId,
     ]),
   );
   const descendants = buildGroupDescendants(snapshot);
@@ -638,12 +665,26 @@ export function validateManagementWorkspaceV1(
       requirement.resourceMode !== 'UNKNOWN'
       && placement.roomId === null
     ) {
-      pushIssue(issues, {
-        code: 'ROOM_REQUIRED',
-        cardIds: [card.id],
-        requirementId: requirement.id,
-        dayOfWeek: placement.dayOfWeek,
-      });
+      const departedRoomId = baselineRoomByCardId.get(card.id) ?? null;
+      const departureGap = Boolean(
+        departedRoomId
+        && workingCopy.roomInventoryById[departedRoomId]?.operationalStatus
+          === 'OUT_OF_SERVICE'
+        && !(
+          workingCopy.requirementResourcesById[requirement.id]
+            ?.roomIds.includes(departedRoomId)
+          ?? false
+        )
+      );
+
+      if (!departureGap) {
+        pushIssue(issues, {
+          code: 'ROOM_REQUIRED',
+          cardIds: [card.id],
+          requirementId: requirement.id,
+          dayOfWeek: placement.dayOfWeek,
+        });
+      }
     }
 
     let roomConflictKey: string | null = null;
@@ -652,12 +693,20 @@ export function validateManagementWorkspaceV1(
       const room = rooms.get(placement.roomId);
 
       if (!room || room.operationalStatus !== 'ACTIVE') {
-        pushIssue(issues, {
-          code: 'ROOM_INACTIVE',
-          cardIds: [card.id],
-          requirementId: requirement.id,
-          dayOfWeek: placement.dayOfWeek,
-        });
+        const preservedDepartureAssignment = Boolean(
+          room
+          && room.operationalStatus === 'OUT_OF_SERVICE'
+          && baselineRoomByCardId.get(card.id) === placement.roomId
+        );
+
+        if (!preservedDepartureAssignment) {
+          pushIssue(issues, {
+            code: 'ROOM_INACTIVE',
+            cardIds: [card.id],
+            requirementId: requirement.id,
+            dayOfWeek: placement.dayOfWeek,
+          });
+        }
       }
 
       if (room) {
