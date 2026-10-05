@@ -163,7 +163,6 @@ export function executeManagementWorkspaceCommandV1(
   const issueKey = (issue: ManagementWorkspaceValidationIssueV1) => [
     issue.code,
     issue.requirementId ?? '',
-    issue.dayOfWeek ?? '',
     [...issue.cardIds].sort((left, right) => left.localeCompare(right)).join(','),
   ].join('|');
 
@@ -249,7 +248,6 @@ export function previewManagementWorkspaceCommandsV1(
   const issueKey = (issue: ManagementWorkspaceValidationIssueV1) => [
     issue.code,
     issue.requirementId ?? '',
-    issue.dayOfWeek ?? '',
     [...issue.cardIds].sort((left, right) => left.localeCompare(right)).join(','),
   ].join('|');
 
@@ -313,7 +311,6 @@ export function executeManagementWorkspaceCommandsV1(
   const issueKey = (issue: ManagementWorkspaceValidationIssueV1) => [
     issue.code,
     issue.requirementId ?? '',
-    issue.dayOfWeek ?? '',
     [...issue.cardIds].sort((left, right) => left.localeCompare(right)).join(','),
   ].join('|');
 
@@ -338,6 +335,13 @@ export function executeManagementWorkspaceCommandsV1(
   const operations = commands.map((command) =>
     applyCommand(workingCopy, history, command),
   );
+
+  const batchStart = history.undoStack.length - operations.length;
+  history.undoStack
+    .slice(batchStart)
+    .forEach((operation) => {
+      operation.batchId = batchId;
+    });
   operations.forEach((operation) => {
     operation.batchId = batchId;
   });
