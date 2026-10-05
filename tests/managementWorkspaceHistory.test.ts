@@ -8,6 +8,7 @@ import {
 import {
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
+  applyManagementWorkspaceRequirementResourceOperationV1,
   canRedoManagementWorkspaceV1,
   canUndoManagementWorkspaceV1,
   createManagementWorkspaceHistoryV1,
@@ -289,6 +290,36 @@ describe('management workspace history v1', () => {
       teacherId: 'teacher-1',
       roomId: 'room-1',
     });
+  });
+
+  it('undoes and redoes requirement resource changes in the same local history', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    applyManagementWorkspaceRequirementResourceOperationV1(
+      copy,
+      history,
+      {
+        requirementId: 'requirement-1',
+        teacherIds: [],
+        teacherMode: 'UNKNOWN',
+        resourceMode: 'CAPABILITY',
+        roomIds: [],
+        requiredCapability: 'BALLET_STUDIO',
+      },
+    );
+
+    expect(diffManagementWorkspaceV1(source, copy).dirtyRequirementIds)
+      .toEqual(['requirement-1']);
+    expect(history.undoStack[0].kind).toBe('SET_REQUIREMENT_RESOURCES');
+
+    undoManagementWorkspaceOperationV1(copy, history);
+    expect(diffManagementWorkspaceV1(source, copy).hasChanges).toBe(false);
+
+    redoManagementWorkspaceOperationV1(copy, history);
+    expect(diffManagementWorkspaceV1(source, copy).dirtyRequirementIds)
+      .toEqual(['requirement-1']);
   });
 
   it('returns null when undo or redo stacks are empty', () => {
