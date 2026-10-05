@@ -3640,6 +3640,7 @@ export default function ManagementPage() {
     ? projectManagementResourcesFromWorkspaceV1(
       resources,
       workspaceWorkingCopyRef.current,
+      workspaceSnapshotRef.current,
     )
     : resources;
 
