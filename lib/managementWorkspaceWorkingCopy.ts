@@ -30,6 +30,7 @@ export interface ManagementWorkspaceRequirementCatalogStateV1 {
   groupId: string;
   groupName: string;
   groupType: string;
+  classCodes: string[];
   minDistinctDays: number | null;
   maxBlocksPerDay: number | null;
   maxConsecutivePeriods: number | null;
@@ -557,6 +558,7 @@ export function baselineRequirementCatalogById(
         groupId: requirement.groupId,
         groupName: requirement.groupName,
         groupType: requirement.groupType,
+        classCodes: [],
         minDistinctDays: requirement.minDistinctDays,
         maxBlocksPerDay: requirement.maxBlocksPerDay,
         maxConsecutivePeriods: requirement.maxConsecutivePeriods,
@@ -812,6 +814,7 @@ export function hydrateManagementWorkspaceRequirementCatalogV1(
     groupId: string;
     groupName: string;
     groupType: string;
+    classCodes: string[];
     weeklyLoad: number;
     preferredPartition: number[];
     allowedPartitions: number[][];
@@ -841,6 +844,7 @@ export function hydrateManagementWorkspaceRequirementCatalogV1(
       groupId: row.groupId,
       groupName: row.groupName,
       groupType: row.groupType,
+      classCodes: [...row.classCodes],
       minDistinctDays: row.minDistinctDays,
       maxBlocksPerDay: row.maxBlocksPerDay,
       maxConsecutivePeriods: row.maxConsecutivePeriods,
