@@ -23,12 +23,28 @@ export interface ManagementWorkspaceCardStateV1 {
   baselineExists: boolean;
 }
 
+export interface ManagementWorkspaceRequirementCatalogStateV1 {
+  requirementId: string;
+  subjectId: string;
+  subjectName: string;
+  groupId: string;
+  groupName: string;
+  groupType: string;
+  minDistinctDays: number | null;
+  maxBlocksPerDay: number | null;
+  maxConsecutivePeriods: number | null;
+  courseCharacter: string;
+  deliveryMode: string;
+  teacherRequirement: string;
+  baselineTermStatus: 'ACTIVE' | 'INACTIVE';
+}
+
 export interface ManagementWorkspaceRequirementStructureStateV1 {
   requirementId: string;
   weeklyLoad: number;
   preferredPartition: number[];
   allowedPartitions: number[][];
-  termStatus: 'ACTIVE';
+  termStatus: 'ACTIVE' | 'INACTIVE';
 }
 
 export interface ManagementWorkspaceRequirementStructureBundleV1 {
@@ -118,6 +134,8 @@ export interface ManagementWorkspaceWorkingCopyV1 {
   cardsById: Record<string, ManagementWorkspaceCardStateV1>;
   requirementStructureById:
     Record<string, ManagementWorkspaceRequirementStructureStateV1>;
+  requirementCatalogById:
+    Record<string, ManagementWorkspaceRequirementCatalogStateV1>;
   requirementResourcesById:
     Record<string, ManagementWorkspaceRequirementResourceStateV1>;
   teacherInventoryById:
@@ -256,7 +274,7 @@ export function cloneManagementWorkspaceRequirementStructureV1(
     weeklyLoad: value.weeklyLoad,
     preferredPartition: [...value.preferredPartition],
     allowedPartitions: value.allowedPartitions.map((partition) => [...partition]),
-    termStatus: 'ACTIVE',
+    termStatus: value.termStatus,
   };
 }
 
@@ -516,6 +534,31 @@ export function baselineCardsById(
   );
 }
 
+export function baselineRequirementCatalogById(
+  snapshot: ManagementWorkspaceSnapshotV1,
+): Record<string, ManagementWorkspaceRequirementCatalogStateV1> {
+  return Object.fromEntries(
+    snapshot.requirements.map((requirement) => [
+      requirement.id,
+      {
+        requirementId: requirement.id,
+        subjectId: requirement.subjectId,
+        subjectName: requirement.subjectName,
+        groupId: requirement.groupId,
+        groupName: requirement.groupName,
+        groupType: requirement.groupType,
+        minDistinctDays: requirement.minDistinctDays,
+        maxBlocksPerDay: requirement.maxBlocksPerDay,
+        maxConsecutivePeriods: requirement.maxConsecutivePeriods,
+        courseCharacter: requirement.courseCharacter,
+        deliveryMode: requirement.deliveryMode,
+        teacherRequirement: requirement.teacherRequirement,
+        baselineTermStatus: 'ACTIVE' as const,
+      },
+    ]),
+  );
+}
+
 export function baselineRequirementStructureById(
   snapshot: ManagementWorkspaceSnapshotV1,
 ): Record<string, ManagementWorkspaceRequirementStructureStateV1> {
@@ -729,6 +772,80 @@ export function baselineResourceLifecycleById(
   ]);
 }
 
+export function hydrateManagementWorkspaceRequirementCatalogV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  rows: readonly Array<{
+    requirementId: string;
+    subjectId: string;
+    subjectName: string;
+    groupId: string;
+    groupName: string;
+    groupType: string;
+    weeklyLoad: number;
+    preferredPartition: number[];
+    allowedPartitions: number[][];
+    minDistinctDays: number | null;
+    maxBlocksPerDay: number | null;
+    maxConsecutivePeriods: number | null;
+    courseCharacter: string;
+    deliveryMode: string;
+    termStatus: 'ACTIVE' | 'INACTIVE' | 'UNKNOWN';
+    teacherRequirement: string;
+    teacherMode: string;
+    teacherAssignmentScope: 'REQUIREMENT' | 'BLOCK' | 'UNSPECIFIED';
+    teacherContinuity: 'REQUIRED' | 'PREFERRED' | 'NONE';
+    teacherIds: string[];
+    resourceMode: string;
+    roomIds: string[];
+    requiredCapability: string | null;
+  }>,
+) {
+  rows.forEach((row) => {
+    if (row.termStatus === 'UNKNOWN') return;
+
+    workingCopy.requirementCatalogById[row.requirementId] = {
+      requirementId: row.requirementId,
+      subjectId: row.subjectId,
+      subjectName: row.subjectName,
+      groupId: row.groupId,
+      groupName: row.groupName,
+      groupType: row.groupType,
+      minDistinctDays: row.minDistinctDays,
+      maxBlocksPerDay: row.maxBlocksPerDay,
+      maxConsecutivePeriods: row.maxConsecutivePeriods,
+      courseCharacter: row.courseCharacter,
+      deliveryMode: row.deliveryMode,
+      teacherRequirement: row.teacherRequirement,
+      baselineTermStatus: row.termStatus,
+    };
+
+    if (!workingCopy.requirementStructureById[row.requirementId]) {
+      workingCopy.requirementStructureById[row.requirementId] = {
+        requirementId: row.requirementId,
+        weeklyLoad: row.weeklyLoad,
+        preferredPartition: [...row.preferredPartition],
+        allowedPartitions: row.allowedPartitions.map(
+          (partition) => [...partition],
+        ),
+        termStatus: row.termStatus,
+      };
+    }
+
+    if (!workingCopy.requirementResourcesById[row.requirementId]) {
+      workingCopy.requirementResourcesById[row.requirementId] = {
+        requirementId: row.requirementId,
+        teacherIds: [...row.teacherIds].sort((a, b) => a.localeCompare(b)),
+        teacherMode: row.teacherMode,
+        teacherAssignmentScope: row.teacherAssignmentScope,
+        teacherContinuity: row.teacherContinuity,
+        resourceMode: row.resourceMode,
+        roomIds: [...row.roomIds].sort((a, b) => a.localeCompare(b)),
+        requiredCapability: row.requiredCapability,
+      };
+    }
+  });
+}
+
 export function hydrateManagementWorkspaceInventoryDisplayNamesV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   input: {
@@ -786,6 +903,7 @@ export function createManagementWorkspaceWorkingCopyV1(
     placementsByCardId: baselinePlacementsByCardId(snapshot),
     cardsById: baselineCardsById(snapshot),
     requirementStructureById: baselineRequirementStructureById(snapshot),
+    requirementCatalogById: baselineRequirementCatalogById(snapshot),
     requirementResourcesById: baselineRequirementResourcesById(snapshot),
     teacherInventoryById: baselineTeacherInventoryById(snapshot),
     roomInventoryById: baselineRoomInventoryById(snapshot),
