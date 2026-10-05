@@ -8,6 +8,7 @@ import {
   setManagementWorkspaceRequirementTeacherPolicyV1,
   setManagementWorkspaceRequirementTeachersV1,
   setManagementWorkspaceTeacherInventoryV1,
+  setManagementWorkspaceTeacherAvailabilityV1,
   setManagementWorkspaceTeacherPlanningV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import { prepareManagementWorkspaceCommitV1 } from '@/lib/managementWorkspaceCommit';
@@ -438,6 +439,29 @@ describe('management workspace commit v1', () => {
         target_load: 7,
         maximum_load: 9,
       },
+    }]);
+  });
+
+
+  it('includes deterministic teacher availability changes in the atomic payload', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspaceTeacherAvailabilityV1(copy, 'teacher-1', [
+      { dayOfWeek: 3, period: 2 },
+      { dayOfWeek: 1, period: 4 },
+    ]);
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(true);
+    expect(prepared.payload?.teacherAvailabilityChanges).toEqual([{
+      teacher_id: 'teacher-1',
+      before: [],
+      after: [
+        { day_of_week: 1, period: 4 },
+        { day_of_week: 3, period: 2 },
+      ],
     }]);
   });
 
