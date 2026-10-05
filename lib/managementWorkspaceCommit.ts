@@ -35,12 +35,30 @@ export interface ManagementWorkspaceCommitPayloadV1 {
       room_id: string | null;
     };
   }>;
+  requirementChanges: Array<{
+    requirement_id: string;
+    before: {
+      teacher_ids: string[];
+      teacher_mode: string;
+      resource_mode: string;
+      room_ids: string[];
+      required_capability: string | null;
+    };
+    after: {
+      teacher_ids: string[];
+      teacher_mode: string;
+      resource_mode: string;
+      room_ids: string[];
+      required_capability: string | null;
+    };
+  }>;
 }
 
 export interface ManagementWorkspaceCommitResultV1 {
   committed: boolean;
   revisionId: string;
   changedCardCount: number;
+  changedRequirementCount: number;
   removeCount: number;
   moveCount: number;
   placeCount: number;
@@ -139,6 +157,23 @@ export function prepareManagementWorkspaceCommitV1(
           room_id: change.after.roomId,
         },
       })),
+      requirementChanges: diff.requirementResourceChanges.map((change) => ({
+        requirement_id: change.requirementId,
+        before: {
+          teacher_ids: [...change.before.teacherIds],
+          teacher_mode: change.before.teacherMode,
+          resource_mode: change.before.resourceMode,
+          room_ids: [...change.before.roomIds],
+          required_capability: change.before.requiredCapability,
+        },
+        after: {
+          teacher_ids: [...change.after.teacherIds],
+          teacher_mode: change.after.teacherMode,
+          resource_mode: change.after.resourceMode,
+          room_ids: [...change.after.roomIds],
+          required_capability: change.after.requiredCapability,
+        },
+      })),
     },
   };
 }
@@ -151,7 +186,7 @@ export async function commitManagementWorkspaceV1(
   const token = await getFreshManagementAccessToken(accessToken);
 
   const response = await fetch(
-    `${url}/rest/v1/rpc/management_commit_workspace_v1`,
+    `${url}/rest/v1/rpc/management_commit_workspace_v2`,
     {
       method: 'POST',
       headers: {
@@ -166,6 +201,7 @@ export async function commitManagementWorkspaceV1(
         p_expected_snapshot_hash: payload.snapshotHash,
         p_expected_baseline_hash: payload.baselineHash,
         p_changes: payload.changes,
+        p_requirement_changes: payload.requirementChanges,
       }),
     },
   );
@@ -204,6 +240,12 @@ export function translateManagementWorkspaceCommitErrorV1(
     || normalized.includes('WORKSPACE_V1_BEFORE_STATE_STALE')
   ) {
     return 'Taslak program siz çalışırken değişmiş. Yerel değişiklikler korunuyor; güncel programı almadan kaydetme yapılmadı.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V2_REQUIREMENT_HAS_PLACEMENTS')
+  ) {
+    return 'Ders Planı kaynak tanımı değiştirilecek dersin önce programdan kaldırılması gerekiyor.';
   }
 
   if (normalized.includes('WORKSPACE_V1_LOCKED_CARD_CHANGED')) {
