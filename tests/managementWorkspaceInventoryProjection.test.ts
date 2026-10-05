@@ -118,4 +118,28 @@ describe('management workspace Resources projection', () => {
       nameOverridden: true,
     });
   });
+
+  it('projects local teacher load targets into Resources immediately', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    copy.teacherPlanningById['teacher-1'] = {
+      teacherId: 'teacher-1',
+      minimumLoad: 3,
+      targetLoad: 5,
+      maximumLoad: 7,
+    };
+
+    const projected = projectManagementResourcesFromWorkspaceV1(
+      resources(),
+      copy,
+    );
+
+    expect(projected.teachers[0]).toMatchObject({
+      minimumLoad: 3,
+      targetLoad: 5,
+      maximumLoad: 7,
+      loadConfigured: true,
+    });
+  });
+
 });
