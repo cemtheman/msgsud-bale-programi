@@ -15,6 +15,16 @@ import {
   setManagementWorkspaceTeacherPlanningV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import { prepareManagementWorkspaceCommitV1 } from '@/lib/managementWorkspaceCommit';
+import {
+  prepareManagementWorkspaceRequirementStructureV1,
+  previewManagementWorkspaceRequirementStructureV1,
+} from '@/lib/managementWorkspaceStructure';
+import {
+  executeManagementWorkspaceCommandV1,
+} from '@/lib/managementWorkspaceCommands';
+import {
+  createManagementWorkspaceHistoryV1,
+} from '@/lib/managementWorkspaceHistory';
 
 function snapshot(): ManagementWorkspaceSnapshotV1 {
   return {
@@ -566,6 +576,73 @@ describe('management workspace commit v1', () => {
       resource_type: 'TEACHER',
       resource_id: '33333333-3333-4333-8333-333333333333',
     }]);
+  });
+
+
+  it('includes final active structure card graph in the v10 atomic payload', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+    const input = {
+      requirementId: 'requirement-1',
+      weeklyLoad: 3,
+      preferredPartition: [1, 1, 1],
+      allowedPartitions: [[1, 1, 1]],
+      termStatus: 'ACTIVE' as const,
+    };
+    const preview = previewManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      input,
+    );
+    const structure = prepareManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      input,
+      preview.structureToken,
+    );
+
+    const result = executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      structure.command,
+    );
+    expect(result.applied).toBe(true);
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+    expect(prepared.ready).toBe(true);
+    expect(prepared.payload?.structureChanges).toHaveLength(1);
+
+    const change = prepared.payload!.structureChanges[0];
+    expect(change).toMatchObject({
+      requirement_id: 'requirement-1',
+      before: {
+        weekly_load: 2,
+        preferred_partition: [],
+        allowed_partitions: [],
+        term_status: 'ACTIVE',
+      },
+      after: {
+        weekly_load: 3,
+        preferred_partition: [1, 1, 1],
+        allowed_partitions: [[1, 1, 1]],
+        term_status: 'ACTIVE',
+      },
+    });
+    expect(change.final_cards).toHaveLength(3);
+    expect(change.final_cards.filter((card) => card.baseline_exists))
+      .toHaveLength(2);
+    const created = change.final_cards.find((card) => !card.baseline_exists);
+    expect(created).toMatchObject({
+      block_index: 3,
+      duration_periods: 1,
+      baseline_exists: false,
+      locked: false,
+    });
+    expect(created?.card_id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
   });
 
 });
