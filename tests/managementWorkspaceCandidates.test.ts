@@ -181,6 +181,74 @@ describe('management workspace local move candidates', () => {
     ))).toBe(true);
   });
 
+  it('supports lessons that require neither teacher nor room', () => {
+    const base = snapshot();
+    const source = {
+      ...base,
+      requirements: base.requirements.map((requirement) => ({
+        ...requirement,
+        teacherRequirement: 'NONE',
+        resourceMode: 'UNKNOWN',
+      })),
+      teacherPools: [],
+      roomPools: [],
+    };
+
+    const detail = buildManagementWorkspacePlacementCandidateDetailV1(
+      source,
+      'card-1',
+    );
+
+    expect(detail?.validCandidates).toHaveLength(60);
+    expect(detail?.validCandidates.every((candidate) => (
+      candidate.teacherId === null
+      && candidate.roomId === null
+    ))).toBe(true);
+  });
+
+  it('uses only confirmed active capability rooms for local PLACE choices', () => {
+    const base = snapshot();
+    const source = {
+      ...base,
+      requirements: base.requirements.map((requirement) => ({
+        ...requirement,
+        resourceMode: 'CAPABILITY',
+        requiredCapability: 'BALLET_STUDIO',
+      })),
+      roomPools: [],
+      rooms: [
+        {
+          ...base.rooms[0],
+          id: 'room-capable',
+          capabilities: ['BALLET_STUDIO'],
+          knowledgeStatus: 'CONFIRMED',
+        },
+        {
+          ...base.rooms[0],
+          id: 'room-unconfirmed',
+          capabilities: ['BALLET_STUDIO'],
+          knowledgeStatus: 'UNKNOWN',
+        },
+        {
+          ...base.rooms[0],
+          id: 'room-wrong',
+          capabilities: ['PIANO'],
+          knowledgeStatus: 'CONFIRMED',
+        },
+      ],
+    };
+
+    const detail = buildManagementWorkspacePlacementCandidateDetailV1(
+      source,
+      'card-1',
+    );
+
+    expect(detail?.validCandidates).toHaveLength(60);
+    expect(detail?.validCandidates.every(
+      (candidate) => candidate.roomId === 'room-capable',
+    )).toBe(true);
+  });
+
   it('returns null for an unplaced MOVE candidate so PLACE generation is explicit', () => {
     const source = snapshot();
     const copy = createManagementWorkspaceWorkingCopyV1(source);
