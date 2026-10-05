@@ -20,6 +20,7 @@ export interface ManagementWorkspacePlacementOperationV1 {
   batchId: number | null;
   kind: 'SET_PLACEMENT' | 'REMOVE_PLACEMENT';
   cardId: string;
+  requirementId: null;
   before: ManagementWorkspacePlacementStateV1;
   after: ManagementWorkspacePlacementStateV1;
 }
@@ -28,6 +29,7 @@ export interface ManagementWorkspaceRequirementResourceOperationV1 {
   sequence: number;
   batchId: number | null;
   kind: 'SET_REQUIREMENT_RESOURCES';
+  cardId: null;
   requirementId: string;
   before: ManagementWorkspaceRequirementResourceStateV1;
   after: ManagementWorkspaceRequirementResourceStateV1;
@@ -191,6 +193,7 @@ export function applyManagementWorkspacePlacementOperationV1(
   return recordOperation(history, {
     kind: 'SET_PLACEMENT',
     cardId: placement.cardId,
+    requirementId: null,
     before,
     after,
   });
@@ -218,6 +221,7 @@ export function applyManagementWorkspaceRemoveOperationV1(
   return recordOperation(history, {
     kind: 'REMOVE_PLACEMENT',
     cardId,
+    requirementId: null,
     before,
     after,
   });
@@ -238,6 +242,7 @@ export function applyManagementWorkspaceRequirementResourceOperationV1(
 
   return recordOperation(history, {
     kind: 'SET_REQUIREMENT_RESOURCES',
+    cardId: null,
     requirementId: resource.requirementId,
     before,
     after,
