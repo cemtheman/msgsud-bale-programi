@@ -7583,3 +7583,28 @@ Next after PASS:
 - generate a real Supabase migration with CLI for departure-clear atomic ordering/contract;
 - localize `INACTIVATE_CLEAR`;
 - keep archive identity semantics as a separate follow-up unless the same migration safely covers it.
+
+
+### 5 Oct 2026 — Teacher inactivation localization phase A CLOSED / PASS
+
+Acceptance gate:
+- focused: **3/3 files, 28/28 tests PASS**
+- full suite: **34/34 files, 198/198 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: **PASS**
+- `git diff --check`: PASS
+
+Status: **CLOSED / PASS**
+
+Accepted behavior:
+- `INACTIVATE_KEEP` is local-workspace-native
+- existing baseline placements may retain the inactive teacher
+- new assignments of inactive teachers remain blocked
+- shared Undo/Redo applies
+- Atomic Save v3 persists the status change
+- no migration was required for phase A
+
+Next:
+**Phase B — localize INACTIVATE_CLEAR with a narrow atomic DB contract change.**
