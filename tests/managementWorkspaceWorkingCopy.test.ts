@@ -7,6 +7,8 @@ import {
   diffManagementWorkspaceV1,
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
+  setManagementWorkspaceRequirementRoomsV1,
+  setManagementWorkspaceRequirementTeachersV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 
 function snapshot(): ManagementWorkspaceSnapshotV1 {
@@ -177,7 +179,9 @@ describe('management workspace working copy v1', () => {
       baseline: source.identity,
       hasChanges: false,
       dirtyCardIds: [],
+      dirtyRequirementIds: [],
       placementChanges: [],
+      requirementResourceChanges: [],
     });
   });
 
@@ -219,6 +223,47 @@ describe('management workspace working copy v1', () => {
       roomId: null,
     });
     expect(source.baselinePlacements[0].dayOfWeek).toBe(1);
+  });
+
+  it('tracks local requirement teacher and room resource changes', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspaceRequirementTeachersV1(
+      copy,
+      'requirement-1',
+      [],
+    );
+    setManagementWorkspaceRequirementRoomsV1(
+      copy,
+      'requirement-1',
+      {
+        resourceMode: 'CAPABILITY',
+        roomIds: [],
+        requiredCapability: 'BALLET_STUDIO',
+      },
+    );
+
+    const diff = diffManagementWorkspaceV1(source, copy);
+
+    expect(diff.hasChanges).toBe(true);
+    expect(diff.dirtyRequirementIds).toEqual(['requirement-1']);
+    expect(diff.requirementResourceChanges).toHaveLength(1);
+    expect(diff.requirementResourceChanges[0].before.teacherIds)
+      .toEqual(['teacher-1']);
+    expect(diff.requirementResourceChanges[0].after).toMatchObject({
+      teacherIds: [],
+      teacherMode: 'UNKNOWN',
+      resourceMode: 'CAPABILITY',
+      roomIds: [],
+      requiredCapability: 'BALLET_STUDIO',
+    });
+    expect(source.teacherPools).toEqual([
+      {
+        requirementId: 'requirement-1',
+        teacherId: 'teacher-1',
+      },
+    ]);
   });
 
   it('rejects diffing a working copy created from another baseline', () => {
