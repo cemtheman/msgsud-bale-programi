@@ -1,6 +1,8 @@
 import {
   cloneManagementWorkspaceInventoryV1,
   cloneManagementWorkspacePlacementV1,
+  applyManagementWorkspaceRequirementStructureBundleV1,
+  cloneManagementWorkspaceRequirementStructureBundleV1,
   applyManagementWorkspaceResourceBundleV1,
   cloneManagementWorkspaceRequirementResourceV1,
   cloneManagementWorkspaceResourceBundleV1,
@@ -17,6 +19,7 @@ import {
   type ManagementWorkspaceTeacherPlanningStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
+  type ManagementWorkspaceRequirementStructureBundleV1,
   type ManagementWorkspaceResourceBundleV1,
   type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
@@ -29,7 +32,8 @@ export type ManagementWorkspaceOperationKindV1 =
   | 'SET_TEACHER_PLANNING'
   | 'SET_TEACHER_AVAILABILITY'
   | 'SET_ROOM_PROFILE'
-  | 'SET_RESOURCE_BUNDLE';
+  | 'SET_RESOURCE_BUNDLE'
+  | 'SET_REQUIREMENT_STRUCTURE';
 
 export interface ManagementWorkspacePlacementOperationV1 {
   sequence: number;
@@ -40,6 +44,17 @@ export interface ManagementWorkspacePlacementOperationV1 {
   resourceId: null;
   before: ManagementWorkspacePlacementStateV1;
   after: ManagementWorkspacePlacementStateV1;
+}
+
+export interface ManagementWorkspaceRequirementStructureOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_REQUIREMENT_STRUCTURE';
+  cardId: null;
+  requirementId: string;
+  resourceId: null;
+  before: ManagementWorkspaceRequirementStructureBundleV1;
+  after: ManagementWorkspaceRequirementStructureBundleV1;
 }
 
 export interface ManagementWorkspaceRequirementResourceOperationV1 {
@@ -111,6 +126,7 @@ export interface ManagementWorkspaceResourceBundleOperationV1 {
 
 export type ManagementWorkspaceOperationV1 =
   | ManagementWorkspacePlacementOperationV1
+  | ManagementWorkspaceRequirementStructureOperationV1
   | ManagementWorkspaceRequirementResourceOperationV1
   | ManagementWorkspaceInventoryOperationV1
   | ManagementWorkspaceTeacherPlanningOperationV1
@@ -310,6 +326,18 @@ function applyInventoryState(
 export function cloneManagementWorkspaceOperationV1(
   operation: ManagementWorkspaceOperationV1,
 ): ManagementWorkspaceOperationV1 {
+  if (operation.kind === 'SET_REQUIREMENT_STRUCTURE') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceRequirementStructureBundleV1(
+        operation.before,
+      ),
+      after: cloneManagementWorkspaceRequirementStructureBundleV1(
+        operation.after,
+      ),
+    };
+  }
+
   if (operation.kind === 'SET_REQUIREMENT_RESOURCES') {
     return {
       ...operation,
@@ -373,6 +401,10 @@ function recordOperation(
   history: ManagementWorkspaceHistoryV1,
   operation:
     | Omit<ManagementWorkspacePlacementOperationV1, 'sequence' | 'batchId'>
+    | Omit<
+        ManagementWorkspaceRequirementStructureOperationV1,
+        'sequence' | 'batchId'
+      >
     | Omit<
         ManagementWorkspaceRequirementResourceOperationV1,
         'sequence' | 'batchId'
@@ -464,6 +496,55 @@ export function applyManagementWorkspaceRemoveOperationV1(
     kind: 'REMOVE_PLACEMENT',
     cardId,
     requirementId: null,
+    resourceId: null,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspaceRequirementStructureOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  requirementId: string,
+  bundle: ManagementWorkspaceRequirementStructureBundleV1,
+) {
+  const before = (() => {
+    const structure = workingCopy.requirementStructureById[requirementId];
+    if (!structure) {
+      throw new Error(
+        `Workspace requirement yapısı bulunamadı (${requirementId}).`,
+      );
+    }
+    const cards = Object.values(workingCopy.cardsById)
+      .filter((card) => card.requirementId === requirementId);
+    const placements = cards.map((card) => {
+      const placement = workingCopy.placementsByCardId[card.id];
+      if (!placement) {
+        throw new Error(
+          `Workspace kart yerleşimi bulunamadı (${card.id}).`,
+        );
+      }
+      return placement;
+    });
+    return cloneManagementWorkspaceRequirementStructureBundleV1({
+      structure,
+      cards,
+      placements,
+    });
+  })();
+  const after =
+    cloneManagementWorkspaceRequirementStructureBundleV1(bundle);
+
+  applyManagementWorkspaceRequirementStructureBundleV1(
+    workingCopy,
+    requirementId,
+    after,
+  );
+
+  return recordOperation(history, {
+    kind: 'SET_REQUIREMENT_STRUCTURE',
+    cardId: null,
+    requirementId,
     resourceId: null,
     before,
     after,
