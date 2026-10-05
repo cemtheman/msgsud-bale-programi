@@ -8244,3 +8244,31 @@ Reason:
 
 Resources conclusion:
 **All non-archive resource mutations are now local-working-copy native.**
+
+
+### 5 Oct 2026 — Course Plan teacher reconciliation localization
+
+Implemented:
+- single-requirement teacher reconciliation is local-workspace-native
+- coordinated teacher reconciliation is local-workspace-native
+- both reuse existing workspace placement commands
+- both preserve:
+  - day
+  - start period
+  - room
+  - teacher pools
+- only placed blocks are changed
+- unplaced blocks remain unplaced
+- eligibility uses current local requirement teacher pools + resource lifecycle/status
+- preview evaluates the final coordinated state through `previewManagementWorkspaceCommandsV1`
+- introduced teacher conflicts and other hard issues block apply before any mutation
+- server-style preview summaries/conflict details are preserved for the Course Plan UI
+- apply writes all placement changes as one shared Undo/Redo batch
+- resulting placement diffs are persisted by existing v9 atomic Save; no new migration is required
+- server reconciliation RPCs are no longer used by the Course Plan callbacks
+
+Tests added:
+- single requirement reconciliation changes teacher only and preserves time/room
+- coordinated reconciliation detects final-state teacher conflict
+
+Gate status: **PENDING**
