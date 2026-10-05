@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
   MANAGEMENT_WORKSPACE_COPY_SCHEMA_VERSION,
+  applyManagementWorkspaceResourceBundleV1,
+  createManagementWorkspaceResourceBundleV1,
   createManagementWorkspaceWorkingCopyV1,
   diffManagementWorkspaceV1,
+  getManagementWorkspaceResourceBundleV1,
   hydrateManagementWorkspaceInventoryDisplayNamesV1,
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
@@ -192,6 +195,8 @@ describe('management workspace working copy v1', () => {
       teacherPlanningChanges: [],
       teacherAvailabilityChanges: [],
       roomProfileChanges: [],
+      resourceCreates: [],
+      resourceDeletes: [],
     });
   });
 
@@ -559,6 +564,100 @@ describe('management workspace working copy v1', () => {
         knowledgeStatus: 'OBSERVED',
       },
     }]);
+  });
+
+
+  it('tracks local resource create and delete lifecycle changes', () => {
+    const source = {
+      ...snapshot(),
+      teachers: [
+        ...snapshot().teachers,
+        {
+          id: 'teacher-unused',
+          name: 'Kullanılmayan Öğretmen',
+          operationalStatus: 'ACTIVE',
+        },
+      ],
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    const created = createManagementWorkspaceResourceBundleV1(
+      copy,
+      'TEACHER',
+      '11111111-1111-4111-8111-111111111111',
+      'Yeni Öğretmen',
+    );
+    applyManagementWorkspaceResourceBundleV1(
+      copy,
+      'TEACHER',
+      created.lifecycle.resourceId,
+      created,
+    );
+
+    const unused = getManagementWorkspaceResourceBundleV1(
+      copy,
+      'TEACHER',
+      'teacher-unused',
+    );
+    expect(unused).not.toBeNull();
+    applyManagementWorkspaceResourceBundleV1(
+      copy,
+      'TEACHER',
+      'teacher-unused',
+      {
+        ...unused!,
+        lifecycle: {
+          ...unused!.lifecycle,
+          exists: false,
+        },
+      },
+    );
+
+    const diff = diffManagementWorkspaceV1(source, copy);
+
+    expect(diff.resourceCreates).toEqual([{
+      resourceType: 'TEACHER',
+      resourceId: '11111111-1111-4111-8111-111111111111',
+    }]);
+    expect(diff.resourceDeletes).toEqual([{
+      resourceType: 'TEACHER',
+      resourceId: 'teacher-unused',
+    }]);
+  });
+
+  it('collapses create then delete of the same local resource to no lifecycle diff', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const created = createManagementWorkspaceResourceBundleV1(
+      copy,
+      'ROOM',
+      '22222222-2222-4222-8222-222222222222',
+      'Yeni Salon',
+    );
+
+    applyManagementWorkspaceResourceBundleV1(
+      copy,
+      'ROOM',
+      created.lifecycle.resourceId,
+      created,
+    );
+    applyManagementWorkspaceResourceBundleV1(
+      copy,
+      'ROOM',
+      created.lifecycle.resourceId,
+      {
+        ...created,
+        lifecycle: {
+          ...created.lifecycle,
+          exists: false,
+        },
+      },
+    );
+
+    const diff = diffManagementWorkspaceV1(source, copy);
+    expect(diff.resourceCreates).toEqual([]);
+    expect(diff.resourceDeletes).toEqual([]);
+    expect(diff.hasChanges).toBe(false);
   });
 
 });
