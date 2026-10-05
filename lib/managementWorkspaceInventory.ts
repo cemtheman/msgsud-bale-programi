@@ -18,11 +18,11 @@ export function projectManagementResourcesFromWorkspaceV1(
 
       return {
         ...teacher,
-        name: local.displayName !== local.baselineDisplayName
+        name: local && local.displayName !== local.baselineDisplayName
           ? local.displayName
           : teacher.name,
         nameOverridden: (
-          local.displayName !== local.baselineDisplayName
+          local && local.displayName !== local.baselineDisplayName
             ? local.displayName
             : teacher.name
         ) !== teacher.baseName,
