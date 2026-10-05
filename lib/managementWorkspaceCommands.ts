@@ -6,6 +6,7 @@ import {
   type ManagementWorkspaceInventoryStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
+  type ManagementWorkspaceRequirementStructureBundleV1,
   type ManagementWorkspaceResourceBundleV1,
   type ManagementWorkspaceRoomProfileStateV1,
   type ManagementWorkspaceTeacherAvailabilityStateV1,
@@ -17,6 +18,7 @@ import {
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
   applyManagementWorkspaceRequirementResourceOperationV1,
+  applyManagementWorkspaceRequirementStructureOperationV1,
   applyManagementWorkspaceResourceBundleOperationV1,
   applyManagementWorkspaceRoomProfileOperationV1,
   applyManagementWorkspaceTeacherAvailabilityOperationV1,
@@ -39,6 +41,11 @@ export type ManagementWorkspaceCommandV1 =
   | {
       type: 'REMOVE_PLACEMENT';
       cardId: string;
+    }
+  | {
+      type: 'SET_REQUIREMENT_STRUCTURE';
+      requirementId: string;
+      bundle: ManagementWorkspaceRequirementStructureBundleV1;
     }
   | {
       type: 'SET_REQUIREMENT_RESOURCES';
@@ -187,6 +194,15 @@ function applyCommand(
       workingCopy,
       history,
       command.placement,
+    );
+  }
+
+  if (command.type === 'SET_REQUIREMENT_STRUCTURE') {
+    return applyManagementWorkspaceRequirementStructureOperationV1(
+      workingCopy,
+      history,
+      command.requirementId,
+      command.bundle,
     );
   }
 
@@ -482,6 +498,8 @@ export function resetManagementWorkspaceWorkingCopyV1(
   target.schemaVersion = clean.schemaVersion;
   target.baseline = clean.baseline;
   target.placementsByCardId = clean.placementsByCardId;
+  target.cardsById = clean.cardsById;
+  target.requirementStructureById = clean.requirementStructureById;
   target.requirementResourcesById = clean.requirementResourcesById;
   target.teacherInventoryById = clean.teacherInventoryById;
   target.roomInventoryById = clean.roomInventoryById;
