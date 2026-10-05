@@ -11,15 +11,23 @@ export function projectManagementCoursePlanFromWorkspaceV1(
 ): ManagementCoursePlanData {
   const teacherOptions = coursePlan.teacherOptions.map((option) => ({
     ...option,
-    name:
-      workingCopy.teacherInventoryById[option.id]?.displayName
-      ?? option.name,
+    name: (
+      workingCopy.teacherInventoryById[option.id]
+      && workingCopy.teacherInventoryById[option.id].displayName
+        !== workingCopy.teacherInventoryById[option.id].baselineDisplayName
+    )
+      ? workingCopy.teacherInventoryById[option.id].displayName
+      : option.name,
   }));
   const roomOptions = coursePlan.roomOptions.map((option) => ({
     ...option,
-    name:
-      workingCopy.roomInventoryById[option.id]?.displayName
-      ?? option.name,
+    name: (
+      workingCopy.roomInventoryById[option.id]
+      && workingCopy.roomInventoryById[option.id].displayName
+        !== workingCopy.roomInventoryById[option.id].baselineDisplayName
+    )
+      ? workingCopy.roomInventoryById[option.id].displayName
+      : option.name,
   }));
 
   const teacherNames = new Map(
