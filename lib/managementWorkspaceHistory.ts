@@ -5,6 +5,8 @@ import {
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
   type ManagementWorkspaceInventoryStateV1,
+  type ManagementWorkspaceRoomInventoryStateV1,
+  type ManagementWorkspaceTeacherInventoryStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
   type ManagementWorkspaceWorkingCopyV1,
@@ -154,7 +156,9 @@ function applyInventoryState(
       );
     }
     workingCopy.teacherInventoryById[resource.resourceId] =
-      cloneManagementWorkspaceInventoryV1(resource) as typeof workingCopy.teacherInventoryById[string];
+      cloneManagementWorkspaceInventoryV1(
+        resource,
+      ) as ManagementWorkspaceTeacherInventoryStateV1;
     return;
   }
 
@@ -164,7 +168,9 @@ function applyInventoryState(
     );
   }
   workingCopy.roomInventoryById[resource.resourceId] =
-    cloneManagementWorkspaceInventoryV1(resource) as typeof workingCopy.roomInventoryById[string];
+    cloneManagementWorkspaceInventoryV1(
+      resource,
+    ) as ManagementWorkspaceRoomInventoryStateV1;
 }
 
 export function cloneManagementWorkspaceOperationV1(
