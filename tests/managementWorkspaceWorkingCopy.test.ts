@@ -266,6 +266,17 @@ describe('management workspace working copy v1', () => {
     ]);
   });
 
+  it('rejects invalid teacher policy values at the snapshot boundary', () => {
+    const source = snapshot();
+    source.requirements[0] = {
+      ...source.requirements[0],
+      teacherAssignmentScope: 'INVALID_SCOPE',
+    };
+
+    expect(() => createManagementWorkspaceWorkingCopyV1(source))
+      .toThrow('Workspace snapshot geçersiz öğretmen kapsamı içeriyor');
+  });
+
   it('rejects diffing a working copy created from another baseline', () => {
     const source = snapshot();
     const copy = createManagementWorkspaceWorkingCopyV1(source);
