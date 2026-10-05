@@ -102,6 +102,7 @@ function copy(): ManagementWorkspaceWorkingCopyV1 {
       'teacher-1': {
         resourceType: 'TEACHER',
         resourceId: 'teacher-1',
+        baselineDisplayName: 'Öğretmen 1',
         displayName: 'Öğretmen 1',
         operationalStatus: 'ACTIVE',
       },
@@ -110,6 +111,7 @@ function copy(): ManagementWorkspaceWorkingCopyV1 {
       'room-1': {
         resourceType: 'ROOM',
         resourceId: 'room-1',
+        baselineDisplayName: '105A',
         displayName: '105A',
         operationalStatus: 'ACTIVE',
       },
