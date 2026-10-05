@@ -362,38 +362,53 @@ export function validateManagementWorkspaceV1(
   const cards = new Map(
     snapshot.cards.map((card) => [card.id, card]),
   );
+  const snapshotTeacherById = new Map(
+    snapshot.teachers.map((teacher) => [teacher.id, teacher]),
+  );
   const teachers = new Map(
-    snapshot.teachers.map((teacher) => {
-      const local = workingCopy.teacherInventoryById[teacher.id];
-      return [
-        teacher.id,
-        local
-          ? {
-              ...teacher,
-              name: local.displayName,
-              operationalStatus: local.operationalStatus,
-            }
-          : teacher,
-      ];
-    }),
+    Object.values(workingCopy.teacherInventoryById)
+      .filter((local) =>
+        workingCopy.resourceLifecycleById[local.resourceId]?.exists === true
+      )
+      .map((local) => {
+        const source = snapshotTeacherById.get(local.resourceId);
+        return [
+          local.resourceId,
+          {
+            id: local.resourceId,
+            name: local.displayName,
+            operationalStatus: local.operationalStatus,
+            ...(source ?? {}),
+            name: local.displayName,
+            operationalStatus: local.operationalStatus,
+          },
+        ];
+      }),
+  );
+  const snapshotRoomById = new Map(
+    snapshot.rooms.map((room) => [room.id, room]),
   );
   const rooms = new Map(
-    snapshot.rooms.map((room) => {
-      const local = workingCopy.roomInventoryById[room.id];
-      const profile = workingCopy.roomProfileById?.[room.id];
-      return [
-        room.id,
-        {
-          ...room,
-          name: local?.displayName ?? room.name,
-          operationalStatus:
-            local?.operationalStatus ?? room.operationalStatus,
-          capabilities: profile?.capabilities ?? room.capabilities,
-          knowledgeStatus:
-            profile?.knowledgeStatus ?? room.knowledgeStatus,
-        },
-      ];
-    }),
+    Object.values(workingCopy.roomInventoryById)
+      .filter((local) =>
+        workingCopy.resourceLifecycleById[local.resourceId]?.exists === true
+      )
+      .map((local) => {
+        const source = snapshotRoomById.get(local.resourceId);
+        const profile = workingCopy.roomProfileById?.[local.resourceId];
+        return [
+          local.resourceId,
+          {
+            id: local.resourceId,
+            name: local.displayName,
+            canonicalRoomId: source?.canonicalRoomId ?? null,
+            capabilities: profile?.capabilities ?? source?.capabilities ?? [],
+            knowledgeStatus:
+              profile?.knowledgeStatus ?? source?.knowledgeStatus ?? 'UNKNOWN',
+            operationalStatus: local.operationalStatus,
+          },
+        ];
+      }),
   );
   const teacherPools = new Map<string, Set<string>>();
   const roomPools = new Map<string, Set<string>>();
