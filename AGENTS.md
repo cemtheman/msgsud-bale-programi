@@ -8473,3 +8473,35 @@ DB modifications for this fix: **NO**
 New migration for this fix: **NO**
 
 Gate status remains: **PENDING rerun**
+
+
+### 5 Oct 2026 — ACTIVE requirement structure localization CLOSED / PASS
+
+Acceptance gate:
+- full suite: **35/35 files, 231/231 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: **PASS**
+- `git diff --check`: PASS
+- migration parity: **PASS**
+  - `20261005173834` local = remote
+  - `20261005173935` local = remote
+  - `20261005174816` local = remote
+
+Status: **CLOSED / PASS**
+
+Accepted behavior:
+- ACTIVE requirement weeklyLoad / preferredPartition / allowedPartitions are local-workspace-native
+- local card graph is authoritative during the unsaved session
+- structural card matching mirrors server duration + duration-rank semantics
+- preserved cards keep IDs
+- new structural cards receive client UUIDs before Save
+- new cards are visible to Program, candidates and hard validation before Save
+- structural shrink blocks placed-card removal and equal-duration ambiguity
+- required staged placement removals are ordered before structure inside v10
+- structure apply is one full-graph Undo/Redo operation
+- v10 atomically persists structure + card graph + remaining v9 workspace deltas
+- server STRUCTURE_APPLY history barrier is preserved
+- one unsaved structure decision per requirement is enforced
+- ACTIVE <-> INACTIVE remains the next explicit lifecycle boundary
