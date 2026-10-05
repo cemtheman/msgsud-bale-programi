@@ -7510,3 +7510,34 @@ Final phase closure still requires migration tail parity confirming:
 - `20261005094055 management_workspace_resource_ordering`
 
 Do not start departure/load/availability/profile localization until migration parity is confirmed.
+
+
+### 5 Oct 2026 — Resources inventory/status localization CLOSED / PASS
+
+Final acceptance:
+- Test Files: **34/34 PASS**
+- Tests: **196/196 PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: **PASS**
+- migration parity: **PASS**
+  - `20261005092501` local = remote
+  - `20261005094055` local = remote
+
+Status: **CLOSED / PASS**
+
+Accepted local-workspace surface now additionally includes:
+- teacher display name
+- room display name
+- teacher ACTIVE / INACTIVE
+- room ACTIVE / MAINTENANCE / OUT_OF_SERVICE
+- Resources immediate local projection
+- Program/Course Plan dirty-name projection
+- local candidate filtering by inventory status
+- shared local Undo/Redo
+- atomic Save v3 with ordered resource transitions
+
+Next sub-phase:
+**Teacher departure / inactivation workflow localization**
+Keep teacher load, hard availability and room profile/departure as later sub-phases unless the departure implementation shows a shared prerequisite.
