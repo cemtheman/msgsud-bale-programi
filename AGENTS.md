@@ -7974,3 +7974,62 @@ Next active sub-phase:
 - immediate local candidate/validation effects
 - shared Undo/Redo
 - atomic Save extension on top of v7
+
+
+### 5 Oct 2026 — Room profile localization
+
+Implemented:
+- workspace working copy adds `roomProfileById`
+- room profile state contains:
+  - `capabilities`
+  - `knowledgeStatus`
+- room profile edits participate in:
+  - local diff
+  - shared Undo/Redo history
+  - workspace dirty state
+  - local Resources projection
+  - local capability validation
+  - local capability-mode candidate generation
+- alias room profiles remain non-editable
+- Resources room-profile preview/apply now uses local working copy; no immediate Supabase mutation
+- current placement invalidation is blocked locally before Save
+- main Save payload includes `roomProfileChanges`
+- commit client targets `management_commit_workspace_v8`
+
+DB contract:
+- `20261005125556_management_workspace_room_profile`
+  - adds v8 room-profile atomic commit
+  - stale-checks profile before state
+  - delegates accepted changes to existing room-profile preview/apply v2 semantics
+- `20261005125959_management_workspace_room_profile_ordering`
+  - hardens coordinated Save ordering
+  - commits placement/requirement/resource/planning/availability changes through v7 first
+  - then validates/applies room profile against final placement state
+  - returns final post-profile snapshot identity
+- both migrations applied successfully to Supabase
+
+Tests added:
+- room profile local diff
+- room profile Undo/Redo
+- local capability mismatch validation
+- atomic room-profile payload
+- immediate Resources projection
+- local capability candidate generation
+
+Gate status: **PENDING**
+
+Required gate:
+```bash
+git pull --ff-only
+npm test -- tests/managementWorkspaceWorkingCopy.test.ts tests/managementWorkspaceHistory.test.ts tests/managementWorkspaceValidation.test.ts tests/managementWorkspaceCommit.test.ts tests/managementWorkspaceInventoryProjection.test.ts tests/managementWorkspaceCandidates.test.ts tests/managementWorkspaceInventory.test.ts
+npm test
+npm run build
+git diff --check
+npx supabase migration list | tail -14
+```
+
+Expected migration parity includes:
+- `20261005125556 | 20261005125556`
+- `20261005125959 | 20261005125959`
+
+Do not start the next workspace localization sub-phase until this gate is green.
