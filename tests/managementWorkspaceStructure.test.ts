@@ -4,6 +4,7 @@ import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
   createManagementWorkspaceWorkingCopyV1,
   diffManagementWorkspaceV1,
+  hydrateManagementWorkspaceRequirementCatalogV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
   executeManagementWorkspaceCommandV1,
@@ -293,21 +294,165 @@ describe('management workspace active requirement structure', () => {
     expect(copy.requirementStructureById['requirement-1'].weeklyLoad).toBe(3);
   });
 
-  it('keeps ACTIVE to INACTIVE as an explicit lifecycle boundary', () => {
+  it('deactivates an unplaced ACTIVE requirement locally and removes its cards', () => {
     const source = snapshot(false);
     const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+    const input = {
+      requirementId: 'requirement-1',
+      weeklyLoad: 0,
+      preferredPartition: [],
+      allowedPartitions: [],
+      termStatus: 'INACTIVE' as const,
+    };
 
-    expect(() => previewManagementWorkspaceRequirementStructureV1(
+    const preview = previewManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      input,
+    );
+    expect(preview.canApply).toBe(true);
+    expect(preview.removedCards).toHaveLength(2);
+    expect(preview.proposed.cardCount).toBe(0);
+
+    const prepared = prepareManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      input,
+      preview.structureToken,
+    );
+    const result = executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      prepared.command,
+    );
+
+    expect(result.applied).toBe(true);
+    expect(copy.requirementStructureById['requirement-1'].termStatus)
+      .toBe('INACTIVE');
+    expect(Object.values(copy.cardsById).filter(
+      (card) => card.requirementId === 'requirement-1',
+    )).toHaveLength(0);
+
+    const diff = diffManagementWorkspaceV1(source, copy);
+    expect(diff.requirementStructureChanges[0]).toMatchObject({
+      requirementId: 'requirement-1',
+      before: { termStatus: 'ACTIVE' },
+      after: { termStatus: 'INACTIVE', weeklyLoad: 0 },
+    });
+  });
+
+  it('blocks deactivation while a card remains placed', () => {
+    const source = snapshot(true);
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    const preview = previewManagementWorkspaceRequirementStructureV1(
       source,
       copy,
       {
         requirementId: 'requirement-1',
+        weeklyLoad: 0,
+        preferredPartition: [],
+        allowedPartitions: [],
+        termStatus: 'INACTIVE',
+      },
+    );
+
+    expect(preview.canApply).toBe(false);
+    expect(preview.blockReasons).toContain('PLACED_CARD_REMOVAL_REQUIRED');
+  });
+
+  it('hydrates an INACTIVE requirement and activates it with client UUID cards', () => {
+    const source = snapshot(false);
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    hydrateManagementWorkspaceRequirementCatalogV1(copy, [{
+      requirementId: 'requirement-inactive',
+      subjectId: 'subject-2',
+      subjectName: 'B. Uygulama',
+      groupId: 'group-1',
+      groupName: '5A',
+      groupType: 'SECTION',
+      weeklyLoad: 0,
+      preferredPartition: [],
+      allowedPartitions: [],
+      minDistinctDays: null,
+      maxBlocksPerDay: null,
+      maxConsecutivePeriods: null,
+      courseCharacter: 'ART',
+      deliveryMode: 'STANDARD',
+      termStatus: 'INACTIVE',
+      teacherRequirement: 'OPTIONAL',
+      teacherMode: 'UNKNOWN',
+      teacherAssignmentScope: 'UNSPECIFIED',
+      teacherContinuity: 'NONE',
+      teacherIds: [],
+      resourceMode: 'UNKNOWN',
+      roomIds: [],
+      requiredCapability: null,
+    }]);
+
+    const input = {
+      requirementId: 'requirement-inactive',
+      weeklyLoad: 2,
+      preferredPartition: [1, 1],
+      allowedPartitions: [[1, 1]],
+      termStatus: 'ACTIVE' as const,
+    };
+    const preview = previewManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      input,
+    );
+
+    expect(preview.current.termStatus).toBe('INACTIVE');
+    expect(preview.current.cardCount).toBe(0);
+    expect(preview.createdBlocks).toHaveLength(2);
+    expect(preview.canApply).toBe(true);
+
+    const prepared = prepareManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      input,
+      preview.structureToken,
+    );
+    const result = executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      prepared.command,
+    );
+
+    expect(result.applied).toBe(true);
+    expect(copy.requirementStructureById['requirement-inactive'].termStatus)
+      .toBe('ACTIVE');
+
+    const cards = Object.values(copy.cardsById)
+      .filter((card) => card.requirementId === 'requirement-inactive');
+    expect(cards).toHaveLength(2);
+    expect(cards.every((card) => !card.baselineExists)).toBe(true);
+    expect(cards.every((card) => /^[0-9a-f-]{36}$/i.test(card.id))).toBe(true);
+
+    const diff = diffManagementWorkspaceV1(source, copy);
+    const lifecycle = diff.requirementStructureChanges.find(
+      (change) => change.requirementId === 'requirement-inactive',
+    );
+    expect(lifecycle).toMatchObject({
+      before: {
+        weeklyLoad: 0,
+        preferredPartition: [],
+        allowedPartitions: [],
+        termStatus: 'INACTIVE',
+      },
+      after: {
         weeklyLoad: 2,
         preferredPartition: [1, 1],
         allowedPartitions: [[1, 1]],
-        termStatus: 'INACTIVE',
+        termStatus: 'ACTIVE',
       },
-    )).toThrow(/ayrı lifecycle sınırında/i);
+    });
   });
 
   it('feeds a newly created structural card into local candidate generation', () => {
