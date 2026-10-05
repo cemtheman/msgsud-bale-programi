@@ -119,12 +119,21 @@ function roomOptionsForRequirement(
 
   if (resourceMode === 'UNKNOWN') return [null];
 
-  const activeRooms = snapshot.rooms.filter(
-    (room) => (
-      workingCopy.roomInventoryById[room.id]?.operationalStatus
-      ?? room.operationalStatus
-    ) === 'ACTIVE',
-  );
+  const activeRooms = snapshot.rooms
+    .map((room) => {
+      const profile = workingCopy.roomProfileById?.[room.id];
+      return {
+        ...room,
+        capabilities: profile?.capabilities ?? room.capabilities,
+        knowledgeStatus: profile?.knowledgeStatus ?? room.knowledgeStatus,
+      };
+    })
+    .filter(
+      (room) => (
+        workingCopy.roomInventoryById[room.id]?.operationalStatus
+        ?? room.operationalStatus
+      ) === 'ACTIVE',
+    );
 
   if (resourceMode === 'CAPABILITY') {
     const eligible = activeRooms
