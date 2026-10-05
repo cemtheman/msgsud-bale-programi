@@ -87,12 +87,8 @@ import {
 } from '@/lib/managementPlacementAssistant';
 import {
   applyManagementRequirementStructure,
-  applyManagementRequirementTeacherReconciliation,
-  applyManagementCoordinatedTeacherReconciliation,
   fetchManagementCoursePlan,
   previewManagementRequirementStructure,
-  previewManagementRequirementTeacherReconciliation,
-  previewManagementCoordinatedTeacherReconciliation,
   updateManagementRequirementRoomStrategy,
   type ManagementCoursePlanData,
   type ManagementPlanStage,
@@ -161,6 +157,10 @@ import {
 import {
   prepareManagementWorkspaceTeacherPolicyV1,
 } from '@/lib/managementWorkspaceTeacherPolicy';
+import {
+  prepareManagementWorkspaceCoordinatedTeacherReconciliationV1,
+  prepareManagementWorkspaceTeacherReconciliationV1,
+} from '@/lib/managementWorkspaceTeacherReconciliation';
 import {
   prepareManagementWorkspaceResourceCreateV1,
   prepareManagementWorkspaceResourceDeleteV1,
@@ -4755,101 +4755,172 @@ export default function ManagementPage() {
             requirementId,
             teacherId,
           ) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-            }
-            if (workspaceLocalSessionActive) {
-              throw new Error(
-                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
-              );
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            return previewManagementRequirementTeacherReconciliation(
-              session.accessToken,
+            return prepareManagementWorkspaceTeacherReconciliationV1(
+              localSnapshot,
+              localWorkingCopy,
               requirementId,
               teacherId,
-            );
+            ).preview;
           }}
           onApplyTeacherReconciliation={async (
             requirementId,
             teacherId,
             expectedStateToken,
           ) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+            const serverBoard = serverBoardRef.current;
+            if (
+              !access?.canEdit
+              || !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+              || !serverBoard
+            ) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
-            if (workspaceLocalSessionActive) {
+
+            const prepared = prepareManagementWorkspaceTeacherReconciliationV1(
+              localSnapshot,
+              localWorkingCopy,
+              requirementId,
+              teacherId,
+            );
+            if (prepared.preview.stateToken !== expectedStateToken) {
               throw new Error(
-                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
+                'Öğretmen uzlaştırma önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.',
+              );
+            }
+            if (!prepared.preview.canApply) {
+              throw new Error(
+                'Bu öğretmenle blokları mevcut gün, saat ve salonlarda uzlaştırmak mümkün değil.',
               );
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Dersin öğretmeni tüm bloklarda uzlaştırılıyor.');
-
-            try {
-              const result = await applyManagementRequirementTeacherReconciliation(
-                session.accessToken,
-                requirementId,
-                teacherId,
-                expectedStateToken,
+            const result = executeManagementWorkspaceCommandsV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              prepared.commands,
+            );
+            if (!result.applied) {
+              throw new Error(
+                result.issues.length > 0
+                  ? `Öğretmen uzlaştırması uygulanamıyor: ${workspaceIssueSummary(
+                    result.issues.map((issue) => issue.code),
+                  )}.`
+                  : 'Öğretmen uzlaştırması uygulanamıyor.',
               );
-              setCommandNotice({
-                kind: 'success',
-                text: `${result.changedBlockCount} blok aynı öğretmenle uzlaştırıldı. Gün, saat ve salonlar korundu.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
             }
+
+            setBoard(
+              projectManagementBoardFromWorkspaceV1(
+                serverBoard,
+                localWorkingCopy,
+              ),
+            );
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+            setCandidateFocus(null);
+            setCandidateDetail(null);
+            setCommandNotice({
+              kind: 'success',
+              text: `${prepared.preview.changedBlockCount} blok yerel çalışma alanında aynı öğretmenle uzlaştırıldı. Gün, saat ve salonlar korundu; ana Kaydet ile veritabanına yazılacak.`,
+            });
           }}
           onPreviewCoordinatedTeacherReconciliation={async (assignments) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-            }
-            if (workspaceLocalSessionActive) {
-              throw new Error(
-                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
-              );
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            return previewManagementCoordinatedTeacherReconciliation(
-              session.accessToken,
+            return prepareManagementWorkspaceCoordinatedTeacherReconciliationV1(
+              localSnapshot,
+              localWorkingCopy,
               assignments,
-            );
+            ).preview;
           }}
           onApplyCoordinatedTeacherReconciliation={async (
             assignments,
             expectedStateToken,
           ) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-            }
-            if (workspaceLocalSessionActive) {
-              throw new Error(
-                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
-              );
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+            const serverBoard = serverBoardRef.current;
+            if (
+              !access?.canEdit
+              || !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+              || !serverBoard
+            ) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Birbirine bağlı öğretmen kararları birlikte uygulanıyor.');
-
-            try {
-              const result = await applyManagementCoordinatedTeacherReconciliation(
-                session.accessToken,
+            const prepared =
+              prepareManagementWorkspaceCoordinatedTeacherReconciliationV1(
+                localSnapshot,
+                localWorkingCopy,
                 assignments,
-                expectedStateToken,
               );
-              setCommandNotice({
-                kind: 'success',
-                text: `${result.changedBlockCount} blokta öğretmen dağılımı birlikte uzlaştırıldı. Gün, saat ve salonlar korundu.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
+            if (prepared.preview.stateToken !== expectedStateToken) {
+              throw new Error(
+                'Koordineli öğretmen planı önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.',
+              );
             }
+            if (!prepared.preview.canApply) {
+              throw new Error(
+                'Bu öğretmen dağılımı mevcut programda güvenli biçimde uygulanamıyor.',
+              );
+            }
+
+            const result = executeManagementWorkspaceCommandsV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              prepared.commands,
+            );
+            if (!result.applied) {
+              throw new Error(
+                result.issues.length > 0
+                  ? `Koordineli öğretmen planı uygulanamıyor: ${workspaceIssueSummary(
+                    result.issues.map((issue) => issue.code),
+                  )}.`
+                  : 'Koordineli öğretmen planı uygulanamıyor.',
+              );
+            }
+
+            setBoard(
+              projectManagementBoardFromWorkspaceV1(
+                serverBoard,
+                localWorkingCopy,
+              ),
+            );
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+            setCandidateFocus(null);
+            setCandidateDetail(null);
+            setCommandNotice({
+              kind: 'success',
+              text: `${prepared.preview.changedBlockCount} blokta öğretmen dağılımı yerel çalışma alanında uzlaştırıldı. Gün, saat ve salonlar korundu; ana Kaydet ile veritabanına yazılacak.`,
+            });
           }}
           onUpdateRoomStrategy={async (
             requirementId,
