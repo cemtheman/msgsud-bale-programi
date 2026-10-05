@@ -102,6 +102,15 @@ export function translateManagementPlacementResourceBlockReason(
   if (reason === 'REQUIREMENT_TEACHER_MISMATCH') {
     return 'Bu ders tüm bloklarda aynı öğretmeni kullanmalı.';
   }
+  if (reason === 'TEACHER_NOT_ELIGIBLE') {
+    return 'Seçilen öğretmen bu dersin mevcut öğretmen havuzunda değil.';
+  }
+  if (reason === 'ROOM_NOT_ELIGIBLE') {
+    return 'Seçilen salon bu dersin mevcut salon havuzunda değil.';
+  }
+  if (reason === 'TEACHER_CONTINUITY') {
+    return 'Bu dersin blokları aynı öğretmenle yürütülmeli.';
+  }
   if (reason === 'OUTSIDE_PLANNING_POOL_WITH_UNPLACED_BLOCKS') {
     return 'Bu dersin henüz yerleşmemiş blokları var. Seçilen öğretmeni önce Ders Planı öğretmen havuzuna ekleyin.';
   }
