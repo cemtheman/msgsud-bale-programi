@@ -116,6 +116,14 @@ function copy(): ManagementWorkspaceWorkingCopyV1 {
         operationalStatus: 'ACTIVE',
       },
     },
+    teacherPlanningById: {
+      'teacher-1': {
+        teacherId: 'teacher-1',
+        minimumLoad: null,
+        targetLoad: null,
+        maximumLoad: null,
+      },
+    },
   };
 }
 
