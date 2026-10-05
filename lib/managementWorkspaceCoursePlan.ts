@@ -27,6 +27,8 @@ export function projectManagementCoursePlanFromWorkspaceV1(
       return {
         ...row,
         teacherMode: resource.teacherMode,
+        teacherAssignmentScope: resource.teacherAssignmentScope,
+        teacherContinuity: resource.teacherContinuity,
         teacherIds: [...resource.teacherIds],
         teacherNames: resource.teacherIds.map(
           (id) => teacherNames.get(id) ?? 'Bilinmeyen öğretmen',
