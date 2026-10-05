@@ -1,8 +1,10 @@
 import {
+  cloneManagementWorkspaceInventoryV1,
   cloneManagementWorkspacePlacementV1,
   cloneManagementWorkspaceRequirementResourceV1,
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
+  type ManagementWorkspaceInventoryStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
   type ManagementWorkspaceWorkingCopyV1,
@@ -11,7 +13,8 @@ import {
 export type ManagementWorkspaceOperationKindV1 =
   | 'SET_PLACEMENT'
   | 'REMOVE_PLACEMENT'
-  | 'SET_REQUIREMENT_RESOURCES';
+  | 'SET_REQUIREMENT_RESOURCES'
+  | 'SET_INVENTORY_RESOURCE';
 
 export interface ManagementWorkspacePlacementOperationV1 {
   sequence: number;
@@ -19,6 +22,7 @@ export interface ManagementWorkspacePlacementOperationV1 {
   kind: 'SET_PLACEMENT' | 'REMOVE_PLACEMENT';
   cardId: string;
   requirementId: null;
+  resourceId: null;
   before: ManagementWorkspacePlacementStateV1;
   after: ManagementWorkspacePlacementStateV1;
 }
@@ -29,13 +33,26 @@ export interface ManagementWorkspaceRequirementResourceOperationV1 {
   kind: 'SET_REQUIREMENT_RESOURCES';
   cardId: null;
   requirementId: string;
+  resourceId: null;
   before: ManagementWorkspaceRequirementResourceStateV1;
   after: ManagementWorkspaceRequirementResourceStateV1;
 }
 
+export interface ManagementWorkspaceInventoryOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_INVENTORY_RESOURCE';
+  cardId: null;
+  requirementId: null;
+  resourceId: string;
+  before: ManagementWorkspaceInventoryStateV1;
+  after: ManagementWorkspaceInventoryStateV1;
+}
+
 export type ManagementWorkspaceOperationV1 =
   | ManagementWorkspacePlacementOperationV1
-  | ManagementWorkspaceRequirementResourceOperationV1;
+  | ManagementWorkspaceRequirementResourceOperationV1
+  | ManagementWorkspaceInventoryOperationV1;
 
 export interface ManagementWorkspaceHistoryV1 {
   nextSequence: number;
@@ -55,6 +72,23 @@ function currentPlacement(
     );
   }
   return cloneManagementWorkspacePlacementV1(value);
+}
+
+function currentInventory(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resource: ManagementWorkspaceInventoryStateV1,
+) {
+  const current = resource.resourceType === 'TEACHER'
+    ? workingCopy.teacherInventoryById[resource.resourceId]
+    : workingCopy.roomInventoryById[resource.resourceId];
+
+  if (!current) {
+    throw new Error(
+      `Workspace geçmiş işlemi için kaynak bulunamadı (${resource.resourceId}).`,
+    );
+  }
+
+  return cloneManagementWorkspaceInventoryV1(current);
 }
 
 function currentRequirementResource(
@@ -109,6 +143,30 @@ function applyRequirementResourceState(
     cloneManagementWorkspaceRequirementResourceV1(resource);
 }
 
+function applyInventoryState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resource: ManagementWorkspaceInventoryStateV1,
+) {
+  if (resource.resourceType === 'TEACHER') {
+    if (!workingCopy.teacherInventoryById[resource.resourceId]) {
+      throw new Error(
+        `Workspace geçmiş işlemi için öğretmen bulunamadı (${resource.resourceId}).`,
+      );
+    }
+    workingCopy.teacherInventoryById[resource.resourceId] =
+      cloneManagementWorkspaceInventoryV1(resource) as typeof workingCopy.teacherInventoryById[string];
+    return;
+  }
+
+  if (!workingCopy.roomInventoryById[resource.resourceId]) {
+    throw new Error(
+      `Workspace geçmiş işlemi için salon bulunamadı (${resource.resourceId}).`,
+    );
+  }
+  workingCopy.roomInventoryById[resource.resourceId] =
+    cloneManagementWorkspaceInventoryV1(resource) as typeof workingCopy.roomInventoryById[string];
+}
+
 export function cloneManagementWorkspaceOperationV1(
   operation: ManagementWorkspaceOperationV1,
 ): ManagementWorkspaceOperationV1 {
@@ -117,6 +175,14 @@ export function cloneManagementWorkspaceOperationV1(
       ...operation,
       before: cloneManagementWorkspaceRequirementResourceV1(operation.before),
       after: cloneManagementWorkspaceRequirementResourceV1(operation.after),
+    };
+  }
+
+  if (operation.kind === 'SET_INVENTORY_RESOURCE') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceInventoryV1(operation.before),
+      after: cloneManagementWorkspaceInventoryV1(operation.after),
     };
   }
 
@@ -134,7 +200,8 @@ function recordOperation(
     | Omit<
         ManagementWorkspaceRequirementResourceOperationV1,
         'sequence' | 'batchId'
-      >,
+      >
+    | Omit<ManagementWorkspaceInventoryOperationV1, 'sequence' | 'batchId'>,
 ) {
   const entry = {
     ...operation,
@@ -176,6 +243,7 @@ export function applyManagementWorkspacePlacementOperationV1(
     kind: 'SET_PLACEMENT',
     cardId: placement.cardId,
     requirementId: null,
+    resourceId: null,
     before,
     after,
   });
@@ -204,6 +272,7 @@ export function applyManagementWorkspaceRemoveOperationV1(
     kind: 'REMOVE_PLACEMENT',
     cardId,
     requirementId: null,
+    resourceId: null,
     before,
     after,
   });
@@ -226,6 +295,27 @@ export function applyManagementWorkspaceRequirementResourceOperationV1(
     kind: 'SET_REQUIREMENT_RESOURCES',
     cardId: null,
     requirementId: resource.requirementId,
+    resourceId: null,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspaceInventoryOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  resource: ManagementWorkspaceInventoryStateV1,
+) {
+  const before = currentInventory(workingCopy, resource);
+  const after = cloneManagementWorkspaceInventoryV1(resource);
+
+  applyInventoryState(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_INVENTORY_RESOURCE',
+    cardId: null,
+    requirementId: null,
+    resourceId: resource.resourceId,
     before,
     after,
   });
@@ -244,6 +334,14 @@ function applyOperationState(
     applyRequirementResourceState(
       workingCopy,
       value as ManagementWorkspaceRequirementResourceStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_INVENTORY_RESOURCE') {
+    applyInventoryState(
+      workingCopy,
+      value as ManagementWorkspaceInventoryStateV1,
     );
     return;
   }
