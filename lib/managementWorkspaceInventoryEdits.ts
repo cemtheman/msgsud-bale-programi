@@ -763,3 +763,61 @@ export function prepareManagementWorkspaceRoomProfileV1(
     },
   };
 }
+
+
+export function prepareManagementWorkspaceResourceCreateV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resourceType: 'TEACHER' | 'ROOM',
+  resourceId: string,
+  displayName: string,
+): {
+  command: ManagementWorkspaceCommandV1;
+} {
+  const bundle = createManagementWorkspaceResourceBundleV1(
+    workingCopy,
+    resourceType,
+    resourceId,
+    displayName,
+  );
+
+  return {
+    command: {
+      type: 'SET_RESOURCE_BUNDLE',
+      resourceType,
+      resourceId,
+      bundle,
+    },
+  };
+}
+
+export function prepareManagementWorkspaceResourceDeleteV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resourceType: 'TEACHER' | 'ROOM',
+  resourceId: string,
+): {
+  command: ManagementWorkspaceCommandV1;
+} {
+  const current = getManagementWorkspaceResourceBundleV1(
+    workingCopy,
+    resourceType,
+    resourceId,
+  );
+  if (!current || !current.lifecycle.exists) {
+    throw new Error('Kaynak çalışma alanında bulunamadı.');
+  }
+
+  return {
+    command: {
+      type: 'SET_RESOURCE_BUNDLE',
+      resourceType,
+      resourceId,
+      bundle: {
+        ...current,
+        lifecycle: {
+          ...current.lifecycle,
+          exists: false,
+        },
+      },
+    },
+  };
+}
