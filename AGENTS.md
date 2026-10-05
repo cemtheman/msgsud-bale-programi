@@ -6641,3 +6641,69 @@ Next remaining local-write boundaries:
 1. PLACE from pool still may read server candidates
 2. resource edits are still legacy DB-backed
 3. Placement Assistant still has legacy server-analysis/apply paths
+
+
+### 5 Oct 2026 — zero-network drag candidate path completed for MOVE + PLACE
+
+Workspace candidate boundary advanced again.
+
+New local PLACE candidate generation:
+- module: `lib/managementWorkspaceCandidates.ts`
+- function:
+  `buildManagementWorkspacePlacementCandidateDetailV1(snapshot, cardId)`
+
+Inputs are entirely snapshot-backed:
+- requirement teacher policy
+- requirement teacher pool
+- requirement room pool
+- active teacher/room status
+- room capability + knowledge status
+- hard day/period contract
+
+Resource semantics:
+- teacherRequirement NONE -> only null teacher
+- REQUIRED -> active eligible teacher-pool members
+- optional/unspecified -> null + active eligible pool
+- resourceMode UNKNOWN -> no room required
+- FIXED / ELIGIBLE_POOL -> active room-pool members
+- CAPABILITY -> only ACTIVE + CONFIRMED rooms carrying required capability
+- missing required teacher/room stays UNRESOLVED; the local engine never invents
+  a resource assignment
+
+Program drag flow:
+- placed card -> local MOVE candidate matrix
+- unplaced/pool card -> local PLACE candidate matrix
+- grouped selection -> each member uses MOVE or PLACE generation according to
+  its current local placement state
+- drag start no longer calls server candidate refresh/detail endpoints
+- grouped Inspector resolution no longer re-fetches sibling candidate details
+- deferred target resolution no longer re-fetches server candidates
+- final acceptance remains the existing workspace preview validator; candidate
+  generation is not a second hard-rule engine
+
+Commits:
+- `5ab1b4709b7790c56f5b716170d1ed1cbf3b5471` local PLACE candidate builder
+- `beb5a007156637a69f6c666d25b4b1c006c4cf5d` local pool drag integration
+- `1222ab073343b289942eff75ad1ce108b9f3fc6e` remove obsolete drag refresh import
+- `56f1e9b905700010d1f21151285a5f988b30a7a7` initial PLACE candidate tests
+- `63ac0dae90cfbef969ecaca066b401bed8a54b25` grouped/deferred local resolution
+- `d298c10ecc9f45ff0138f9e829bf360cf6b836c5` resource-semantics tests
+
+Expected browser/network behavior:
+- grabbing a placed card: no candidate network request
+- grabbing a pool card: no candidate network request
+- choosing a resource for a grouped drag: no sibling candidate network request
+- DROP is local
+- DB remains unchanged until explicit Save
+
+Server candidate reads still intentionally exist outside ordinary drag:
+- Placement Assistant analysis
+- some Inspector/background diagnostic paths
+These are no longer required for the core Program drag/drop path.
+
+Next workspace boundary:
+**local resource edits**
+- teacher/room change from Inspector should modify local working-copy placement
+- resource changes should join the same local Undo/Redo history
+- no preview/apply DB resource RPC during ordinary editing
+- Save remains the only placement persistence point
