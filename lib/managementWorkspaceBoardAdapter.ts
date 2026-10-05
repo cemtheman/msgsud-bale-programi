@@ -21,6 +21,8 @@ export function projectManagementBoardFromWorkspaceV1(
         ? {
             ...card,
             teacherMode: resource.teacherMode,
+            teacherAssignmentScope: resource.teacherAssignmentScope,
+            teacherContinuity: resource.teacherContinuity,
             teacherIds: [...resource.teacherIds],
             teacherNames: resource.teacherIds.map(
               (id) => board.teacherNamesById[id] ?? 'Bilinmeyen öğretmen',
