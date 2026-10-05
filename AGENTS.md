@@ -6784,3 +6784,37 @@ Still legacy/server-backed and intentionally separate:
 - Ders Planı room strategy edits
 - Resources inventory/status/name/departure edits
 - Placement Assistant analysis/apply path
+
+
+### 5 Oct 2026 — build fix + Program Status bulk resource edits local
+
+Gate exposed two stale references in `app/yonetim/page.tsx`:
+- `previewManagementPlacementResourceChange`
+- `applyManagementPlacementResourceChange`
+
+They were not in the Inspector path; they belonged to the **Program Durumu**
+bulk teacher/room assignment callbacks.
+
+Resolution:
+- Program Durumu bulk preview now uses
+  `prepareManagementWorkspaceResourceEditV1(...)`
+- Program Durumu bulk apply now uses
+  `executeManagementWorkspaceCommandsV1(...)`
+- bulk resource changes join the same local Undo/Redo history
+- bulk changes set workspace dirty and require explicit Save for DB persistence
+- unsaved workspace state no longer disables these bulk edits because they are
+  now part of the same local workspace
+- obsolete server placement-resource RPC references are now zero in
+  `app/yonetim/page.tsx`
+- local blocker translation import added
+
+Commits:
+- `b428d2207d31137c8a9c4bd509a0b4628ab406fa`
+- `091a6814adef0d1aa7a6e526f0d2a7edb3c63379`
+
+Required gate rerun:
+```bash
+git pull --ff-only
+npm test
+npm run build
+```
