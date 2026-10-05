@@ -164,6 +164,7 @@ import {
 } from '@/lib/managementWorkspaceValidation';
 import {
   buildManagementWorkspaceMoveCandidateDetailV1,
+  buildManagementWorkspacePlacementCandidateDetailV1,
 } from '@/lib/managementWorkspaceCandidates';
 import {
   projectManagementBoardFromWorkspaceV1,
@@ -1861,34 +1862,39 @@ export default function ManagementPage() {
     setCommandNotice(null);
 
     const localWorkingCopy = workspaceWorkingCopyRef.current;
-    const localMoveEntries = (
-      localSnapshot
-      && localWorkingCopy
-      && ids.every((id) => {
+    const localEntries = (
+      localSnapshot && localWorkingCopy
+    )
+      ? ids.map((id) => {
         const placement = localWorkingCopy.placementsByCardId[id];
-        return Boolean(
+        const isPlaced = Boolean(
           placement
           && placement.dayOfWeek !== null
           && placement.startPeriod !== null
         );
-      })
-    )
-      ? ids.map((id) => [
-        id,
-        buildManagementWorkspaceMoveCandidateDetailV1(
-          localSnapshot,
-          localWorkingCopy,
+
+        return [
           id,
-        ),
-      ] as const)
+          isPlaced
+            ? buildManagementWorkspaceMoveCandidateDetailV1(
+              localSnapshot,
+              localWorkingCopy,
+              id,
+            )
+            : buildManagementWorkspacePlacementCandidateDetailV1(
+              localSnapshot,
+              id,
+            ),
+        ] as const;
+      })
       : null;
 
     if (
-      localMoveEntries
-      && localMoveEntries.every(([, detail]) => detail !== null)
+      localEntries
+      && localEntries.every(([, detail]) => detail !== null)
     ) {
       setDragCandidateDetails(
-        Object.fromEntries(localMoveEntries) as Record<
+        Object.fromEntries(localEntries) as Record<
           string,
           ManagementCandidateDetail
         >,
@@ -1897,47 +1903,16 @@ export default function ManagementPage() {
       return;
     }
 
-    const prepareCandidates = ids.length === 1
-      ? Promise.resolve()
-      : retryManagementRead(
-        () => refreshManagementCardGroupCandidates(
-          session.accessToken,
-          ids,
-        ),
-      );
-
-    void prepareCandidates
-      .then(() => Promise.all(
-        ids.map(async (id) => [
-          id,
-          await retryManagementRead(
-            () => fetchPolicyAwareCandidates(session.accessToken, id),
-          ),
-        ] as const),
-      ))
-      .then((entries) => {
-        if (dragSequenceRef.current !== sequence) return;
-        setDragCandidateDetails(Object.fromEntries(entries));
-      })
-      .catch((reason: unknown) => {
-        if (dragSequenceRef.current !== sequence) return;
-        dragCardIdsRef.current = [];
-        setDragCardIds([]);
-        setDragStartOffsetsByCardId({});
-        setDragCandidateDetails({});
-        setCommandNotice({
-          kind: 'error',
-          text: reason instanceof Error
-            ? reason.message
-            : 'Sürükleme için aday alanı hazırlanamadı.',
-        });
-        setInspectorOpen(true);
-      })
-      .finally(() => {
-        if (dragSequenceRef.current === sequence) {
-          setDragLoading(false);
-        }
-      });
+    dragCardIdsRef.current = [];
+    setDragCardIds([]);
+    setDragStartOffsetsByCardId({});
+    setDragCandidateDetails({});
+    setDragLoading(false);
+    setCommandNotice({
+      kind: 'error',
+      text: 'Yerel aday bilgisi hazırlanamadı. Programı yenileyip tekrar deneyin.',
+    });
+    setInspectorOpen(true);
   };
 
   const endDrag = () => {
