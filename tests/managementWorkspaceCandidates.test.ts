@@ -6,6 +6,8 @@ import {
   buildManagementWorkspacePlacementCandidateDetailV1,
 } from '@/lib/managementWorkspaceCandidates';
 import {
+  applyManagementWorkspaceResourceBundleV1,
+  createManagementWorkspaceResourceBundleV1,
   createManagementWorkspaceWorkingCopyV1,
   removeManagementWorkspacePlacementV1,
   setManagementWorkspaceRequirementRoomsV1,
@@ -398,6 +400,64 @@ describe('management workspace local move candidates', () => {
     expect(after?.validCandidates.some(
       (candidate) => candidate.roomId === source.rooms[0].id,
     )).toBe(false);
+  });
+
+
+  it('uses newly created local resources as placement candidates', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    removeManagementWorkspacePlacementV1(copy, 'card-1');
+
+    const teacher = createManagementWorkspaceResourceBundleV1(
+      copy,
+      'TEACHER',
+      '11111111-1111-4111-8111-111111111111',
+      'Yeni Öğretmen',
+    );
+    const room = createManagementWorkspaceResourceBundleV1(
+      copy,
+      'ROOM',
+      '22222222-2222-4222-8222-222222222222',
+      'Yeni Salon',
+    );
+    applyManagementWorkspaceResourceBundleV1(
+      copy,
+      'TEACHER',
+      teacher.lifecycle.resourceId,
+      teacher,
+    );
+    applyManagementWorkspaceResourceBundleV1(
+      copy,
+      'ROOM',
+      room.lifecycle.resourceId,
+      room,
+    );
+
+    setManagementWorkspaceRequirementTeachersV1(
+      copy,
+      'requirement-1',
+      [teacher.lifecycle.resourceId],
+    );
+    setManagementWorkspaceRequirementRoomsV1(
+      copy,
+      'requirement-1',
+      {
+        resourceMode: 'FIXED',
+        roomIds: [room.lifecycle.resourceId],
+        requiredCapability: null,
+      },
+    );
+
+    const detail = buildManagementWorkspacePlacementCandidateDetailV1(
+      source,
+      copy,
+      'card-1',
+    );
+
+    expect(detail?.validCandidates.some((candidate) =>
+      candidate.teacherId === teacher.lifecycle.resourceId
+      && candidate.roomId === room.lifecycle.resourceId
+    )).toBe(true);
   });
 
 });
