@@ -14,6 +14,7 @@ import {
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
   applyManagementWorkspaceRequirementResourceOperationV1,
+  applyManagementWorkspaceRequirementStructureOperationV1,
   canRedoManagementWorkspaceV1,
   canUndoManagementWorkspaceV1,
   createManagementWorkspaceHistoryV1,
@@ -477,6 +478,75 @@ describe('management workspace history v1', () => {
       .toBe(true);
     expect(copy.roomInventoryById[bundle.lifecycle.resourceId]?.displayName)
       .toBe('Yeni Salon');
+  });
+
+
+  it('undoes and redoes a structural bundle without falling through to placement dispatch', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    applyManagementWorkspaceRequirementStructureOperationV1(
+      copy,
+      history,
+      'requirement-1',
+      {
+        structure: {
+          requirementId: 'requirement-1',
+          weeklyLoad: 3,
+          preferredPartition: [1, 1, 1],
+          allowedPartitions: [[1, 1, 1]],
+          termStatus: 'ACTIVE',
+        },
+        cards: [
+          {
+            id: 'card-1',
+            requirementId: 'requirement-1',
+            blockIndex: 1,
+            durationPeriods: 1,
+            locked: false,
+            baselineExists: true,
+          },
+          {
+            id: 'card-2',
+            requirementId: 'requirement-1',
+            blockIndex: 2,
+            durationPeriods: 1,
+            locked: false,
+            baselineExists: true,
+          },
+          {
+            id: '11111111-1111-4111-8111-111111111111',
+            requirementId: 'requirement-1',
+            blockIndex: 3,
+            durationPeriods: 1,
+            locked: false,
+            baselineExists: false,
+          },
+        ],
+        placements: [
+          copy.placementsByCardId['card-1'],
+          copy.placementsByCardId['card-2'],
+          {
+            cardId: '11111111-1111-4111-8111-111111111111',
+            dayOfWeek: null,
+            startPeriod: null,
+            teacherId: null,
+            roomId: null,
+          },
+        ],
+      },
+    );
+
+    expect(Object.keys(copy.cardsById)).toHaveLength(3);
+
+    expect(undoManagementWorkspaceOperationV1(copy, history)?.kind)
+      .toBe('SET_REQUIREMENT_STRUCTURE');
+    expect(Object.keys(copy.cardsById).sort()).toEqual(['card-1', 'card-2']);
+
+    expect(redoManagementWorkspaceOperationV1(copy, history)?.kind)
+      .toBe('SET_REQUIREMENT_STRUCTURE');
+    expect(Object.keys(copy.cardsById)).toHaveLength(3);
   });
 
 });
