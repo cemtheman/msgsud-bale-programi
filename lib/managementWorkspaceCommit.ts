@@ -156,6 +156,8 @@ export interface ManagementWorkspaceCommitResultV1 {
   changedCardCount: number;
   changedRequirementCount: number;
   changedResourceCount: number;
+  changedStructureCount?: number;
+  changedStructuralCardCount?: number;
   removeCount: number;
   moveCount: number;
   placeCount: number;
