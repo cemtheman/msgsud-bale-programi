@@ -75,6 +75,8 @@ function cloneWorkingCopy(
             requirementId: resource.requirementId,
             teacherIds: [...resource.teacherIds],
             teacherMode: resource.teacherMode,
+            teacherAssignmentScope: resource.teacherAssignmentScope,
+            teacherContinuity: resource.teacherContinuity,
             resourceMode: resource.resourceMode,
             roomIds: [...resource.roomIds],
             requiredCapability: resource.requiredCapability,
