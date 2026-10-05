@@ -1,10 +1,10 @@
 import type {
   ManagementWorkspaceSnapshotV1,
 } from '@/lib/managementWorkspace';
-import type {
-  ManagementWorkspacePlacementStateV1,
-  ManagementWorkspaceWorkingCopyV1,
+import {
   diffManagementWorkspaceV1,
+  type ManagementWorkspacePlacementStateV1,
+  type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 
 export type ManagementWorkspaceValidationCodeV1 =
