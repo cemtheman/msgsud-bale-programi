@@ -80,19 +80,24 @@ export function projectManagementResourcesFromWorkspaceV1(
     }),
     rooms: resources.rooms.map((room) => {
       const local = workingCopy.roomInventoryById[room.id];
-      if (!local) return room;
+      const profile = workingCopy.roomProfileById?.[room.id];
+      if (!local && !profile) return room;
 
       return {
         ...room,
-        name: local.displayName !== local.baselineDisplayName
+        name: local && local.displayName !== local.baselineDisplayName
           ? local.displayName
           : room.name,
         nameOverridden: (
-          local.displayName !== local.baselineDisplayName
+          local && local.displayName !== local.baselineDisplayName
             ? local.displayName
             : room.name
         ) !== room.baseName,
-        operationalStatus: local.operationalStatus,
+        operationalStatus:
+          local?.operationalStatus ?? room.operationalStatus,
+        capabilities: profile?.capabilities ?? room.capabilities,
+        knowledgeStatus:
+          profile?.knowledgeStatus ?? room.knowledgeStatus,
       };
     }),
   };
