@@ -10,7 +10,9 @@ function coursePlan(): ManagementCoursePlanData {
     revisionId: 'revision-1',
     rows: [{
       requirementId: 'requirement-1',
+      subjectId: 'subject-1',
       subjectName: 'Türkçe',
+      groupId: 'group-1',
       groupName: '5A',
       groupType: 'SECTION',
       classCodes: ['5A'],
@@ -258,4 +260,31 @@ describe('management workspace Course Plan adapter', () => {
     expect(source.rows[0].resourceMode).toBe('FIXED');
     expect(source.teacherContinuityViolations).toHaveLength(1);
   });
+
+  it('projects a local ACTIVE to INACTIVE lifecycle change immediately', () => {
+    const source = coursePlan();
+    const copy = workingCopy();
+    copy.requirementStructureById['requirement-1'] = {
+      requirementId: 'requirement-1',
+      weeklyLoad: 0,
+      preferredPartition: [],
+      allowedPartitions: [],
+      termStatus: 'INACTIVE',
+    };
+
+    const projected = projectManagementCoursePlanFromWorkspaceV1(
+      source,
+      copy,
+    );
+
+    expect(projected.rows[0]).toMatchObject({
+      weeklyLoad: 0,
+      preferredPartition: [],
+      allowedPartitions: [],
+      termStatus: 'INACTIVE',
+      placedBlockCount: 0,
+    });
+    expect(source.rows[0].termStatus).toBe('ACTIVE');
+  });
+
 });
