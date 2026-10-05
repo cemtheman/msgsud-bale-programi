@@ -68,6 +68,16 @@ function workingCopy(): ManagementWorkspaceWorkingCopyV1 {
       baselineHash: 'baseline-hash',
     },
     placementsByCardId: {},
+    cardsById: {},
+    requirementStructureById: {
+      'requirement-1': {
+        requirementId: 'requirement-1',
+        weeklyLoad: 2,
+        preferredPartition: [],
+        allowedPartitions: [],
+        termStatus: 'ACTIVE',
+      },
+    },
     requirementResourcesById: {
       'requirement-1': {
         requirementId: 'requirement-1',
