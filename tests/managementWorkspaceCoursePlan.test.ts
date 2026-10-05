@@ -88,6 +88,7 @@ function workingCopy(): ManagementWorkspaceWorkingCopyV1 {
         groupId: 'group-1',
         groupName: '5A',
         groupType: 'SECTION',
+        classCodes: ['5A'],
         minDistinctDays: null,
         maxBlocksPerDay: null,
         maxConsecutivePeriods: null,
