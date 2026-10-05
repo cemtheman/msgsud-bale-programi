@@ -80,7 +80,7 @@ export interface ManagementSolverRequirement {
   groupType: string;
   weeklyLoad: number;
   preferredPartition: number[] | null;
-  allowedPartitions: number[] | null;
+  allowedPartitions: number[][] | null;
   minDistinctDays: number | null;
   maxBlocksPerDay: number | null;
   maxConsecutivePeriods: number | null;
