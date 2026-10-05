@@ -313,6 +313,28 @@ describe('management workspace local move candidates', () => {
     ))).toBe(true);
   });
 
+  it('removes locally inactive resources from PLACE candidates immediately', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    copy.teacherInventoryById['teacher-1'].operationalStatus = 'INACTIVE';
+    copy.roomInventoryById['room-1'].operationalStatus = 'MAINTENANCE';
+
+    const detail = buildManagementWorkspacePlacementCandidateDetailV1(
+      source,
+      copy,
+      'card-1',
+    );
+
+    expect(detail).not.toBeNull();
+    expect(detail?.validCandidates).toHaveLength(0);
+    expect(detail?.assessments.every((candidate) => (
+      candidate.teacherId === null
+      && candidate.roomId === null
+      && candidate.status === 'UNRESOLVED'
+    ))).toBe(true);
+  });
+
   it('returns null for an unplaced MOVE candidate so PLACE generation is explicit', () => {
     const source = snapshot();
     const copy = createManagementWorkspaceWorkingCopyV1(source);
