@@ -1,40 +1,47 @@
 import {
+  cloneManagementWorkspacePlacementV1,
+  cloneManagementWorkspaceRequirementResourceV1,
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
+  setManagementWorkspaceRequirementRoomsV1,
+  setManagementWorkspaceRequirementTeachersV1,
   type ManagementWorkspacePlacementStateV1,
+  type ManagementWorkspaceRequirementResourceStateV1,
   type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 
 export type ManagementWorkspaceOperationKindV1 =
   | 'SET_PLACEMENT'
-  | 'REMOVE_PLACEMENT';
+  | 'REMOVE_PLACEMENT'
+  | 'SET_REQUIREMENT_RESOURCES';
 
-export interface ManagementWorkspaceOperationV1 {
+export interface ManagementWorkspacePlacementOperationV1 {
   sequence: number;
   batchId: number | null;
-  kind: ManagementWorkspaceOperationKindV1;
+  kind: 'SET_PLACEMENT' | 'REMOVE_PLACEMENT';
   cardId: string;
   before: ManagementWorkspacePlacementStateV1;
   after: ManagementWorkspacePlacementStateV1;
 }
+
+export interface ManagementWorkspaceRequirementResourceOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_REQUIREMENT_RESOURCES';
+  requirementId: string;
+  before: ManagementWorkspaceRequirementResourceStateV1;
+  after: ManagementWorkspaceRequirementResourceStateV1;
+}
+
+export type ManagementWorkspaceOperationV1 =
+  | ManagementWorkspacePlacementOperationV1
+  | ManagementWorkspaceRequirementResourceOperationV1;
 
 export interface ManagementWorkspaceHistoryV1 {
   nextSequence: number;
   nextBatchId: number;
   undoStack: ManagementWorkspaceOperationV1[];
   redoStack: ManagementWorkspaceOperationV1[];
-}
-
-function clonePlacement(
-  value: ManagementWorkspacePlacementStateV1,
-): ManagementWorkspacePlacementStateV1 {
-  return {
-    cardId: value.cardId,
-    dayOfWeek: value.dayOfWeek,
-    startPeriod: value.startPeriod,
-    teacherId: value.teacherId,
-    roomId: value.roomId,
-  };
 }
 
 function currentPlacement(
@@ -47,7 +54,20 @@ function currentPlacement(
       `Workspace geçmiş işlemi için kart bulunamadı (${cardId}).`,
     );
   }
-  return clonePlacement(value);
+  return cloneManagementWorkspacePlacementV1(value);
+}
+
+function currentRequirementResource(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  requirementId: string,
+) {
+  const value = workingCopy.requirementResourcesById[requirementId];
+  if (!value) {
+    throw new Error(
+      `Workspace geçmiş işlemi için requirement bulunamadı (${requirementId}).`,
+    );
+  }
+  return cloneManagementWorkspaceRequirementResourceV1(value);
 }
 
 function applyPlacementState(
@@ -75,24 +95,74 @@ function applyPlacementState(
   );
 }
 
+function applyRequirementResourceState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resource: ManagementWorkspaceRequirementResourceStateV1,
+) {
+  setManagementWorkspaceRequirementTeachersV1(
+    workingCopy,
+    resource.requirementId,
+    resource.teacherIds,
+  );
+  setManagementWorkspaceRequirementRoomsV1(
+    workingCopy,
+    resource.requirementId,
+    {
+      resourceMode: resource.resourceMode,
+      roomIds: resource.roomIds,
+      requiredCapability: resource.requiredCapability,
+    },
+  );
+
+  // Teacher-mode derivation normally follows teacherIds. Preserve the exact
+  // historical state for undo/redo in case an imported legacy snapshot used a
+  // non-derived mode.
+  workingCopy.requirementResourcesById[resource.requirementId] = {
+    ...cloneManagementWorkspaceRequirementResourceV1(
+      workingCopy.requirementResourcesById[resource.requirementId],
+    ),
+    teacherMode: resource.teacherMode,
+  };
+}
+
+export function cloneManagementWorkspaceOperationV1(
+  operation: ManagementWorkspaceOperationV1,
+): ManagementWorkspaceOperationV1 {
+  if (operation.kind === 'SET_REQUIREMENT_RESOURCES') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceRequirementResourceV1(operation.before),
+      after: cloneManagementWorkspaceRequirementResourceV1(operation.after),
+    };
+  }
+
+  return {
+    ...operation,
+    before: cloneManagementWorkspacePlacementV1(operation.before),
+    after: cloneManagementWorkspacePlacementV1(operation.after),
+  };
+}
+
 function recordOperation(
   history: ManagementWorkspaceHistoryV1,
-  operation: Omit<ManagementWorkspaceOperationV1, 'sequence' | 'batchId'>,
+  operation:
+    | Omit<ManagementWorkspacePlacementOperationV1, 'sequence' | 'batchId'>
+    | Omit<
+        ManagementWorkspaceRequirementResourceOperationV1,
+        'sequence' | 'batchId'
+      >,
 ) {
-  const entry: ManagementWorkspaceOperationV1 = {
+  const entry = {
+    ...operation,
     sequence: history.nextSequence,
     batchId: null,
-    kind: operation.kind,
-    cardId: operation.cardId,
-    before: clonePlacement(operation.before),
-    after: clonePlacement(operation.after),
-  };
+  } as ManagementWorkspaceOperationV1;
 
   history.nextSequence += 1;
-  history.undoStack.push(entry);
+  history.undoStack.push(cloneManagementWorkspaceOperationV1(entry));
   history.redoStack = [];
 
-  return entry;
+  return cloneManagementWorkspaceOperationV1(entry);
 }
 
 export function createManagementWorkspaceHistoryV1():
@@ -114,7 +184,7 @@ export function applyManagementWorkspacePlacementOperationV1(
     workingCopy,
     placement.cardId,
   );
-  const after = clonePlacement(placement);
+  const after = cloneManagementWorkspacePlacementV1(placement);
 
   applyPlacementState(workingCopy, after);
 
@@ -153,6 +223,50 @@ export function applyManagementWorkspaceRemoveOperationV1(
   });
 }
 
+export function applyManagementWorkspaceRequirementResourceOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  resource: ManagementWorkspaceRequirementResourceStateV1,
+) {
+  const before = currentRequirementResource(
+    workingCopy,
+    resource.requirementId,
+  );
+  const after = cloneManagementWorkspaceRequirementResourceV1(resource);
+
+  applyRequirementResourceState(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_REQUIREMENT_RESOURCES',
+    requirementId: resource.requirementId,
+    before,
+    after,
+  });
+}
+
+function applyOperationState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  operation: ManagementWorkspaceOperationV1,
+  direction: 'BEFORE' | 'AFTER',
+) {
+  const value = direction === 'BEFORE'
+    ? operation.before
+    : operation.after;
+
+  if (operation.kind === 'SET_REQUIREMENT_RESOURCES') {
+    applyRequirementResourceState(
+      workingCopy,
+      value as ManagementWorkspaceRequirementResourceStateV1,
+    );
+    return;
+  }
+
+  applyPlacementState(
+    workingCopy,
+    value as ManagementWorkspacePlacementStateV1,
+  );
+}
+
 export function undoManagementWorkspaceOperationV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   history: ManagementWorkspaceHistoryV1,
@@ -171,14 +285,15 @@ export function undoManagementWorkspaceOperationV1(
   }
 
   batch.forEach((entry) => {
-    applyPlacementState(
+    applyOperationState(
       workingCopy,
-      entry.before,
+      entry,
+      'BEFORE',
     );
-    history.redoStack.push(entry);
+    history.redoStack.push(cloneManagementWorkspaceOperationV1(entry));
   });
 
-  return operation;
+  return cloneManagementWorkspaceOperationV1(operation);
 }
 
 export function redoManagementWorkspaceOperationV1(
@@ -199,14 +314,15 @@ export function redoManagementWorkspaceOperationV1(
   }
 
   batch.forEach((entry) => {
-    applyPlacementState(
+    applyOperationState(
       workingCopy,
-      entry.after,
+      entry,
+      'AFTER',
     );
-    history.undoStack.push(entry);
+    history.undoStack.push(cloneManagementWorkspaceOperationV1(entry));
   });
 
-  return operation;
+  return cloneManagementWorkspaceOperationV1(operation);
 }
 
 export function canUndoManagementWorkspaceV1(
