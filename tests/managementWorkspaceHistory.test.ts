@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
+  executeManagementWorkspaceCommandV1,
+} from '@/lib/managementWorkspaceCommands';
+import {
   createManagementWorkspaceWorkingCopyV1,
   diffManagementWorkspaceV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
