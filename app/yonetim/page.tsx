@@ -2937,11 +2937,16 @@ export default function ManagementPage() {
           localWorkingCopy,
         ).hasChanges,
       );
+      if (localOperation?.kind === 'SET_INVENTORY_RESOURCE') {
+        setResources((current) => current ? { ...current } : current);
+      }
       setCommandNotice({
         kind: 'success',
         text: localOperation?.kind === 'SET_REQUIREMENT_RESOURCES'
           ? 'Ders Planı kaynak değişikliği geri alındı.'
-          : 'Program değişikliği geri alındı.',
+          : localOperation?.kind === 'SET_INVENTORY_RESOURCE'
+            ? 'Kaynaklar değişikliği geri alındı.'
+            : 'Program değişikliği geri alındı.',
       });
       return;
     }
@@ -3041,11 +3046,16 @@ export default function ManagementPage() {
           localWorkingCopy,
         ).hasChanges,
       );
+      if (localOperation?.kind === 'SET_INVENTORY_RESOURCE') {
+        setResources((current) => current ? { ...current } : current);
+      }
       setCommandNotice({
         kind: 'success',
         text: localOperation?.kind === 'SET_REQUIREMENT_RESOURCES'
           ? 'Ders Planı kaynak değişikliği yeniden uygulandı.'
-          : 'Program değişikliği yeniden uygulandı.',
+          : localOperation?.kind === 'SET_INVENTORY_RESOURCE'
+            ? 'Kaynaklar değişikliği yeniden uygulandı.'
+            : 'Program değişikliği yeniden uygulandı.',
       });
       return;
     }
@@ -3525,6 +3535,9 @@ export default function ManagementPage() {
             : null,
           result.changedRequirementCount > 0
             ? `${result.changedRequirementCount} ders planı değişikliği`
+            : null,
+          result.changedResourceCount > 0
+            ? `${result.changedResourceCount} kaynak değişikliği`
             : null,
         ].filter(Boolean).join(' + ') + ' kaydedildi.',
       });
