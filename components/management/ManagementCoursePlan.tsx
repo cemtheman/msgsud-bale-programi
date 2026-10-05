@@ -1074,8 +1074,8 @@ export function ManagementCoursePlan({
               </p>
               <p className="mt-1 text-[11px] font-medium leading-4 text-slate-600">
                 {editRow.placedBlockCount > 0
-                  ? 'Mevcut programı sessizce geçersiz kılmamak için önce bu dersin yerleşimlerini Program ekranından kaldırın.'
-                  : 'Değişiklik kaydedildiğinde yalnız bu dersin uygun yerleri yeniden hesaplanacak.'}
+                  ? 'Mevcut programı sessizce geçersiz kılmamak için önce bu dersin yerleşimlerini Program ekranından kaldırın ve ana Kaydet ile kalıcılaştırın.'
+                  : 'Bu seçim önce yerel çalışma alanına uygulanır; kalıcı kayıt için yönetim ekranındaki ana Kaydet kullanılır.'}
               </p>
 
               {editRow.placedBlockCount > 0 && (
@@ -1145,7 +1145,7 @@ export function ManagementCoursePlan({
                 disabled={saving || editRow.placedBlockCount > 0}
                 className="rounded-xl bg-slate-950 px-4 py-2.5 text-[11px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
               >
-                {saving ? 'Kaydediliyor…' : 'Değişikliği kaydet'}
+                {saving ? 'Uygulanıyor…' : 'Çalışmaya uygula'}
               </button>
             </div>
           </div>
