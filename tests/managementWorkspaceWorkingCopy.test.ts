@@ -260,12 +260,14 @@ describe('management workspace working copy v1', () => {
         before: {
           resourceType: 'ROOM',
           resourceId: 'room-1',
+          baselineDisplayName: '105A',
           displayName: '105A',
           operationalStatus: 'ACTIVE',
         },
         after: {
           resourceType: 'ROOM',
           resourceId: 'room-1',
+          baselineDisplayName: '105A',
           displayName: '105A',
           operationalStatus: 'MAINTENANCE',
         },
@@ -276,12 +278,14 @@ describe('management workspace working copy v1', () => {
         before: {
           resourceType: 'TEACHER',
           resourceId: 'teacher-1',
+          baselineDisplayName: 'Türkçe Öğretmeni',
           displayName: 'Türkçe Öğretmeni',
           operationalStatus: 'ACTIVE',
         },
         after: {
           resourceType: 'TEACHER',
           resourceId: 'teacher-1',
+          baselineDisplayName: 'Türkçe Öğretmeni',
           displayName: 'Türkçe Öğretmeni A',
           operationalStatus: 'ACTIVE',
         },
