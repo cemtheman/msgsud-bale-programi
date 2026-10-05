@@ -7,6 +7,7 @@ import {
   setManagementWorkspaceRequirementRoomsV1,
   setManagementWorkspaceRequirementTeacherPolicyV1,
   setManagementWorkspaceRequirementTeachersV1,
+  setManagementWorkspaceTeacherInventoryV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import { prepareManagementWorkspaceCommitV1 } from '@/lib/managementWorkspaceCommit';
 
@@ -179,6 +180,39 @@ describe('management workspace commit v1', () => {
     expect(prepared.payload?.baselineHash).toBe('baseline-hash');
     expect(prepared.payload?.changes.map((change) => change.card_id))
       .toEqual(['card-a', 'card-b']);
+  });
+
+  it('includes deterministic resource inventory changes in the atomic payload', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspaceTeacherInventoryV1(
+      copy,
+      'teacher-1',
+      {
+        displayName: 'Öğretmen Yeni',
+      },
+    );
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(true);
+    expect(prepared.payload?.changes).toEqual([]);
+    expect(prepared.payload?.requirementChanges).toEqual([]);
+    expect(prepared.payload?.resourceChanges).toEqual([
+      {
+        resource_type: 'TEACHER',
+        resource_id: 'teacher-1',
+        before: {
+          display_name: 'Öğretmen 1',
+          operational_status: 'ACTIVE',
+        },
+        after: {
+          display_name: 'Öğretmen Yeni',
+          operational_status: 'ACTIVE',
+        },
+      },
+    ]);
   });
 
   it('includes deterministic requirement resource changes in the atomic payload', () => {
