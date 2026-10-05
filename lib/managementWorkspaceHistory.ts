@@ -2,11 +2,13 @@ import {
   cloneManagementWorkspaceInventoryV1,
   cloneManagementWorkspacePlacementV1,
   cloneManagementWorkspaceRequirementResourceV1,
+  cloneManagementWorkspaceTeacherPlanningV1,
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
   type ManagementWorkspaceInventoryStateV1,
   type ManagementWorkspaceRoomInventoryStateV1,
   type ManagementWorkspaceTeacherInventoryStateV1,
+  type ManagementWorkspaceTeacherPlanningStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
   type ManagementWorkspaceWorkingCopyV1,
@@ -16,7 +18,8 @@ export type ManagementWorkspaceOperationKindV1 =
   | 'SET_PLACEMENT'
   | 'REMOVE_PLACEMENT'
   | 'SET_REQUIREMENT_RESOURCES'
-  | 'SET_INVENTORY_RESOURCE';
+  | 'SET_INVENTORY_RESOURCE'
+  | 'SET_TEACHER_PLANNING';
 
 export interface ManagementWorkspacePlacementOperationV1 {
   sequence: number;
@@ -51,10 +54,22 @@ export interface ManagementWorkspaceInventoryOperationV1 {
   after: ManagementWorkspaceInventoryStateV1;
 }
 
+export interface ManagementWorkspaceTeacherPlanningOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_TEACHER_PLANNING';
+  cardId: null;
+  requirementId: null;
+  resourceId: string;
+  before: ManagementWorkspaceTeacherPlanningStateV1;
+  after: ManagementWorkspaceTeacherPlanningStateV1;
+}
+
 export type ManagementWorkspaceOperationV1 =
   | ManagementWorkspacePlacementOperationV1
   | ManagementWorkspaceRequirementResourceOperationV1
-  | ManagementWorkspaceInventoryOperationV1;
+  | ManagementWorkspaceInventoryOperationV1
+  | ManagementWorkspaceTeacherPlanningOperationV1;
 
 export interface ManagementWorkspaceHistoryV1 {
   nextSequence: number;
@@ -91,6 +106,19 @@ function currentInventory(
   }
 
   return cloneManagementWorkspaceInventoryV1(current);
+}
+
+function currentTeacherPlanning(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  teacherId: string,
+) {
+  const value = workingCopy.teacherPlanningById[teacherId];
+  if (!value) {
+    throw new Error(
+      `Workspace geçmiş işlemi için öğretmen planlama girdisi bulunamadı (${teacherId}).`,
+    );
+  }
+  return cloneManagementWorkspaceTeacherPlanningV1(value);
 }
 
 function currentRequirementResource(
@@ -145,6 +173,19 @@ function applyRequirementResourceState(
     cloneManagementWorkspaceRequirementResourceV1(resource);
 }
 
+function applyTeacherPlanningState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  planning: ManagementWorkspaceTeacherPlanningStateV1,
+) {
+  if (!workingCopy.teacherPlanningById[planning.teacherId]) {
+    throw new Error(
+      `Workspace geçmiş işlemi için öğretmen planlama girdisi bulunamadı (${planning.teacherId}).`,
+    );
+  }
+  workingCopy.teacherPlanningById[planning.teacherId] =
+    cloneManagementWorkspaceTeacherPlanningV1(planning);
+}
+
 function applyInventoryState(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   resource: ManagementWorkspaceInventoryStateV1,
@@ -192,6 +233,14 @@ export function cloneManagementWorkspaceOperationV1(
     };
   }
 
+  if (operation.kind === 'SET_TEACHER_PLANNING') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceTeacherPlanningV1(operation.before),
+      after: cloneManagementWorkspaceTeacherPlanningV1(operation.after),
+    };
+  }
+
   return {
     ...operation,
     before: cloneManagementWorkspacePlacementV1(operation.before),
@@ -207,7 +256,11 @@ function recordOperation(
         ManagementWorkspaceRequirementResourceOperationV1,
         'sequence' | 'batchId'
       >
-    | Omit<ManagementWorkspaceInventoryOperationV1, 'sequence' | 'batchId'>,
+    | Omit<ManagementWorkspaceInventoryOperationV1, 'sequence' | 'batchId'>
+    | Omit<
+        ManagementWorkspaceTeacherPlanningOperationV1,
+        'sequence' | 'batchId'
+      >,
 ) {
   const entry = {
     ...operation,
@@ -327,6 +380,26 @@ export function applyManagementWorkspaceInventoryOperationV1(
   });
 }
 
+export function applyManagementWorkspaceTeacherPlanningOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  planning: ManagementWorkspaceTeacherPlanningStateV1,
+) {
+  const before = currentTeacherPlanning(workingCopy, planning.teacherId);
+  const after = cloneManagementWorkspaceTeacherPlanningV1(planning);
+
+  applyTeacherPlanningState(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_TEACHER_PLANNING',
+    cardId: null,
+    requirementId: null,
+    resourceId: planning.teacherId,
+    before,
+    after,
+  });
+}
+
 function applyOperationState(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   operation: ManagementWorkspaceOperationV1,
@@ -348,6 +421,14 @@ function applyOperationState(
     applyInventoryState(
       workingCopy,
       value as ManagementWorkspaceInventoryStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_TEACHER_PLANNING') {
+    applyTeacherPlanningState(
+      workingCopy,
+      value as ManagementWorkspaceTeacherPlanningStateV1,
     );
     return;
   }
