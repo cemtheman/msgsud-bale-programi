@@ -11,6 +11,7 @@ import {
   setManagementWorkspaceRequirementRoomsV1,
   setManagementWorkspaceRoomInventoryV1,
   setManagementWorkspaceTeacherInventoryV1,
+  setManagementWorkspaceTeacherPlanningV1,
   setManagementWorkspaceRequirementTeachersV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 
@@ -458,4 +459,44 @@ describe('management workspace working copy v1', () => {
       roomId: null,
     })).toThrow(/kartı bulunamadı/);
   });
+
+  it('tracks teacher load target changes in the local diff', () => {
+    const source = snapshot();
+    const sourceWithLoad = {
+      ...source,
+      teacherLoadTargets: [{
+        teacherId: 'teacher-1',
+        minimumLoad: 4,
+        targetLoad: 6,
+        maximumLoad: 8,
+      }],
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(sourceWithLoad);
+
+    setManagementWorkspaceTeacherPlanningV1(copy, 'teacher-1', {
+      minimumLoad: 5,
+      targetLoad: 7,
+      maximumLoad: 9,
+    });
+
+    const diff = diffManagementWorkspaceV1(sourceWithLoad, copy);
+
+    expect(diff.hasChanges).toBe(true);
+    expect(diff.teacherPlanningChanges).toEqual([{
+      teacherId: 'teacher-1',
+      before: {
+        teacherId: 'teacher-1',
+        minimumLoad: 4,
+        targetLoad: 6,
+        maximumLoad: 8,
+      },
+      after: {
+        teacherId: 'teacher-1',
+        minimumLoad: 5,
+        targetLoad: 7,
+        maximumLoad: 9,
+      },
+    }]);
+  });
+
 });
