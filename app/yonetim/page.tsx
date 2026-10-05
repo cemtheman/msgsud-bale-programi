@@ -109,6 +109,7 @@ import {
   updateManagementRequirementRoomStrategy,
   type ManagementCoursePlanData,
   type ManagementPlanStage,
+  type ManagementRoomStrategy,
 } from '@/lib/managementCoursePlan';
 import {
   fetchManagementCommandState,
