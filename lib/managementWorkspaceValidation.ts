@@ -375,10 +375,8 @@ export function validateManagementWorkspaceV1(
         return [
           local.resourceId,
           {
-            id: local.resourceId,
-            name: local.displayName,
-            operationalStatus: local.operationalStatus,
             ...(source ?? {}),
+            id: local.resourceId,
             name: local.displayName,
             operationalStatus: local.operationalStatus,
           },
