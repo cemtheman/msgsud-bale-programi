@@ -82,12 +82,12 @@ function teacherOptionsForRequirement(
   if (teacherRequirement === 'NONE') return [null];
 
   const activeTeacherIds = new Set(
-    snapshot.teachers
+    Object.values(workingCopy.teacherInventoryById)
       .filter((teacher) => (
-        workingCopy.teacherInventoryById[teacher.id]?.operationalStatus
-        ?? teacher.operationalStatus
-      ) === 'ACTIVE')
-      .map((teacher) => teacher.id),
+        workingCopy.resourceLifecycleById[teacher.resourceId]?.exists === true
+        && teacher.operationalStatus === 'ACTIVE'
+      ))
+      .map((teacher) => teacher.resourceId),
   );
   const pooled = uniqueStrings(
     (
@@ -119,21 +119,27 @@ function roomOptionsForRequirement(
 
   if (resourceMode === 'UNKNOWN') return [null];
 
-  const activeRooms = snapshot.rooms
+  const snapshotRoomById = new Map(
+    snapshot.rooms.map((room) => [room.id, room]),
+  );
+  const activeRooms = Object.values(workingCopy.roomInventoryById)
+    .filter((room) => (
+      workingCopy.resourceLifecycleById[room.resourceId]?.exists === true
+      && room.operationalStatus === 'ACTIVE'
+    ))
     .map((room) => {
-      const profile = workingCopy.roomProfileById?.[room.id];
+      const source = snapshotRoomById.get(room.resourceId);
+      const profile = workingCopy.roomProfileById?.[room.resourceId];
       return {
-        ...room,
-        capabilities: profile?.capabilities ?? room.capabilities,
-        knowledgeStatus: profile?.knowledgeStatus ?? room.knowledgeStatus,
+        id: room.resourceId,
+        name: room.displayName,
+        canonicalRoomId: source?.canonicalRoomId ?? null,
+        capabilities: profile?.capabilities ?? source?.capabilities ?? [],
+        knowledgeStatus:
+          profile?.knowledgeStatus ?? source?.knowledgeStatus ?? 'UNKNOWN',
+        operationalStatus: room.operationalStatus,
       };
-    })
-    .filter(
-      (room) => (
-        workingCopy.roomInventoryById[room.id]?.operationalStatus
-        ?? room.operationalStatus
-      ) === 'ACTIVE',
-    );
+    });
 
   if (resourceMode === 'CAPABILITY') {
     const eligible = activeRooms
