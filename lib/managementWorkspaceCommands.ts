@@ -130,7 +130,19 @@ function cloneWorkingCopy(
       Object.entries(source.requirementCatalogById).map(
         ([requirementId, requirement]) => [
           requirementId,
-          { ...requirement },
+          {
+            ...requirement,
+            classCodes: [...requirement.classCodes],
+            baselinePreferredPartition: [
+              ...requirement.baselinePreferredPartition,
+            ],
+            baselineAllowedPartitions:
+              requirement.baselineAllowedPartitions.map(
+                (partition) => [...partition],
+              ),
+            baselineTeacherIds: [...requirement.baselineTeacherIds],
+            baselineRoomIds: [...requirement.baselineRoomIds],
+          },
         ],
       ),
     ),
