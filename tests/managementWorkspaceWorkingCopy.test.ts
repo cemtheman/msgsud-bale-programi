@@ -8,6 +8,8 @@ import {
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
   setManagementWorkspaceRequirementRoomsV1,
+  setManagementWorkspaceRoomInventoryV1,
+  setManagementWorkspaceTeacherInventoryV1,
   setManagementWorkspaceRequirementTeachersV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 
@@ -180,8 +182,10 @@ describe('management workspace working copy v1', () => {
       hasChanges: false,
       dirtyCardIds: [],
       dirtyRequirementIds: [],
+      dirtyResourceIds: [],
       placementChanges: [],
       requirementResourceChanges: [],
+      inventoryChanges: [],
     });
   });
 
@@ -223,6 +227,66 @@ describe('management workspace working copy v1', () => {
       roomId: null,
     });
     expect(source.baselinePlacements[0].dayOfWeek).toBe(1);
+  });
+
+  it('tracks local resource inventory name and status changes', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspaceTeacherInventoryV1(
+      copy,
+      'teacher-1',
+      {
+        displayName: 'Türkçe Öğretmeni A',
+      },
+    );
+    setManagementWorkspaceRoomInventoryV1(
+      copy,
+      'room-1',
+      {
+        operationalStatus: 'MAINTENANCE',
+      },
+    );
+
+    const diff = diffManagementWorkspaceV1(source, copy);
+
+    expect(diff.hasChanges).toBe(true);
+    expect(diff.dirtyResourceIds).toEqual(['room-1', 'teacher-1']);
+    expect(diff.inventoryChanges).toHaveLength(2);
+    expect(diff.inventoryChanges).toEqual([
+      {
+        resourceType: 'ROOM',
+        resourceId: 'room-1',
+        before: {
+          resourceType: 'ROOM',
+          resourceId: 'room-1',
+          displayName: '105A',
+          operationalStatus: 'ACTIVE',
+        },
+        after: {
+          resourceType: 'ROOM',
+          resourceId: 'room-1',
+          displayName: '105A',
+          operationalStatus: 'MAINTENANCE',
+        },
+      },
+      {
+        resourceType: 'TEACHER',
+        resourceId: 'teacher-1',
+        before: {
+          resourceType: 'TEACHER',
+          resourceId: 'teacher-1',
+          displayName: 'Türkçe Öğretmeni',
+          operationalStatus: 'ACTIVE',
+        },
+        after: {
+          resourceType: 'TEACHER',
+          resourceId: 'teacher-1',
+          displayName: 'Türkçe Öğretmeni A',
+          operationalStatus: 'ACTIVE',
+        },
+      },
+    ]);
   });
 
   it('tracks local requirement teacher and room resource changes', () => {
