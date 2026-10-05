@@ -191,6 +191,7 @@ describe('management workspace working copy v1', () => {
       inventoryChanges: [],
       teacherPlanningChanges: [],
       teacherAvailabilityChanges: [],
+      roomProfileChanges: [],
     });
   });
 
