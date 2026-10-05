@@ -47,6 +47,17 @@ export interface ManagementWorkspaceCommitPayloadV1 {
       operational_status: string;
     };
   }>;
+  teacherAvailabilityChanges: Array<{
+    teacher_id: string;
+    before: Array<{
+      day_of_week: number;
+      period: number;
+    }>;
+    after: Array<{
+      day_of_week: number;
+      period: number;
+    }>;
+  }>;
   teacherPlanningChanges: Array<{
     teacher_id: string;
     before: {
@@ -186,6 +197,17 @@ export function prepareManagementWorkspaceCommitV1(
           room_id: change.after.roomId,
         },
       })),
+      teacherAvailabilityChanges: diff.teacherAvailabilityChanges.map((change) => ({
+        teacher_id: change.teacherId,
+        before: change.before.unavailablePeriods.map((slot) => ({
+          day_of_week: slot.dayOfWeek,
+          period: slot.period,
+        })),
+        after: change.after.unavailablePeriods.map((slot) => ({
+          day_of_week: slot.dayOfWeek,
+          period: slot.period,
+        })),
+      })),
       teacherPlanningChanges: diff.teacherPlanningChanges.map((change) => ({
         teacher_id: change.teacherId,
         before: {
@@ -244,7 +266,7 @@ export async function commitManagementWorkspaceV1(
   const token = await getFreshManagementAccessToken(accessToken);
 
   const response = await fetch(
-    `${url}/rest/v1/rpc/management_commit_workspace_v5`,
+    `${url}/rest/v1/rpc/management_commit_workspace_v6`,
     {
       method: 'POST',
       headers: {
@@ -262,6 +284,7 @@ export async function commitManagementWorkspaceV1(
         p_requirement_changes: payload.requirementChanges,
         p_resource_changes: payload.resourceChanges,
         p_teacher_planning_changes: payload.teacherPlanningChanges,
+        p_teacher_availability_changes: payload.teacherAvailabilityChanges,
       }),
     },
   );
@@ -341,6 +364,20 @@ export function translateManagementWorkspaceCommitErrorV1(
 
   if (normalized.includes('WORKSPACE_V1_LOCKED_CARD_CHANGED')) {
     return 'Kilitli bir ders değiştirildiği için çalışma alanı kaydedilemedi.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V6_TEACHER_AVAILABILITY_BEFORE_STALE')
+    || normalized.includes('WORKSPACE_V6_TEACHER_NOT_FOUND')
+  ) {
+    return 'Öğretmen uygunluk bilgisi çalışma alanı açıldıktan sonra değişmiş. Çalışma alanını yenileyip işlemi yeniden uygulayın.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V6_TEACHER_AVAILABILITY_INVALID')
+    || normalized.includes('WORKSPACE_V6_INVALID_TEACHER_AVAILABILITY_SHAPE')
+  ) {
+    return 'Öğretmen uygunluk bilgisi geçersiz. Gün 1–5, ders 1–12 aralığında olmalı ve aynı saat tekrarlanmamalı.';
   }
 
   if (
