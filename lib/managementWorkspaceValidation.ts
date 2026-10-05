@@ -380,15 +380,18 @@ export function validateManagementWorkspaceV1(
   const rooms = new Map(
     snapshot.rooms.map((room) => {
       const local = workingCopy.roomInventoryById[room.id];
+      const profile = workingCopy.roomProfileById?.[room.id];
       return [
         room.id,
-        local
-          ? {
-              ...room,
-              name: local.displayName,
-              operationalStatus: local.operationalStatus,
-            }
-          : room,
+        {
+          ...room,
+          name: local?.displayName ?? room.name,
+          operationalStatus:
+            local?.operationalStatus ?? room.operationalStatus,
+          capabilities: profile?.capabilities ?? room.capabilities,
+          knowledgeStatus:
+            profile?.knowledgeStatus ?? room.knowledgeStatus,
+        },
       ];
     }),
   );
