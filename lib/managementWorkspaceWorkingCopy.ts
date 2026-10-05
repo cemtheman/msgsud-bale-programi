@@ -36,7 +36,17 @@ export interface ManagementWorkspaceRequirementCatalogStateV1 {
   courseCharacter: string;
   deliveryMode: string;
   teacherRequirement: string;
+  baselineWeeklyLoad: number;
+  baselinePreferredPartition: number[];
+  baselineAllowedPartitions: number[][];
   baselineTermStatus: 'ACTIVE' | 'INACTIVE';
+  baselineTeacherIds: string[];
+  baselineTeacherMode: string;
+  baselineTeacherAssignmentScope: 'REQUIREMENT' | 'BLOCK' | 'UNSPECIFIED';
+  baselineTeacherContinuity: 'REQUIRED' | 'PREFERRED' | 'NONE';
+  baselineResourceMode: string;
+  baselineRoomIds: string[];
+  baselineRequiredCapability: string | null;
 }
 
 export interface ManagementWorkspaceRequirementStructureStateV1 {
@@ -553,7 +563,28 @@ export function baselineRequirementCatalogById(
         courseCharacter: requirement.courseCharacter,
         deliveryMode: requirement.deliveryMode,
         teacherRequirement: requirement.teacherRequirement,
+        baselineWeeklyLoad: requirement.weeklyLoad,
+        baselinePreferredPartition: [...(requirement.preferredPartition ?? [])],
+        baselineAllowedPartitions: (requirement.allowedPartitions ?? [])
+          .map((partition) => [...partition]),
         baselineTermStatus: 'ACTIVE' as const,
+        baselineTeacherIds: snapshot.teacherPools
+          .filter((entry) => entry.requirementId === requirement.id)
+          .map((entry) => entry.teacherId)
+          .sort((a, b) => a.localeCompare(b)),
+        baselineTeacherMode: requirement.teacherMode,
+        baselineTeacherAssignmentScope: normalizeTeacherAssignmentScope(
+          requirement.teacherAssignmentScope,
+        ),
+        baselineTeacherContinuity: normalizeTeacherContinuity(
+          requirement.teacherContinuity,
+        ),
+        baselineResourceMode: requirement.resourceMode,
+        baselineRoomIds: snapshot.roomPools
+          .filter((entry) => entry.requirementId === requirement.id)
+          .map((entry) => entry.roomId)
+          .sort((a, b) => a.localeCompare(b)),
+        baselineRequiredCapability: requirement.requiredCapability,
       },
     ]),
   );
@@ -816,7 +847,23 @@ export function hydrateManagementWorkspaceRequirementCatalogV1(
       courseCharacter: row.courseCharacter,
       deliveryMode: row.deliveryMode,
       teacherRequirement: row.teacherRequirement,
+      baselineWeeklyLoad: row.weeklyLoad,
+      baselinePreferredPartition: [...row.preferredPartition],
+      baselineAllowedPartitions: row.allowedPartitions.map(
+        (partition) => [...partition],
+      ),
       baselineTermStatus: row.termStatus,
+      baselineTeacherIds: [...row.teacherIds].sort(
+        (a, b) => a.localeCompare(b),
+      ),
+      baselineTeacherMode: row.teacherMode,
+      baselineTeacherAssignmentScope: row.teacherAssignmentScope,
+      baselineTeacherContinuity: row.teacherContinuity,
+      baselineResourceMode: row.resourceMode,
+      baselineRoomIds: [...row.roomIds].sort(
+        (a, b) => a.localeCompare(b),
+      ),
+      baselineRequiredCapability: row.requiredCapability,
     };
 
     if (!workingCopy.requirementStructureById[row.requirementId]) {
@@ -1432,12 +1479,12 @@ export function diffManagementWorkspaceV1(
   const baselineTeacherAvailability = baselineTeacherAvailabilityById(snapshot);
   const baselineRoomProfiles = baselineRoomProfileById(snapshot);
   const baselineResourceLifecycle = baselineResourceLifecycleById(snapshot);
-  const snapshotRequirementIds = new Set(
-    snapshot.requirements.map((requirement) => requirement.id),
+  const catalogRequirementIds = new Set(
+    Object.keys(workingCopy.requirementCatalogById),
   );
 
   Object.values(workingCopy.cardsById).forEach((card) => {
-    if (!snapshotRequirementIds.has(card.requirementId)) {
+    if (!catalogRequirementIds.has(card.requirementId)) {
       throw new Error(
         `Workspace working copy bilinmeyen requirement kartı içeriyor (${card.id}).`,
       );
@@ -1458,7 +1505,7 @@ export function diffManagementWorkspaceV1(
   });
 
   Object.keys(workingCopy.requirementStructureById).forEach((requirementId) => {
-    if (!snapshotRequirementIds.has(requirementId)) {
+    if (!catalogRequirementIds.has(requirementId)) {
       throw new Error(
         `Workspace working copy bilinmeyen requirement yapısı içeriyor (${requirementId}).`,
       );
@@ -1466,7 +1513,7 @@ export function diffManagementWorkspaceV1(
   });
 
   Object.keys(workingCopy.requirementResourcesById).forEach((requirementId) => {
-    if (!snapshotRequirementIds.has(requirementId)) {
+    if (!catalogRequirementIds.has(requirementId)) {
       throw new Error(
         `Workspace working copy bilinmeyen requirement içeriyor (${requirementId}).`,
       );
@@ -1497,18 +1544,29 @@ export function diffManagementWorkspaceV1(
     )
     .sort((left, right) => left.cardId.localeCompare(right.cardId));
 
-  const requirementStructureChanges = snapshot.requirements
-    .map((requirement) => {
-      const before = baselineStructures[requirement.id];
-      const after = workingCopy.requirementStructureById[requirement.id];
-      if (!before || !after) {
+  const requirementStructureChanges = Object.values(
+    workingCopy.requirementCatalogById,
+  )
+    .map((catalog) => {
+      const before: ManagementWorkspaceRequirementStructureStateV1 = {
+        requirementId: catalog.requirementId,
+        weeklyLoad: catalog.baselineWeeklyLoad,
+        preferredPartition: [...catalog.baselinePreferredPartition],
+        allowedPartitions: catalog.baselineAllowedPartitions.map(
+          (partition) => [...partition],
+        ),
+        termStatus: catalog.baselineTermStatus,
+      };
+      const after =
+        workingCopy.requirementStructureById[catalog.requirementId];
+      if (!after) {
         throw new Error(
-          `Workspace working copy requirement yapı durumu eksik (${requirement.id}).`,
+          `Workspace working copy requirement yapı durumu eksik (${catalog.requirementId}).`,
         );
       }
       if (equalRequirementStructure(before, after)) return null;
       return {
-        requirementId: requirement.id,
+        requirementId: catalog.requirementId,
         before: cloneManagementWorkspaceRequirementStructureV1(before),
         after: cloneManagementWorkspaceRequirementStructureV1(after),
       };
@@ -1521,21 +1579,33 @@ export function diffManagementWorkspaceV1(
       left.requirementId.localeCompare(right.requirementId),
     );
 
-  const requirementResourceChanges = snapshot.requirements
-    .map((requirement) => {
-      const before = baselineResourcesById[requirement.id];
-      const after = workingCopy.requirementResourcesById[requirement.id];
+  const requirementResourceChanges = Object.values(
+    workingCopy.requirementCatalogById,
+  )
+    .map((catalog) => {
+      const before: ManagementWorkspaceRequirementResourceStateV1 = {
+        requirementId: catalog.requirementId,
+        teacherIds: [...catalog.baselineTeacherIds],
+        teacherMode: catalog.baselineTeacherMode,
+        teacherAssignmentScope: catalog.baselineTeacherAssignmentScope,
+        teacherContinuity: catalog.baselineTeacherContinuity,
+        resourceMode: catalog.baselineResourceMode,
+        roomIds: [...catalog.baselineRoomIds],
+        requiredCapability: catalog.baselineRequiredCapability,
+      };
+      const after =
+        workingCopy.requirementResourcesById[catalog.requirementId];
 
-      if (!before || !after) {
+      if (!after) {
         throw new Error(
-          `Workspace working copy requirement kaynak durumu eksik (${requirement.id}).`,
+          `Workspace working copy requirement kaynak durumu eksik (${catalog.requirementId}).`,
         );
       }
 
       if (equalRequirementResource(before, after)) return null;
 
       return {
-        requirementId: requirement.id,
+        requirementId: catalog.requirementId,
         before: cloneManagementWorkspaceRequirementResourceV1(before),
         after: cloneManagementWorkspaceRequirementResourceV1(after),
       };
