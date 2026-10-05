@@ -8155,3 +8155,25 @@ Tests added/updated:
 - all direct working-copy fixtures now include `resourceLifecycleById`
 
 Gate status: **PENDING MIGRATION FILE + CODE GATE**
+
+
+### 5 Oct 2026 — Resource lifecycle gate build fixes
+
+Gate result before fix:
+- focused: **8/8 files, 72/72 tests PASS**
+- full suite: **34/34 files, 221/221 tests PASS**
+- migration parity: **PASS**
+  - `20261005163702` local = remote
+- build reached TypeScript and failed only on two code-cleanup issues:
+  1. missing value imports for `createManagementWorkspaceResourceBundleV1` and `getManagementWorkspaceResourceBundleV1`
+  2. duplicate `name` / `operationalStatus` keys in lifecycle teacher projection
+
+Fixes:
+- `3c6b6908bfd9d3ac2ad0277966056ac279a59daf`
+  - imports resource lifecycle helpers correctly
+- `6aa866fd44f624b23a9606bd300f52cfaf2ee497`
+  - removes duplicate object keys while preserving local override precedence
+
+No DB contract or lifecycle behavior changed.
+
+Gate status remains: **PENDING BUILD RECHECK**
