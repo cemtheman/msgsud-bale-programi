@@ -8346,3 +8346,89 @@ Next implementation target:
 - Course Plan immediate projection
 - atomic Save v10 with server-side structure stale verification/history barrier
 - no structure mutation should bypass the main Save
+
+
+### 5 Oct 2026 — ACTIVE requirement structure localization v10 checkpoint
+
+Implemented:
+- ACTIVE requirement structure is local-working-copy-native
+- working copy now carries:
+  - `requirementStructureById`
+  - `cardsById`
+- local card state contains:
+  - id
+  - requirementId
+  - blockIndex
+  - durationPeriods
+  - locked
+  - baselineExists
+- local requirement structure contains:
+  - weeklyLoad
+  - preferredPartition
+  - allowedPartitions
+  - termStatus = ACTIVE
+- server deterministic structure semantics reproduced locally:
+  - duration + duration-rank card matching
+  - preserved card IDs
+  - deterministic blockIndex remapping
+  - unplaced/unlocked-only card removal
+  - placed-card removal block
+  - equal-duration placed-card ambiguity block
+- newly created structural cards receive client UUIDs before Save
+- new cards can immediately participate in:
+  - Program projection
+  - placement candidate generation
+  - local hard validation
+  - normal local placement edits
+- Course Plan immediately projects:
+  - weeklyLoad
+  - preferredPartition
+  - allowedPartitions
+  - placedBlockCount
+- structure apply is one shared Undo/Redo operation carrying the complete
+  structure/card/placement bundle
+- same requirement may have only one unsaved structural decision at a time;
+  another decision requires Geri Al or main Save
+- ACTIVE -> INACTIVE remains intentionally outside this phase as an explicit
+  lifecycle boundary
+
+Atomic Save v10:
+- client targets `management_commit_workspace_v10`
+- payload adds `structureChanges`
+- each structure change carries before/after structure plus final client card graph
+- server re-runs `management_preview_requirement_structure_v2`
+- before state and final card graph are stale-checked
+- client-created UUIDs are inserted directly into schedule_cards
+- STRUCTURE_APPLY history barrier is written using the existing server history contract
+- exact removed-card row count is enforced
+- staged placement removals required by a structural shrink are committed first
+  through v9 in the same transaction
+- structure is then applied
+- remaining workspace deltas, including placements on newly created client-ID cards,
+  are committed through v9 afterward
+- counts from pre-structure staged removals are folded back into the final v10 result
+
+Migrations applied and repo-aligned:
+- `20261005173834_management_workspace_requirement_structure.sql`
+- `20261005173935_management_workspace_requirement_structure_hardening.sql`
+- `20261005174816_management_workspace_requirement_structure_staged_removals.sql`
+
+Security:
+- v10 authenticated execute: YES
+- v10 anon execute: NO
+- v10 enforces EDITOR internally
+- fixed search_path
+- Security Advisor shows no new v10-specific critical issue
+- existing legacy/project-wide warnings remain unchanged
+
+Tests added/updated:
+- duration-rank ambiguity parity
+- safe structure expansion with client UUID card
+- complete structural Undo/Redo
+- ACTIVE -> INACTIVE boundary
+- new structural card candidate generation
+- single-unsaved-structure decision guard
+- v10 final card-graph payload
+- old direct working-copy fixtures extended with structural state
+
+Gate status: **PENDING**
