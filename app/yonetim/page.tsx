@@ -98,12 +98,10 @@ import {
 } from '@/lib/managementPlacementAssistant';
 import {
   applyManagementRequirementStructure,
-  applyManagementRequirementTeacherPolicy,
   applyManagementRequirementTeacherReconciliation,
   applyManagementCoordinatedTeacherReconciliation,
   fetchManagementCoursePlan,
   previewManagementRequirementStructure,
-  previewManagementRequirementTeacherPolicy,
   previewManagementRequirementTeacherReconciliation,
   previewManagementCoordinatedTeacherReconciliation,
   updateManagementRequirementRoomStrategy,
@@ -168,6 +166,9 @@ import {
 import {
   prepareManagementWorkspaceResourceEditV1,
 } from '@/lib/managementWorkspaceResources';
+import {
+  prepareManagementWorkspaceTeacherPolicyV1,
+} from '@/lib/managementWorkspaceTeacherPolicy';
 import {
   projectManagementBoardFromWorkspaceV1,
 } from '@/lib/managementWorkspaceBoardAdapter';
@@ -3252,6 +3253,107 @@ export default function ManagementPage() {
     });
   };
 
+  const previewLocalRequirementTeacherPolicy = async (
+    requirementId: string,
+    scope: ManagementTeacherAssignmentScope,
+    continuity: ManagementTeacherContinuity,
+  ) => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+    if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+      throw new Error('Yerel çalışma alanı hazır değil.');
+    }
+
+    return prepareManagementWorkspaceTeacherPolicyV1(
+      localSnapshot,
+      localWorkingCopy,
+      requirementId,
+      scope,
+      continuity,
+    ).preview;
+  };
+
+  const applyLocalRequirementTeacherPolicy = async (
+    requirementId: string,
+    scope: ManagementTeacherAssignmentScope,
+    continuity: ManagementTeacherContinuity,
+    expectedStateToken: string,
+  ) => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      !access?.canEdit
+      || !localSnapshot
+      || !localWorkingCopy
+      || !localHistory
+      || !serverBoard
+    ) {
+      throw new Error('Yerel çalışma alanı hazır değil.');
+    }
+
+    const prepared = prepareManagementWorkspaceTeacherPolicyV1(
+      localSnapshot,
+      localWorkingCopy,
+      requirementId,
+      scope,
+      continuity,
+    );
+
+    if (prepared.preview.stateToken !== expectedStateToken) {
+      throw new Error(
+        'Öğretmen kuralı önizlemeden sonra değişti. Lütfen yeniden kontrol edin.',
+      );
+    }
+
+    if (!prepared.preview.canApply) {
+      throw new Error(
+        prepared.preview.blockReasons[0]
+          ?? 'Öğretmen kuralı uygulanamıyor.',
+      );
+    }
+
+    const result = executeManagementWorkspaceCommandV1(
+      localSnapshot,
+      localWorkingCopy,
+      localHistory,
+      {
+        type: 'SET_REQUIREMENT_RESOURCES',
+        resource: prepared.resource,
+      },
+    );
+
+    if (!result.applied) {
+      throw new Error(
+        result.issues.length > 0
+          ? `Öğretmen kuralı uygulanamıyor: ${workspaceIssueSummary(
+            result.issues.map((issue) => issue.code),
+          )}.`
+          : 'Öğretmen kuralı uygulanamıyor.',
+      );
+    }
+
+    setBoard(
+      projectManagementBoardFromWorkspaceV1(
+        serverBoard,
+        localWorkingCopy,
+      ),
+    );
+    setWorkspaceDirty(
+      diffManagementWorkspaceV1(
+        localSnapshot,
+        localWorkingCopy,
+      ).hasChanges,
+    );
+    setCommandNotice({
+      kind: 'success',
+      text: 'Öğretmen kuralı yerel çalışma alanında güncellendi.',
+    });
+  };
+
   const saveWorkspace = async () => {
     const localSnapshot = workspaceSnapshotRef.current;
     const localWorkingCopy = workspaceWorkingCopyRef.current;
@@ -4526,58 +4628,23 @@ export default function ManagementPage() {
             requirementId,
             scope,
             continuity,
-          ) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-            }
-            if (workspaceLocalSessionActive) {
-              throw new Error(
-                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
-              );
-            }
-
-            return previewManagementRequirementTeacherPolicy(
-              session.accessToken,
-              requirementId,
-              scope,
-              continuity,
-            );
-          }}
+          ) => previewLocalRequirementTeacherPolicy(
+            requirementId,
+            scope,
+            continuity,
+          )}
           onUpdateTeacherPolicy={async (
             requirementId,
             scope,
             continuity,
             expectedStateToken,
           ) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-            }
-            if (workspaceLocalSessionActive) {
-              throw new Error(
-                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
-              );
-            }
-
-            setCommandBusy(true);
-            setCommandActivity('Öğretmen kuralı güvenli biçimde güncelleniyor.');
-
-            try {
-              await applyManagementRequirementTeacherPolicy(
-                session.accessToken,
-                requirementId,
-                scope,
-                continuity,
-                expectedStateToken,
-              );
-              setCommandNotice({
-                kind: 'success',
-                text: 'Öğretmen kuralı kaydedildi. Mevcut yerleşimler değiştirilmedi.',
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            await applyLocalRequirementTeacherPolicy(
+              requirementId,
+              scope,
+              continuity,
+              expectedStateToken,
+            );
           }}
           onPreviewTeacherReconciliation={async (
             requirementId,
