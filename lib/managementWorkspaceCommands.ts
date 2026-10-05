@@ -6,6 +6,7 @@ import {
   type ManagementWorkspaceInventoryStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
+  type ManagementWorkspaceResourceBundleV1,
   type ManagementWorkspaceRoomProfileStateV1,
   type ManagementWorkspaceTeacherAvailabilityStateV1,
   type ManagementWorkspaceTeacherPlanningStateV1,
@@ -16,6 +17,7 @@ import {
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
   applyManagementWorkspaceRequirementResourceOperationV1,
+  applyManagementWorkspaceResourceBundleOperationV1,
   applyManagementWorkspaceRoomProfileOperationV1,
   applyManagementWorkspaceTeacherAvailabilityOperationV1,
   applyManagementWorkspaceTeacherPlanningOperationV1,
@@ -57,6 +59,12 @@ export type ManagementWorkspaceCommandV1 =
   | {
       type: 'SET_ROOM_PROFILE';
       profile: ManagementWorkspaceRoomProfileStateV1;
+    }
+  | {
+      type: 'SET_RESOURCE_BUNDLE';
+      resourceType: 'TEACHER' | 'ROOM';
+      resourceId: string;
+      bundle: ManagementWorkspaceResourceBundleV1 | null;
     };
 
 export interface ManagementWorkspaceCommandResultV1 {
@@ -145,6 +153,12 @@ function cloneWorkingCopy(
         },
       ]),
     ),
+    resourceLifecycleById: Object.fromEntries(
+      Object.entries(source.resourceLifecycleById).map(([id, lifecycle]) => [
+        id,
+        { ...lifecycle },
+      ]),
+    ),
   };
 }
 
@@ -213,6 +227,16 @@ function applyCommand(
       workingCopy,
       history,
       command.profile,
+    );
+  }
+
+  if (command.type === 'SET_RESOURCE_BUNDLE') {
+    return applyManagementWorkspaceResourceBundleOperationV1(
+      workingCopy,
+      history,
+      command.resourceType,
+      command.resourceId,
+      command.bundle,
     );
   }
 
@@ -464,6 +488,7 @@ export function resetManagementWorkspaceWorkingCopyV1(
   target.teacherPlanningById = clean.teacherPlanningById;
   target.teacherAvailabilityById = clean.teacherAvailabilityById;
   target.roomProfileById = clean.roomProfileById;
+  target.resourceLifecycleById = clean.resourceLifecycleById;
 
   history.nextSequence = 1;
   history.nextBatchId = 1;
