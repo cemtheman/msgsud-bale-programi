@@ -6,6 +6,7 @@ import {
   createManagementWorkspaceResourceBundleV1,
   createManagementWorkspaceWorkingCopyV1,
   getManagementWorkspaceResourceBundleV1,
+  hydrateManagementWorkspaceRequirementCatalogV1,
   setManagementWorkspacePlacementV1,
   setManagementWorkspaceRequirementRoomsV1,
   setManagementWorkspaceRequirementTeacherPolicyV1,
@@ -643,6 +644,95 @@ describe('management workspace commit v1', () => {
     expect(created?.card_id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
+  });
+
+
+  it('includes INACTIVE to ACTIVE lifecycle with client cards in the v11 payload', () => {
+    const source: ManagementWorkspaceSnapshotV1 = {
+      ...snapshot(),
+      baselinePlacements: [],
+      baselineMetrics: {
+        ...snapshot().baselineMetrics,
+        placedCardCount: 0,
+        unplacedCardCount: 2,
+      },
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    hydrateManagementWorkspaceRequirementCatalogV1(copy, [{
+      requirementId: 'requirement-inactive',
+      subjectId: 'subject-2',
+      subjectName: 'B. Uygulama',
+      groupId: 'group-1',
+      groupName: '5A',
+      groupType: 'SECTION',
+      weeklyLoad: 0,
+      preferredPartition: [],
+      allowedPartitions: [],
+      minDistinctDays: null,
+      maxBlocksPerDay: null,
+      maxConsecutivePeriods: null,
+      courseCharacter: 'ART',
+      deliveryMode: 'STANDARD',
+      termStatus: 'INACTIVE',
+      teacherRequirement: 'OPTIONAL',
+      teacherMode: 'UNKNOWN',
+      teacherAssignmentScope: 'UNSPECIFIED',
+      teacherContinuity: 'NONE',
+      teacherIds: [],
+      resourceMode: 'UNKNOWN',
+      roomIds: [],
+      requiredCapability: null,
+    }]);
+    const history = createManagementWorkspaceHistoryV1();
+    const input = {
+      requirementId: 'requirement-inactive',
+      weeklyLoad: 2,
+      preferredPartition: [1, 1],
+      allowedPartitions: [[1, 1]],
+      termStatus: 'ACTIVE' as const,
+    };
+    const preview = previewManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      input,
+    );
+    const structure = prepareManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      input,
+      preview.structureToken,
+    );
+    expect(executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      structure.command,
+    ).applied).toBe(true);
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(true);
+    const lifecycle = prepared.payload?.structureChanges.find(
+      (change) => change.requirement_id === 'requirement-inactive',
+    );
+    expect(lifecycle).toMatchObject({
+      before: {
+        weekly_load: 0,
+        preferred_partition: [],
+        allowed_partitions: [],
+        term_status: 'INACTIVE',
+      },
+      after: {
+        weekly_load: 2,
+        preferred_partition: [1, 1],
+        allowed_partitions: [[1, 1]],
+        term_status: 'ACTIVE',
+      },
+    });
+    expect(lifecycle?.final_cards).toHaveLength(2);
+    expect(lifecycle?.final_cards.every(
+      (card) => !card.baseline_exists,
+    )).toBe(true);
   });
 
 });
