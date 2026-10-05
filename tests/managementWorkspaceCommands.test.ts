@@ -493,6 +493,41 @@ describe('management workspace command executor v1', () => {
     expect(copy.placementsByCardId['card-2'].startPeriod).toBe(1);
   });
 
+  it('applies requirement resource changes through the shared command layer', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const result = executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      {
+        type: 'SET_REQUIREMENT_RESOURCES',
+        resource: {
+          requirementId: 'requirement-1',
+          teacherIds: ['teacher-1'],
+          teacherMode: 'FIXED',
+          resourceMode: 'UNKNOWN',
+          roomIds: [],
+          requiredCapability: null,
+        },
+      },
+    );
+
+    expect(result.applied).toBe(true);
+    expect(diffManagementWorkspaceV1(source, copy).dirtyRequirementIds)
+      .toEqual(['requirement-1']);
+    expect(history.undoStack).toHaveLength(1);
+
+    undoManagementWorkspaceOperationV1(copy, history);
+    expect(diffManagementWorkspaceV1(source, copy).hasChanges).toBe(false);
+
+    redoManagementWorkspaceOperationV1(copy, history);
+    expect(diffManagementWorkspaceV1(source, copy).dirtyRequirementIds)
+      .toEqual(['requirement-1']);
+  });
+
   it('previews a conflicting local batch without mutating the working copy', () => {
     const source = snapshot();
     const copy = createManagementWorkspaceWorkingCopyV1(source);
