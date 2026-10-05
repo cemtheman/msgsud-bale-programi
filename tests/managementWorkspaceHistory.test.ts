@@ -336,6 +336,7 @@ describe('management workspace history v1', () => {
       {
         resourceType: 'TEACHER',
         resourceId: 'teacher-1',
+        baselineDisplayName: 'Türkçe Öğretmeni',
         displayName: 'Türkçe Öğretmeni A',
         operationalStatus: 'ACTIVE',
       },
