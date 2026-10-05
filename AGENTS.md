@@ -8205,3 +8205,42 @@ Accepted behavior:
 - main Save persists lifecycle changes through `management_commit_workspace_v9`
 - v9 creates staged resources before v8, deletes staged existing resources after v8, and records M34 history in one transaction
 - archive lifecycle remains intentionally server-backed because `archived_at` is still outside the workspace schema
+
+
+### 5 Oct 2026 — Resources workspace localization COMPLETE / PASS
+
+Resource create/delete lifecycle gate:
+- focused: **8/8 files, 72/72 tests PASS**
+- full suite: **34/34 files, 221/221 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: **PASS**
+- `git diff --check`: PASS
+- migration parity: **PASS**
+  - `20261005163702` local = remote
+
+Status: **CLOSED / PASS**
+
+Resources workspace-localization coverage is now complete for non-archive mutations:
+- teacher/room display names
+- operational status
+- teacher load targets
+- teacher hard availability
+- room capabilities / knowledge status
+- teacher INACTIVATE_KEEP / INACTIVATE_CLEAR
+- room OUT_OF_SERVICE_KEEP / OUT_OF_SERVICE_CLEAR
+- teacher/room create
+- unused teacher/room physical delete
+- all above participate in shared Undo/Redo and main atomic Save
+
+Intentional server-backed lifecycle boundary remaining:
+- teacher `ARCHIVE_CLEAR`
+- room `ARCHIVE_CLEAR`
+
+Reason:
+- workspace schema still intentionally does not model `archived_at`
+- archive remains an explicit lifecycle boundary rather than being faked as inactive/out-of-service
+
+Resources conclusion:
+**All non-archive resource mutations are now local-working-copy native.**
