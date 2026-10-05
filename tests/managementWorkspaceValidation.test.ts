@@ -712,4 +712,45 @@ describe('management workspace local validation v1', () => {
       .toContain('TEACHER_UNAVAILABLE');
   });
 
+
+  it('uses local room profile immediately during capability validation', () => {
+    const base = baseSnapshot();
+    const source = {
+      ...base,
+      requirements: base.requirements.map((requirement, index) =>
+        index === 0
+          ? {
+              ...requirement,
+              resourceMode: 'CAPABILITY',
+              requiredCapability: 'STUDIO_SMALL_GROUP',
+            }
+          : requirement,
+      ),
+      rooms: base.rooms.map((room, index) =>
+        index === 0
+          ? {
+              ...room,
+              capabilities: ['STUDIO_SMALL_GROUP'],
+              knowledgeStatus: 'CONFIRMED' as const,
+            }
+          : room,
+      ),
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    copy.roomProfileById[source.rooms[0].id] = {
+      roomId: source.rooms[0].id,
+      capabilities: [],
+      knowledgeStatus: 'CONFIRMED',
+    };
+
+    const validation = validateManagementWorkspaceV1(
+      source,
+      copy,
+      'EDIT',
+    );
+
+    expect(validation.issues.map((issue) => issue.code))
+      .toContain('ROOM_CAPABILITY_MISMATCH');
+  });
+
 });
