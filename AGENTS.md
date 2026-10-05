@@ -6707,3 +6707,80 @@ Next workspace boundary:
 - resource changes should join the same local Undo/Redo history
 - no preview/apply DB resource RPC during ordinary editing
 - Save remains the only placement persistence point
+
+
+### 5 Oct 2026 — Inspector placement resource edits moved to local workspace
+
+Placement-level teacher/room edits from the Program Inspector are now local
+working-copy operations.
+
+Architecture:
+- Preview:
+  `prepareManagementWorkspaceResourceEditV1(...)`
+  builds the proposed placement changes from the current immutable snapshot +
+  working copy and runs the existing local workspace preview validator.
+- Apply:
+  the prepared placement changes are executed with
+  `executeManagementWorkspaceCommandsV1(...)`
+  as one local batch.
+- Persistence:
+  no placement-resource preview/apply RPC is used for ordinary Inspector edits;
+  DB persistence remains explicit Save only.
+- History:
+  the full teacher/room edit batch joins the same local Undo/Redo stack.
+
+Teacher continuity:
+- when the selected requirement has
+  `teacherAssignmentScope=REQUIREMENT` +
+  `teacherContinuity=REQUIRED`,
+  a teacher change automatically expands to all currently placed cards in that
+  requirement
+- expansion is one local batch / one Undo step
+- unrelated requirements are not modified
+
+Room behavior:
+- room change affects only requested selected cards
+- teacher/day/start are preserved
+- room eligibility, activity, capability, canonical-room conflicts and other
+  hard rules are still decided by the existing workspace validator
+
+Preview safety:
+- local preview returns a state token bound to:
+  - revision
+  - snapshot hash
+  - resource type/id
+  - exact affected card set
+  - each affected card's current day/start/teacher/room state
+- if another local edit changes the placement after preview, apply rejects the
+  stale preview and asks for a fresh check
+
+UI behavior:
+- placement resource edits are allowed even when other unsaved workspace edits
+  exist; they become part of the same local workspace instead of being locked
+- success text explicitly says the resource was updated locally
+- raw local blocker codes for teacher/room pool and continuity are translated
+
+New module:
+- `lib/managementWorkspaceResources.ts`
+
+Commits:
+- `f489b82f2cc7d33f2b4dac5a5e76df12adc263fa` local resource edit planner
+- `8ebaa18639c40dddbb40c30628e51f1ca8c41ef0` Inspector local preview/apply integration
+- `51791c0c6d58c522670935b6a6cf6a04ccb9bcaf` placement-bound preview token
+- `d029b76a55d3cf6ea58d2b657c339c0811126ce7` local resource edit tests
+- `8c2725a55ff2c11c72c1f76797e88fae09d96729` user-facing blocker translations
+
+Expected browser acceptance:
+1. Inspector -> Öğretmeni değiştir -> preview should be immediate/local
+2. apply should change board immediately and show unsaved badge
+3. one Undo should restore the previous teacher
+4. required-continuity requirement should update all placed sibling blocks
+5. room edit should preserve time + teacher and update only chosen card group
+6. reload before Save remains blocked by dirty-workspace guard
+7. Save performs the only DB placement write
+
+Still legacy/server-backed and intentionally separate:
+- Ders Planı requirement teacher pool/policy edits
+- Ders Planı room strategy edits
+- Resources inventory/status/name/departure edits
+- Placement Assistant analysis/apply path
