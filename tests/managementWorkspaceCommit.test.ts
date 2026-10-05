@@ -4,6 +4,8 @@ import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
   createManagementWorkspaceWorkingCopyV1,
   setManagementWorkspacePlacementV1,
+  setManagementWorkspaceRequirementRoomsV1,
+  setManagementWorkspaceRequirementTeachersV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import { prepareManagementWorkspaceCommitV1 } from '@/lib/managementWorkspaceCommit';
 
@@ -176,6 +178,75 @@ describe('management workspace commit v1', () => {
     expect(prepared.payload?.baselineHash).toBe('baseline-hash');
     expect(prepared.payload?.changes.map((change) => change.card_id))
       .toEqual(['card-a', 'card-b']);
+  });
+
+  it('includes deterministic requirement resource changes in the atomic payload', () => {
+    const source: ManagementWorkspaceSnapshotV1 = {
+      ...snapshot(),
+      baselinePlacements: [],
+      baselineMetrics: {
+        ...snapshot().baselineMetrics,
+        placedCardCount: 0,
+        unplacedCardCount: 2,
+      },
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspaceRequirementTeachersV1(
+      copy,
+      'requirement-1',
+      [],
+    );
+    setManagementWorkspaceRequirementRoomsV1(
+      copy,
+      'requirement-1',
+      {
+        resourceMode: 'CAPABILITY',
+        roomIds: [],
+        requiredCapability: 'BALLET_STUDIO',
+      },
+    );
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(true);
+    expect(prepared.payload?.changes).toEqual([]);
+    expect(prepared.payload?.requirementChanges).toEqual([
+      {
+        requirement_id: 'requirement-1',
+        before: {
+          teacher_ids: ['teacher-1'],
+          teacher_mode: 'FIXED',
+          resource_mode: 'ELIGIBLE_POOL',
+          room_ids: ['room-1'],
+          required_capability: null,
+        },
+        after: {
+          teacher_ids: [],
+          teacher_mode: 'UNKNOWN',
+          resource_mode: 'CAPABILITY',
+          room_ids: [],
+          required_capability: 'BALLET_STUDIO',
+        },
+      },
+    ]);
+  });
+
+  it('blocks plan resource edits while the baseline requirement is placed', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspaceRequirementTeachersV1(
+      copy,
+      'requirement-1',
+      [],
+    );
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(false);
+    expect(prepared.issues.map((issue) => issue.code))
+      .toContain('REQUIREMENT_RESOURCES_REQUIRE_UNPLACED');
   });
 
   it('does not prepare a commit when the working copy matches baseline', () => {
