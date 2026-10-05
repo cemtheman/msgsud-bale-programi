@@ -155,4 +155,30 @@ describe('management workspace Resources projection', () => {
     });
   });
 
+
+  it('projects local teacher availability into Resources immediately', () => {
+    const copy = workingCopy();
+    copy.teacherAvailabilityById['teacher-1'] = {
+      teacherId: 'teacher-1',
+      unavailablePeriods: [
+        { dayOfWeek: 2, period: 3 },
+        { dayOfWeek: 2, period: 4 },
+      ],
+    };
+
+    const projected = projectManagementResourcesFromWorkspaceV1(
+      resources(),
+      copy,
+    );
+
+    expect(projected.teachers[0]).toMatchObject({
+      unavailablePeriods: [
+        { dayOfWeek: 2, period: 3 },
+        { dayOfWeek: 2, period: 4 },
+      ],
+      unavailablePeriodCount: 2,
+      availabilityConfigured: true,
+    });
+  });
+
 });
