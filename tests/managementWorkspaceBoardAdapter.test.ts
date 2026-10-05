@@ -136,7 +136,21 @@ function copy(): ManagementWorkspaceWorkingCopyV1 {
         capabilities: [],
         knowledgeStatus: 'CONFIRMED',
       }
-    },
+    },,
+    resourceLifecycleById: {
+      'teacher-1': {
+        resourceType: 'TEACHER',
+        resourceId: 'teacher-1',
+        baselineExists: true,
+        exists: true,
+      },
+      'room-1': {
+        resourceType: 'ROOM',
+        resourceId: 'room-1',
+        baselineExists: true,
+        exists: true,
+      }
+    }
   };
 }
 
