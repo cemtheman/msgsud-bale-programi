@@ -9,8 +9,29 @@ export function projectManagementBoardFromWorkspaceV1(
   board: ManagementBoardData,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
 ): ManagementBoardData {
+  const teacherNamesById = {
+    ...board.teacherNamesById,
+    ...Object.fromEntries(
+      Object.values(workingCopy.teacherInventoryById).map((resource) => [
+        resource.resourceId,
+        resource.displayName,
+      ]),
+    ),
+  };
+  const roomNamesById = {
+    ...board.roomNamesById,
+    ...Object.fromEntries(
+      Object.values(workingCopy.roomInventoryById).map((resource) => [
+        resource.resourceId,
+        resource.displayName,
+      ]),
+    ),
+  };
+
   return {
     ...board,
+    teacherNamesById,
+    roomNamesById,
     cards: board.cards.map((card) => {
       const local = workingCopy.placementsByCardId[card.id];
       const resource =
@@ -25,12 +46,12 @@ export function projectManagementBoardFromWorkspaceV1(
             teacherContinuity: resource.teacherContinuity,
             teacherIds: [...resource.teacherIds],
             teacherNames: resource.teacherIds.map(
-              (id) => board.teacherNamesById[id] ?? 'Bilinmeyen öğretmen',
+              (id) => teacherNamesById[id] ?? 'Bilinmeyen öğretmen',
             ),
             resourceMode: resource.resourceMode,
             roomIds: [...resource.roomIds],
             roomNames: resource.roomIds.map(
-              (id) => board.roomNamesById[id] ?? 'Bilinmeyen salon',
+              (id) => roomNamesById[id] ?? 'Bilinmeyen salon',
             ),
           }
         : card;
@@ -49,11 +70,11 @@ export function projectManagementBoardFromWorkspaceV1(
           startPeriod: local.startPeriod,
           teacherId: local.teacherId,
           teacherName: local.teacherId
-            ? board.teacherNamesById[local.teacherId] ?? null
+            ? teacherNamesById[local.teacherId] ?? null
             : null,
           roomId: local.roomId,
           roomName: local.roomId
-            ? board.roomNamesById[local.roomId] ?? null
+            ? roomNamesById[local.roomId] ?? null
             : null,
           moveTransactionId: card.placement?.moveTransactionId ?? null,
         },
