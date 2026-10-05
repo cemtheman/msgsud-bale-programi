@@ -83,7 +83,10 @@ function teacherOptionsForRequirement(
 
   const activeTeacherIds = new Set(
     snapshot.teachers
-      .filter((teacher) => teacher.operationalStatus === 'ACTIVE')
+      .filter((teacher) => (
+        workingCopy.teacherInventoryById[teacher.id]?.operationalStatus
+        ?? teacher.operationalStatus
+      ) === 'ACTIVE')
       .map((teacher) => teacher.id),
   );
   const pooled = uniqueStrings(
@@ -117,7 +120,10 @@ function roomOptionsForRequirement(
   if (resourceMode === 'UNKNOWN') return [null];
 
   const activeRooms = snapshot.rooms.filter(
-    (room) => room.operationalStatus === 'ACTIVE',
+    (room) => (
+      workingCopy.roomInventoryById[room.id]?.operationalStatus
+      ?? room.operationalStatus
+    ) === 'ACTIVE',
   );
 
   if (resourceMode === 'CAPABILITY') {
