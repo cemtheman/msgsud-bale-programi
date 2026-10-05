@@ -257,6 +257,14 @@ export function translateManagementWorkspaceCommitErrorV1(
     return 'Ders Planı kaynak tanımı değiştirilecek dersin önce programdan kaldırılması gerekiyor.';
   }
 
+  if (normalized.includes('WORKSPACE_V2_TEACHER_POLICY_BLOCKED')) {
+    return 'Öğretmen kuralı mevcut yerleşimlerdeki farklı öğretmen dağılımıyla çelişiyor. Önce öğretmenleri uzlaştırın.';
+  }
+
+  if (normalized.includes('WORKSPACE_V2_TEACHER_POLICY_INVALID')) {
+    return 'Seçilen öğretmen kapsamı ve süreklilik kuralı birlikte kullanılamıyor.';
+  }
+
   if (normalized.includes('WORKSPACE_V1_LOCKED_CARD_CHANGED')) {
     return 'Kilitli bir ders değiştirildiği için çalışma alanı kaydedilemedi.';
   }
