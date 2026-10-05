@@ -1,7 +1,9 @@
 import {
   cloneManagementWorkspaceInventoryV1,
   cloneManagementWorkspacePlacementV1,
+  applyManagementWorkspaceResourceBundleV1,
   cloneManagementWorkspaceRequirementResourceV1,
+  cloneManagementWorkspaceResourceBundleV1,
   cloneManagementWorkspaceRoomProfileV1,
   cloneManagementWorkspaceTeacherAvailabilityV1,
   cloneManagementWorkspaceTeacherPlanningV1,
@@ -15,6 +17,7 @@ import {
   type ManagementWorkspaceTeacherPlanningStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
+  type ManagementWorkspaceResourceBundleV1,
   type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 
@@ -25,7 +28,8 @@ export type ManagementWorkspaceOperationKindV1 =
   | 'SET_INVENTORY_RESOURCE'
   | 'SET_TEACHER_PLANNING'
   | 'SET_TEACHER_AVAILABILITY'
-  | 'SET_ROOM_PROFILE';
+  | 'SET_ROOM_PROFILE'
+  | 'SET_RESOURCE_BUNDLE';
 
 export interface ManagementWorkspacePlacementOperationV1 {
   sequence: number;
@@ -93,13 +97,26 @@ export interface ManagementWorkspaceRoomProfileOperationV1 {
   after: ManagementWorkspaceRoomProfileStateV1;
 }
 
+export interface ManagementWorkspaceResourceBundleOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_RESOURCE_BUNDLE';
+  cardId: null;
+  requirementId: null;
+  resourceId: string;
+  resourceType: 'TEACHER' | 'ROOM';
+  before: ManagementWorkspaceResourceBundleV1 | null;
+  after: ManagementWorkspaceResourceBundleV1 | null;
+}
+
 export type ManagementWorkspaceOperationV1 =
   | ManagementWorkspacePlacementOperationV1
   | ManagementWorkspaceRequirementResourceOperationV1
   | ManagementWorkspaceInventoryOperationV1
   | ManagementWorkspaceTeacherPlanningOperationV1
   | ManagementWorkspaceTeacherAvailabilityOperationV1
-  | ManagementWorkspaceRoomProfileOperationV1;
+  | ManagementWorkspaceRoomProfileOperationV1
+  | ManagementWorkspaceResourceBundleOperationV1;
 
 export interface ManagementWorkspaceHistoryV1 {
   nextSequence: number;
@@ -333,6 +350,18 @@ export function cloneManagementWorkspaceOperationV1(
     };
   }
 
+  if (operation.kind === 'SET_RESOURCE_BUNDLE') {
+    return {
+      ...operation,
+      before: operation.before
+        ? cloneManagementWorkspaceResourceBundleV1(operation.before)
+        : null,
+      after: operation.after
+        ? cloneManagementWorkspaceResourceBundleV1(operation.after)
+        : null,
+    };
+  }
+
   return {
     ...operation,
     before: cloneManagementWorkspacePlacementV1(operation.before),
@@ -359,6 +388,10 @@ function recordOperation(
       >
     | Omit<
         ManagementWorkspaceRoomProfileOperationV1,
+        'sequence' | 'batchId'
+      >
+    | Omit<
+        ManagementWorkspaceResourceBundleOperationV1,
         'sequence' | 'batchId'
       >,
 ) {
@@ -541,6 +574,56 @@ export function applyManagementWorkspaceRoomProfileOperationV1(
   });
 }
 
+export function applyManagementWorkspaceResourceBundleOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  resourceType: 'TEACHER' | 'ROOM',
+  resourceId: string,
+  bundle: ManagementWorkspaceResourceBundleV1 | null,
+) {
+  const before = (() => {
+    const lifecycle = workingCopy.resourceLifecycleById[resourceId];
+    if (!lifecycle) return null;
+    const inventory = resourceType === 'TEACHER'
+      ? workingCopy.teacherInventoryById[resourceId]
+      : workingCopy.roomInventoryById[resourceId];
+    if (!inventory) return null;
+    return cloneManagementWorkspaceResourceBundleV1({
+      lifecycle,
+      inventory,
+      teacherPlanning: resourceType === 'TEACHER'
+        ? workingCopy.teacherPlanningById[resourceId]
+        : undefined,
+      teacherAvailability: resourceType === 'TEACHER'
+        ? workingCopy.teacherAvailabilityById[resourceId]
+        : undefined,
+      roomProfile: resourceType === 'ROOM'
+        ? workingCopy.roomProfileById[resourceId]
+        : undefined,
+    });
+  })();
+  const after = bundle
+    ? cloneManagementWorkspaceResourceBundleV1(bundle)
+    : null;
+
+  applyManagementWorkspaceResourceBundleV1(
+    workingCopy,
+    resourceType,
+    resourceId,
+    after,
+  );
+
+  return recordOperation(history, {
+    kind: 'SET_RESOURCE_BUNDLE',
+    cardId: null,
+    requirementId: null,
+    resourceId,
+    resourceType,
+    before,
+    after,
+  });
+}
+
 function applyOperationState(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   operation: ManagementWorkspaceOperationV1,
@@ -586,6 +669,16 @@ function applyOperationState(
     applyRoomProfileState(
       workingCopy,
       value as ManagementWorkspaceRoomProfileStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_RESOURCE_BUNDLE') {
+    applyManagementWorkspaceResourceBundleV1(
+      workingCopy,
+      operation.resourceType,
+      operation.resourceId,
+      value as ManagementWorkspaceResourceBundleV1 | null,
     );
     return;
   }
