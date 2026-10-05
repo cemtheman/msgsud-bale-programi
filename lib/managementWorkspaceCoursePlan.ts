@@ -9,11 +9,24 @@ export function projectManagementCoursePlanFromWorkspaceV1(
   coursePlan: ManagementCoursePlanData,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
 ): ManagementCoursePlanData {
+  const teacherOptions = coursePlan.teacherOptions.map((option) => ({
+    ...option,
+    name:
+      workingCopy.teacherInventoryById[option.id]?.displayName
+      ?? option.name,
+  }));
+  const roomOptions = coursePlan.roomOptions.map((option) => ({
+    ...option,
+    name:
+      workingCopy.roomInventoryById[option.id]?.displayName
+      ?? option.name,
+  }));
+
   const teacherNames = new Map(
-    coursePlan.teacherOptions.map((option) => [option.id, option.name]),
+    teacherOptions.map((option) => [option.id, option.name]),
   );
   const roomNames = new Map(
-    coursePlan.roomOptions.map((option) => [option.id, option.name]),
+    roomOptions.map((option) => [option.id, option.name]),
   );
 
   const projectedRows = coursePlan.rows.map((row) => {
@@ -53,6 +66,8 @@ export function projectManagementCoursePlanFromWorkspaceV1(
   return {
     ...coursePlan,
     rows: projectedRows,
+    teacherOptions,
+    roomOptions,
     teacherContinuityViolations:
       coursePlan.teacherContinuityViolations.filter((violation) => {
         const policy = policyByRequirement.get(violation.requirementId);
