@@ -7661,3 +7661,33 @@ Expected migration tail includes local=remote:
 `20261005115509 | 20261005115509`
 
 Do not mark phase B PASS until the focused/full/build/migration-parity gate is green.
+
+
+### 5 Oct 2026 — Teacher inactivation localization phase B CLOSED / PASS
+
+Acceptance gate:
+- focused: **3/3 files, 29/29 tests PASS**
+- full suite: **34/34 files, 199/199 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: **PASS**
+- `git diff --check`: PASS
+- migration parity: **PASS**
+  - `20261005115509` local = remote
+
+Status: **CLOSED / PASS**
+
+Accepted behavior:
+- `INACTIVATE_CLEAR` is local-workspace-native
+- teacher removal from current local requirement pools and placements is one Undo/Redo batch
+- placement day/start/room are preserved while teacher is cleared
+- Atomic Save v4 delegates the exact clear package to accepted M35 departure semantics inside the same transaction
+- ordinary placed-requirement resource guards remain intact
+- one teacher-clear departure per Save is the current explicit safety limit
+- `ARCHIVE_CLEAR` remains server-backed
+
+Next:
+1. inspect whether `ARCHIVE_CLEAR` can be represented faithfully in the local working-copy identity model;
+2. if archive identity needs a new inventory lifecycle state, do not fake it as INACTIVE — leave archive server-backed and move to teacher-load localization;
+3. otherwise implement archive as its own explicit local lifecycle delta.
