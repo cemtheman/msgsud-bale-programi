@@ -7942,3 +7942,35 @@ Expected migration parity includes:
 - `20261005124726 | 20261005124726`
 
 Do not move to room-profile localization until this gate is green.
+
+
+### 5 Oct 2026 — Room departure / out-of-service localization CLOSED / PASS
+
+Acceptance gate:
+- full suite: **34/34 files, 209/209 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: **PASS**
+- `git diff --check`: PASS
+- migration parity: **PASS**
+  - `20261005124429` local = remote
+  - `20261005124726` local = remote
+
+Status: **CLOSED / PASS**
+
+Accepted behavior:
+- `OUT_OF_SERVICE_KEEP` and `OUT_OF_SERVICE_CLEAR` are local-workspace-native
+- shared Undo/Redo applies
+- KEEP preserves existing baseline room placements
+- CLEAR preserves day/start/teacher while clearing room links and room-pool membership
+- M36.1 resourceMode / requiredCapability transformation is preserved
+- main Save persists through `management_commit_workspace_v7`
+- archive remains server-backed
+
+Next active sub-phase:
+**Room profile localization**
+- localize capabilities + knowledge status
+- immediate local candidate/validation effects
+- shared Undo/Redo
+- atomic Save extension on top of v7
