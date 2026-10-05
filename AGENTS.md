@@ -7856,3 +7856,28 @@ Expected migration parity:
 `20261005121805 | 20261005121805`
 
 Do not move to the next workspace localization sub-phase until this gate is green.
+
+
+### 5 Oct 2026 — Hard teacher availability localization CLOSED / PASS
+
+Acceptance gate:
+- focused: **5/5 files, 46/46 tests PASS**
+- full suite: **34/34 files, 207/207 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: **PASS**
+- `git diff --check`: PASS
+- migration parity: **PASS**
+  - `20261005121805` local = remote
+
+Status: **CLOSED / PASS**
+
+Accepted behavior:
+- teacher unavailable periods are snapshot-backed local workspace state
+- edits participate in shared Undo/Redo
+- local validation immediately blocks new/moved placements against unsaved hard availability
+- existing placements are not silently moved
+- Resources overlap counts are projected from local placements + card durations
+- main Save persists availability through `management_commit_workspace_v6`
+- v6 performs stale before-state validation and delegates accepted changes to M39.1.2 before continuing through v5
