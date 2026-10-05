@@ -157,6 +157,37 @@ describe('management workspace board adapter v1', () => {
     expect(source.cards[0].teacherIds).toEqual(['teacher-1']);
   });
 
+  it('projects a dirty local inventory name into board dictionaries and placement labels', () => {
+    const source = board();
+    const workingCopy = copy();
+
+    workingCopy.teacherInventoryById['teacher-1'].displayName =
+      'Yerel Öğretmen Adı';
+    workingCopy.roomInventoryById['room-1'].displayName =
+      'Yerel Salon Adı';
+    workingCopy.placementsByCardId['card-1'] = {
+      cardId: 'card-1',
+      dayOfWeek: 1,
+      startPeriod: 1,
+      teacherId: 'teacher-1',
+      roomId: 'room-1',
+    };
+
+    const projected = projectManagementBoardFromWorkspaceV1(
+      source,
+      workingCopy,
+    );
+
+    expect(projected.teacherNamesById['teacher-1'])
+      .toBe('Yerel Öğretmen Adı');
+    expect(projected.roomNamesById['room-1'])
+      .toBe('Yerel Salon Adı');
+    expect(projected.cards[0].placement?.teacherName)
+      .toBe('Yerel Öğretmen Adı');
+    expect(projected.cards[0].placement?.roomName)
+      .toBe('Yerel Salon Adı');
+  });
+
   it('projects local placement resource names from board dictionaries', () => {
     const source = board();
     const workingCopy = copy();
