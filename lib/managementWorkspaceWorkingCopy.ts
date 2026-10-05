@@ -33,8 +33,8 @@ export interface ManagementWorkspaceRequirementCatalogStateV1 {
   minDistinctDays: number | null;
   maxBlocksPerDay: number | null;
   maxConsecutivePeriods: number | null;
-  courseCharacter: string;
-  deliveryMode: string;
+  courseCharacter: string | null;
+  deliveryMode: string | null;
   teacherRequirement: string;
   baselineWeeklyLoad: number;
   baselinePreferredPartition: number[];
@@ -1471,8 +1471,6 @@ export function diffManagementWorkspaceV1(
 
   const baselineByCardId = baselinePlacementsByCardId(snapshot);
   const baselineCards = baselineCardsById(snapshot);
-  const baselineStructures = baselineRequirementStructureById(snapshot);
-  const baselineResourcesById = baselineRequirementResourcesById(snapshot);
   const baselineTeacherInventory = baselineTeacherInventoryById(snapshot);
   const baselineRoomInventory = baselineRoomInventoryById(snapshot);
   const baselineTeacherPlanning = baselineTeacherPlanningById(snapshot);
