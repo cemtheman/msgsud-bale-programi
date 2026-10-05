@@ -206,7 +206,7 @@ export function ManagementTeacherPolicyEditor({
       setError(
         reason instanceof Error
           ? reason.message
-          : 'Öğretmen kuralı kaydedilemedi.',
+          : 'Öğretmen kuralı çalışma alanına uygulanamadı.',
       );
     } finally {
       setApplying(false);
@@ -296,8 +296,9 @@ export function ManagementTeacherPolicyEditor({
         </div>
 
         <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-3 text-[10px] font-medium leading-5 text-blue-800">
-          Bu kural öğretmen havuzunu değiştirmez. Mevcut yerleşimler de otomatik
-          olarak yeniden yazılmaz; önce etki önizlemesi yapılır.
+          Bu kural öğretmen havuzunu değiştirmez. Mevcut yerleşimler otomatik
+          yeniden yazılmaz. Önizleme sonrası değişiklik yerel çalışma alanına
+          uygulanır; kalıcı kayıt ana Kaydet ile yapılır.
         </div>
 
         <div className="mt-4 space-y-2">
@@ -565,7 +566,7 @@ export function ManagementTeacherPolicyEditor({
         <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
           <p className="max-w-[390px] text-[9px] font-medium leading-4 text-slate-500">
             “Aynı öğretmen” seçeneği mevcut bloklarda farklı öğretmenler varsa
-            kaydedilmez; önce bu yerleşimlerin uzlaştırılması gerekir.
+            çalışma alanına uygulanmaz; önce bu yerleşimlerin uzlaştırılması gerekir.
           </p>
 
           <div className="flex shrink-0 gap-2">
@@ -589,7 +590,7 @@ export function ManagementTeacherPolicyEditor({
               }
               className="rounded-xl bg-slate-950 px-4 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
             >
-              {applying ? 'Kaydediliyor…' : 'Kuralı kaydet'}
+              {applying ? 'Uygulanıyor…' : 'Çalışmaya uygula'}
             </button>
           </div>
         </div>
