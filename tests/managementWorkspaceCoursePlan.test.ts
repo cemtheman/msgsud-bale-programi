@@ -80,6 +80,34 @@ function workingCopy(): ManagementWorkspaceWorkingCopyV1 {
         requiredCapability: 'STUDIO_SMALL_GROUP',
       },
     },
+    teacherInventoryById: {
+      'teacher-1': {
+        resourceType: 'TEACHER',
+        resourceId: 'teacher-1',
+        displayName: 'Öğretmen 1',
+        operationalStatus: 'ACTIVE',
+      },
+      'teacher-2': {
+        resourceType: 'TEACHER',
+        resourceId: 'teacher-2',
+        displayName: 'Öğretmen 2',
+        operationalStatus: 'ACTIVE',
+      },
+    },
+    roomInventoryById: {
+      'room-1': {
+        resourceType: 'ROOM',
+        resourceId: 'room-1',
+        displayName: 'Salon 1',
+        operationalStatus: 'ACTIVE',
+      },
+      'room-2': {
+        resourceType: 'ROOM',
+        resourceId: 'room-2',
+        displayName: 'Salon 2',
+        operationalStatus: 'ACTIVE',
+      },
+    },
   };
 }
 
