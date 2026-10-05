@@ -7881,3 +7881,64 @@ Accepted behavior:
 - Resources overlap counts are projected from local placements + card durations
 - main Save persists availability through `management_commit_workspace_v6`
 - v6 performs stale before-state validation and delegates accepted changes to M39.1.2 before continuing through v5
+
+
+### 5 Oct 2026 — Room departure / out-of-service localization
+
+Implemented:
+- `OUT_OF_SERVICE_KEEP` and `OUT_OF_SERVICE_CLEAR` are local-workspace-native
+- local room departure preview derives from current working copy
+- KEEP:
+  - canonical room becomes OUT_OF_SERVICE
+  - existing baseline room placements remain in place
+  - new assignments remain blocked by local validation
+- CLEAR:
+  - canonical room becomes OUT_OF_SERVICE
+  - room is removed from local requirement room pools
+  - placement room links are cleared
+  - day/start/teacher are preserved
+  - resulting resourceMode / requiredCapability follow accepted M36.1 semantics
+- both local modes participate in shared Undo/Redo and main Save
+- `ARCHIVE_CLEAR` remains server-backed because workspace inventory does not model `archived_at`
+
+DB contract:
+- `20261005124429_management_workspace_room_departure`
+  - adds `management_commit_workspace_v7`
+  - detects one canonical room KEEP/CLEAR departure package
+  - delegates accepted package to M36.1 `management_apply_room_departure`
+  - continues remaining workspace changes through v6 in the same transaction
+- `20261005124726_management_workspace_room_departure_hardening`
+  - requires CLEAR to remove only the target room
+  - validates exact remaining room pool cardinality
+  - validates M36.1 resourceMode / requiredCapability transformation
+- both migrations applied successfully to Supabase
+
+Safety boundary:
+- one room departure per Save
+- canonical room only
+- archive remains server-backed
+- ordinary MAINTENANCE behavior remains blocked while the room family is locally placed
+- alias operational status remains non-editable
+
+Tests added:
+- local OUT_OF_SERVICE_KEEP
+- local OUT_OF_SERVICE_CLEAR
+- coordinated batch / commit payload behavior
+
+Gate status: **PENDING**
+
+Required gate:
+```bash
+git pull --ff-only
+npm test -- tests/managementWorkspaceInventory.test.ts tests/managementWorkspaceValidation.test.ts tests/managementWorkspaceCommit.test.ts
+npm test
+npm run build
+git diff --check
+npx supabase migration list | tail -12
+```
+
+Expected migration parity includes:
+- `20261005124429 | 20261005124429`
+- `20261005124726 | 20261005124726`
+
+Do not move to room-profile localization until this gate is green.
