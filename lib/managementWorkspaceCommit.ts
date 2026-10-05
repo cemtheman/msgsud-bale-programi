@@ -293,6 +293,25 @@ export function translateManagementWorkspaceCommitErrorV1(
     return 'Seçilen öğretmen kapsamı ve süreklilik kuralı birlikte kullanılamıyor.';
   }
 
+  if (normalized.includes('WORKSPACE_V3_ROOM_STATUS_BLOCKED')) {
+    return 'Salon mevcut taslak programdaki kullanımı nedeniyle bu duruma alınamıyor. İlgili yerleşimleri kaldırıp yeniden deneyin.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V3_ROOM_ALIAS_NAME_EDIT_BLOCKED')
+    || normalized.includes('WORKSPACE_V3_ROOM_ALIAS_STATUS_EDIT_BLOCKED')
+  ) {
+    return 'Salon alias kaydı doğrudan düzenlenemez; canonical salon kaydını kullanın.';
+  }
+
+  if (normalized.includes('WORKSPACE_V3_RESOURCE_NAME_INVALID')) {
+    return 'Kaynak görünen adı boş olamaz ve 120 karakteri geçemez.';
+  }
+
+  if (normalized.includes('WORKSPACE_V3_RESOURCE_STATUS_INVALID')) {
+    return 'Seçilen kaynak çalışma durumu geçerli değil.';
+  }
+
   if (normalized.includes('WORKSPACE_V1_LOCKED_CARD_CHANGED')) {
     return 'Kilitli bir ders değiştirildiği için çalışma alanı kaydedilemedi.';
   }
