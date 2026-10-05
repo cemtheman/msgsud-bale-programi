@@ -7712,3 +7712,48 @@ Next active sub-phase:
 - localize minimum/target/maximum load edits first
 - keep hard availability as the following sub-phase
 - preserve the same snapshot -> local working copy -> shared Undo/Redo -> atomic Save architecture
+
+
+### 5 Oct 2026 — Teacher load target localization
+
+Implemented:
+- solver snapshot typing now includes `teacherLoadTargets`
+- workspace snapshot carries teacher load targets
+- working copy adds `teacherPlanningById`
+- load target edits participate in:
+  - local diff
+  - shared Undo/Redo history
+  - local Resources projection
+  - workspace dirty state
+- Resources > Teacher Planning > Load now edits local working copy instead of mutating Supabase immediately
+- main Save payload now includes `teacherPlanningChanges`
+- commit client now targets `management_commit_workspace_v5`
+
+DB contract:
+- migration: `20261005120354_management_workspace_teacher_load_targets`
+- applied successfully to Supabase
+- v5 performs stale before-state checks against `management_teacher_planning_inputs`
+- validates 0..60 and minimum <= target <= maximum
+- applies accepted M40 `management_set_teacher_load_targets`
+- refreshes solver snapshot identity after planning changes
+- continues placement/requirement/resource/departure changes through v4 in the same transaction
+- migration parity expected: `20261005120354 | 20261005120354`
+
+Tests added:
+- teacher load diff
+- atomic commit payload
+- immediate Resources projection
+
+Gate status: **PENDING**
+
+Required gate:
+```bash
+git pull --ff-only
+npm test -- tests/managementWorkspaceWorkingCopy.test.ts tests/managementWorkspaceCommit.test.ts tests/managementWorkspaceInventoryProjection.test.ts
+npm test
+npm run build
+git diff --check
+npx supabase migration list | tail -10
+```
+
+Do not start hard-availability localization until this gate is green.
