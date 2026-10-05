@@ -297,4 +297,91 @@ describe('management workspace board adapter v1', () => {
       moveTransactionId: 'tx-1',
     });
   });
+
+  it('projects a newly activated catalog requirement into Program metadata', () => {
+    const source = board();
+    const workingCopy = copy();
+
+    workingCopy.requirementCatalogById['requirement-inactive'] = {
+      requirementId: 'requirement-inactive',
+      subjectId: 'subject-2',
+      subjectName: 'B. Uygulama',
+      groupId: 'group-2',
+      groupName: '5A BALLET',
+      groupType: 'BALLET',
+      classCodes: ['5A'],
+      minDistinctDays: null,
+      maxBlocksPerDay: null,
+      maxConsecutivePeriods: null,
+      courseCharacter: 'ART',
+      deliveryMode: 'STANDARD',
+      teacherRequirement: 'OPTIONAL',
+      baselineWeeklyLoad: 0,
+      baselinePreferredPartition: [],
+      baselineAllowedPartitions: [],
+      baselineTermStatus: 'INACTIVE',
+      baselineTeacherIds: [],
+      baselineTeacherMode: 'UNKNOWN',
+      baselineTeacherAssignmentScope: 'UNSPECIFIED',
+      baselineTeacherContinuity: 'NONE',
+      baselineResourceMode: 'UNKNOWN',
+      baselineRoomIds: [],
+      baselineRequiredCapability: null,
+    };
+    workingCopy.requirementStructureById['requirement-inactive'] = {
+      requirementId: 'requirement-inactive',
+      weeklyLoad: 1,
+      preferredPartition: [1],
+      allowedPartitions: [[1]],
+      termStatus: 'ACTIVE',
+    };
+    workingCopy.requirementResourcesById['requirement-inactive'] = {
+      requirementId: 'requirement-inactive',
+      teacherIds: [],
+      teacherMode: 'UNKNOWN',
+      teacherAssignmentScope: 'UNSPECIFIED',
+      teacherContinuity: 'NONE',
+      resourceMode: 'UNKNOWN',
+      roomIds: [],
+      requiredCapability: null,
+    };
+    workingCopy.cardsById['22222222-2222-4222-8222-222222222222'] = {
+      id: '22222222-2222-4222-8222-222222222222',
+      requirementId: 'requirement-inactive',
+      blockIndex: 1,
+      durationPeriods: 1,
+      locked: false,
+      baselineExists: false,
+    };
+    workingCopy.placementsByCardId['22222222-2222-4222-8222-222222222222'] = {
+      cardId: '22222222-2222-4222-8222-222222222222',
+      dayOfWeek: null,
+      startPeriod: null,
+      teacherId: null,
+      roomId: null,
+    };
+
+    const projected = projectManagementBoardFromWorkspaceV1(
+      source,
+      workingCopy,
+    );
+    const activated = projected.cards.find(
+      (card) => card.requirementId === 'requirement-inactive',
+    );
+
+    expect(activated).toMatchObject({
+      subjectId: 'subject-2',
+      subjectName: 'B. Uygulama',
+      groupId: 'group-2',
+      groupName: '5A BALLET',
+      groupType: 'BALLET',
+      classCodes: ['5A'],
+      weeklyLoad: 1,
+      teacherMode: 'UNKNOWN',
+      resourceMode: 'UNKNOWN',
+      domainStatus: 'UNRESOLVED',
+      placement: null,
+    });
+  });
+
 });
