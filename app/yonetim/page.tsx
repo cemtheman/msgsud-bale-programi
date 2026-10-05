@@ -942,7 +942,7 @@ export default function ManagementPage() {
         if (!active) return;
 
         const localWorkingCopy = workspaceWorkingCopyRef.current;
-        if (localWorkingCopy) {
+        if (localWorkingCopy && nextResources) {
           hydrateManagementWorkspaceInventoryDisplayNamesV1(
             localWorkingCopy,
             nextResources,
