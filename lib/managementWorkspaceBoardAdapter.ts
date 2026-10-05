@@ -13,17 +13,35 @@ export function projectManagementBoardFromWorkspaceV1(
     ...board,
     cards: board.cards.map((card) => {
       const local = workingCopy.placementsByCardId[card.id];
+      const resource =
+        workingCopy.requirementResourcesById[card.requirementId] ?? null;
       if (!local) return card;
+
+      const projectedCard = resource
+        ? {
+            ...card,
+            teacherMode: resource.teacherMode,
+            teacherIds: [...resource.teacherIds],
+            teacherNames: resource.teacherIds.map(
+              (id) => board.teacherNamesById[id] ?? 'Bilinmeyen öğretmen',
+            ),
+            resourceMode: resource.resourceMode,
+            roomIds: [...resource.roomIds],
+            roomNames: resource.roomIds.map(
+              (id) => board.roomNamesById[id] ?? 'Bilinmeyen salon',
+            ),
+          }
+        : card;
 
       if (local.dayOfWeek === null || local.startPeriod === null) {
         return {
-          ...card,
+          ...projectedCard,
           placement: null,
         };
       }
 
       return {
-        ...card,
+        ...projectedCard,
         placement: {
           dayOfWeek: local.dayOfWeek,
           startPeriod: local.startPeriod,
