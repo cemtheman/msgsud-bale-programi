@@ -208,6 +208,28 @@ describe('management workspace inventory edits', () => {
     expect(prepared.preview.blockReasons).toContain('ROOM_INACTIVE');
   });
 
+  it('blocks canonical room status when a local placement uses its alias', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    copy.placementsByCardId['card-1'] = {
+      ...copy.placementsByCardId['card-1'],
+      roomId: 'room-alias',
+    };
+
+    const prepared = prepareManagementWorkspaceRoomStatusEditV1(
+      source,
+      copy,
+      'room-1',
+      'OUT_OF_SERVICE',
+    );
+
+    expect(prepared.preview.canApply).toBe(false);
+    expect(prepared.preview.placedImpactCount).toBe(1);
+    expect(prepared.preview.placedImpacts[0].roomId).toBe('room-alias');
+    expect(prepared.preview.blockReasons).toContain('ROOM_INACTIVE');
+  });
+
   it('allows non-active room status after its local placement is removed', () => {
     const source = snapshot();
     const copy = createManagementWorkspaceWorkingCopyV1(source);
