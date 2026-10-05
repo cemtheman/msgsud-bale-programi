@@ -2,6 +2,8 @@ import type {
   ManagementRoomOperationalStatus,
   ManagementRoomStatusPreview,
   ManagementTeacherOperationalStatus,
+  ManagementTeacherDeparturePreview,
+  type ManagementTeacherDepartureMode,
 } from '@/lib/managementResources';
 import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
@@ -270,4 +272,142 @@ export function prepareManagementWorkspaceRoomStatusEditV1(
       ].join('|'),
     },
   };
+}
+
+
+function teacherDepartureStateToken(
+  snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  teacherId: string,
+) {
+  const teacher = workingCopy.teacherInventoryById[teacherId];
+  if (!teacher) throw new Error('Öğretmen kaynak kaydı bulunamadı.');
+
+  const requirementState = Object.values(workingCopy.requirementResourcesById)
+    .filter((resource) => resource.teacherIds.includes(teacherId))
+    .map((resource) => [
+      resource.requirementId,
+      resource.teacherMode,
+      [...resource.teacherIds].sort().join(','),
+    ].join(':'))
+    .sort()
+    .join('|');
+
+  const placementState = Object.values(workingCopy.placementsByCardId)
+    .filter((placement) => placement.teacherId === teacherId)
+    .map((placement) => [
+      placement.cardId,
+      placement.dayOfWeek ?? '',
+      placement.startPeriod ?? '',
+      placement.roomId ?? '',
+    ].join(':'))
+    .sort()
+    .join('|');
+
+  return [
+    'LOCAL_TEACHER_DEPARTURE_V1',
+    snapshot.identity.revisionId,
+    snapshot.identity.snapshotHash,
+    teacherId,
+    teacher.operationalStatus,
+    requirementState,
+    placementState,
+  ].join('|');
+}
+
+export function previewManagementWorkspaceTeacherDepartureV1(
+  snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  teacherId: string,
+): ManagementTeacherDeparturePreview {
+  const teacher = workingCopy.teacherInventoryById[teacherId];
+  if (!teacher) throw new Error('Öğretmen kaynak kaydı bulunamadı.');
+
+  const affectedRequirementIds = Object.values(
+    workingCopy.requirementResourcesById,
+  )
+    .filter((resource) => resource.teacherIds.includes(teacherId))
+    .map((resource) => resource.requirementId);
+
+  const placedBlockCount = Object.values(workingCopy.placementsByCardId)
+    .filter((placement) => placement.teacherId === teacherId)
+    .length;
+
+  return {
+    teacherId,
+    teacherName: teacher.displayName,
+    operationalStatus: teacher.operationalStatus,
+    assignmentCount: affectedRequirementIds.length,
+    activeRequirementCount: affectedRequirementIds.length,
+    placedBlockCount,
+    stateToken: teacherDepartureStateToken(snapshot, workingCopy, teacherId),
+    publishedChanged: false,
+  };
+}
+
+export function prepareManagementWorkspaceTeacherDepartureV1(
+  snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  teacherId: string,
+  mode: Exclude<ManagementTeacherDepartureMode, 'ARCHIVE_CLEAR'>,
+): {
+  commands: ManagementWorkspaceCommandV1[];
+  preview: ManagementTeacherDeparturePreview;
+} {
+  const teacher = workingCopy.teacherInventoryById[teacherId];
+  if (!teacher) throw new Error('Öğretmen kaynak kaydı bulunamadı.');
+
+  const preview = previewManagementWorkspaceTeacherDepartureV1(
+    snapshot,
+    workingCopy,
+    teacherId,
+  );
+
+  const commands: ManagementWorkspaceCommandV1[] = [{
+    type: 'SET_INVENTORY_RESOURCE',
+    resource: {
+      ...teacher,
+      operationalStatus: 'INACTIVE',
+    },
+  }];
+
+  if (mode === 'INACTIVATE_CLEAR') {
+    Object.values(workingCopy.requirementResourcesById)
+      .filter((resource) => resource.teacherIds.includes(teacherId))
+      .sort((left, right) =>
+        left.requirementId.localeCompare(right.requirementId),
+      )
+      .forEach((resource) => {
+        const teacherIds = resource.teacherIds.filter(
+          (id) => id !== teacherId,
+        );
+        commands.push({
+          type: 'SET_REQUIREMENT_RESOURCES',
+          resource: {
+            ...resource,
+            teacherIds,
+            teacherMode: teacherIds.length === 0
+              ? 'UNKNOWN'
+              : teacherIds.length === 1
+                ? 'FIXED'
+                : 'ELIGIBLE_POOL',
+          },
+        });
+      });
+
+    Object.values(workingCopy.placementsByCardId)
+      .filter((placement) => placement.teacherId === teacherId)
+      .sort((left, right) => left.cardId.localeCompare(right.cardId))
+      .forEach((placement) => {
+        commands.push({
+          type: 'SET_PLACEMENT',
+          placement: {
+            ...placement,
+            teacherId: null,
+          },
+        });
+      });
+  }
+
+  return { commands, preview };
 }
