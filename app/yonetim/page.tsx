@@ -171,6 +171,9 @@ import {
   projectManagementBoardFromWorkspaceV1,
 } from '@/lib/managementWorkspaceBoardAdapter';
 import {
+  projectManagementCoursePlanFromWorkspaceV1,
+} from '@/lib/managementWorkspaceCoursePlan';
+import {
   commitManagementWorkspaceV1,
   prepareManagementWorkspaceCommitV1,
   translateManagementWorkspaceCommitErrorV1,
@@ -3077,6 +3080,173 @@ export default function ManagementPage() {
     }
   };
 
+  const updateLocalRequirementTeachers = async (
+    requirementId: string,
+    teacherIds: string[],
+  ) => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      !access?.canEdit
+      || !localSnapshot
+      || !localWorkingCopy
+      || !localHistory
+      || !serverBoard
+    ) {
+      throw new Error('Yerel çalışma alanı hazır değil.');
+    }
+
+    const current =
+      localWorkingCopy.requirementResourcesById[requirementId] ?? null;
+    if (!current) {
+      throw new Error('Ders Planı kaynak tanımı bulunamadı.');
+    }
+
+    const normalizedTeacherIds = Array.from(new Set(teacherIds))
+      .sort((a, b) => a.localeCompare(b));
+
+    const result = executeManagementWorkspaceCommandV1(
+      localSnapshot,
+      localWorkingCopy,
+      localHistory,
+      {
+        type: 'SET_REQUIREMENT_RESOURCES',
+        resource: {
+          ...current,
+          teacherIds: normalizedTeacherIds,
+          teacherMode: normalizedTeacherIds.length === 0
+            ? 'UNKNOWN'
+            : normalizedTeacherIds.length === 1
+              ? 'FIXED'
+              : 'ELIGIBLE_POOL',
+        },
+      },
+    );
+
+    if (!result.applied) {
+      throw new Error(
+        result.issues.length > 0
+          ? `Ders Planı güncellenemiyor: ${workspaceIssueSummary(
+            result.issues.map((issue) => issue.code),
+          )}.`
+          : 'Ders Planı güncellenemiyor.',
+      );
+    }
+
+    setBoard(
+      projectManagementBoardFromWorkspaceV1(
+        serverBoard,
+        localWorkingCopy,
+      ),
+    );
+    setWorkspaceDirty(
+      diffManagementWorkspaceV1(
+        localSnapshot,
+        localWorkingCopy,
+      ).hasChanges,
+    );
+    setCommandNotice({
+      kind: 'success',
+      text: 'Öğretmen havuzu yerel çalışma alanında güncellendi.',
+    });
+  };
+
+  const updateLocalRequirementRoomStrategy = async (
+    requirementId: string,
+    strategy: ManagementRoomStrategy,
+    roomIds: string[],
+    requiredCapability: string | null,
+  ) => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      !access?.canEdit
+      || !localSnapshot
+      || !localWorkingCopy
+      || !localHistory
+      || !serverBoard
+    ) {
+      throw new Error('Yerel çalışma alanı hazır değil.');
+    }
+
+    const current =
+      localWorkingCopy.requirementResourcesById[requirementId] ?? null;
+    if (!current) {
+      throw new Error('Ders Planı kaynak tanımı bulunamadı.');
+    }
+
+    const normalizedRoomIds = Array.from(new Set(roomIds))
+      .sort((a, b) => a.localeCompare(b));
+
+    let resourceMode = 'UNKNOWN';
+    let nextRoomIds: string[] = [];
+    let nextCapability: string | null = null;
+
+    if (strategy === 'SPECIFIC') {
+      if (normalizedRoomIds.length === 0) {
+        throw new Error('En az bir salon seçilmelidir.');
+      }
+      resourceMode = normalizedRoomIds.length === 1
+        ? 'FIXED'
+        : 'ELIGIBLE_POOL';
+      nextRoomIds = normalizedRoomIds;
+    } else if (strategy === 'CAPABILITY') {
+      if (!requiredCapability) {
+        throw new Error('Salon özelliği seçilmelidir.');
+      }
+      resourceMode = 'CAPABILITY';
+      nextCapability = requiredCapability;
+    }
+
+    const result = executeManagementWorkspaceCommandV1(
+      localSnapshot,
+      localWorkingCopy,
+      localHistory,
+      {
+        type: 'SET_REQUIREMENT_RESOURCES',
+        resource: {
+          ...current,
+          resourceMode,
+          roomIds: nextRoomIds,
+          requiredCapability: nextCapability,
+        },
+      },
+    );
+
+    if (!result.applied) {
+      throw new Error(
+        result.issues.length > 0
+          ? `Salon tanımı güncellenemiyor: ${workspaceIssueSummary(
+            result.issues.map((issue) => issue.code),
+          )}.`
+          : 'Salon tanımı güncellenemiyor.',
+      );
+    }
+
+    setBoard(
+      projectManagementBoardFromWorkspaceV1(
+        serverBoard,
+        localWorkingCopy,
+      ),
+    );
+    setWorkspaceDirty(
+      diffManagementWorkspaceV1(
+        localSnapshot,
+        localWorkingCopy,
+      ).hasChanges,
+    );
+    setCommandNotice({
+      kind: 'success',
+      text: 'Salon stratejisi yerel çalışma alanında güncellendi.',
+    });
+  };
+
   const saveWorkspace = async () => {
     const localSnapshot = workspaceSnapshotRef.current;
     const localWorkingCopy = workspaceWorkingCopyRef.current;
@@ -3243,6 +3413,16 @@ export default function ManagementPage() {
       </main>
     );
   }
+
+  const projectedCoursePlan = (
+    coursePlan
+    && workspaceWorkingCopyRef.current
+  )
+    ? projectManagementCoursePlanFromWorkspaceV1(
+      coursePlan,
+      workspaceWorkingCopyRef.current,
+    )
+    : coursePlan;
 
   const visiblePlacedCount = visibleCards.filter((card) => card.placement).length;
   const visibleUnplacedCount = visibleCards.length - visiblePlacedCount;
@@ -4153,7 +4333,7 @@ export default function ManagementPage() {
               roomNamesById={board?.roomNamesById ?? {}}
               planRow={
                 selectedCard
-                  ? coursePlan?.rows.find(
+                  ? projectedCoursePlan?.rows.find(
                     (row) => row.requirementId === selectedCard.requirementId,
                   ) ?? null
                   : null
@@ -4276,26 +4456,10 @@ export default function ManagementPage() {
                 });
               }}
               onUpdatePlanTeachers={async (requirementId, teacherIds) => {
-                if (!session || !access?.canEdit) {
-                  throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-                }
-                setCommandBusy(true);
-                setCommandActivity('Dersin öğretmen tanımı güncelleniyor.');
-                try {
-                  await updateManagementRequirementTeachers(
-                    session.accessToken,
-                    requirementId,
-                    teacherIds,
-                  );
-                  setCommandNotice({
-                    kind: 'success',
-                    text: 'Öğretmen tanımı güncellendi; uygun program yerleri yeniden hesaplandı.',
-                  });
-                  setRefreshToken((value) => value + 1);
-                } finally {
-                  setCommandBusy(false);
-                  setCommandActivity(null);
-                }
+                await updateLocalRequirementTeachers(
+                  requirementId,
+                  teacherIds,
+                );
               }}
               onUpdatePlanRoomStrategy={async (
                 requirementId,
@@ -4303,28 +4467,12 @@ export default function ManagementPage() {
                 roomIds,
                 requiredCapability,
               ) => {
-                if (!session || !access?.canEdit) {
-                  throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-                }
-                setCommandBusy(true);
-                setCommandActivity('Dersin salon tanımı güncelleniyor.');
-                try {
-                  const result = await updateManagementRequirementRoomStrategy(
-                    session.accessToken,
-                    requirementId,
-                    strategy,
-                    roomIds,
-                    requiredCapability,
-                  );
-                  setCommandNotice({
-                    kind: 'success',
-                    text: `Salon tanımı güncellendi. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`,
-                  });
-                  setRefreshToken((value) => value + 1);
-                } finally {
-                  setCommandBusy(false);
-                  setCommandActivity(null);
-                }
+                await updateLocalRequirementRoomStrategy(
+                  requirementId,
+                  strategy,
+                  roomIds,
+                  requiredCapability,
+                );
               }}
               onRemove={requestRemove}
               onClose={() => setInspectorOpen(false)}
@@ -4334,8 +4482,8 @@ export default function ManagementPage() {
         </section>
       ) : activeSection === 'PLAN' ? (
         <ManagementCoursePlan
-          data={coursePlan}
-          canEdit={access?.canEdit === true && !workspaceLocalSessionActive}
+          data={projectedCoursePlan}
+          canEdit={access?.canEdit === true}
           onOpenProgram={(requirementId, planStage: ManagementPlanStage) => {
             const card = board?.cards.find(
               (item) => item.requirementId === requirementId,
@@ -4357,24 +4505,10 @@ export default function ManagementPage() {
             }
           }}
           onUpdateTeachers={async (requirementId, teacherIds) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-            }
-
-            setCommandBusy(true);
-            setCommandActivity('Ders planındaki öğretmen tanımı güncelleniyor.');
-
-            try {
-              await updateManagementRequirementTeachers(
-                session.accessToken,
-                requirementId,
-                teacherIds,
-              );
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            await updateLocalRequirementTeachers(
+              requirementId,
+              teacherIds,
+            );
           }}
           onUpdateTeacherPolicyPreview={async (
             requirementId,
@@ -4509,34 +4643,12 @@ export default function ManagementPage() {
             roomIds,
             requiredCapability,
           ) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-            }
-
-            setCommandBusy(true);
-            setCommandActivity('Ders planındaki salon seçme yöntemi güncelleniyor.');
-
-            try {
-              const result = await updateManagementRequirementRoomStrategy(
-                session.accessToken,
-                requirementId,
-                strategy,
-                roomIds,
-                requiredCapability,
-              );
-              setCommandNotice({
-                kind: 'success',
-                text: strategy === 'CAPABILITY'
-                  ? `Salon seçimi “özelliğe göre” olarak güncellendi. ${result.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden hesaplandı.`
-                  : strategy === 'SPECIFIC'
-                    ? `Salon seçimi güncellendi. ${result.roomCount} ana salon tanımlandı ve ${result.candidateRebuildCardCount} ders bloğu yeniden hesaplandı.`
-                    : `Salon bilgisi belirsiz olarak işaretlendi. ${result.candidateRebuildCardCount} ders bloğu yeniden hesaplandı.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            await updateLocalRequirementRoomStrategy(
+              requirementId,
+              strategy,
+              roomIds,
+              requiredCapability,
+            );
           }}
           onPreviewStructure={async (input) => {
             if (!session || !access?.canEdit) {
