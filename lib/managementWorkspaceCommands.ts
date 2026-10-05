@@ -6,6 +6,7 @@ import {
   type ManagementWorkspaceInventoryStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
+  type ManagementWorkspaceTeacherAvailabilityStateV1,
   type ManagementWorkspaceTeacherPlanningStateV1,
   type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
@@ -14,6 +15,7 @@ import {
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
   applyManagementWorkspaceRequirementResourceOperationV1,
+  applyManagementWorkspaceTeacherAvailabilityOperationV1,
   applyManagementWorkspaceTeacherPlanningOperationV1,
   cloneManagementWorkspaceOperationV1,
   createManagementWorkspaceHistoryV1,
@@ -45,6 +47,10 @@ export type ManagementWorkspaceCommandV1 =
   | {
       type: 'SET_TEACHER_PLANNING';
       planning: ManagementWorkspaceTeacherPlanningStateV1;
+    }
+  | {
+      type: 'SET_TEACHER_AVAILABILITY';
+      availability: ManagementWorkspaceTeacherAvailabilityStateV1;
     };
 
 export interface ManagementWorkspaceCommandResultV1 {
@@ -114,6 +120,15 @@ function cloneWorkingCopy(
         { ...planning },
       ]),
     ),
+    teacherAvailabilityById: Object.fromEntries(
+      Object.entries(source.teacherAvailabilityById).map(([id, availability]) => [
+        id,
+        {
+          teacherId: availability.teacherId,
+          unavailablePeriods: availability.unavailablePeriods.map((slot) => ({ ...slot })),
+        },
+      ]),
+    ),
   };
 }
 
@@ -166,6 +181,14 @@ function applyCommand(
       workingCopy,
       history,
       command.planning,
+    );
+  }
+
+  if (command.type === 'SET_TEACHER_AVAILABILITY') {
+    return applyManagementWorkspaceTeacherAvailabilityOperationV1(
+      workingCopy,
+      history,
+      command.availability,
     );
   }
 
@@ -415,6 +438,7 @@ export function resetManagementWorkspaceWorkingCopyV1(
   target.teacherInventoryById = clean.teacherInventoryById;
   target.roomInventoryById = clean.roomInventoryById;
   target.teacherPlanningById = clean.teacherPlanningById;
+  target.teacherAvailabilityById = clean.teacherAvailabilityById;
 
   history.nextSequence = 1;
   history.nextBatchId = 1;
