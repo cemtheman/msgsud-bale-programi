@@ -29,6 +29,14 @@ export interface ManagementWorkspaceTeacherPlanningStateV1 {
   maximumLoad: number | null;
 }
 
+export interface ManagementWorkspaceTeacherAvailabilityStateV1 {
+  teacherId: string;
+  unavailablePeriods: Array<{
+    dayOfWeek: number;
+    period: number;
+  }>;
+}
+
 export interface ManagementWorkspaceRoomInventoryStateV1 {
   resourceType: 'ROOM';
   resourceId: string;
@@ -64,6 +72,8 @@ export interface ManagementWorkspaceWorkingCopyV1 {
     Record<string, ManagementWorkspaceRoomInventoryStateV1>;
   teacherPlanningById:
     Record<string, ManagementWorkspaceTeacherPlanningStateV1>;
+  teacherAvailabilityById:
+    Record<string, ManagementWorkspaceTeacherAvailabilityStateV1>;
 }
 
 export interface ManagementWorkspacePlacementChangeV1 {
@@ -91,6 +101,12 @@ export interface ManagementWorkspaceTeacherPlanningChangeV1 {
   after: ManagementWorkspaceTeacherPlanningStateV1;
 }
 
+export interface ManagementWorkspaceTeacherAvailabilityChangeV1 {
+  teacherId: string;
+  before: ManagementWorkspaceTeacherAvailabilityStateV1;
+  after: ManagementWorkspaceTeacherAvailabilityStateV1;
+}
+
 export interface ManagementWorkspaceDiffV1 {
   baseline: ManagementWorkspaceSnapshotIdentityV1;
   hasChanges: boolean;
@@ -102,6 +118,7 @@ export interface ManagementWorkspaceDiffV1 {
     ManagementWorkspaceRequirementResourceChangeV1[];
   inventoryChanges: ManagementWorkspaceInventoryChangeV1[];
   teacherPlanningChanges: ManagementWorkspaceTeacherPlanningChangeV1[];
+  teacherAvailabilityChanges: ManagementWorkspaceTeacherAvailabilityChangeV1[];
 }
 
 function cloneIdentity(
@@ -150,6 +167,26 @@ export function cloneManagementWorkspaceTeacherPlanningV1(
   value: ManagementWorkspaceTeacherPlanningStateV1,
 ): ManagementWorkspaceTeacherPlanningStateV1 {
   return { ...value };
+}
+
+export function cloneManagementWorkspaceTeacherAvailabilityV1(
+  value: ManagementWorkspaceTeacherAvailabilityStateV1,
+): ManagementWorkspaceTeacherAvailabilityStateV1 {
+  return {
+    teacherId: value.teacherId,
+    unavailablePeriods: value.unavailablePeriods
+      .map((slot) => ({ ...slot }))
+      .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.period - b.period),
+  };
+}
+
+function equalTeacherAvailability(
+  left: ManagementWorkspaceTeacherAvailabilityStateV1,
+  right: ManagementWorkspaceTeacherAvailabilityStateV1,
+) {
+  const a = cloneManagementWorkspaceTeacherAvailabilityV1(left);
+  const b = cloneManagementWorkspaceTeacherAvailabilityV1(right);
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function equalTeacherPlanning(
@@ -415,6 +452,27 @@ export function baselineTeacherPlanningById(
   );
 }
 
+export function baselineTeacherAvailabilityById(
+  snapshot: ManagementWorkspaceSnapshotV1,
+): Record<string, ManagementWorkspaceTeacherAvailabilityStateV1> {
+  const grouped = new Map<string, Array<{ dayOfWeek: number; period: number }>>();
+  snapshot.teacherUnavailablePeriods.forEach((slot) => {
+    const values = grouped.get(slot.teacherId) ?? [];
+    values.push({ dayOfWeek: slot.dayOfWeek, period: slot.period });
+    grouped.set(slot.teacherId, values);
+  });
+
+  return Object.fromEntries(
+    snapshot.teachers.map((teacher) => [
+      teacher.id,
+      cloneManagementWorkspaceTeacherAvailabilityV1({
+        teacherId: teacher.id,
+        unavailablePeriods: grouped.get(teacher.id) ?? [],
+      }),
+    ]),
+  );
+}
+
 export function hydrateManagementWorkspaceInventoryDisplayNamesV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   input: {
@@ -474,6 +532,7 @@ export function createManagementWorkspaceWorkingCopyV1(
     teacherInventoryById: baselineTeacherInventoryById(snapshot),
     roomInventoryById: baselineRoomInventoryById(snapshot),
     teacherPlanningById: baselineTeacherPlanningById(snapshot),
+    teacherAvailabilityById: baselineTeacherAvailabilityById(snapshot),
   };
 }
 
@@ -584,6 +643,39 @@ export function setManagementWorkspaceTeacherPlanningV1(
     targetLoad: input.targetLoad,
     maximumLoad: input.maximumLoad,
   };
+}
+
+export function setManagementWorkspaceTeacherAvailabilityV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  teacherId: string,
+  unavailablePeriods: Array<{ dayOfWeek: number; period: number }>,
+) {
+  if (!workingCopy.teacherAvailabilityById[teacherId]) {
+    throw new Error(
+      `Workspace working copy öğretmen uygunluk girdisi bulunamadı (${teacherId}).`,
+    );
+  }
+  const seen = new Set<string>();
+  unavailablePeriods.forEach((slot) => {
+    if (
+      !Number.isInteger(slot.dayOfWeek)
+      || slot.dayOfWeek < 1
+      || slot.dayOfWeek > 5
+      || !Number.isInteger(slot.period)
+      || slot.period < 1
+      || slot.period > 12
+    ) {
+      throw new Error('Öğretmen uygunluk girdisi geçersiz.');
+    }
+    const key = `${slot.dayOfWeek}:${slot.period}`;
+    if (seen.has(key)) throw new Error('Aynı uygun olmayan saat tekrarlanamaz.');
+    seen.add(key);
+  });
+  workingCopy.teacherAvailabilityById[teacherId] =
+    cloneManagementWorkspaceTeacherAvailabilityV1({
+      teacherId,
+      unavailablePeriods,
+    });
 }
 
 export function setManagementWorkspaceRoomInventoryV1(
@@ -702,6 +794,7 @@ export function diffManagementWorkspaceV1(
   const baselineTeacherInventory = baselineTeacherInventoryById(snapshot);
   const baselineRoomInventory = baselineRoomInventoryById(snapshot);
   const baselineTeacherPlanning = baselineTeacherPlanningById(snapshot);
+  const baselineTeacherAvailability = baselineTeacherAvailabilityById(snapshot);
   const snapshotCardIds = new Set(snapshot.cards.map((card) => card.id));
   const snapshotRequirementIds = new Set(
     snapshot.requirements.map((requirement) => requirement.id),
@@ -743,6 +836,14 @@ export function diffManagementWorkspaceV1(
     if (!baselineTeacherPlanning[teacherId]) {
       throw new Error(
         `Workspace working copy bilinmeyen öğretmen planlama girdisi içeriyor (${teacherId}).`,
+      );
+    }
+  });
+
+  Object.keys(workingCopy.teacherAvailabilityById).forEach((teacherId) => {
+    if (!baselineTeacherAvailability[teacherId]) {
+      throw new Error(
+        `Workspace working copy bilinmeyen öğretmen uygunluk girdisi içeriyor (${teacherId}).`,
       );
     }
   });
@@ -870,6 +971,28 @@ export function diffManagementWorkspaceV1(
     )
     .sort((left, right) => left.teacherId.localeCompare(right.teacherId));
 
+  const teacherAvailabilityChanges = snapshot.teachers
+    .map((teacher) => {
+      const before = baselineTeacherAvailability[teacher.id];
+      const after = workingCopy.teacherAvailabilityById[teacher.id];
+      if (!before || !after) {
+        throw new Error(
+          `Workspace working copy öğretmen uygunluk durumu eksik (${teacher.id}).`,
+        );
+      }
+      if (equalTeacherAvailability(before, after)) return null;
+      return {
+        teacherId: teacher.id,
+        before: cloneManagementWorkspaceTeacherAvailabilityV1(before),
+        after: cloneManagementWorkspaceTeacherAvailabilityV1(after),
+      };
+    })
+    .filter(
+      (change): change is ManagementWorkspaceTeacherAvailabilityChangeV1 =>
+        change !== null,
+    )
+    .sort((left, right) => left.teacherId.localeCompare(right.teacherId));
+
   const dirtyCardIds = placementChanges
     .map((change) => change.cardId)
     .sort((left, right) => left.localeCompare(right));
@@ -881,6 +1004,7 @@ export function diffManagementWorkspaceV1(
   const dirtyResourceIds = Array.from(new Set([
     ...inventoryChanges.map((change) => change.resourceId),
     ...teacherPlanningChanges.map((change) => change.teacherId),
+    ...teacherAvailabilityChanges.map((change) => change.teacherId),
   ])).sort((left, right) => left.localeCompare(right));
 
   return {
@@ -889,7 +1013,8 @@ export function diffManagementWorkspaceV1(
       placementChanges.length > 0
       || requirementResourceChanges.length > 0
       || inventoryChanges.length > 0
-      || teacherPlanningChanges.length > 0,
+      || teacherPlanningChanges.length > 0
+      || teacherAvailabilityChanges.length > 0,
     dirtyCardIds,
     dirtyRequirementIds,
     dirtyResourceIds,
@@ -897,5 +1022,6 @@ export function diffManagementWorkspaceV1(
     requirementResourceChanges,
     inventoryChanges,
     teacherPlanningChanges,
+    teacherAvailabilityChanges,
   };
 }
