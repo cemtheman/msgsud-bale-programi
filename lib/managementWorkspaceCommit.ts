@@ -218,7 +218,7 @@ export async function commitManagementWorkspaceV1(
   const token = await getFreshManagementAccessToken(accessToken);
 
   const response = await fetch(
-    `${url}/rest/v1/rpc/management_commit_workspace_v3`,
+    `${url}/rest/v1/rpc/management_commit_workspace_v4`,
     {
       method: 'POST',
       headers: {
