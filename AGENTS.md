@@ -6818,3 +6818,134 @@ git pull --ff-only
 npm test
 npm run build
 ```
+
+
+### 5 Oct 2026 — Course Plan teacher/room resources joined the local workspace
+
+Scope completed in this milestone:
+- Ders Planı teacher pool
+- Ders Planı room strategy
+- Program/Inspector projection of those local plan definitions
+- shared local Undo/Redo
+- atomic Save v2 persistence
+
+Working-copy model:
+- `ManagementWorkspaceWorkingCopyV1` now includes
+  `requirementResourcesById`
+- each requirement resource state stores:
+  - teacherIds
+  - derived teacherMode
+  - resourceMode
+  - roomIds
+  - requiredCapability
+- workspace diff now exposes:
+  - `dirtyRequirementIds`
+  - `requirementResourceChanges`
+- `hasChanges` covers placement + requirement resource changes
+
+Core commits:
+- `7ea6185cf795e8e9e67c7f7ced9560507762d526`
+  requirement resources in working copy/diff
+- `8132f7e4070407854649d5fd52baba3b43f17639`
+  preserve them in command clone/reset
+- `6c56cf0a132709476b244ddf948bb4f595b6a1f3`
+  validator uses local plan resources
+- `742cbc311e5855cec12ab5024ef979f59d738a71`
+  PLACE candidate generation uses local plan resources
+- `93cafb70a3888756accb1d3fe16d16b9a758820a`
+  resource operations added to local history
+- `dbf4c31922e74299021f65628c20c1347aa3cea6`
+  stable operation identity fields
+- `481f74611ad435067ad7cefd74461a685f563c5d`
+  SET_REQUIREMENT_RESOURCES command added
+
+Safety rule:
+- local plan-resource changes are rejected for a requirement that is placed in
+  the immutable baseline
+- code: `REQUIREMENT_RESOURCES_REQUIRE_UNPLACED`
+- user must first remove those placements and Save, then edit the plan against
+  the new unplaced baseline
+- this deliberately matches accepted M17.1/M18.4 server semantics rather than
+  allowing a same-save remove+plan-mutation shortcut
+- commits:
+  - `bf82d3bee1a6e7958a02809757e5ad7cd023ed8f`
+  - `e107931a0e163a42e7d76e7ef52b9ac13722d3b1`
+  - `07f10ba7cc21a85dca0c487cb1f092bf491db4e9`
+
+Atomic Save v2:
+- remote migration applied:
+  `20261005081416_management_workspace_requirement_resources`
+- repo migration:
+  `supabase/migrations/20261005081416_management_workspace_requirement_resources.sql`
+- new RPC:
+  `management_commit_workspace_v2`
+- client Save now sends:
+  - placement changes
+  - requirement resource changes
+- server verifies exact before teacher/room pools + modes/capability
+- requirement resource changes are applied first through accepted controlled
+  teacher/room functions
+- intermediate snapshot/baseline hashes are then passed into existing
+  `management_commit_workspace_v1` for placement REMOVE/MOVE/PLACE
+- all steps are one PostgreSQL transaction; any nested failure rolls everything
+  back
+- commits:
+  - `fc7562e6d4c8084395dac1c89d1b1449898f59ba`
+  - `3b08492f8c8987c97ef6f0986702c9943add463d`
+  - `78c1ca6b0d04788398e09d3ae869f207763c942e`
+- direct SQL no-op invocation was intentionally blocked by the RPC's EDITOR
+  role guard in service SQL context; no data was mutated by that verification
+
+Local projections/UI:
+- Program cards project local teacher/room plan definitions:
+  `ce96c347479fabbe329802d24b642ee699ad474e`
+- Course Plan adapter:
+  `286f48e0c7dd30ec9d9007b11f69109fc80629f2`
+- Course Plan + Inspector teacher pool and room-strategy callbacks now write the
+  working copy instead of DB:
+  `a551ac38c592f5601c5f0be4f71233d1409be0a6`
+- server-only Course Plan actions (structure, teacher policy/reconciliation)
+  are guarded while local unsaved changes exist:
+  `c6f0b513e1069f1da12bf37880a8ce75860ec603`
+- local plan-resource Undo/Redo messages now identify Ders Planı changes:
+  `329667e9e037e8b7fa80200f1c35bf9720042782`
+
+Tests added/extended:
+- working-copy resource diff:
+  `357ee1db6ddb7b181cf269e8c19d386319d54b2f`
+- resource history Undo/Redo:
+  `b711e815ef92de884ff5173cd9bfe8c61737ebb0`
+- shared command layer:
+  `1bbf9537f68222ba0d6bdb209e0b94af05792eb2`
+- atomic payload + placed-baseline block:
+  `2240d55ef0fd8e1fe61ff7b00d7961e27f9108a8`
+- Program projection:
+  `5ef9217724044361b7bd8ec9e3289f226464b82c`
+- Course Plan projection:
+  `7297d8bdd43453744ad2c9605dd37f87b5873c2c`
+- PLACE candidates follow unsaved local plan resources:
+  `efce463d59980d0e8542d15e7005e4e418cfd9c3`
+
+Expected acceptance after gate:
+1. requirement with baseline 0 placed blocks:
+   teacher pool edit -> immediate local Course Plan + Program projection
+2. Undo/Redo restores/reapplies plan source definition
+3. room strategy edit behaves the same
+4. pool PLACE candidates immediately use the unsaved new teacher/room definition
+5. reload/leave remains protected while dirty
+6. Save reports Ders Planı change count, calls workspace v2, rebases snapshot and
+   clears dirty state
+7. reload confirms persisted teacher/room plan definition
+8. placed-baseline requirement refuses plan resource edit with instruction to
+   remove + Save first
+
+Still intentionally server-backed:
+- teacher assignment scope / continuity policy
+- teacher reconciliation helpers
+- weekly load / partition / term structure editor
+- Resources inventory/name/status/departure/load/availability
+- Placement Assistant analysis/apply
+
+Next after this gate:
+- localize teacher assignment scope / continuity policy, because it is the last
+  major teacher-policy state inside Ders Planı before moving to Resources.
