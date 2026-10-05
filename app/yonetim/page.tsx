@@ -2349,14 +2349,37 @@ export default function ManagementPage() {
     setCommandNotice(null);
 
     try {
-      const details = await Promise.all(
-        selectedCardIds.map(async (cardId) => ({
-          cardId,
-          detail: await retryManagementRead(
-            () => fetchPolicyAwareCandidates(session.accessToken, cardId, board),
-          ),
-        })),
-      );
+      const localSnapshot = workspaceSnapshotRef.current;
+      const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+      if (!localSnapshot || !localWorkingCopy) {
+        throw new Error('Yerel çalışma alanı hazır değil.');
+      }
+
+      const details = selectedCardIds.map((cardId) => {
+        const placement = localWorkingCopy.placementsByCardId[cardId];
+        const isPlaced = Boolean(
+          placement
+          && placement.dayOfWeek !== null
+          && placement.startPeriod !== null
+        );
+        const detail = isPlaced
+          ? buildManagementWorkspaceMoveCandidateDetailV1(
+            localSnapshot,
+            localWorkingCopy,
+            cardId,
+          )
+          : buildManagementWorkspacePlacementCandidateDetailV1(
+            localSnapshot,
+            cardId,
+          );
+
+        if (!detail) {
+          throw new Error('Birleşik dersin yerel aday bilgisi hazırlanamadı.');
+        }
+
+        return { cardId, detail };
+      });
 
       const moves: ManagementGroupDropCandidate[] = details.flatMap(
         ({ cardId, detail }) => {
@@ -2463,12 +2486,37 @@ export default function ManagementPage() {
     });
 
     try {
-      const details = await Promise.all(
-        cardIds.map(async (cardId) => ({
-          cardId,
-          detail: await fetchPolicyAwareCandidates(session.accessToken, cardId, board),
-        })),
-      );
+      const localSnapshot = workspaceSnapshotRef.current;
+      const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+      if (!localSnapshot || !localWorkingCopy) {
+        throw new Error('Yerel çalışma alanı hazır değil.');
+      }
+
+      const details = cardIds.map((cardId) => {
+        const placement = localWorkingCopy.placementsByCardId[cardId];
+        const isPlaced = Boolean(
+          placement
+          && placement.dayOfWeek !== null
+          && placement.startPeriod !== null
+        );
+        const detail = isPlaced
+          ? buildManagementWorkspaceMoveCandidateDetailV1(
+            localSnapshot,
+            localWorkingCopy,
+            cardId,
+          )
+          : buildManagementWorkspacePlacementCandidateDetailV1(
+            localSnapshot,
+            cardId,
+          );
+
+        if (!detail) {
+          throw new Error('Bırakma hedefinin yerel aday bilgisi hazırlanamadı.');
+        }
+
+        return { cardId, detail };
+      });
 
       const resolved = details.map(({ cardId, detail }) => {
         const card = board.cards.find((item) => item.id === cardId) ?? null;
