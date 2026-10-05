@@ -8177,3 +8177,31 @@ Fixes:
 No DB contract or lifecycle behavior changed.
 
 Gate status remains: **PENDING BUILD RECHECK**
+
+
+### 5 Oct 2026 — Resource create/delete lifecycle localization CLOSED / PASS
+
+Acceptance gate:
+- focused: **8/8 files, 72/72 tests PASS**
+- full suite: **34/34 files, 221/221 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: **PASS**
+- `git diff --check`: PASS
+- migration parity: **PASS**
+  - `20261005163702` local = remote
+
+Status: **CLOSED / PASS**
+
+Accepted behavior:
+- teacher/room creation is local-workspace-native with client-generated UUIDs
+- newly created resources can be used immediately in Course Plan, Program, candidate generation and assignments before Save
+- unused teacher/room deletion is local-workspace-native
+- referenced resource deletion is blocked until references are cleared
+- create/delete participates in shared Undo/Redo
+- create -> delete in one unsaved workspace collapses to no lifecycle diff
+- Resources, Program and Course Plan project staged creates/deletes immediately
+- main Save persists lifecycle changes through `management_commit_workspace_v9`
+- v9 creates staged resources before v8, deletes staged existing resources after v8, and records M34 history in one transaction
+- archive lifecycle remains intentionally server-backed because `archived_at` is still outside the workspace schema
