@@ -7461,3 +7461,30 @@ Expected migration tail includes both:
 
 Do not start departure/load/availability/profile localization until this gate is
 clean.
+
+
+#### Teacher-policy milestone PASS — 5 Oct 2026
+
+Final re-gate:
+- focused working-copy tests: **7/7 PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9**
+- `/yonetim` route: PASS
+
+This closes the local teacher assignment scope / continuity policy milestone.
+
+Accepted local-workspace state now covers:
+- placement MOVE / PLACE / REMOVE
+- grouped and parallel-bundle movement
+- placement teacher/room edits
+- Program Durumu bulk placement resource edits
+- Course Plan teacher pool
+- Course Plan room strategy
+- Course Plan teacher assignment scope / continuity policy
+- shared Undo/Redo
+- atomic Save v2
+
+Next major boundary:
+**Resources inventory / operational status editing**
+(teacher and room identity/status/departure/inactivation flows).
