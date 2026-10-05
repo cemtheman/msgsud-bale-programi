@@ -7248,3 +7248,25 @@ npm run build
 ```
 
 If both pass, the teacher-policy localization milestone is accepted.
+
+
+#### Teacher-policy build fixture fix — 5 Oct 2026
+
+Re-gate result:
+- focused working-copy tests: **7/7 PASS**
+- build reached TypeScript and failed only because the invalid-policy test
+  mutated a readonly `requirements` array directly
+
+Fix:
+- test fixture now creates an immutable cloned snapshot with the invalid policy
+  value
+- production workspace code unchanged
+
+Commit:
+- `095d04bb1be6204401e0e355bd4455a4e1efe969`
+
+Re-run:
+```bash
+npm test -- tests/managementWorkspaceWorkingCopy.test.ts
+npm run build
+```
