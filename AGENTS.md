@@ -8067,3 +8067,28 @@ Fix:
 - no DB contract change
 
 Gate status remains: **PENDING BUILD RECHECK**
+
+
+### 5 Oct 2026 — Room profile localization CLOSED / PASS
+
+Acceptance gate:
+- full suite: **34/34 files, 215/215 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: **PASS**
+- `git diff --check`: PASS
+- migration parity: **PASS**
+  - `20261005125556` local = remote
+  - `20261005125959` local = remote
+
+Status: **CLOSED / PASS**
+
+Accepted behavior:
+- room capabilities + knowledge status are snapshot-backed local workspace state
+- edits participate in shared Undo/Redo
+- Resources projection updates immediately
+- local validation and capability-mode candidate generation use unsaved room-profile changes
+- coordinated Save ordering commits placement/plan/resource changes before final room-profile validation
+- main Save persists room profiles through `management_commit_workspace_v8`
+- alias profiles remain non-editable
