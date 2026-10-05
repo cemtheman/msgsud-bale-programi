@@ -174,6 +174,7 @@ export function ManagementResources({
   ) => Promise<void>;
   onPreviewTeacherDeparture: (
     teacherId: string,
+    intent: 'INACTIVATE' | 'ARCHIVE',
   ) => Promise<ManagementTeacherDeparturePreview>;
   onApplyTeacherDeparture: (
     teacherId: string,
@@ -536,7 +537,9 @@ export function ManagementResources({
     setTeacherDepartureLoading(true);
 
     try {
-      setTeacherDeparturePreview(await onPreviewTeacherDeparture(row.id));
+      setTeacherDeparturePreview(
+        await onPreviewTeacherDeparture(row.id, intent),
+      );
     } catch (reason: unknown) {
       setTeacherDepartureError(
         reason instanceof Error
