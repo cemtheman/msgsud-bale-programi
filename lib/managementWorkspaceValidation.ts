@@ -363,10 +363,34 @@ export function validateManagementWorkspaceV1(
     snapshot.cards.map((card) => [card.id, card]),
   );
   const teachers = new Map(
-    snapshot.teachers.map((teacher) => [teacher.id, teacher]),
+    snapshot.teachers.map((teacher) => {
+      const local = workingCopy.teacherInventoryById[teacher.id];
+      return [
+        teacher.id,
+        local
+          ? {
+              ...teacher,
+              name: local.displayName,
+              operationalStatus: local.operationalStatus,
+            }
+          : teacher,
+      ];
+    }),
   );
   const rooms = new Map(
-    snapshot.rooms.map((room) => [room.id, room]),
+    snapshot.rooms.map((room) => {
+      const local = workingCopy.roomInventoryById[room.id];
+      return [
+        room.id,
+        local
+          ? {
+              ...room,
+              name: local.displayName,
+              operationalStatus: local.operationalStatus,
+            }
+          : room,
+      ];
+    }),
   );
   const teacherPools = new Map<string, Set<string>>();
   const roomPools = new Map<string, Set<string>>();
