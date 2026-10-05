@@ -22,6 +22,13 @@ export interface ManagementWorkspaceTeacherInventoryStateV1 {
   operationalStatus: 'ACTIVE' | 'INACTIVE';
 }
 
+export interface ManagementWorkspaceTeacherPlanningStateV1 {
+  teacherId: string;
+  minimumLoad: number | null;
+  targetLoad: number | null;
+  maximumLoad: number | null;
+}
+
 export interface ManagementWorkspaceRoomInventoryStateV1 {
   resourceType: 'ROOM';
   resourceId: string;
@@ -55,6 +62,8 @@ export interface ManagementWorkspaceWorkingCopyV1 {
     Record<string, ManagementWorkspaceTeacherInventoryStateV1>;
   roomInventoryById:
     Record<string, ManagementWorkspaceRoomInventoryStateV1>;
+  teacherPlanningById:
+    Record<string, ManagementWorkspaceTeacherPlanningStateV1>;
 }
 
 export interface ManagementWorkspacePlacementChangeV1 {
@@ -76,6 +85,12 @@ export interface ManagementWorkspaceInventoryChangeV1 {
   after: ManagementWorkspaceInventoryStateV1;
 }
 
+export interface ManagementWorkspaceTeacherPlanningChangeV1 {
+  teacherId: string;
+  before: ManagementWorkspaceTeacherPlanningStateV1;
+  after: ManagementWorkspaceTeacherPlanningStateV1;
+}
+
 export interface ManagementWorkspaceDiffV1 {
   baseline: ManagementWorkspaceSnapshotIdentityV1;
   hasChanges: boolean;
@@ -86,6 +101,7 @@ export interface ManagementWorkspaceDiffV1 {
   requirementResourceChanges:
     ManagementWorkspaceRequirementResourceChangeV1[];
   inventoryChanges: ManagementWorkspaceInventoryChangeV1[];
+  teacherPlanningChanges: ManagementWorkspaceTeacherPlanningChangeV1[];
 }
 
 function cloneIdentity(
@@ -128,6 +144,24 @@ export function cloneManagementWorkspaceInventoryV1(
   value: ManagementWorkspaceInventoryStateV1,
 ): ManagementWorkspaceInventoryStateV1 {
   return { ...value };
+}
+
+export function cloneManagementWorkspaceTeacherPlanningV1(
+  value: ManagementWorkspaceTeacherPlanningStateV1,
+): ManagementWorkspaceTeacherPlanningStateV1 {
+  return { ...value };
+}
+
+function equalTeacherPlanning(
+  left: ManagementWorkspaceTeacherPlanningStateV1,
+  right: ManagementWorkspaceTeacherPlanningStateV1,
+) {
+  return (
+    left.teacherId === right.teacherId
+    && left.minimumLoad === right.minimumLoad
+    && left.targetLoad === right.targetLoad
+    && left.maximumLoad === right.maximumLoad
+  );
 }
 
 function normalizeTeacherOperationalStatus(
@@ -358,6 +392,29 @@ export function baselineRoomInventoryById(
   );
 }
 
+export function baselineTeacherPlanningById(
+  snapshot: ManagementWorkspaceSnapshotV1,
+): Record<string, ManagementWorkspaceTeacherPlanningStateV1> {
+  const byTeacher = new Map(
+    snapshot.teacherLoadTargets.map((target) => [target.teacherId, target]),
+  );
+
+  return Object.fromEntries(
+    snapshot.teachers.map((teacher) => {
+      const target = byTeacher.get(teacher.id);
+      return [
+        teacher.id,
+        {
+          teacherId: teacher.id,
+          minimumLoad: target?.minimumLoad ?? null,
+          targetLoad: target?.targetLoad ?? null,
+          maximumLoad: target?.maximumLoad ?? null,
+        },
+      ];
+    }),
+  );
+}
+
 export function hydrateManagementWorkspaceInventoryDisplayNamesV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   input: {
@@ -416,6 +473,7 @@ export function createManagementWorkspaceWorkingCopyV1(
     requirementResourcesById: baselineRequirementResourcesById(snapshot),
     teacherInventoryById: baselineTeacherInventoryById(snapshot),
     roomInventoryById: baselineRoomInventoryById(snapshot),
+    teacherPlanningById: baselineTeacherPlanningById(snapshot),
   };
 }
 
@@ -473,6 +531,58 @@ export function setManagementWorkspaceTeacherInventoryV1(
     ...current,
     displayName,
     operationalStatus: input.operationalStatus ?? current.operationalStatus,
+  };
+}
+
+export function setManagementWorkspaceTeacherPlanningV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  teacherId: string,
+  input: {
+    minimumLoad: number | null;
+    targetLoad: number | null;
+    maximumLoad: number | null;
+  },
+) {
+  const current = workingCopy.teacherPlanningById[teacherId];
+  if (!current) {
+    throw new Error(
+      `Workspace working copy öğretmen planlama girdisi bulunamadı (${teacherId}).`,
+    );
+  }
+
+  const values = [input.minimumLoad, input.targetLoad, input.maximumLoad];
+  values.forEach((value) => {
+    if (value !== null && (!Number.isInteger(value) || value < 0 || value > 60)) {
+      throw new Error('Öğretmen yük hedefleri 0–60 arasında tam sayı olmalı.');
+    }
+  });
+  if (
+    input.minimumLoad !== null
+    && input.targetLoad !== null
+    && input.minimumLoad > input.targetLoad
+  ) {
+    throw new Error('Minimum yük hedef yükten büyük olamaz.');
+  }
+  if (
+    input.targetLoad !== null
+    && input.maximumLoad !== null
+    && input.targetLoad > input.maximumLoad
+  ) {
+    throw new Error('Hedef yük maksimum yükten büyük olamaz.');
+  }
+  if (
+    input.minimumLoad !== null
+    && input.maximumLoad !== null
+    && input.minimumLoad > input.maximumLoad
+  ) {
+    throw new Error('Minimum yük maksimum yükten büyük olamaz.');
+  }
+
+  workingCopy.teacherPlanningById[teacherId] = {
+    teacherId,
+    minimumLoad: input.minimumLoad,
+    targetLoad: input.targetLoad,
+    maximumLoad: input.maximumLoad,
   };
 }
 
@@ -591,6 +701,7 @@ export function diffManagementWorkspaceV1(
   const baselineResourcesById = baselineRequirementResourcesById(snapshot);
   const baselineTeacherInventory = baselineTeacherInventoryById(snapshot);
   const baselineRoomInventory = baselineRoomInventoryById(snapshot);
+  const baselineTeacherPlanning = baselineTeacherPlanningById(snapshot);
   const snapshotCardIds = new Set(snapshot.cards.map((card) => card.id));
   const snapshotRequirementIds = new Set(
     snapshot.requirements.map((requirement) => requirement.id),
@@ -624,6 +735,14 @@ export function diffManagementWorkspaceV1(
     if (!baselineRoomInventory[resourceId]) {
       throw new Error(
         `Workspace working copy bilinmeyen salon içeriyor (${resourceId}).`,
+      );
+    }
+  });
+
+  Object.keys(workingCopy.teacherPlanningById).forEach((teacherId) => {
+    if (!baselineTeacherPlanning[teacherId]) {
+      throw new Error(
+        `Workspace working copy bilinmeyen öğretmen planlama girdisi içeriyor (${teacherId}).`,
       );
     }
   });
@@ -728,6 +847,29 @@ export function diffManagementWorkspaceV1(
     || left.resourceId.localeCompare(right.resourceId),
   );
 
+  const teacherPlanningChanges = snapshot.teachers
+    .map((teacher) => {
+      const before = baselineTeacherPlanning[teacher.id];
+      const after = workingCopy.teacherPlanningById[teacher.id];
+      if (!before || !after) {
+        throw new Error(
+          `Workspace working copy öğretmen planlama durumu eksik (${teacher.id}).`,
+        );
+      }
+      if (equalTeacherPlanning(before, after)) return null;
+
+      return {
+        teacherId: teacher.id,
+        before: cloneManagementWorkspaceTeacherPlanningV1(before),
+        after: cloneManagementWorkspaceTeacherPlanningV1(after),
+      };
+    })
+    .filter(
+      (change): change is ManagementWorkspaceTeacherPlanningChangeV1 =>
+        change !== null,
+    )
+    .sort((left, right) => left.teacherId.localeCompare(right.teacherId));
+
   const dirtyCardIds = placementChanges
     .map((change) => change.cardId)
     .sort((left, right) => left.localeCompare(right));
@@ -736,21 +878,24 @@ export function diffManagementWorkspaceV1(
     .map((change) => change.requirementId)
     .sort((left, right) => left.localeCompare(right));
 
-  const dirtyResourceIds = inventoryChanges
-    .map((change) => change.resourceId)
-    .sort((left, right) => left.localeCompare(right));
+  const dirtyResourceIds = Array.from(new Set([
+    ...inventoryChanges.map((change) => change.resourceId),
+    ...teacherPlanningChanges.map((change) => change.teacherId),
+  ])).sort((left, right) => left.localeCompare(right));
 
   return {
     baseline: cloneIdentity(snapshot.identity),
     hasChanges:
       placementChanges.length > 0
       || requirementResourceChanges.length > 0
-      || inventoryChanges.length > 0,
+      || inventoryChanges.length > 0
+      || teacherPlanningChanges.length > 0,
     dirtyCardIds,
     dirtyRequirementIds,
     dirtyResourceIds,
     placementChanges,
     requirementResourceChanges,
     inventoryChanges,
+    teacherPlanningChanges,
   };
 }
