@@ -126,6 +126,16 @@ function workingCopy(): ManagementWorkspaceWorkingCopyV1 {
         maximumLoad: null,
       },
     },
+    teacherAvailabilityById: {
+      'teacher-1': {
+        teacherId: 'teacher-1',
+        unavailablePeriods: [],
+      },
+      'teacher-2': {
+        teacherId: 'teacher-2',
+        unavailablePeriods: [],
+      }
+    },
   };
 }
 
