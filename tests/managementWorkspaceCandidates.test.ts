@@ -8,6 +8,8 @@ import {
 import {
   createManagementWorkspaceWorkingCopyV1,
   removeManagementWorkspacePlacementV1,
+  setManagementWorkspaceRequirementRoomsV1,
+  setManagementWorkspaceRequirementTeachersV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 
 function snapshot(): ManagementWorkspaceSnapshotV1 {
@@ -258,6 +260,57 @@ describe('management workspace local move candidates', () => {
     expect(detail?.validCandidates.every(
       (candidate) => candidate.roomId === 'room-capable',
     )).toBe(true);
+  });
+
+  it('uses unsaved local teacher and room plan changes for PLACE candidates', () => {
+    const base = snapshot();
+    const source: ManagementWorkspaceSnapshotV1 = {
+      ...base,
+      teachers: [
+        ...base.teachers,
+        {
+          id: 'teacher-2',
+          name: 'Öğretmen 2',
+          operationalStatus: 'ACTIVE',
+        },
+      ],
+      rooms: [
+        ...base.rooms,
+        {
+          ...base.rooms[0],
+          id: 'room-2',
+          name: 'Salon 2',
+        },
+      ],
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspaceRequirementTeachersV1(
+      copy,
+      'requirement-1',
+      ['teacher-2'],
+    );
+    setManagementWorkspaceRequirementRoomsV1(
+      copy,
+      'requirement-1',
+      {
+        resourceMode: 'FIXED',
+        roomIds: ['room-2'],
+        requiredCapability: null,
+      },
+    );
+
+    const detail = buildManagementWorkspacePlacementCandidateDetailV1(
+      source,
+      copy,
+      'card-1',
+    );
+
+    expect(detail?.validCandidates).toHaveLength(60);
+    expect(detail?.validCandidates.every((candidate) => (
+      candidate.teacherId === 'teacher-2'
+      && candidate.roomId === 'room-2'
+    ))).toBe(true);
   });
 
   it('returns null for an unplaced MOVE candidate so PLACE generation is explicit', () => {
