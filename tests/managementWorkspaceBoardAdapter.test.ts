@@ -98,6 +98,22 @@ function copy(): ManagementWorkspaceWorkingCopyV1 {
         requiredCapability: null,
       },
     },
+    teacherInventoryById: {
+      'teacher-1': {
+        resourceType: 'TEACHER',
+        resourceId: 'teacher-1',
+        displayName: 'Öğretmen 1',
+        operationalStatus: 'ACTIVE',
+      },
+    },
+    roomInventoryById: {
+      'room-1': {
+        resourceType: 'ROOM',
+        resourceId: 'room-1',
+        displayName: '105A',
+        operationalStatus: 'ACTIVE',
+      },
+    },
   };
 }
 
