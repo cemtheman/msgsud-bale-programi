@@ -842,6 +842,7 @@ export default function ManagementPage() {
             projectManagementBoardFromWorkspaceV1(
               nextBoard,
               nextWorkingCopy,
+              nextWorkspaceSnapshot,
             ),
           );
         } else {
@@ -2034,6 +2035,7 @@ export default function ManagementPage() {
         projectManagementBoardFromWorkspaceV1(
           serverBoard,
           localWorkingCopy,
+          localSnapshot,
         ),
       );
       setWorkspaceDirty(
@@ -2162,6 +2164,7 @@ export default function ManagementPage() {
         projectManagementBoardFromWorkspaceV1(
           serverBoard,
           localWorkingCopy,
+          localSnapshot,
         ),
       );
       setWorkspaceDirty(
@@ -2796,6 +2799,7 @@ export default function ManagementPage() {
         projectManagementBoardFromWorkspaceV1(
           serverBoard,
           localWorkingCopy,
+          localSnapshot,
         ),
       );
       setWorkspaceDirty(
@@ -2941,6 +2945,7 @@ export default function ManagementPage() {
         projectManagementBoardFromWorkspaceV1(
           serverBoard,
           localWorkingCopy,
+          localSnapshot,
         ),
       );
       setWorkspaceDirty(
@@ -3050,6 +3055,7 @@ export default function ManagementPage() {
         projectManagementBoardFromWorkspaceV1(
           serverBoard,
           localWorkingCopy,
+          localSnapshot,
         ),
       );
       setWorkspaceDirty(
@@ -3174,6 +3180,7 @@ export default function ManagementPage() {
       projectManagementBoardFromWorkspaceV1(
         serverBoard,
         localWorkingCopy,
+        localSnapshot,
       ),
     );
     setWorkspaceDirty(
@@ -3267,6 +3274,7 @@ export default function ManagementPage() {
       projectManagementBoardFromWorkspaceV1(
         serverBoard,
         localWorkingCopy,
+        localSnapshot,
       ),
     );
     setWorkspaceDirty(
@@ -3368,6 +3376,7 @@ export default function ManagementPage() {
       projectManagementBoardFromWorkspaceV1(
         serverBoard,
         localWorkingCopy,
+        localSnapshot,
       ),
     );
     setWorkspaceDirty(
@@ -3422,6 +3431,7 @@ export default function ManagementPage() {
       projectManagementBoardFromWorkspaceV1(
         serverBoard,
         localWorkingCopy,
+        localSnapshot,
       ),
     );
     setWorkspaceDirty(
@@ -3523,6 +3533,7 @@ export default function ManagementPage() {
         projectManagementBoardFromWorkspaceV1(
           freshBoard,
           freshWorkingCopy,
+          freshSnapshot,
         ),
       );
       setWorkspaceDirty(false);
@@ -4656,6 +4667,7 @@ export default function ManagementPage() {
                   projectManagementBoardFromWorkspaceV1(
                     serverBoard,
                     localWorkingCopy,
+                    localSnapshot,
                   ),
                 );
                 setWorkspaceDirty(
@@ -4824,6 +4836,7 @@ export default function ManagementPage() {
               projectManagementBoardFromWorkspaceV1(
                 serverBoard,
                 localWorkingCopy,
+                localSnapshot,
               ),
             );
             setWorkspaceDirty(
@@ -4907,6 +4920,7 @@ export default function ManagementPage() {
               projectManagementBoardFromWorkspaceV1(
                 serverBoard,
                 localWorkingCopy,
+                localSnapshot,
               ),
             );
             setWorkspaceDirty(
@@ -5249,6 +5263,7 @@ export default function ManagementPage() {
               projectManagementBoardFromWorkspaceV1(
                 serverBoard,
                 localWorkingCopy,
+                localSnapshot,
               ),
             );
             setWorkspaceDirty(
@@ -5388,6 +5403,7 @@ export default function ManagementPage() {
               projectManagementBoardFromWorkspaceV1(
                 serverBoard,
                 localWorkingCopy,
+                localSnapshot,
               ),
             );
             setWorkspaceDirty(
@@ -5726,6 +5742,7 @@ export default function ManagementPage() {
               projectManagementBoardFromWorkspaceV1(
                 serverBoard,
                 localWorkingCopy,
+                localSnapshot,
               ),
             );
             setWorkspaceDirty(
