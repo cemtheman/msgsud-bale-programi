@@ -5117,22 +5117,35 @@ export default function ManagementPage() {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
-            if (mode === 'ARCHIVE_CLEAR') {
+            if (mode !== 'INACTIVATE_KEEP') {
               assertServerResourceMutationAllowed();
               setCommandBusy(true);
-              setCommandActivity('Öğretmen kaydı derslerden ayrılıp arşivleniyor.');
+              setCommandActivity(
+                mode === 'ARCHIVE_CLEAR'
+                  ? 'Öğretmen kaydı derslerden ayrılıp arşivleniyor.'
+                  : 'Öğretmen derslerden çıkarılıp atamaya kapatılıyor.',
+              );
 
               try {
+                const serverPreview = mode === 'ARCHIVE_CLEAR'
+                  ? null
+                  : await previewManagementTeacherDeparture(
+                    session.accessToken,
+                    resources.revisionId,
+                    teacherId,
+                  );
                 const result = await applyManagementTeacherDeparture(
                   session.accessToken,
                   resources.revisionId,
                   teacherId,
                   mode,
-                  expectedStateToken,
+                  serverPreview?.stateToken ?? expectedStateToken,
                 );
                 setCommandNotice({
                   kind: 'success',
-                  text: `“${result.teacherName}” aktif kaynaklardan silindi. ${result.placedBlockCount} program bloğu gün/saat/salon korunarak öğretmensiz bırakıldı.`,
+                  text: mode === 'ARCHIVE_CLEAR'
+                    ? `“${result.teacherName}” aktif kaynaklardan silindi. ${result.placedBlockCount} program bloğu gün/saat/salon korunarak öğretmensiz bırakıldı.`
+                    : `“${result.teacherName}” atamaya kapatıldı. ${result.placedBlockCount} program bloğu gün/saat/salon korunarak öğretmensiz bırakıldı.`,
                 });
                 setRefreshToken((value) => value + 1);
               } finally {
@@ -5159,7 +5172,7 @@ export default function ManagementPage() {
               localSnapshot,
               localWorkingCopy,
               teacherId,
-              mode,
+              'INACTIVATE_KEEP',
             );
             if (prepared.preview.stateToken !== expectedStateToken) {
               throw new Error(
@@ -5200,9 +5213,7 @@ export default function ManagementPage() {
             setCandidateDetail(null);
             setCommandNotice({
               kind: 'success',
-              text: mode === 'INACTIVATE_CLEAR'
-                ? `“${prepared.preview.teacherName}” yerel çalışma alanında atamaya kapatıldı. ${prepared.preview.placedBlockCount} program bloğu aynı gün/saat/salonda öğretmensiz bırakıldı. Ana Kaydet ile veritabanına yazılacak.`
-                : `“${prepared.preview.teacherName}” yerel çalışma alanında yeni atamalara kapatıldı; mevcut ${prepared.preview.placedBlockCount} program bloğundaki öğretmen korundu. Ana Kaydet ile veritabanına yazılacak.`,
+              text: `“${prepared.preview.teacherName}” yerel çalışma alanında yeni atamalara kapatıldı; mevcut ${prepared.preview.placedBlockCount} program bloğundaki öğretmen korundu. Ana Kaydet ile veritabanına yazılacak.`,
             });
           }}
           onDeleteTeacher={async (teacherId) => {
