@@ -126,6 +126,14 @@ function cloneWorkingCopy(
         ],
       ),
     ),
+    requirementCatalogById: Object.fromEntries(
+      Object.entries(source.requirementCatalogById).map(
+        ([requirementId, requirement]) => [
+          requirementId,
+          { ...requirement },
+        ],
+      ),
+    ),
     requirementResourcesById: Object.fromEntries(
       Object.entries(source.requirementResourcesById).map(
         ([requirementId, resource]) => [
@@ -520,6 +528,7 @@ export function resetManagementWorkspaceWorkingCopyV1(
   target.placementsByCardId = clean.placementsByCardId;
   target.cardsById = clean.cardsById;
   target.requirementStructureById = clean.requirementStructureById;
+  target.requirementCatalogById = clean.requirementCatalogById;
   target.requirementResourcesById = clean.requirementResourcesById;
   target.teacherInventoryById = clean.teacherInventoryById;
   target.roomInventoryById = clean.roomInventoryById;
