@@ -106,6 +106,26 @@ function cloneWorkingCopy(
         },
       ]),
     ),
+    cardsById: Object.fromEntries(
+      Object.entries(source.cardsById).map(([cardId, card]) => [
+        cardId,
+        { ...card },
+      ]),
+    ),
+    requirementStructureById: Object.fromEntries(
+      Object.entries(source.requirementStructureById).map(
+        ([requirementId, structure]) => [
+          requirementId,
+          {
+            ...structure,
+            preferredPartition: [...structure.preferredPartition],
+            allowedPartitions: structure.allowedPartitions.map(
+              (partition) => [...partition],
+            ),
+          },
+        ],
+      ),
+    ),
     requirementResourcesById: Object.fromEntries(
       Object.entries(source.requirementResourcesById).map(
         ([requirementId, resource]) => [
