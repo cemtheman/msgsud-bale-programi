@@ -128,6 +128,7 @@ import {
   undoManagementBundle,
   undoManagementCardGroup,
   updateManagementRequirementTeachers,
+  translateManagementPlacementResourceBlockReason,
   type ManagementCommandDescriptor,
   type ManagementCommandState,
   type ManagementRootAction,
