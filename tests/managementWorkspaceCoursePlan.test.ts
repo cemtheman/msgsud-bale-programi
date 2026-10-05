@@ -45,7 +45,13 @@ function coursePlan(): ManagementCoursePlanData {
       { id: 'room-2', name: 'Salon 2' },
     ],
     roomCapabilityOptions: ['STUDIO_SMALL_GROUP'],
-    teacherContinuityViolations: [],
+    teacherContinuityViolations: [{
+      requirementId: 'requirement-1',
+      subjectName: 'Türkçe',
+      groupName: '5A',
+      distinctResolvedTeachers: 2,
+      placedBlocks: 2,
+    }],
   };
 }
 
@@ -96,7 +102,9 @@ describe('management workspace Course Plan adapter', () => {
       roomNames: [],
       requiredCapability: 'STUDIO_SMALL_GROUP',
     });
+    expect(projected.teacherContinuityViolations).toEqual([]);
     expect(source.rows[0].teacherMode).toBe('FIXED');
     expect(source.rows[0].resourceMode).toBe('FIXED');
+    expect(source.teacherContinuityViolations).toHaveLength(1);
   });
 });
