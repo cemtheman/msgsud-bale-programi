@@ -3564,6 +3564,9 @@ export default function ManagementPage() {
           result.changedResourceCount > 0
             ? `${result.changedResourceCount} kaynak değişikliği`
             : null,
+          (result.changedStructureCount ?? 0) > 0
+            ? `${result.changedStructureCount} ders yapısı değişikliği`
+            : null,
         ].filter(Boolean).join(' + ') + ' kaydedildi.',
       });
 
