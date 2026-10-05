@@ -60,6 +60,21 @@ function cloneWorkingCopy(
         },
       ]),
     ),
+    requirementResourcesById: Object.fromEntries(
+      Object.entries(source.requirementResourcesById).map(
+        ([requirementId, resource]) => [
+          requirementId,
+          {
+            requirementId: resource.requirementId,
+            teacherIds: [...resource.teacherIds],
+            teacherMode: resource.teacherMode,
+            resourceMode: resource.resourceMode,
+            roomIds: [...resource.roomIds],
+            requiredCapability: resource.requiredCapability,
+          },
+        ],
+      ),
+    ),
   };
 }
 
@@ -325,6 +340,7 @@ export function resetManagementWorkspaceWorkingCopyV1(
   target.schemaVersion = clean.schemaVersion;
   target.baseline = clean.baseline;
   target.placementsByCardId = clean.placementsByCardId;
+  target.requirementResourcesById = clean.requirementResourcesById;
 
   history.nextSequence = 1;
   history.nextBatchId = 1;
