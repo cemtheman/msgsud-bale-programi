@@ -7608,3 +7608,56 @@ Accepted behavior:
 
 Next:
 **Phase B — localize INACTIVATE_CLEAR with a narrow atomic DB contract change.**
+
+
+### 5 Oct 2026 — Teacher inactivation localization phase B (INACTIVATE_CLEAR)
+
+Implemented:
+- local workspace command batch for `INACTIVATE_CLEAR`
+  - teacher inventory -> INACTIVE
+  - teacher removed from all current local requirement teacher pools
+  - teacher removed from all current local placements
+  - day/start/room remain unchanged
+  - one shared Undo/Redo batch
+- local validator accepts only the departure-shaped placed-requirement transition while preserving the normal placed-resource guard
+- required-teacher gaps caused by an exact departure-clear shape are allowed in edit/commit preparation
+- new assignments of inactive teachers remain blocked
+- Resources modal routes `INACTIVATE_KEEP` and `INACTIVATE_CLEAR` through local workspace; `ARCHIVE_CLEAR` remains server-backed
+- workspace commit client now targets `management_commit_workspace_v4`
+
+DB contract:
+- migration: `20261005115509_management_workspace_teacher_departure_clear`
+- applied successfully to Supabase project `MSGSU`
+- v4 detects one exact teacher-clear delta package
+- v4 delegates that package to accepted M35 `management_apply_teacher_departure(..., 'INACTIVATE_CLEAR', ...)`
+- matching placement/requirement/resource deltas are consumed by M35
+- remaining workspace deltas continue through v3 in the same PostgreSQL transaction
+- ordinary placed-requirement source guards and M26 null-teacher MOVE restrictions are not weakened
+- safety limit: one teacher-clear departure per Save; multiple clears return `WORKSPACE_V4_MULTIPLE_TEACHER_DEPARTURES_UNSUPPORTED`
+
+Migration parity correction:
+- CLI initially created local empty file `20261005115127_...`
+- Supabase apply operation registered version `20261005115509`
+- repository migration was renamed/aligned to `20261005115509_...`
+- Codespace must delete the obsolete empty local `20261005115127_...` before pull
+
+Security advisor check after migration:
+- no new migration-specific advisor was identified
+- existing project-wide legacy warnings remain (RLS-without-policy on internal management tables, mutable search_path on older functions, legacy SECURITY DEFINER exposure warnings, btree_gist in public, leaked-password protection disabled)
+
+Phase B gate status: **PENDING**
+Required:
+```bash
+rm -f supabase/migrations/20261005115127_management_workspace_teacher_departure_clear.sql
+git pull --ff-only
+npm test -- tests/managementWorkspaceInventory.test.ts tests/managementWorkspaceValidation.test.ts tests/managementWorkspaceCommit.test.ts
+npm test
+npm run build
+git diff --check
+npx supabase migration list | tail -10
+```
+
+Expected migration tail includes local=remote:
+`20261005115509 | 20261005115509`
+
+Do not mark phase B PASS until the focused/full/build/migration-parity gate is green.
