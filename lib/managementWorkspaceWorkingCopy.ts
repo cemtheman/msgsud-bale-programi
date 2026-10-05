@@ -396,7 +396,7 @@ export function baselineTeacherPlanningById(
   snapshot: ManagementWorkspaceSnapshotV1,
 ): Record<string, ManagementWorkspaceTeacherPlanningStateV1> {
   const byTeacher = new Map(
-    snapshot.teacherLoadTargets.map((target) => [target.teacherId, target]),
+    (snapshot.teacherLoadTargets ?? []).map((target) => [target.teacherId, target]),
   );
 
   return Object.fromEntries(
