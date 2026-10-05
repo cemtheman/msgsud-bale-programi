@@ -692,4 +692,24 @@ describe('management workspace local validation v1', () => {
       .toContain('MIN_DISTINCT_DAYS');
   });
 
+
+  it('uses local teacher availability immediately during validation', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    copy.teacherAvailabilityById['teacher-1'] = {
+      teacherId: 'teacher-1',
+      unavailablePeriods: [{ dayOfWeek: 1, period: 1 }],
+    };
+
+    const validation = validateManagementWorkspaceV1(
+      source,
+      copy,
+      'EDIT',
+    );
+
+    expect(validation.issues.map((issue) => issue.code))
+      .toContain('TEACHER_UNAVAILABLE');
+  });
+
 });
