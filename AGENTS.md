@@ -7040,3 +7040,36 @@ npm run build
 ```
 
 Gate remains PENDING until these pass.
+
+
+#### Gate PASS — 5 Oct 2026
+
+Accepted gate after Course Plan local-resource integration and follow-up fixes:
+
+- Test Files: **31 passed / 31**
+- Tests: **171 passed / 171**
+- Production build: **PASS**
+- Next.js: **16.3.4**
+- TypeScript: **PASS**
+- Static generation: **9/9**
+- `/yonetim` build route: PASS
+
+This closes the Course Plan teacher-pool / room-strategy local-workspace
+milestone.
+
+Accepted state:
+- MOVE drag local
+- PLACE drag local
+- grouped/parallel drag local
+- Inspector placement teacher/room edits local
+- Program Durumu bulk teacher/room edits local
+- Course Plan teacher-pool edits local
+- Course Plan room-strategy edits local
+- shared local Undo/Redo
+- atomic workspace Save v2
+- remote migration parity through
+  `20261005081416_management_workspace_requirement_resources`
+
+Next milestone:
+**localize teacher assignment scope / continuity policy**
+before moving on to Resources inventory/status editing.
