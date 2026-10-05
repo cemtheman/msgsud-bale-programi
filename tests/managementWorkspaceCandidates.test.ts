@@ -143,9 +143,11 @@ describe('management workspace local move candidates', () => {
 
   it('builds pool placement candidates locally from requirement pools', () => {
     const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
 
     const detail = buildManagementWorkspacePlacementCandidateDetailV1(
       source,
+      copy,
       'card-1',
     );
 
@@ -167,8 +169,11 @@ describe('management workspace local move candidates', () => {
       roomPools: [],
     };
 
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
     const detail = buildManagementWorkspacePlacementCandidateDetailV1(
       source,
+      copy,
       'card-1',
     );
 
@@ -194,8 +199,11 @@ describe('management workspace local move candidates', () => {
       roomPools: [],
     };
 
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
     const detail = buildManagementWorkspacePlacementCandidateDetailV1(
       source,
+      copy,
       'card-1',
     );
 
@@ -238,8 +246,11 @@ describe('management workspace local move candidates', () => {
       ],
     };
 
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
     const detail = buildManagementWorkspacePlacementCandidateDetailV1(
       source,
+      copy,
       'card-1',
     );
 
