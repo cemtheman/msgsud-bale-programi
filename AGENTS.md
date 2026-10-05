@@ -7073,3 +7073,142 @@ Accepted state:
 Next milestone:
 **localize teacher assignment scope / continuity policy**
 before moving on to Resources inventory/status editing.
+
+
+### 5 Oct 2026 — teacher assignment scope / continuity policy localized
+
+Accepted direction after the Course Plan resource milestone:
+- teacher assignment scope and continuity policy are now part of the same local
+  requirement state as teacher/room plan resources
+- no direct server preview/apply is used for ordinary teacher-policy editing
+
+Working-copy state now includes:
+- `teacherAssignmentScope`
+- `teacherContinuity`
+
+Local policy semantics:
+- valid combinations remain exactly:
+  - REQUIREMENT + REQUIRED
+  - BLOCK + PREFERRED
+  - BLOCK + NONE
+  - UNSPECIFIED + NONE
+- policy-only changes ARE allowed on placed requirements
+- REQUIREMENT + REQUIRED is blocked when current local placed blocks resolve to
+  more than one distinct teacher
+- teacher/room pool or room-strategy changes still require an unplaced baseline
+- this matches the accepted M32.3.2 server policy semantics instead of applying
+  the stricter M17/M18 resource rule to policy-only edits
+
+Local preview/apply:
+- new module:
+  `lib/managementWorkspaceTeacherPolicy.ts`
+- preview uses immutable snapshot + current working copy placements
+- preview state token includes:
+  - revision + snapshot hash
+  - current/proposed policy
+  - exact current placement teacher/time/room state for the requirement
+- apply uses the shared `SET_REQUIREMENT_RESOURCES` command
+- teacher policy joins the same global local Undo/Redo stack
+- Course Plan and Program projections immediately show the unsaved local policy
+- Course Plan continuity-violation summary is filtered through projected local
+  policy so switching to a flexible policy does not leave a stale server
+  violation badge
+
+Atomic Save:
+- requirement change payload now includes:
+  - `teacher_assignment_scope`
+  - `teacher_continuity`
+- remote migration applied:
+  `20261005085241_management_workspace_teacher_policy`
+- repo migration:
+  `supabase/migrations/20261005085241_management_workspace_teacher_policy.sql`
+- `management_commit_workspace_v2` keeps the same RPC signature
+- server stale guard now verifies current scope/continuity
+- policy combination is validated server-side
+- policy-only changes may commit on placed requirements
+- teacher/room source changes still require no placed blocks
+- policy application delegates to the existing accepted
+  `management_preview_requirement_teacher_policy` +
+  `management_apply_requirement_teacher_policy` functions inside the same
+  PostgreSQL transaction
+- placement changes, if any, still follow through workspace commit v1 using
+  intermediate hashes
+
+Important separation:
+- teacher reconciliation remains server-backed intentionally
+- reconciliation changes actual placement teacher assignments
+- policy editing only changes planning semantics; it does not silently rewrite
+  placements
+- if REQUIREMENT + REQUIRED conflicts with current teachers, user must reconcile
+  first; policy apply remains blocked
+
+UX:
+- teacher policy editor now says `Çalışmaya uygula`
+- applying policy is described as local workspace state
+- persistent DB write remains the management screen's main `Kaydet`
+
+Core commits:
+- `9cf20461feec2e95de48a99efeea91c454b0ea1e`
+  policy fields in requirement working-copy state
+- `969fa64722823ca25c4bc1fe890d1b383f2bafc9`
+  command clone preservation
+- `3647b60bc0d58ffe4c7a360df049b98cb1cb7821`
+  Program policy projection
+- `329891a74abf4a2a533aedc362ac542035895193`
+  Course Plan policy projection
+- `edd901261cc8523f591b6a3bdcbb1392dcb827ac`
+  validator separates source-resource vs policy-only rules
+- `a2d203e30c07b72cf6c47eeaf2076fede6590c55`
+  exact policy preservation in history
+- `cd8fe555fff10bd959856d7c817db2fa7c772421`
+  atomic payload fields
+- `d4b706428467eb54b0c56feb2bc7bae9f9ca8fc5`
+  remote-parity policy migration
+- `c2fe9e420dccd5106f1174943dddcc5d4ee1d627`
+  local policy preview helper
+- `2b7f7f4d102e5fd29828528da438b17ba867cf9c`
+  page local preview/apply integration
+- `567fb29c5f7e16099d8ac8de121eab71ecb70aba`
+  policy type imports
+- `829af72c3c549a33db5afd0e71d96d66e6379cd4`
+  local policy semantics tests
+- `17a020ca5071472d7f643dd9914eed50519c72c8`
+  continuity-violation projection
+- `32414a82e75a9b0a8cb6cefef0ef3b8ca2759879`
+  policy-only atomic commit test
+- `3f94901c59e65406b165631057821f35c166a8ba`
+  local-policy editor wording
+- `c7dcdd92cab1a37bf2b4883b3b8b3c82ffff2159`
+  policy commit error translations
+
+Verification state:
+- direct server policy preview/apply references in `app/yonetim/page.tsx`: **0**
+- local policy helper references: **3**
+- migration parity file present
+- gate: **PENDING**
+
+Focused gate:
+```bash
+npm test -- \
+  tests/managementWorkspaceTeacherPolicy.test.ts \
+  tests/managementWorkspaceCommit.test.ts \
+  tests/managementWorkspaceCommands.test.ts \
+  tests/managementWorkspaceHistory.test.ts \
+  tests/managementWorkspaceCoursePlan.test.ts \
+  tests/managementWorkspaceBoardAdapter.test.ts
+```
+
+Then full:
+```bash
+npm test
+npm run build
+npx supabase migration list | tail -10
+```
+
+Expected migration tail includes:
+`20261005085241 management_workspace_teacher_policy`
+
+After PASS:
+- browser acceptance: policy preview/apply, Undo/Redo, main Save, reload
+- then move to **Resources inventory/status editing** as the next major local
+  workspace boundary
