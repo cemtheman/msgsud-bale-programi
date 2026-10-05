@@ -55,13 +55,11 @@ import {
   translateManagementSolverProposalApplyReason,
 } from '@/lib/managementSolverProposal';
 import {
-  applyManagementRoomProfile,
   createManagementRoomResource,
   createManagementTeacherResource,
   deleteManagementRoomResource,
   deleteManagementTeacherResource,
   fetchManagementResources,
-  previewManagementRoomProfile,
   previewManagementRoomDeparture,
   previewManagementTeacherDeparture,
   applyManagementRoomDeparture,
@@ -170,6 +168,7 @@ import {
 import {
   prepareManagementWorkspaceRoomDepartureV1,
   prepareManagementWorkspaceRoomNameEditV1,
+  prepareManagementWorkspaceRoomProfileV1,
   prepareManagementWorkspaceRoomStatusEditV1,
   prepareManagementWorkspaceTeacherDepartureV1,
   prepareManagementWorkspaceTeacherNameEditV1,
@@ -5383,18 +5382,19 @@ export default function ManagementPage() {
             capabilities,
             knowledgeStatus,
           ) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
-            assertServerResourceMutationAllowed();
 
-            return previewManagementRoomProfile(
-              session.accessToken,
-              resources.revisionId,
+            return prepareManagementWorkspaceRoomProfileV1(
+              localSnapshot,
+              localWorkingCopy,
               roomId,
               capabilities,
               knowledgeStatus,
-            );
+            ).preview;
           }}
           onApplyRoomProfile={async (
             roomId,
@@ -5402,32 +5402,34 @@ export default function ManagementPage() {
             knowledgeStatus,
             expectedStateToken,
           ) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
-            assertServerResourceMutationAllowed();
 
-            setCommandBusy(true);
-            setCommandActivity('Salon özellikleri güvenli biçimde uygulanıyor.');
-
-            try {
-              const result = await applyManagementRoomProfile(
-                session.accessToken,
-                resources.revisionId,
-                roomId,
-                capabilities,
-                knowledgeStatus,
-                expectedStateToken,
+            const prepared = prepareManagementWorkspaceRoomProfileV1(
+              localSnapshot,
+              localWorkingCopy,
+              roomId,
+              capabilities,
+              knowledgeStatus,
+            );
+            if (prepared.preview.stateToken !== expectedStateToken) {
+              throw new Error(
+                'Salon özellikleri önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.',
               );
-              setCommandNotice({
-                kind: 'success',
-                text: `Salon özellikleri güncellendi. ${result.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirildi.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
             }
+            if (!prepared.preview.canApply) {
+              throw new Error(
+                'Bu salon değişikliği mevcut bir program yerleşimini geçersiz kıldığı için uygulanamıyor.',
+              );
+            }
+
+            applyLocalInventoryCommand(
+              prepared.command,
+              `Salon özellikleri yerel çalışma alanında güncellendi. ${prepared.preview.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirilecek; ana Kaydet ile veritabanına yazılacak.`,
+            );
           }}
           onPreviewRoomStatus={async (roomId, operationalStatus) => {
             const localSnapshot = workspaceSnapshotRef.current;
