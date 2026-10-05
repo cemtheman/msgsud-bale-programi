@@ -13,7 +13,7 @@ export function projectManagementResourcesFromWorkspaceV1(
     ...resources,
     teachers: resources.teachers.map((teacher) => {
       const local = workingCopy.teacherInventoryById[teacher.id];
-      const planning = workingCopy.teacherPlanningById[teacher.id];
+      const planning = workingCopy.teacherPlanningById?.[teacher.id];
       if (!local && !planning) return teacher;
 
       return {
