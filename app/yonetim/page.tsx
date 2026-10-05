@@ -1884,6 +1884,7 @@ export default function ManagementPage() {
             )
             : buildManagementWorkspacePlacementCandidateDetailV1(
               localSnapshot,
+              localWorkingCopy,
               id,
             ),
         ] as const;
@@ -2373,6 +2374,7 @@ export default function ManagementPage() {
           )
           : buildManagementWorkspacePlacementCandidateDetailV1(
             localSnapshot,
+            localWorkingCopy,
             cardId,
           );
 
@@ -2510,6 +2512,7 @@ export default function ManagementPage() {
           )
           : buildManagementWorkspacePlacementCandidateDetailV1(
             localSnapshot,
+            localWorkingCopy,
             cardId,
           );
 
