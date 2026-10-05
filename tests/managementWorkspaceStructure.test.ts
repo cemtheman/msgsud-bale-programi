@@ -5,6 +5,7 @@ import {
   createManagementWorkspaceWorkingCopyV1,
   diffManagementWorkspaceV1,
   hydrateManagementWorkspaceRequirementCatalogV1,
+  removeManagementWorkspacePlacementV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
   executeManagementWorkspaceCommandV1,
@@ -540,6 +541,65 @@ describe('management workspace active requirement structure', () => {
         termStatus: 'ACTIVE',
       },
     )).toThrow(/önce Geri Al veya ana Kaydet/i);
+  });
+
+
+  it('retains the staged placement removal when deactivation deletes that card from the local graph', () => {
+    const source = snapshot(true);
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    removeManagementWorkspacePlacementV1(copy, 'card-1');
+
+    const input = {
+      requirementId: 'requirement-1',
+      weeklyLoad: 0,
+      preferredPartition: [],
+      allowedPartitions: [],
+      termStatus: 'INACTIVE' as const,
+    };
+    const preview = previewManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      input,
+    );
+    expect(preview.canApply).toBe(true);
+
+    const prepared = prepareManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      input,
+      preview.structureToken,
+    );
+    expect(executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      prepared.command,
+    ).applied).toBe(true);
+
+    const diff = diffManagementWorkspaceV1(source, copy);
+    expect(diff.placementChanges).toContainEqual({
+      cardId: 'card-1',
+      before: {
+        cardId: 'card-1',
+        dayOfWeek: 1,
+        startPeriod: 1,
+        teacherId: 'teacher-1',
+        roomId: 'room-1',
+      },
+      after: {
+        cardId: 'card-1',
+        dayOfWeek: null,
+        startPeriod: null,
+        teacherId: null,
+        roomId: null,
+      },
+    });
+    expect(diff.requirementStructureChanges[0]).toMatchObject({
+      before: { termStatus: 'ACTIVE' },
+      after: { termStatus: 'INACTIVE' },
+    });
   });
 
 });
