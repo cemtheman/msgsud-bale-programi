@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
+  prepareManagementWorkspaceRoomDepartureV1,
   prepareManagementWorkspaceRoomNameEditV1,
   prepareManagementWorkspaceRoomStatusEditV1,
   prepareManagementWorkspaceTeacherDepartureV1,
   prepareManagementWorkspaceTeacherNameEditV1,
   prepareManagementWorkspaceTeacherStatusEditV1,
+  previewManagementWorkspaceRoomDepartureV1,
   previewManagementWorkspaceTeacherDepartureV1,
 } from '@/lib/managementWorkspaceInventoryEdits';
 import {
@@ -311,6 +313,87 @@ describe('management workspace inventory edits', () => {
     expect(preview.applied).toBe(false);
     expect(preview.issues.map((issue) => issue.code))
       .toContain('TEACHER_INACTIVE');
+  });
+
+  it('prepares OUT_OF_SERVICE_KEEP as one local room departure command', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const preview = previewManagementWorkspaceRoomDepartureV1(
+      source,
+      copy,
+      'room-1',
+    );
+    const prepared = prepareManagementWorkspaceRoomDepartureV1(
+      source,
+      copy,
+      'room-1',
+      'OUT_OF_SERVICE_KEEP',
+    );
+    const result = executeManagementWorkspaceCommandsV1(
+      source,
+      copy,
+      history,
+      prepared.commands,
+    );
+
+    expect(preview).toMatchObject({
+      assignmentCount: 1,
+      placedBlockCount: 1,
+      aliasCount: 1,
+    });
+    expect(result.applied).toBe(true);
+    expect(copy.roomInventoryById['room-1'].operationalStatus)
+      .toBe('OUT_OF_SERVICE');
+    expect(copy.placementsByCardId['card-1'].roomId).toBe('room-1');
+    expect(history.undoStack).toHaveLength(1);
+    expect(prepareManagementWorkspaceCommitV1(source, copy).ready).toBe(true);
+  });
+
+  it('prepares OUT_OF_SERVICE_CLEAR as one coordinated local batch', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const prepared = prepareManagementWorkspaceRoomDepartureV1(
+      source,
+      copy,
+      'room-1',
+      'OUT_OF_SERVICE_CLEAR',
+    );
+    const result = executeManagementWorkspaceCommandsV1(
+      source,
+      copy,
+      history,
+      prepared.commands,
+    );
+
+    expect(result.applied).toBe(true);
+    expect(copy.roomInventoryById['room-1'].operationalStatus)
+      .toBe('OUT_OF_SERVICE');
+    expect(copy.requirementResourcesById['requirement-1']).toMatchObject({
+      roomIds: [],
+      resourceMode: 'FIXED',
+      requiredCapability: null,
+    });
+    expect(copy.placementsByCardId['card-1']).toMatchObject({
+      dayOfWeek: 1,
+      startPeriod: 1,
+      teacherId: 'teacher-1',
+      roomId: null,
+    });
+    expect(new Set(history.undoStack.map((entry) => entry.batchId)).size)
+      .toBe(1);
+
+    const commit = prepareManagementWorkspaceCommitV1(source, copy);
+    expect(commit.ready).toBe(true);
+    expect(commit.issues).toEqual([]);
+    expect(commit.payload?.changes[0]?.after.room_id).toBeNull();
+    expect(commit.payload?.requirementChanges[0]?.after.room_ids)
+      .toEqual([]);
+    expect(commit.payload?.resourceChanges[0]?.after.operational_status)
+      .toBe('OUT_OF_SERVICE');
   });
 
   it('blocks non-active room status while the room family is locally placed', () => {
