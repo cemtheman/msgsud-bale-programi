@@ -13,7 +13,8 @@ export function projectManagementResourcesFromWorkspaceV1(
     ...resources,
     teachers: resources.teachers.map((teacher) => {
       const local = workingCopy.teacherInventoryById[teacher.id];
-      if (!local) return teacher;
+      const planning = workingCopy.teacherPlanningById[teacher.id];
+      if (!local && !planning) return teacher;
 
       return {
         ...teacher,
@@ -25,7 +26,17 @@ export function projectManagementResourcesFromWorkspaceV1(
             ? local.displayName
             : teacher.name
         ) !== teacher.baseName,
-        operationalStatus: local.operationalStatus,
+        operationalStatus: local?.operationalStatus ?? teacher.operationalStatus,
+        minimumLoad: planning?.minimumLoad ?? teacher.minimumLoad,
+        targetLoad: planning?.targetLoad ?? teacher.targetLoad,
+        maximumLoad: planning?.maximumLoad ?? teacher.maximumLoad,
+        loadConfigured: planning
+          ? (
+              planning.minimumLoad !== null
+              || planning.targetLoad !== null
+              || planning.maximumLoad !== null
+            )
+          : teacher.loadConfigured,
       };
     }),
     rooms: resources.rooms.map((room) => {
