@@ -25,17 +25,32 @@ function issueCodeToBlockReason(code: string) {
 
 function stableToken(
   snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
   cardIds: string[],
   resourceType: ManagementPlacementResourceType,
   resourceId: string,
 ) {
+  const placementState = [...cardIds]
+    .sort((a, b) => a.localeCompare(b))
+    .map((cardId) => {
+      const placement = workingCopy.placementsByCardId[cardId];
+      return [
+        cardId,
+        placement?.dayOfWeek ?? '',
+        placement?.startPeriod ?? '',
+        placement?.teacherId ?? '',
+        placement?.roomId ?? '',
+      ].join(':');
+    })
+    .join(',');
+
   return [
     'LOCAL_WORKSPACE_RESOURCE_V1',
     snapshot.identity.revisionId,
     snapshot.identity.snapshotHash,
     resourceType,
     resourceId,
-    [...cardIds].sort((a, b) => a.localeCompare(b)).join(','),
+    placementState,
   ].join('|');
 }
 
@@ -183,6 +198,7 @@ export function prepareManagementWorkspaceResourceEditV1(
       planningPoolChanged: false,
       stateToken: stableToken(
         snapshot,
+        workingCopy,
         targetCardIds,
         resourceType,
         resourceId,
