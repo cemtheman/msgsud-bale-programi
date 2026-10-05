@@ -343,6 +343,20 @@ export function translateManagementWorkspaceCommitErrorV1(
     return 'Kilitli bir ders değiştirildiği için çalışma alanı kaydedilemedi.';
   }
 
+  if (
+    normalized.includes('WORKSPACE_V5_TEACHER_PLANNING_BEFORE_STALE')
+    || normalized.includes('WORKSPACE_V5_TEACHER_NOT_FOUND')
+  ) {
+    return 'Öğretmen yük hedefleri çalışma alanı açıldıktan sonra değişmiş. Çalışma alanını yenileyip işlemi yeniden uygulayın.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V5_TEACHER_PLANNING_INVALID')
+    || normalized.includes('WORKSPACE_V5_INVALID_TEACHER_PLANNING_VALUE')
+  ) {
+    return 'Öğretmen yük hedefleri geçersiz. Değerler 0–60 aralığında ve minimum ≤ hedef ≤ maksimum olmalı.';
+  }
+
   if (normalized.includes('WORKSPACE_V4_MULTIPLE_TEACHER_DEPARTURES_UNSUPPORTED')) {
     return 'Tek Kaydet işleminde yalnızca bir öğretmen “derslerden çıkar ve kapat” işlemi yapılabilir. İlk değişikliği kaydedip ardından diğer öğretmene geçin.';
   }
