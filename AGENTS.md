@@ -7691,3 +7691,24 @@ Next:
 1. inspect whether `ARCHIVE_CLEAR` can be represented faithfully in the local working-copy identity model;
 2. if archive identity needs a new inventory lifecycle state, do not fake it as INACTIVE — leave archive server-backed and move to teacher-load localization;
 3. otherwise implement archive as its own explicit local lifecycle delta.
+
+
+### 5 Oct 2026 — Teacher archive localization boundary
+
+Investigation result:
+- teacher archive is a distinct lifecycle state carried by `teachers.archived_at`
+- Resources fetch intentionally excludes archived teachers
+- workspace teacher inventory currently models only `ACTIVE | INACTIVE`
+- workspace snapshot/working-copy has no archive identity/lifecycle field
+
+Decision:
+- **do not fake ARCHIVE_CLEAR as INACTIVE**
+- `ARCHIVE_CLEAR` remains server-backed
+- teacher departure/inactivation localization is considered complete for non-archive workflows
+- local archive may be revisited only with an explicit workspace lifecycle schema revision
+
+Next active sub-phase:
+**Teacher load target localization**
+- localize minimum/target/maximum load edits first
+- keep hard availability as the following sub-phase
+- preserve the same snapshot -> local working copy -> shared Undo/Redo -> atomic Save architecture
