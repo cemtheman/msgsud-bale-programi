@@ -5,6 +5,7 @@ import {
   createManagementWorkspaceWorkingCopyV1,
   setManagementWorkspacePlacementV1,
   setManagementWorkspaceRequirementRoomsV1,
+  setManagementWorkspaceRequirementTeacherPolicyV1,
   setManagementWorkspaceRequirementTeachersV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import { prepareManagementWorkspaceCommitV1 } from '@/lib/managementWorkspaceCommit';
@@ -231,6 +232,49 @@ describe('management workspace commit v1', () => {
           resource_mode: 'CAPABILITY',
           room_ids: [],
           required_capability: 'BALLET_STUDIO',
+        },
+      },
+    ]);
+  });
+
+  it('allows policy-only plan changes on a placed baseline requirement', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspaceRequirementTeacherPolicyV1(
+      copy,
+      'requirement-1',
+      {
+        teacherAssignmentScope: 'BLOCK',
+        teacherContinuity: 'NONE',
+      },
+    );
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(true);
+    expect(prepared.issues).toEqual([]);
+    expect(prepared.payload?.changes).toEqual([]);
+    expect(prepared.payload?.requirementChanges).toEqual([
+      {
+        requirement_id: 'requirement-1',
+        before: {
+          teacher_ids: ['teacher-1'],
+          teacher_mode: 'FIXED',
+          teacher_assignment_scope: 'REQUIREMENT',
+          teacher_continuity: 'REQUIRED',
+          resource_mode: 'ELIGIBLE_POOL',
+          room_ids: ['room-1'],
+          required_capability: null,
+        },
+        after: {
+          teacher_ids: ['teacher-1'],
+          teacher_mode: 'FIXED',
+          teacher_assignment_scope: 'BLOCK',
+          teacher_continuity: 'NONE',
+          resource_mode: 'ELIGIBLE_POOL',
+          room_ids: ['room-1'],
+          required_capability: null,
         },
       },
     ]);
