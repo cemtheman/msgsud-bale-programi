@@ -316,6 +316,17 @@ export function translateManagementWorkspaceCommitErrorV1(
     return 'Kilitli bir ders değiştirildiği için çalışma alanı kaydedilemedi.';
   }
 
+  if (normalized.includes('WORKSPACE_V4_MULTIPLE_TEACHER_DEPARTURES_UNSUPPORTED')) {
+    return 'Tek Kaydet işleminde yalnızca bir öğretmen “derslerden çıkar ve kapat” işlemi yapılabilir. İlk değişikliği kaydedip ardından diğer öğretmene geçin.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V4_DEPARTURE_REQUIREMENT_DELTA_MISMATCH')
+    || normalized.includes('WORKSPACE_V4_DEPARTURE_PLACEMENT_DELTA_MISMATCH')
+  ) {
+    return 'Öğretmen ayrılış değişikliği çalışma alanındaki güncel ders/atama durumu ile eşleşmiyor. Çalışma alanını yenileyip işlemi yeniden uygulayın.';
+  }
+
   if (
     normalized.includes('WORKSPACE_V1_COMMIT_TOO_LARGE')
     || normalized.includes('WORKSPACE_V1_OPERATION_GROUP_TOO_LARGE')
