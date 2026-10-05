@@ -2,12 +2,14 @@ import {
   cloneManagementWorkspaceInventoryV1,
   cloneManagementWorkspacePlacementV1,
   cloneManagementWorkspaceRequirementResourceV1,
+  cloneManagementWorkspaceTeacherAvailabilityV1,
   cloneManagementWorkspaceTeacherPlanningV1,
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
   type ManagementWorkspaceInventoryStateV1,
   type ManagementWorkspaceRoomInventoryStateV1,
   type ManagementWorkspaceTeacherInventoryStateV1,
+  type ManagementWorkspaceTeacherAvailabilityStateV1,
   type ManagementWorkspaceTeacherPlanningStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
@@ -19,7 +21,8 @@ export type ManagementWorkspaceOperationKindV1 =
   | 'REMOVE_PLACEMENT'
   | 'SET_REQUIREMENT_RESOURCES'
   | 'SET_INVENTORY_RESOURCE'
-  | 'SET_TEACHER_PLANNING';
+  | 'SET_TEACHER_PLANNING'
+  | 'SET_TEACHER_AVAILABILITY';
 
 export interface ManagementWorkspacePlacementOperationV1 {
   sequence: number;
@@ -65,11 +68,23 @@ export interface ManagementWorkspaceTeacherPlanningOperationV1 {
   after: ManagementWorkspaceTeacherPlanningStateV1;
 }
 
+export interface ManagementWorkspaceTeacherAvailabilityOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_TEACHER_AVAILABILITY';
+  cardId: null;
+  requirementId: null;
+  resourceId: string;
+  before: ManagementWorkspaceTeacherAvailabilityStateV1;
+  after: ManagementWorkspaceTeacherAvailabilityStateV1;
+}
+
 export type ManagementWorkspaceOperationV1 =
   | ManagementWorkspacePlacementOperationV1
   | ManagementWorkspaceRequirementResourceOperationV1
   | ManagementWorkspaceInventoryOperationV1
-  | ManagementWorkspaceTeacherPlanningOperationV1;
+  | ManagementWorkspaceTeacherPlanningOperationV1
+  | ManagementWorkspaceTeacherAvailabilityOperationV1;
 
 export interface ManagementWorkspaceHistoryV1 {
   nextSequence: number;
@@ -106,6 +121,19 @@ function currentInventory(
   }
 
   return cloneManagementWorkspaceInventoryV1(current);
+}
+
+function currentTeacherAvailability(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  teacherId: string,
+) {
+  const value = workingCopy.teacherAvailabilityById[teacherId];
+  if (!value) {
+    throw new Error(
+      `Workspace geçmiş işlemi için öğretmen uygunluk girdisi bulunamadı (${teacherId}).`,
+    );
+  }
+  return cloneManagementWorkspaceTeacherAvailabilityV1(value);
 }
 
 function currentTeacherPlanning(
@@ -171,6 +199,19 @@ function applyRequirementResourceState(
 
   workingCopy.requirementResourcesById[resource.requirementId] =
     cloneManagementWorkspaceRequirementResourceV1(resource);
+}
+
+function applyTeacherAvailabilityState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  availability: ManagementWorkspaceTeacherAvailabilityStateV1,
+) {
+  if (!workingCopy.teacherAvailabilityById[availability.teacherId]) {
+    throw new Error(
+      `Workspace geçmiş işlemi için öğretmen uygunluk girdisi bulunamadı (${availability.teacherId}).`,
+    );
+  }
+  workingCopy.teacherAvailabilityById[availability.teacherId] =
+    cloneManagementWorkspaceTeacherAvailabilityV1(availability);
 }
 
 function applyTeacherPlanningState(
@@ -241,6 +282,14 @@ export function cloneManagementWorkspaceOperationV1(
     };
   }
 
+  if (operation.kind === 'SET_TEACHER_AVAILABILITY') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceTeacherAvailabilityV1(operation.before),
+      after: cloneManagementWorkspaceTeacherAvailabilityV1(operation.after),
+    };
+  }
+
   return {
     ...operation,
     before: cloneManagementWorkspacePlacementV1(operation.before),
@@ -259,6 +308,10 @@ function recordOperation(
     | Omit<ManagementWorkspaceInventoryOperationV1, 'sequence' | 'batchId'>
     | Omit<
         ManagementWorkspaceTeacherPlanningOperationV1,
+        'sequence' | 'batchId'
+      >
+    | Omit<
+        ManagementWorkspaceTeacherAvailabilityOperationV1,
         'sequence' | 'batchId'
       >,
 ) {
@@ -400,6 +453,29 @@ export function applyManagementWorkspaceTeacherPlanningOperationV1(
   });
 }
 
+export function applyManagementWorkspaceTeacherAvailabilityOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  availability: ManagementWorkspaceTeacherAvailabilityStateV1,
+) {
+  const before = currentTeacherAvailability(
+    workingCopy,
+    availability.teacherId,
+  );
+  const after = cloneManagementWorkspaceTeacherAvailabilityV1(availability);
+
+  applyTeacherAvailabilityState(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_TEACHER_AVAILABILITY',
+    cardId: null,
+    requirementId: null,
+    resourceId: availability.teacherId,
+    before,
+    after,
+  });
+}
+
 function applyOperationState(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   operation: ManagementWorkspaceOperationV1,
@@ -429,6 +505,14 @@ function applyOperationState(
     applyTeacherPlanningState(
       workingCopy,
       value as ManagementWorkspaceTeacherPlanningStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_TEACHER_AVAILABILITY') {
+    applyTeacherAvailabilityState(
+      workingCopy,
+      value as ManagementWorkspaceTeacherAvailabilityStateV1,
     );
     return;
   }
