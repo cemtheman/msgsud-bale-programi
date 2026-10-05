@@ -467,9 +467,12 @@ export function validateManagementWorkspaceV1(
   });
 
   const unavailable = new Set(
-    snapshot.teacherUnavailablePeriods.map((slot) =>
-      `${slot.teacherId}|${slot.dayOfWeek}|${slot.period}`,
-    ),
+    Object.values(workingCopy.teacherAvailabilityById)
+      .flatMap((availability) =>
+        availability.unavailablePeriods.map((slot) =>
+          `${availability.teacherId}|${slot.dayOfWeek}|${slot.period}`,
+        ),
+      ),
   );
   const baseline = baselinePlacementMap(snapshot);
   const baselineTeacherByCardId = new Map(
