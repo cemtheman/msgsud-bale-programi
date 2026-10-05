@@ -79,6 +79,14 @@ function workingCopy(): ManagementWorkspaceWorkingCopyV1 {
         operationalStatus: 'ACTIVE',
       },
     },
+    teacherPlanningById: {
+      'teacher-1': {
+        teacherId: 'teacher-1',
+        minimumLoad: null,
+        targetLoad: null,
+        maximumLoad: null,
+      },
+    },
   };
 }
 
@@ -120,8 +128,7 @@ describe('management workspace Resources projection', () => {
   });
 
   it('projects local teacher load targets into Resources immediately', () => {
-    const source = snapshot();
-    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const copy = workingCopy();
     copy.teacherPlanningById['teacher-1'] = {
       teacherId: 'teacher-1',
       minimumLoad: 3,
