@@ -75,6 +75,7 @@ function uniqueStrings(values: string[]) {
 
 function teacherOptionsForRequirement(
   snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
   requirementId: string,
   teacherRequirement: string,
 ) {
@@ -86,10 +87,12 @@ function teacherOptionsForRequirement(
       .map((teacher) => teacher.id),
   );
   const pooled = uniqueStrings(
-    snapshot.teacherPools
-      .filter((entry) => entry.requirementId === requirementId)
-      .map((entry) => entry.teacherId)
-      .filter((teacherId) => activeTeacherIds.has(teacherId)),
+    (
+      workingCopy.requirementResourcesById[requirementId]?.teacherIds
+      ?? snapshot.teacherPools
+        .filter((entry) => entry.requirementId === requirementId)
+        .map((entry) => entry.teacherId)
+    ).filter((teacherId) => activeTeacherIds.has(teacherId)),
   );
 
   if (teacherRequirement === 'REQUIRED') {
@@ -101,20 +104,28 @@ function teacherOptionsForRequirement(
 
 function roomOptionsForRequirement(
   snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
   requirement: ManagementWorkspaceSnapshotV1['requirements'][number],
 ) {
-  if (requirement.resourceMode === 'UNKNOWN') return [null];
+  const localResource =
+    workingCopy.requirementResourcesById[requirement.id] ?? null;
+  const resourceMode =
+    localResource?.resourceMode ?? requirement.resourceMode;
+  const requiredCapability =
+    localResource?.requiredCapability ?? requirement.requiredCapability;
+
+  if (resourceMode === 'UNKNOWN') return [null];
 
   const activeRooms = snapshot.rooms.filter(
     (room) => room.operationalStatus === 'ACTIVE',
   );
 
-  if (requirement.resourceMode === 'CAPABILITY') {
+  if (resourceMode === 'CAPABILITY') {
     const eligible = activeRooms
       .filter((room) => (
-        Boolean(requirement.requiredCapability)
+        Boolean(requiredCapability)
         && room.knowledgeStatus === 'CONFIRMED'
-        && room.capabilities.includes(requirement.requiredCapability as string)
+        && room.capabilities.includes(requiredCapability as string)
       ))
       .map((room) => room.id);
 
@@ -123,10 +134,12 @@ function roomOptionsForRequirement(
 
   const activeRoomIds = new Set(activeRooms.map((room) => room.id));
   const pooled = uniqueStrings(
-    snapshot.roomPools
-      .filter((entry) => entry.requirementId === requirement.id)
-      .map((entry) => entry.roomId)
-      .filter((roomId) => activeRoomIds.has(roomId)),
+    (
+      localResource?.roomIds
+      ?? snapshot.roomPools
+        .filter((entry) => entry.requirementId === requirement.id)
+        .map((entry) => entry.roomId)
+    ).filter((roomId) => activeRoomIds.has(roomId)),
   );
 
   return pooled.length > 0 ? pooled : [null];
@@ -134,6 +147,7 @@ function roomOptionsForRequirement(
 
 export function buildManagementWorkspacePlacementCandidateDetailV1(
   snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
   cardId: string,
 ): ManagementCandidateDetail | null {
   const card = snapshot.cards.find((item) => item.id === cardId);
@@ -146,10 +160,15 @@ export function buildManagementWorkspacePlacementCandidateDetailV1(
 
   const teacherOptions = teacherOptionsForRequirement(
     snapshot,
+    workingCopy,
     requirement.id,
     requirement.teacherRequirement,
   );
-  const roomOptions = roomOptionsForRequirement(snapshot, requirement);
+  const roomOptions = roomOptionsForRequirement(
+    snapshot,
+    workingCopy,
+    requirement,
+  );
 
   const resourceCombinations = teacherOptions.flatMap((teacherId) =>
     roomOptions.map((roomId) => ({
@@ -171,7 +190,10 @@ export function buildManagementWorkspacePlacementCandidateDetailV1(
         }
 
         if (
-          requirement.resourceMode !== 'UNKNOWN'
+          (
+            workingCopy.requirementResourcesById[requirement.id]?.resourceMode
+            ?? requirement.resourceMode
+          ) !== 'UNKNOWN'
           && roomId === null
         ) {
           reasonCodes.push('ROOM_ASSIGNMENT_MISSING');
