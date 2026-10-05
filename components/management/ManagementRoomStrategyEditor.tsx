@@ -170,8 +170,8 @@ export function ManagementRoomStrategyEditor({
             </p>
             <p className="mt-1 text-[10px] font-medium leading-4 text-slate-600">
               {row.placedBlockCount > 0
-                ? 'Salon seçme yöntemini değiştirmek için önce bu dersin yerleşimlerini Program ekranından kaldırın.'
-                : 'Kaydedildiğinde yalnız bu dersin uygun yerleri yeniden hesaplanacak.'}
+                ? 'Salon seçme yöntemini değiştirmek için önce bu dersin yerleşimlerini Program ekranından kaldırın ve ana Kaydet ile kalıcılaştırın.'
+                : 'Bu seçim önce yerel çalışma alanına uygulanır; kalıcı kayıt için yönetim ekranındaki ana Kaydet kullanılır.'}
             </p>
 
             {row.placedBlockCount > 0 && (
@@ -350,7 +350,7 @@ export function ManagementRoomStrategyEditor({
             }
             className="rounded-xl bg-slate-950 px-4 py-2.5 text-[10px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
           >
-            {saving ? 'Kaydediliyor…' : 'Değişikliği kaydet'}
+            {saving ? 'Uygulanıyor…' : 'Çalışmaya uygula'}
           </button>
         </div>
       </div>
