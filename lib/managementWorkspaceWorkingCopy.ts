@@ -119,6 +119,38 @@ function equalPlacement(
   );
 }
 
+function normalizeTeacherAssignmentScope(
+  value: string,
+): ManagementWorkspaceRequirementResourceStateV1['teacherAssignmentScope'] {
+  if (
+    value === 'REQUIREMENT'
+    || value === 'BLOCK'
+    || value === 'UNSPECIFIED'
+  ) {
+    return value;
+  }
+
+  throw new Error(
+    `Workspace snapshot geçersiz öğretmen kapsamı içeriyor (${value}).`,
+  );
+}
+
+function normalizeTeacherContinuity(
+  value: string,
+): ManagementWorkspaceRequirementResourceStateV1['teacherContinuity'] {
+  if (
+    value === 'REQUIRED'
+    || value === 'PREFERRED'
+    || value === 'NONE'
+  ) {
+    return value;
+  }
+
+  throw new Error(
+    `Workspace snapshot geçersiz öğretmen sürekliliği içeriyor (${value}).`,
+  );
+}
+
 function equalStringArrays(left: string[], right: string[]) {
   if (left.length !== right.length) return false;
 
@@ -174,7 +206,7 @@ function baselinePlacementsByCardId(
 
 export function baselineRequirementResourcesById(
   snapshot: ManagementWorkspaceSnapshotV1,
-) {
+): Record<string, ManagementWorkspaceRequirementResourceStateV1> {
   const teacherIdsByRequirement = new Map<string, string[]>();
   const roomIdsByRequirement = new Map<string, string[]>();
 
@@ -199,8 +231,12 @@ export function baselineRequirementResourcesById(
           ...(teacherIdsByRequirement.get(requirement.id) ?? []),
         ].sort((a, b) => a.localeCompare(b)),
         teacherMode: requirement.teacherMode,
-        teacherAssignmentScope: requirement.teacherAssignmentScope,
-        teacherContinuity: requirement.teacherContinuity,
+        teacherAssignmentScope: normalizeTeacherAssignmentScope(
+          requirement.teacherAssignmentScope,
+        ),
+        teacherContinuity: normalizeTeacherContinuity(
+          requirement.teacherContinuity,
+        ),
         resourceMode: requirement.resourceMode,
         roomIds: [
           ...(roomIdsByRequirement.get(requirement.id) ?? []),
