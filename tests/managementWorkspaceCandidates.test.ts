@@ -349,4 +349,55 @@ describe('management workspace local move candidates', () => {
       ),
     ).toBeNull();
   });
+
+  it('uses local room profile when building capability room candidates', () => {
+    const base = snapshot();
+    const source = {
+      ...base,
+      requirements: base.requirements.map((requirement, index) =>
+        index === 0
+          ? {
+              ...requirement,
+              resourceMode: 'CAPABILITY',
+              requiredCapability: 'STUDIO_SMALL_GROUP',
+            }
+          : requirement,
+      ),
+      rooms: base.rooms.map((room, index) =>
+        index === 0
+          ? {
+              ...room,
+              capabilities: ['STUDIO_SMALL_GROUP'],
+              knowledgeStatus: 'CONFIRMED' as const,
+            }
+          : room,
+      ),
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    const before = buildManagementWorkspacePlacementCandidateDetailV1(
+      source,
+      copy,
+      source.cards[0].id,
+    );
+    expect(before?.validCandidates.some(
+      (candidate) => candidate.roomId === source.rooms[0].id,
+    )).toBe(true);
+
+    copy.roomProfileById[source.rooms[0].id] = {
+      roomId: source.rooms[0].id,
+      capabilities: [],
+      knowledgeStatus: 'CONFIRMED',
+    };
+
+    const after = buildManagementWorkspacePlacementCandidateDetailV1(
+      source,
+      copy,
+      source.cards[0].id,
+    );
+    expect(after?.validCandidates.some(
+      (candidate) => candidate.roomId === source.rooms[0].id,
+    )).toBe(false);
+  });
+
 });
