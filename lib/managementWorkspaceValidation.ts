@@ -4,6 +4,7 @@ import type {
 import type {
   ManagementWorkspacePlacementStateV1,
   ManagementWorkspaceWorkingCopyV1,
+  diffManagementWorkspaceV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 
 export type ManagementWorkspaceValidationCodeV1 =
@@ -22,6 +23,7 @@ export type ManagementWorkspaceValidationCodeV1 =
   | 'ROOM_CONFLICT'
   | 'GROUP_CONFLICT'
   | 'PARALLEL_BUNDLE_BROKEN'
+  | 'REQUIREMENT_RESOURCES_REQUIRE_UNPLACED'
   | 'TEACHER_CONTINUITY'
   | 'MAX_BLOCKS_PER_DAY'
   | 'MAX_CONSECUTIVE_PERIODS'
@@ -376,6 +378,36 @@ export function validateManagementWorkspaceV1(
       resource.requirementId,
       new Set(resource.roomIds),
     );
+  });
+
+  const resourceDiff = diffManagementWorkspaceV1(
+    snapshot,
+    workingCopy,
+  );
+  const baselineCardRequirement = new Map(
+    snapshot.cards.map((card) => [card.id, card.requirementId]),
+  );
+  const baselinePlacedRequirementIds = new Set(
+    snapshot.baselinePlacements
+      .filter((placement) => (
+        placement.dayOfWeek !== null
+        && placement.startPeriod !== null
+      ))
+      .map((placement) => baselineCardRequirement.get(placement.cardId) ?? null)
+      .filter((value): value is string => Boolean(value)),
+  );
+
+  resourceDiff.requirementResourceChanges.forEach((change) => {
+    if (!baselinePlacedRequirementIds.has(change.requirementId)) return;
+
+    pushIssue(issues, {
+      code: 'REQUIREMENT_RESOURCES_REQUIRE_UNPLACED',
+      cardIds: snapshot.cards
+        .filter((card) => card.requirementId === change.requirementId)
+        .map((card) => card.id),
+      requirementId: change.requirementId,
+      dayOfWeek: null,
+    });
   });
 
   const unavailable = new Set(
