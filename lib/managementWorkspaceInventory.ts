@@ -14,7 +14,8 @@ export function projectManagementResourcesFromWorkspaceV1(
     teachers: resources.teachers.map((teacher) => {
       const local = workingCopy.teacherInventoryById[teacher.id];
       const planning = workingCopy.teacherPlanningById?.[teacher.id];
-      if (!local && !planning) return teacher;
+      const availability = workingCopy.teacherAvailabilityById?.[teacher.id];
+      if (!local && !planning && !availability) return teacher;
 
       return {
         ...teacher,
@@ -37,6 +38,15 @@ export function projectManagementResourcesFromWorkspaceV1(
               || planning.maximumLoad !== null
             )
           : teacher.loadConfigured,
+        unavailablePeriods: availability
+          ? availability.unavailablePeriods.map((slot) => ({ ...slot }))
+          : teacher.unavailablePeriods,
+        unavailablePeriodCount: availability
+          ? availability.unavailablePeriods.length
+          : teacher.unavailablePeriodCount,
+        availabilityConfigured: availability
+          ? availability.unavailablePeriods.length > 0
+          : teacher.availabilityConfigured,
       };
     }),
     rooms: resources.rooms.map((room) => {
