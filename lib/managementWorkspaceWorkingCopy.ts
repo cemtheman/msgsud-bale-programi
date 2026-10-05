@@ -494,7 +494,7 @@ export function baselineRoomProfileById(
       cloneManagementWorkspaceRoomProfileV1({
         roomId: room.id,
         capabilities: room.capabilities,
-        knowledgeStatus: room.knowledgeStatus,
+        knowledgeStatus: room.knowledgeStatus ?? 'UNKNOWN',
       }),
     ]),
   );
