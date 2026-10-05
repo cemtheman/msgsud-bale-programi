@@ -4,16 +4,26 @@ import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
   prepareManagementWorkspaceRoomNameEditV1,
   prepareManagementWorkspaceRoomStatusEditV1,
+  prepareManagementWorkspaceTeacherDepartureV1,
   prepareManagementWorkspaceTeacherNameEditV1,
   prepareManagementWorkspaceTeacherStatusEditV1,
+  previewManagementWorkspaceTeacherDepartureV1,
 } from '@/lib/managementWorkspaceInventoryEdits';
 import {
+  executeManagementWorkspaceCommandsV1,
   previewManagementWorkspaceCommandsV1,
 } from '@/lib/managementWorkspaceCommands';
 import {
   createManagementWorkspaceWorkingCopyV1,
   removeManagementWorkspacePlacementV1,
+  setManagementWorkspacePlacementV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
+import {
+  createManagementWorkspaceHistoryV1,
+} from '@/lib/managementWorkspaceHistory';
+import {
+  prepareManagementWorkspaceCommitV1,
+} from '@/lib/managementWorkspaceCommit';
 
 function snapshot(): ManagementWorkspaceSnapshotV1 {
   return {
@@ -153,7 +163,7 @@ describe('management workspace inventory edits', () => {
     });
   });
 
-  it('blocks inactivating a teacher that is still used by a local placement', () => {
+  it('allows preserving baseline placements when a teacher is locally inactivated', () => {
     const source = snapshot();
     const copy = createManagementWorkspaceWorkingCopyV1(source);
 
@@ -168,9 +178,7 @@ describe('management workspace inventory edits', () => {
       [plan.command],
     );
 
-    expect(preview.applied).toBe(false);
-    expect(preview.issues.map((issue) => issue.code))
-      .toContain('TEACHER_INACTIVE');
+    expect(preview.applied).toBe(true);
   });
 
   it('allows teacher inactivation after the local placement is removed', () => {
@@ -190,6 +198,117 @@ describe('management workspace inventory edits', () => {
     );
 
     expect(preview.applied).toBe(true);
+  });
+
+  it('prepares INACTIVATE_KEEP as one undoable local inventory command', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const preview = previewManagementWorkspaceTeacherDepartureV1(
+      source,
+      copy,
+      'teacher-1',
+    );
+    const prepared = prepareManagementWorkspaceTeacherDepartureV1(
+      source,
+      copy,
+      'teacher-1',
+      'INACTIVATE_KEEP',
+    );
+    const result = executeManagementWorkspaceCommandsV1(
+      source,
+      copy,
+      history,
+      prepared.commands,
+    );
+
+    expect(preview).toMatchObject({
+      activeRequirementCount: 1,
+      placedBlockCount: 1,
+    });
+    expect(result.applied).toBe(true);
+    expect(copy.teacherInventoryById['teacher-1'].operationalStatus)
+      .toBe('INACTIVE');
+    expect(copy.placementsByCardId['card-1'].teacherId).toBe('teacher-1');
+    expect(history.undoStack).toHaveLength(1);
+    expect(prepareManagementWorkspaceCommitV1(source, copy).ready).toBe(true);
+  });
+
+  it('prepares INACTIVATE_CLEAR as one coordinated local batch', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const prepared = prepareManagementWorkspaceTeacherDepartureV1(
+      source,
+      copy,
+      'teacher-1',
+      'INACTIVATE_CLEAR',
+    );
+    const result = executeManagementWorkspaceCommandsV1(
+      source,
+      copy,
+      history,
+      prepared.commands,
+    );
+
+    expect(result.applied).toBe(true);
+    expect(copy.teacherInventoryById['teacher-1'].operationalStatus)
+      .toBe('INACTIVE');
+    expect(copy.requirementResourcesById['requirement-1']).toMatchObject({
+      teacherIds: [],
+      teacherMode: 'UNKNOWN',
+    });
+    expect(copy.placementsByCardId['card-1']).toMatchObject({
+      dayOfWeek: 1,
+      startPeriod: 1,
+      teacherId: null,
+      roomId: 'room-1',
+    });
+    expect(new Set(history.undoStack.map((entry) => entry.batchId)).size)
+      .toBe(1);
+
+    const commit = prepareManagementWorkspaceCommitV1(source, copy);
+    expect(commit.ready).toBe(true);
+    expect(commit.issues).toEqual([]);
+    expect(commit.payload?.changes[0]?.after.teacher_id).toBeNull();
+    expect(commit.payload?.requirementChanges[0]?.after.teacher_ids)
+      .toEqual([]);
+    expect(commit.payload?.resourceChanges[0]?.after.operational_status)
+      .toBe('INACTIVE');
+  });
+
+  it('still blocks assigning a locally inactive teacher as a new placement', () => {
+    const source = {
+      ...snapshot(),
+      baselinePlacements: [{
+        ...snapshot().baselinePlacements[0],
+        teacherId: null,
+      }],
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    copy.teacherInventoryById['teacher-1'] = {
+      ...copy.teacherInventoryById['teacher-1'],
+      operationalStatus: 'INACTIVE',
+    };
+    setManagementWorkspacePlacementV1(copy, {
+      ...copy.placementsByCardId['card-1'],
+      teacherId: 'teacher-1',
+    });
+
+    const preview = previewManagementWorkspaceCommandsV1(
+      source,
+      createManagementWorkspaceWorkingCopyV1(source),
+      [{
+        type: 'SET_PLACEMENT',
+        placement: copy.placementsByCardId['card-1'],
+      }],
+    );
+
+    expect(preview.applied).toBe(false);
+    expect(preview.issues.map((issue) => issue.code))
+      .toContain('TEACHER_INACTIVE');
   });
 
   it('blocks non-active room status while the room family is locally placed', () => {
