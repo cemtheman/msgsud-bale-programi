@@ -432,9 +432,28 @@ export function validateManagementWorkspaceV1(
       || change.before.roomIds.join('|') !== change.after.roomIds.join('|')
     );
 
+    const removedTeacherIds = change.before.teacherIds.filter(
+      (teacherId) => !change.after.teacherIds.includes(teacherId),
+    );
+    const teacherDepartureOnly = (
+      removedTeacherIds.length > 0
+      && change.after.teacherIds.every(
+        (teacherId) => change.before.teacherIds.includes(teacherId),
+      )
+      && removedTeacherIds.every(
+        (teacherId) =>
+          workingCopy.teacherInventoryById[teacherId]?.operationalStatus
+          === 'INACTIVE',
+      )
+      && change.before.resourceMode === change.after.resourceMode
+      && change.before.requiredCapability === change.after.requiredCapability
+      && change.before.roomIds.join('|') === change.after.roomIds.join('|')
+    );
+
     if (
       sourceResourcesChanged
       && baselinePlacedRequirementIds.has(change.requirementId)
+      && !teacherDepartureOnly
     ) {
       pushIssue(issues, {
         code: 'REQUIREMENT_RESOURCES_REQUIRE_UNPLACED',
@@ -453,6 +472,12 @@ export function validateManagementWorkspaceV1(
     ),
   );
   const baseline = baselinePlacementMap(snapshot);
+  const baselineTeacherByCardId = new Map(
+    snapshot.baselinePlacements.map((placement) => [
+      placement.cardId,
+      placement.teacherId,
+    ]),
+  );
   const descendants = buildGroupDescendants(snapshot);
   const placed: Array<{
     cardId: string;
@@ -529,24 +554,46 @@ export function validateManagementWorkspaceV1(
       requirement.teacherRequirement === 'REQUIRED'
       && placement.teacherId === null
     ) {
-      pushIssue(issues, {
-        code: 'TEACHER_REQUIRED',
-        cardIds: [card.id],
-        requirementId: requirement.id,
-        dayOfWeek: placement.dayOfWeek,
-      });
+      const departedTeacherId = baselineTeacherByCardId.get(card.id) ?? null;
+      const departureGap = Boolean(
+        departedTeacherId
+        && workingCopy.teacherInventoryById[departedTeacherId]
+          ?.operationalStatus === 'INACTIVE'
+        && !(
+          workingCopy.requirementResourcesById[requirement.id]
+            ?.teacherIds.includes(departedTeacherId)
+          ?? false
+        )
+      );
+
+      if (!departureGap) {
+        pushIssue(issues, {
+          code: 'TEACHER_REQUIRED',
+          cardIds: [card.id],
+          requirementId: requirement.id,
+          dayOfWeek: placement.dayOfWeek,
+        });
+      }
     }
 
     if (placement.teacherId !== null) {
       const teacher = teachers.get(placement.teacherId);
 
       if (!teacher || teacher.operationalStatus !== 'ACTIVE') {
-        pushIssue(issues, {
-          code: 'TEACHER_INACTIVE',
-          cardIds: [card.id],
-          requirementId: requirement.id,
-          dayOfWeek: placement.dayOfWeek,
-        });
+        const preservedDepartureAssignment = Boolean(
+          teacher
+          && teacher.operationalStatus === 'INACTIVE'
+          && baselineTeacherByCardId.get(card.id) === placement.teacherId
+        );
+
+        if (!preservedDepartureAssignment) {
+          pushIssue(issues, {
+            code: 'TEACHER_INACTIVE',
+            cardIds: [card.id],
+            requirementId: requirement.id,
+            dayOfWeek: placement.dayOfWeek,
+          });
+        }
       }
 
       const pool = teacherPools.get(requirement.id);
