@@ -365,4 +365,36 @@ describe('management workspace history v1', () => {
     expect(undoManagementWorkspaceOperationV1(copy, history)).toBeNull();
     expect(redoManagementWorkspaceOperationV1(copy, history)).toBeNull();
   });
+
+  it('undoes and redoes teacher availability edits locally', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const result = executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      {
+        type: 'SET_TEACHER_AVAILABILITY',
+        availability: {
+          teacherId: 'teacher-1',
+          unavailablePeriods: [{ dayOfWeek: 2, period: 3 }],
+        },
+      },
+    );
+
+    expect(result.applied).toBe(true);
+    expect(copy.teacherAvailabilityById['teacher-1'].unavailablePeriods)
+      .toEqual([{ dayOfWeek: 2, period: 3 }]);
+
+    undoManagementWorkspaceOperationV1(copy, history);
+    expect(copy.teacherAvailabilityById['teacher-1'].unavailablePeriods)
+      .toEqual([]);
+
+    redoManagementWorkspaceOperationV1(copy, history);
+    expect(copy.teacherAvailabilityById['teacher-1'].unavailablePeriods)
+      .toEqual([{ dayOfWeek: 2, period: 3 }]);
+  });
+
 });
