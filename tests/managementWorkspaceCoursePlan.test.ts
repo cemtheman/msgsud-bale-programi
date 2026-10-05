@@ -67,6 +67,8 @@ function workingCopy(): ManagementWorkspaceWorkingCopyV1 {
         requirementId: 'requirement-1',
         teacherIds: ['teacher-1', 'teacher-2'],
         teacherMode: 'ELIGIBLE_POOL',
+        teacherAssignmentScope: 'BLOCK',
+        teacherContinuity: 'PREFERRED',
         resourceMode: 'CAPABILITY',
         roomIds: [],
         requiredCapability: 'STUDIO_SMALL_GROUP',
@@ -85,6 +87,8 @@ describe('management workspace Course Plan adapter', () => {
 
     expect(projected.rows[0]).toMatchObject({
       teacherMode: 'ELIGIBLE_POOL',
+      teacherAssignmentScope: 'BLOCK',
+      teacherContinuity: 'PREFERRED',
       teacherIds: ['teacher-1', 'teacher-2'],
       teacherNames: ['Öğretmen 1', 'Öğretmen 2'],
       resourceMode: 'CAPABILITY',
