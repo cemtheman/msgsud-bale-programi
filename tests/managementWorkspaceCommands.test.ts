@@ -543,6 +543,39 @@ describe('management workspace command executor v1', () => {
       .toEqual(['requirement-1']);
   });
 
+  it('applies resource inventory changes through the shared command layer', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const current = copy.teacherInventoryById['teacher-1'];
+    const result = executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      {
+        type: 'SET_INVENTORY_RESOURCE',
+        resource: {
+          ...current,
+          displayName: 'Yerel Öğretmen Adı',
+        },
+      },
+    );
+
+    expect(result.applied).toBe(true);
+    expect(diffManagementWorkspaceV1(source, copy).dirtyResourceIds)
+      .toEqual(['teacher-1']);
+    expect(history.undoStack).toHaveLength(1);
+    expect(history.undoStack[0].kind).toBe('SET_INVENTORY_RESOURCE');
+
+    undoManagementWorkspaceOperationV1(copy, history);
+    expect(diffManagementWorkspaceV1(source, copy).hasChanges).toBe(false);
+
+    redoManagementWorkspaceOperationV1(copy, history);
+    expect(copy.teacherInventoryById['teacher-1'].displayName)
+      .toBe('Yerel Öğretmen Adı');
+  });
+
   it('previews a conflicting local batch without mutating the working copy', () => {
     const source = snapshot();
     const copy = createManagementWorkspaceWorkingCopyV1(source);
