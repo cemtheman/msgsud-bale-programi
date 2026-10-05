@@ -10,11 +10,17 @@ export function projectManagementBoardFromWorkspaceV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
 ): ManagementBoardData {
   const teacherNamesById = {
-    ...board.teacherNamesById,
+    ...Object.fromEntries(
+      Object.entries(board.teacherNamesById)
+        .filter(([id]) =>
+          workingCopy.resourceLifecycleById[id]?.exists !== false
+        ),
+    ),
     ...Object.fromEntries(
       Object.values(workingCopy.teacherInventoryById)
         .filter((resource) =>
-          resource.displayName !== resource.baselineDisplayName,
+          workingCopy.resourceLifecycleById[resource.resourceId]?.exists
+          !== false
         )
         .map((resource) => [
           resource.resourceId,
@@ -23,11 +29,17 @@ export function projectManagementBoardFromWorkspaceV1(
     ),
   };
   const roomNamesById = {
-    ...board.roomNamesById,
+    ...Object.fromEntries(
+      Object.entries(board.roomNamesById)
+        .filter(([id]) =>
+          workingCopy.resourceLifecycleById[id]?.exists !== false
+        ),
+    ),
     ...Object.fromEntries(
       Object.values(workingCopy.roomInventoryById)
         .filter((resource) =>
-          resource.displayName !== resource.baselineDisplayName,
+          workingCopy.resourceLifecycleById[resource.resourceId]?.exists
+          !== false
         )
         .map((resource) => [
           resource.resourceId,
