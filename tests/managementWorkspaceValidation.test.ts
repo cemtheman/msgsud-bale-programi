@@ -9,6 +9,16 @@ import {
   findManagementWorkspaceParallelBundleV1,
   validateManagementWorkspaceV1,
 } from '@/lib/managementWorkspaceValidation';
+import {
+  prepareManagementWorkspaceCoordinatedTeacherReconciliationV1,
+  prepareManagementWorkspaceTeacherReconciliationV1,
+} from '@/lib/managementWorkspaceTeacherReconciliation';
+import {
+  createManagementWorkspaceHistoryV1,
+} from '@/lib/managementWorkspaceHistory';
+import {
+  executeManagementWorkspaceCommandsV1,
+} from '@/lib/managementWorkspaceCommands';
 
 function baseSnapshot(): ManagementWorkspaceSnapshotV1 {
   return {
@@ -751,6 +761,86 @@ describe('management workspace local validation v1', () => {
 
     expect(validation.issues.map((issue) => issue.code))
       .toContain('ROOM_CAPABILITY_MISMATCH');
+  });
+
+
+  it('reconciles all placed blocks of one requirement locally while preserving time and room', () => {
+    const source = baseSnapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    copy.requirementResourcesById['requirement-1'].teacherIds = [
+      'teacher-1',
+      'teacher-2',
+    ];
+
+    const prepared = prepareManagementWorkspaceTeacherReconciliationV1(
+      source,
+      copy,
+      'requirement-1',
+      'teacher-2',
+    );
+
+    expect(prepared.preview.canApply).toBe(true);
+    expect(prepared.preview.changedBlockCount).toBe(2);
+
+    const before = {
+      card1: { ...copy.placementsByCardId['card-1'] },
+      card2: { ...copy.placementsByCardId['card-2'] },
+    };
+
+    const result = executeManagementWorkspaceCommandsV1(
+      source,
+      copy,
+      history,
+      prepared.commands,
+    );
+
+    expect(result.applied).toBe(true);
+    expect(copy.placementsByCardId['card-1']).toEqual({
+      ...before.card1,
+      teacherId: 'teacher-2',
+    });
+    expect(copy.placementsByCardId['card-2']).toEqual({
+      ...before.card2,
+      teacherId: 'teacher-2',
+    });
+    expect(new Set(history.undoStack.map((entry) => entry.batchId)).size)
+      .toBe(1);
+  });
+
+  it('detects a final-state conflict in coordinated teacher reconciliation', () => {
+    const source = baseSnapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    copy.requirementResourcesById['requirement-1'].teacherIds = [
+      'teacher-1',
+      'teacher-2',
+    ];
+    copy.requirementResourcesById['requirement-2'].teacherIds = [
+      'teacher-1',
+      'teacher-2',
+    ];
+    copy.placementsByCardId['card-3'] = {
+      ...copy.placementsByCardId['card-3'],
+      dayOfWeek: 1,
+      startPeriod: 1,
+      teacherId: 'teacher-2',
+    };
+
+    const prepared =
+      prepareManagementWorkspaceCoordinatedTeacherReconciliationV1(
+        source,
+        copy,
+        [
+          { requirementId: 'requirement-1', teacherId: 'teacher-2' },
+          { requirementId: 'requirement-2', teacherId: 'teacher-2' },
+        ],
+      );
+
+    expect(prepared.preview.canApply).toBe(false);
+    expect(prepared.preview.blockReasons).toContain('TEACHER_CONFLICT');
+    expect(prepared.preview.conflicts.length).toBeGreaterThan(0);
   });
 
 });
