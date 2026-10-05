@@ -222,4 +222,39 @@ describe('management workspace Resources projection', () => {
     });
   });
 
+
+  it('shows staged creates and hides staged deletes immediately', () => {
+    const copy = workingCopy();
+    copy.resourceLifecycleById['teacher-1'].exists = false;
+
+    copy.resourceLifecycleById['22222222-2222-4222-8222-222222222222'] = {
+      resourceType: 'ROOM',
+      resourceId: '22222222-2222-4222-8222-222222222222',
+      baselineExists: false,
+      exists: true,
+    };
+    copy.roomInventoryById['22222222-2222-4222-8222-222222222222'] = {
+      resourceType: 'ROOM',
+      resourceId: '22222222-2222-4222-8222-222222222222',
+      baselineDisplayName: 'Yeni Salon',
+      displayName: 'Yeni Salon',
+      operationalStatus: 'ACTIVE',
+    };
+    copy.roomProfileById['22222222-2222-4222-8222-222222222222'] = {
+      roomId: '22222222-2222-4222-8222-222222222222',
+      capabilities: [],
+      knowledgeStatus: 'UNKNOWN',
+    };
+
+    const projected = projectManagementResourcesFromWorkspaceV1(
+      resources(),
+      copy,
+    );
+
+    expect(projected.teachers).toHaveLength(0);
+    expect(projected.rooms.some(
+      (room) => room.id === '22222222-2222-4222-8222-222222222222',
+    )).toBe(true);
+  });
+
 });
