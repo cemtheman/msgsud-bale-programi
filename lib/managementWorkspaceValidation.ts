@@ -340,24 +340,53 @@ export function validateManagementWorkspaceV1(
   const issues: ManagementWorkspaceValidationIssueV1[] = [];
   const coordinatedCards = new Set(coordinatedCardIds);
   const requirements = new Map(
-    snapshot.requirements.map((requirement) => {
-      const resource =
-        workingCopy.requirementResourcesById[requirement.id] ?? null;
-
-      return [
-        requirement.id,
-        resource
-          ? {
-              ...requirement,
-              teacherMode: resource.teacherMode,
-              teacherAssignmentScope: resource.teacherAssignmentScope,
-              teacherContinuity: resource.teacherContinuity,
-              resourceMode: resource.resourceMode,
-              requiredCapability: resource.requiredCapability,
-            }
-          : requirement,
-      ];
-    }),
+    Object.values(workingCopy.requirementCatalogById)
+      .filter((catalog) =>
+        workingCopy.requirementStructureById[catalog.requirementId]?.termStatus
+        === 'ACTIVE'
+      )
+      .map((catalog) => {
+        const resource =
+          workingCopy.requirementResourcesById[catalog.requirementId];
+        const structure =
+          workingCopy.requirementStructureById[catalog.requirementId];
+        return [
+          catalog.requirementId,
+          {
+            id: catalog.requirementId,
+            subjectId: catalog.subjectId,
+            subjectName: catalog.subjectName,
+            groupId: catalog.groupId,
+            groupName: catalog.groupName,
+            groupType: catalog.groupType,
+            weeklyLoad: structure?.weeklyLoad ?? catalog.baselineWeeklyLoad,
+            preferredPartition:
+              structure?.preferredPartition
+              ?? catalog.baselinePreferredPartition,
+            allowedPartitions:
+              structure?.allowedPartitions
+              ?? catalog.baselineAllowedPartitions,
+            minDistinctDays: catalog.minDistinctDays,
+            maxBlocksPerDay: catalog.maxBlocksPerDay,
+            maxConsecutivePeriods: catalog.maxConsecutivePeriods,
+            courseCharacter: catalog.courseCharacter,
+            deliveryMode: catalog.deliveryMode,
+            teacherRequirement: catalog.teacherRequirement,
+            teacherMode: resource?.teacherMode ?? catalog.baselineTeacherMode,
+            teacherAssignmentScope:
+              resource?.teacherAssignmentScope
+              ?? catalog.baselineTeacherAssignmentScope,
+            teacherContinuity:
+              resource?.teacherContinuity
+              ?? catalog.baselineTeacherContinuity,
+            resourceMode:
+              resource?.resourceMode ?? catalog.baselineResourceMode,
+            requiredCapability:
+              resource?.requiredCapability
+              ?? catalog.baselineRequiredCapability,
+          },
+        ];
+      }),
   );
   const cards = new Map(
     Object.values(workingCopy.cardsById).map((card) => [card.id, card]),
