@@ -532,4 +532,33 @@ describe('management workspace working copy v1', () => {
     }]);
   });
 
+
+  it('tracks room profile changes in the local diff', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    copy.roomProfileById['room-1'] = {
+      roomId: 'room-1',
+      capabilities: ['STUDIO_SMALL_GROUP'],
+      knowledgeStatus: 'OBSERVED',
+    };
+
+    const diff = diffManagementWorkspaceV1(source, copy);
+
+    expect(diff.hasChanges).toBe(true);
+    expect(diff.roomProfileChanges).toEqual([{
+      roomId: 'room-1',
+      before: {
+        roomId: 'room-1',
+        capabilities: [],
+        knowledgeStatus: 'CONFIRMED',
+      },
+      after: {
+        roomId: 'room-1',
+        capabilities: ['STUDIO_SMALL_GROUP'],
+        knowledgeStatus: 'OBSERVED',
+      },
+    }]);
+  });
+
 });
