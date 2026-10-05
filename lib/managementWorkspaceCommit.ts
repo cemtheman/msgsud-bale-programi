@@ -266,7 +266,7 @@ export async function commitManagementWorkspaceV1(
   const token = await getFreshManagementAccessToken(accessToken);
 
   const response = await fetch(
-    `${url}/rest/v1/rpc/management_commit_workspace_v6`,
+    `${url}/rest/v1/rpc/management_commit_workspace_v7`,
     {
       method: 'POST',
       headers: {
@@ -364,6 +364,14 @@ export function translateManagementWorkspaceCommitErrorV1(
 
   if (normalized.includes('WORKSPACE_V1_LOCKED_CARD_CHANGED')) {
     return 'Kilitli bir ders değiştirildiği için çalışma alanı kaydedilemedi.';
+  }
+
+  if (normalized.includes('WORKSPACE_V7_MULTIPLE_ROOM_DEPARTURES_UNSUPPORTED')) {
+    return 'Tek Kaydet işleminde yalnızca bir salon “kullanım dışına al” ayrılış işlemi yapılabilir. İlk değişikliği kaydedip ardından diğer salona geçin.';
+  }
+
+  if (normalized.includes('WORKSPACE_V7_ROOM_DEPARTURE_DELTA_MISMATCH')) {
+    return 'Salon ayrılış değişikliği çalışma alanındaki güncel ders/atama durumu ile eşleşmiyor. Çalışma alanını yenileyip işlemi yeniden uygulayın.';
   }
 
   if (
