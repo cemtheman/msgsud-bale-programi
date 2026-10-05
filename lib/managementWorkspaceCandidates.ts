@@ -2,6 +2,24 @@ import type { ManagementCandidateDetail } from '@/lib/managementBoard';
 import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import type { ManagementWorkspaceWorkingCopyV1 } from '@/lib/managementWorkspaceWorkingCopy';
 
+function workspaceRequirementForCandidates(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  requirementId: string,
+) {
+  const catalog = workingCopy.requirementCatalogById[requirementId];
+  const structure = workingCopy.requirementStructureById[requirementId];
+  const resource = workingCopy.requirementResourcesById[requirementId];
+  if (!catalog || !structure || structure.termStatus !== 'ACTIVE') return null;
+
+  return {
+    id: requirementId,
+    teacherRequirement: catalog.teacherRequirement,
+    resourceMode: resource?.resourceMode ?? catalog.baselineResourceMode,
+    requiredCapability:
+      resource?.requiredCapability ?? catalog.baselineRequiredCapability,
+  };
+}
+
 export function buildManagementWorkspaceMoveCandidateDetailV1(
   snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
@@ -10,8 +28,9 @@ export function buildManagementWorkspaceMoveCandidateDetailV1(
   const card = workingCopy.cardsById[cardId];
   if (!card) return null;
 
-  const requirement = snapshot.requirements.find(
-    (item) => item.id === card.requirementId,
+  const requirement = workspaceRequirementForCandidates(
+    workingCopy,
+    card.requirementId,
   );
   const placement = workingCopy.placementsByCardId[cardId];
 
@@ -108,7 +127,11 @@ function teacherOptionsForRequirement(
 function roomOptionsForRequirement(
   snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
-  requirement: ManagementWorkspaceSnapshotV1['requirements'][number],
+  requirement: {
+    id: string;
+    resourceMode: string;
+    requiredCapability: string | null;
+  },
 ) {
   const localResource =
     workingCopy.requirementResourcesById[requirement.id] ?? null;
@@ -174,8 +197,9 @@ export function buildManagementWorkspacePlacementCandidateDetailV1(
   const card = workingCopy.cardsById[cardId];
   if (!card) return null;
 
-  const requirement = snapshot.requirements.find(
-    (item) => item.id === card.requirementId,
+  const requirement = workspaceRequirementForCandidates(
+    workingCopy,
+    card.requirementId,
   );
   if (!requirement) return null;
 
