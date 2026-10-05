@@ -45,6 +45,12 @@ export interface ManagementWorkspaceRoomInventoryStateV1 {
   operationalStatus: 'ACTIVE' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
 }
 
+export interface ManagementWorkspaceRoomProfileStateV1 {
+  roomId: string;
+  capabilities: string[];
+  knowledgeStatus: 'CONFIRMED' | 'OBSERVED' | 'UNKNOWN';
+}
+
 export type ManagementWorkspaceInventoryStateV1 =
   | ManagementWorkspaceTeacherInventoryStateV1
   | ManagementWorkspaceRoomInventoryStateV1;
@@ -74,6 +80,8 @@ export interface ManagementWorkspaceWorkingCopyV1 {
     Record<string, ManagementWorkspaceTeacherPlanningStateV1>;
   teacherAvailabilityById:
     Record<string, ManagementWorkspaceTeacherAvailabilityStateV1>;
+  roomProfileById:
+    Record<string, ManagementWorkspaceRoomProfileStateV1>;
 }
 
 export interface ManagementWorkspacePlacementChangeV1 {
@@ -107,6 +115,12 @@ export interface ManagementWorkspaceTeacherAvailabilityChangeV1 {
   after: ManagementWorkspaceTeacherAvailabilityStateV1;
 }
 
+export interface ManagementWorkspaceRoomProfileChangeV1 {
+  roomId: string;
+  before: ManagementWorkspaceRoomProfileStateV1;
+  after: ManagementWorkspaceRoomProfileStateV1;
+}
+
 export interface ManagementWorkspaceDiffV1 {
   baseline: ManagementWorkspaceSnapshotIdentityV1;
   hasChanges: boolean;
@@ -119,6 +133,7 @@ export interface ManagementWorkspaceDiffV1 {
   inventoryChanges: ManagementWorkspaceInventoryChangeV1[];
   teacherPlanningChanges: ManagementWorkspaceTeacherPlanningChangeV1[];
   teacherAvailabilityChanges: ManagementWorkspaceTeacherAvailabilityChangeV1[];
+  roomProfileChanges: ManagementWorkspaceRoomProfileChangeV1[];
 }
 
 function cloneIdentity(
@@ -187,6 +202,24 @@ function equalTeacherAvailability(
   const a = cloneManagementWorkspaceTeacherAvailabilityV1(left);
   const b = cloneManagementWorkspaceTeacherAvailabilityV1(right);
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+export function cloneManagementWorkspaceRoomProfileV1(
+  value: ManagementWorkspaceRoomProfileStateV1,
+): ManagementWorkspaceRoomProfileStateV1 {
+  return {
+    roomId: value.roomId,
+    capabilities: [...value.capabilities].sort((a, b) => a.localeCompare(b)),
+    knowledgeStatus: value.knowledgeStatus,
+  };
+}
+
+function equalRoomProfile(
+  left: ManagementWorkspaceRoomProfileStateV1,
+  right: ManagementWorkspaceRoomProfileStateV1,
+) {
+  return JSON.stringify(cloneManagementWorkspaceRoomProfileV1(left))
+    === JSON.stringify(cloneManagementWorkspaceRoomProfileV1(right));
 }
 
 function equalTeacherPlanning(
@@ -452,6 +485,21 @@ export function baselineTeacherPlanningById(
   );
 }
 
+export function baselineRoomProfileById(
+  snapshot: ManagementWorkspaceSnapshotV1,
+): Record<string, ManagementWorkspaceRoomProfileStateV1> {
+  return Object.fromEntries(
+    snapshot.rooms.map((room) => [
+      room.id,
+      cloneManagementWorkspaceRoomProfileV1({
+        roomId: room.id,
+        capabilities: room.capabilities,
+        knowledgeStatus: room.knowledgeStatus,
+      }),
+    ]),
+  );
+}
+
 export function baselineTeacherAvailabilityById(
   snapshot: ManagementWorkspaceSnapshotV1,
 ): Record<string, ManagementWorkspaceTeacherAvailabilityStateV1> {
@@ -533,6 +581,7 @@ export function createManagementWorkspaceWorkingCopyV1(
     roomInventoryById: baselineRoomInventoryById(snapshot),
     teacherPlanningById: baselineTeacherPlanningById(snapshot),
     teacherAvailabilityById: baselineTeacherAvailabilityById(snapshot),
+    roomProfileById: baselineRoomProfileById(snapshot),
   };
 }
 
@@ -678,6 +727,21 @@ export function setManagementWorkspaceTeacherAvailabilityV1(
     });
 }
 
+export function setManagementWorkspaceRoomProfileV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  roomId: string,
+  profile: Omit<ManagementWorkspaceRoomProfileStateV1, 'roomId'>,
+) {
+  if (!workingCopy.roomProfileById[roomId]) {
+    throw new Error(`Workspace working copy salon profili bulunamadı (${roomId}).`);
+  }
+  workingCopy.roomProfileById[roomId] = cloneManagementWorkspaceRoomProfileV1({
+    roomId,
+    capabilities: profile.capabilities,
+    knowledgeStatus: profile.knowledgeStatus,
+  });
+}
+
 export function setManagementWorkspaceRoomInventoryV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   resourceId: string,
@@ -795,6 +859,7 @@ export function diffManagementWorkspaceV1(
   const baselineRoomInventory = baselineRoomInventoryById(snapshot);
   const baselineTeacherPlanning = baselineTeacherPlanningById(snapshot);
   const baselineTeacherAvailability = baselineTeacherAvailabilityById(snapshot);
+  const baselineRoomProfiles = baselineRoomProfileById(snapshot);
   const snapshotCardIds = new Set(snapshot.cards.map((card) => card.id));
   const snapshotRequirementIds = new Set(
     snapshot.requirements.map((requirement) => requirement.id),
@@ -844,6 +909,14 @@ export function diffManagementWorkspaceV1(
     if (!baselineTeacherAvailability[teacherId]) {
       throw new Error(
         `Workspace working copy bilinmeyen öğretmen uygunluk girdisi içeriyor (${teacherId}).`,
+      );
+    }
+  });
+
+  Object.keys(workingCopy.roomProfileById).forEach((roomId) => {
+    if (!baselineRoomProfiles[roomId]) {
+      throw new Error(
+        `Workspace working copy bilinmeyen salon profili içeriyor (${roomId}).`,
       );
     }
   });
@@ -993,6 +1066,26 @@ export function diffManagementWorkspaceV1(
     )
     .sort((left, right) => left.teacherId.localeCompare(right.teacherId));
 
+  const roomProfileChanges = snapshot.rooms
+    .map((room) => {
+      const before = baselineRoomProfiles[room.id];
+      const after = workingCopy.roomProfileById[room.id];
+      if (!before || !after) {
+        throw new Error(`Workspace working copy salon profili eksik (${room.id}).`);
+      }
+      if (equalRoomProfile(before, after)) return null;
+      return {
+        roomId: room.id,
+        before: cloneManagementWorkspaceRoomProfileV1(before),
+        after: cloneManagementWorkspaceRoomProfileV1(after),
+      };
+    })
+    .filter(
+      (change): change is ManagementWorkspaceRoomProfileChangeV1 =>
+        change !== null,
+    )
+    .sort((left, right) => left.roomId.localeCompare(right.roomId));
+
   const dirtyCardIds = placementChanges
     .map((change) => change.cardId)
     .sort((left, right) => left.localeCompare(right));
@@ -1005,6 +1098,7 @@ export function diffManagementWorkspaceV1(
     ...inventoryChanges.map((change) => change.resourceId),
     ...teacherPlanningChanges.map((change) => change.teacherId),
     ...teacherAvailabilityChanges.map((change) => change.teacherId),
+    ...roomProfileChanges.map((change) => change.roomId),
   ])).sort((left, right) => left.localeCompare(right));
 
   return {
@@ -1014,7 +1108,8 @@ export function diffManagementWorkspaceV1(
       || requirementResourceChanges.length > 0
       || inventoryChanges.length > 0
       || teacherPlanningChanges.length > 0
-      || teacherAvailabilityChanges.length > 0,
+      || teacherAvailabilityChanges.length > 0
+      || roomProfileChanges.length > 0,
     dirtyCardIds,
     dirtyRequirementIds,
     dirtyResourceIds,
@@ -1023,5 +1118,6 @@ export function diffManagementWorkspaceV1(
     inventoryChanges,
     teacherPlanningChanges,
     teacherAvailabilityChanges,
+    roomProfileChanges,
   };
 }
