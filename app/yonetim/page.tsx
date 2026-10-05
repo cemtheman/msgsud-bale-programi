@@ -66,7 +66,7 @@ import {
   previewManagementTeacherDeparture,
   applyManagementRoomDeparture,
   applyManagementTeacherDeparture,
-  updateManagementTeacherLoadTargets,
+  validateManagementTeacherLoadTargets,
   updateManagementTeacherUnavailablePeriods,
   type ManagementResourceInventoryData,
 } from '@/lib/managementResources';
@@ -5010,39 +5010,45 @@ export default function ManagementPage() {
             );
           }}
           onUpdateTeacherLoadTargets={async (teacherId, input) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
-            assertServerResourceMutationAllowed();
 
-            setCommandBusy(true);
-            setCommandActivity('Öğretmenin dönemlik yük hedefleri güncelleniyor.');
-
-            try {
-              const result = await updateManagementTeacherLoadTargets(
-                session.accessToken,
-                resources.revisionId,
-                teacherId,
-                input,
-              );
-
-              const label = [
-                result.minimumLoad ?? '–',
-                result.targetLoad ?? '–',
-                result.maximumLoad ?? '–',
-              ].join(' / ');
-
-              setCommandNotice({
-                kind: 'success',
-                text: result.configured
-                  ? `Öğretmen yük hedefleri ${label} olarak kaydedildi. Program ve yayın değişmedi.`
-                  : 'Öğretmen yük hedefleri temizlendi. Program ve yayın değişmedi.',
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
+            const validationError = validateManagementTeacherLoadTargets(input);
+            if (validationError) {
+              throw new Error(validationError);
             }
+
+            const current = localWorkingCopy.teacherPlanningById[teacherId];
+            if (!current) {
+              throw new Error('Öğretmen planlama girdisi bulunamadı.');
+            }
+
+            const label = [
+              input.minimumLoad ?? '–',
+              input.targetLoad ?? '–',
+              input.maximumLoad ?? '–',
+            ].join(' / ');
+
+            applyLocalInventoryCommand(
+              {
+                type: 'SET_TEACHER_PLANNING',
+                planning: {
+                  teacherId,
+                  minimumLoad: input.minimumLoad,
+                  targetLoad: input.targetLoad,
+                  maximumLoad: input.maximumLoad,
+                },
+              },
+              (
+                input.minimumLoad !== null
+                || input.targetLoad !== null
+                || input.maximumLoad !== null
+              )
+                ? `Öğretmen yük hedefleri yerel çalışma alanında ${label} olarak güncellendi. Ana Kaydet ile veritabanına yazılacak.`
+                : 'Öğretmen yük hedefleri yerel çalışma alanında temizlendi. Ana Kaydet ile veritabanına yazılacak.',
+            );
           }}
           onUpdateTeacherUnavailablePeriods={async (
             teacherId,
