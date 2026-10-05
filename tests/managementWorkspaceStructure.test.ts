@@ -17,6 +17,9 @@ import {
   prepareManagementWorkspaceRequirementStructureV1,
   previewManagementWorkspaceRequirementStructureV1,
 } from '@/lib/managementWorkspaceStructure';
+import {
+  buildManagementWorkspacePlacementCandidateDetailV1,
+} from '@/lib/managementWorkspaceCandidates';
 
 function snapshot(
   placed = true,
@@ -306,4 +309,47 @@ describe('management workspace active requirement structure', () => {
       },
     )).toThrow(/ayrı lifecycle sınırında/i);
   });
+
+  it('feeds a newly created structural card into local candidate generation', () => {
+    const source = snapshot(false);
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+    const input = {
+      requirementId: 'requirement-1',
+      weeklyLoad: 3,
+      preferredPartition: [1, 1, 1],
+      allowedPartitions: [[1, 1, 1]],
+      termStatus: 'ACTIVE' as const,
+    };
+    const preview = previewManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      input,
+    );
+    const prepared = prepareManagementWorkspaceRequirementStructureV1(
+      source,
+      copy,
+      input,
+      preview.structureToken,
+    );
+    executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      prepared.command,
+    );
+
+    const created = Object.values(copy.cardsById)
+      .find((card) => !card.baselineExists);
+    expect(created).toBeDefined();
+
+    const candidates = buildManagementWorkspacePlacementCandidateDetailV1(
+      source,
+      copy,
+      created!.id,
+    );
+    expect(candidates).not.toBeNull();
+    expect(candidates!.validCandidates.length).toBeGreaterThan(0);
+  });
+
 });
