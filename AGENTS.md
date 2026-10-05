@@ -7541,3 +7541,45 @@ Accepted local-workspace surface now additionally includes:
 Next sub-phase:
 **Teacher departure / inactivation workflow localization**
 Keep teacher load, hard availability and room profile/departure as later sub-phases unless the departure implementation shows a shared prerequisite.
+
+
+### 5 Oct 2026 — Teacher inactivation localization, phase A
+
+Scope implemented:
+- `INACTIVATE_KEEP` is now local-workspace-native.
+- Resources preview for inactivation is derived from the current local working copy.
+- Existing baseline placements may keep a teacher after that teacher becomes locally INACTIVE.
+- New assignments of an INACTIVE teacher remain blocked.
+- Local inactivation participates in shared Undo/Redo and Atomic Save v3.
+- Program/Resources projections update immediately.
+- No migration was added for phase A.
+
+Safety boundary:
+- `INACTIVATE_CLEAR` remains server-backed.
+- `ARCHIVE_CLEAR` remains server-backed.
+- Reason: workspace v2 SQL currently rejects teacher-pool changes on requirements that still have placements before placement deltas are applied. Localizing CLEAR correctly requires a narrow DB contract change; do not fake it as status-only.
+- If local unsaved history exists, server-backed CLEAR/ARCHIVE remains blocked by the existing resource-mutation guard.
+
+Key commits:
+- `40e76e8` initial local departure plan
+- `f86cb55` preserved-assignment validation
+- `5a8aad1` intent-aware preview routing
+- `5a1d13b` initial local apply wiring
+- `948958d`, `a965826`, `a970ca4` narrow phase A to KEEP only
+- `7522f91`, `576ef05` focused tests/cleanup
+
+Gate status: **PENDING**
+Required gate:
+```bash
+git pull --ff-only
+npm test -- tests/managementWorkspaceInventory.test.ts tests/managementWorkspaceValidation.test.ts tests/managementWorkspaceCommit.test.ts
+npm test
+npm run build
+git diff --check
+```
+
+Do not mark phase A PASS until the focused/full/build gate is green.
+Next after PASS:
+- generate a real Supabase migration with CLI for departure-clear atomic ordering/contract;
+- localize `INACTIVATE_CLEAR`;
+- keep archive identity semantics as a separate follow-up unless the same migration safely covers it.
