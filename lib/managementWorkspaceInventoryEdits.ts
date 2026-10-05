@@ -1,6 +1,8 @@
 import type {
+  ManagementResourceKnowledgeStatus,
   ManagementRoomDeparturePreview,
   ManagementRoomOperationalStatus,
+  ManagementRoomProfilePreview,
   ManagementRoomStatusPreview,
   ManagementTeacherOperationalStatus,
   ManagementTeacherDeparturePreview,
@@ -561,4 +563,203 @@ export function prepareManagementWorkspaceRoomDepartureV1(
   }
 
   return { commands, preview };
+}
+
+
+function roomProfileStateToken(
+  snapshot: ManagementWorkspaceSnapshotV1,
+  roomId: string,
+  current: {
+    capabilities: string[];
+    knowledgeStatus: ManagementResourceKnowledgeStatus;
+  },
+  proposed: {
+    capabilities: string[];
+    knowledgeStatus: ManagementResourceKnowledgeStatus;
+  },
+) {
+  return [
+    'LOCAL_ROOM_PROFILE_V1',
+    snapshot.identity.revisionId,
+    snapshot.identity.snapshotHash,
+    roomId,
+    [...current.capabilities].sort().join(','),
+    current.knowledgeStatus,
+    [...proposed.capabilities].sort().join(','),
+    proposed.knowledgeStatus,
+  ].join('|');
+}
+
+export function prepareManagementWorkspaceRoomProfileV1(
+  snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  roomId: string,
+  capabilities: string[],
+  knowledgeStatus: ManagementResourceKnowledgeStatus,
+): {
+  command: ManagementWorkspaceCommandV1;
+  preview: ManagementRoomProfilePreview;
+} {
+  const sourceRoom = snapshot.rooms.find((room) => room.id === roomId);
+  const current = workingCopy.roomProfileById[roomId];
+
+  if (!sourceRoom || !current) {
+    throw new Error('Salon profil kaydı bulunamadı.');
+  }
+  if (sourceRoom.canonicalRoomId !== null) {
+    throw new Error('Salon alias kayıtlarının özellikleri düzenlenmez.');
+  }
+  if (!['CONFIRMED', 'OBSERVED', 'UNKNOWN'].includes(knowledgeStatus)) {
+    throw new Error('Salon bilgi durumu geçersiz.');
+  }
+
+  const proposed = {
+    roomId,
+    capabilities: Array.from(new Set(capabilities))
+      .sort((left, right) => left.localeCompare(right)),
+    knowledgeStatus,
+  };
+  const command: ManagementWorkspaceCommandV1 = {
+    type: 'SET_ROOM_PROFILE',
+    profile: proposed,
+  };
+
+  const validation = previewManagementWorkspaceCommandsV1(
+    snapshot,
+    workingCopy,
+    [command],
+  );
+
+  const currentCapabilities = new Set(current.capabilities);
+  const proposedCapabilities = new Set(proposed.capabilities);
+  const addedCapabilities = proposed.capabilities.filter(
+    (capability) => !currentCapabilities.has(capability),
+  );
+  const removedCapabilities = current.capabilities.filter(
+    (capability) => !proposedCapabilities.has(capability),
+  );
+  const confirmationChanged =
+    current.knowledgeStatus !== proposed.knowledgeStatus;
+
+  const affectedCapabilities = Array.from(new Set([
+    ...addedCapabilities,
+    ...removedCapabilities,
+    ...(confirmationChanged
+      ? [...current.capabilities, ...proposed.capabilities]
+      : []),
+  ])).sort((left, right) => left.localeCompare(right));
+
+  const affectedRequirements = snapshot.requirements
+    .filter((requirement) => (
+      requirement.resourceMode === 'CAPABILITY'
+      && requirement.requiredCapability !== null
+      && affectedCapabilities.includes(requirement.requiredCapability)
+    ))
+    .map((requirement) => {
+      const cardIds = snapshot.cards
+        .filter((card) => card.requirementId === requirement.id)
+        .map((card) => card.id);
+      const placedInRoomCount = cardIds.filter(
+        (cardId) => workingCopy.placementsByCardId[cardId]?.roomId === roomId,
+      ).length;
+
+      return {
+        requirementId: requirement.id,
+        subjectName: requirement.subjectName,
+        groupName: requirement.groupName,
+        requiredCapability: requirement.requiredCapability as string,
+        cardCount: cardIds.length,
+        placedInRoomCount,
+      };
+    });
+
+  const affectedRequirementIds = new Set(
+    affectedRequirements.map((item) => item.requirementId),
+  );
+  const affectedCardIds = snapshot.cards
+    .filter((card) => affectedRequirementIds.has(card.requirementId))
+    .map((card) => card.id);
+
+  const requirementById = new Map(
+    snapshot.requirements.map((requirement) => [requirement.id, requirement]),
+  );
+  const placedImpacts = snapshot.cards
+    .filter((card) => {
+      const placement = workingCopy.placementsByCardId[card.id];
+      const requirement = requirementById.get(card.requirementId);
+      if (
+        !placement
+        || !requirement
+        || placement.roomId !== roomId
+        || placement.dayOfWeek === null
+        || placement.startPeriod === null
+        || requirement.resourceMode !== 'CAPABILITY'
+        || !requirement.requiredCapability
+      ) {
+        return false;
+      }
+
+      return (
+        proposed.knowledgeStatus !== 'CONFIRMED'
+        || !proposedCapabilities.has(requirement.requiredCapability)
+      );
+    })
+    .map((card) => {
+      const placement = workingCopy.placementsByCardId[card.id]!;
+      const requirement = requirementById.get(card.requirementId)!;
+      return {
+        cardId: card.id,
+        requirementId: requirement.id,
+        subjectName: requirement.subjectName,
+        groupName: requirement.groupName,
+        requiredCapability: requirement.requiredCapability as string,
+        dayOfWeek: placement.dayOfWeek as number,
+        startPeriod: placement.startPeriod as number,
+      };
+    });
+
+  const hasChanges = (
+    current.knowledgeStatus !== proposed.knowledgeStatus
+    || current.capabilities.join('|') !== proposed.capabilities.join('|')
+  );
+  const blockReasons = Array.from(new Set(
+    validation.issues.map((issue) => issue.code),
+  ));
+
+  return {
+    command,
+    preview: {
+      roomId,
+      revisionId: snapshot.identity.revisionId,
+      roomName:
+        workingCopy.roomInventoryById[roomId]?.displayName ?? sourceRoom.name,
+      hasChanges,
+      canApply: hasChanges && validation.applied,
+      blockReasons: hasChanges ? blockReasons : ['NO_CHANGES'],
+      current: {
+        capabilities: [...current.capabilities],
+        knowledgeStatus: current.knowledgeStatus,
+      },
+      proposed: {
+        capabilities: [...proposed.capabilities],
+        knowledgeStatus: proposed.knowledgeStatus,
+      },
+      addedCapabilities,
+      removedCapabilities,
+      confirmationChanged,
+      affectedCapabilities,
+      affectedRequirements,
+      affectedRequirementCount: affectedRequirements.length,
+      affectedCardIds,
+      candidateRebuildCardCount: affectedCardIds.length,
+      placedImpacts,
+      placedImpactCount: placedImpacts.length,
+      stateToken: roomProfileStateToken(
+        snapshot,
+        roomId,
+        current,
+        proposed,
+      ),
+    },
+  };
 }
