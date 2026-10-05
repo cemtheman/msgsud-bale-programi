@@ -16,6 +16,7 @@ import {
   type ManagementSolverRoomPoolEntry,
   type ManagementSolverSnapshotPreview,
   type ManagementSolverTeacher,
+  type ManagementSolverTeacherLoadTarget,
   type ManagementSolverTeacherPoolEntry,
   type ManagementSolverTeacherUnavailablePeriod,
 } from '@/lib/managementSolver';
@@ -56,6 +57,8 @@ export interface ManagementWorkspaceSnapshotV1 {
   readonly teachers: readonly ManagementSolverTeacher[];
   readonly teacherUnavailablePeriods:
     readonly ManagementSolverTeacherUnavailablePeriod[];
+  readonly teacherLoadTargets:
+    readonly ManagementSolverTeacherLoadTarget[];
   readonly rooms: readonly ManagementSolverRoom[];
   readonly baselinePlacements: readonly ManagementSolverBaselinePlacement[];
   readonly baselineMetrics: ManagementSolverBaselineMetrics;
@@ -223,6 +226,7 @@ export function createManagementWorkspaceSnapshotV1(
     roomPools: preview.roomPools,
     teachers: preview.teachers,
     teacherUnavailablePeriods: preview.teacherUnavailablePeriods ?? [],
+    teacherLoadTargets: preview.teacherLoadTargets ?? [],
     rooms: preview.rooms,
     baselinePlacements: preview.baselinePlacements,
     baselineMetrics: preview.baselineMetrics,
