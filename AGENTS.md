@@ -8092,3 +8092,66 @@ Accepted behavior:
 - coordinated Save ordering commits placement/plan/resource changes before final room-profile validation
 - main Save persists room profiles through `management_commit_workspace_v8`
 - alias profiles remain non-editable
+
+
+### 5 Oct 2026 — Resource create/delete lifecycle localization
+
+Implemented in code:
+- workspace working copy adds explicit resource lifecycle:
+  - baseline existing
+  - locally created
+  - locally deleted
+- locally created resources receive a real UUID in the browser before Save
+- create/delete participates in shared Undo/Redo as one resource-bundle history operation
+- create -> delete of the same unsaved resource collapses to a lifecycle no-op
+- local delete is rejected by normal workspace validation while the resource is still referenced
+- local create/delete projects immediately into:
+  - Resources
+  - Course Plan options
+  - Program name dictionaries
+  - placement candidate generation
+  - hard validation
+- new local teachers/rooms can be selected in requirement pools and placements before Save
+- main commit payload now includes:
+  - `resourceCreates`
+  - `resourceDeletes`
+- commit client targets `management_commit_workspace_v9`
+
+DB v9 staged / verified:
+- `management_commit_workspace_v9` created through direct SQL for contract verification
+- signature verified
+- `anon` execute revoked
+- `authenticated` execute granted
+- function still enforces `EDITOR` role internally
+- create ordering:
+  1. stale snapshot guard
+  2. create staged resources using client UUIDs
+  3. apply teacher planning / hard availability defaults for created teachers
+  4. record M34 create history
+  5. refresh snapshot identity
+  6. commit all normal workspace deltas through v8
+- delete ordering:
+  7. physically delete staged existing resources only after v8 has removed references
+  8. record M34 delete history
+  9. return final snapshot identity
+- table constraints remain authoritative for room capability allowlist, operational/knowledge status, teacher load ranges/order, and availability ranges
+- Security Advisor after v9 shows no new v9-specific critical finding; existing project-wide legacy warnings remain
+
+Important migration state:
+- v9 was installed with `execute_sql` for verification only
+- **no migration-history entry has been created yet**
+- do not invent a migration timestamp
+- next Codespaces step must be:
+  `npx supabase migration new management_workspace_resource_lifecycle`
+- then copy the verified v9 SQL into that CLI-created file and align/apply migration history safely
+
+Tests added/updated:
+- lifecycle diff create/delete
+- create -> delete no-op
+- create Undo/Redo
+- staged create/delete atomic payload
+- Resources create/delete projection
+- newly created resources as placement candidates
+- all direct working-copy fixtures now include `resourceLifecycleById`
+
+Gate status: **PENDING MIGRATION FILE + CODE GATE**
