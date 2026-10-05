@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
+  applyManagementWorkspaceResourceBundleV1,
+  createManagementWorkspaceResourceBundleV1,
   createManagementWorkspaceWorkingCopyV1,
+  getManagementWorkspaceResourceBundleV1,
   setManagementWorkspacePlacementV1,
   setManagementWorkspaceRequirementRoomsV1,
   setManagementWorkspaceRequirementTeacherPolicyV1,
@@ -489,6 +492,79 @@ describe('management workspace commit v1', () => {
         capabilities: ['STUDIO_SMALL_GROUP'],
         knowledge_status: 'OBSERVED',
       },
+    }]);
+  });
+
+
+  it('includes staged resource creates and deletes in the v9 atomic payload', () => {
+    const base = snapshot();
+    const source = {
+      ...base,
+      teachers: [
+        ...base.teachers,
+        {
+          id: '33333333-3333-4333-8333-333333333333',
+          name: 'Kullanılmayan Öğretmen',
+          operationalStatus: 'ACTIVE',
+        },
+      ],
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    const created = createManagementWorkspaceResourceBundleV1(
+      copy,
+      'ROOM',
+      '22222222-2222-4222-8222-222222222222',
+      'Yeni Salon',
+    );
+    created.inventory.operationalStatus = 'MAINTENANCE';
+    if (created.roomProfile) {
+      created.roomProfile.capabilities = ['STUDIO_SMALL_GROUP'];
+      created.roomProfile.knowledgeStatus = 'CONFIRMED';
+    }
+    applyManagementWorkspaceResourceBundleV1(
+      copy,
+      'ROOM',
+      created.lifecycle.resourceId,
+      created,
+    );
+
+    const unused = getManagementWorkspaceResourceBundleV1(
+      copy,
+      'TEACHER',
+      '33333333-3333-4333-8333-333333333333',
+    )!;
+    applyManagementWorkspaceResourceBundleV1(
+      copy,
+      'TEACHER',
+      unused.lifecycle.resourceId,
+      {
+        ...unused,
+        lifecycle: {
+          ...unused.lifecycle,
+          exists: false,
+        },
+      },
+    );
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(true);
+    expect(prepared.payload?.resourceCreates).toEqual([{
+      resource_type: 'ROOM',
+      resource_id: '22222222-2222-4222-8222-222222222222',
+      display_name: 'Yeni Salon',
+      operational_status: 'MAINTENANCE',
+      teacher_planning: null,
+      teacher_availability: null,
+      room_profile: {
+        capabilities: ['STUDIO_SMALL_GROUP'],
+        knowledge_status: 'CONFIRMED',
+      },
+    }]);
+    expect(prepared.payload?.resourceDeletes).toEqual([{
+      resource_type: 'TEACHER',
+      resource_id: '33333333-3333-4333-8333-333333333333',
     }]);
   });
 
