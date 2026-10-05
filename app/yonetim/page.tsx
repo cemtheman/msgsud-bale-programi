@@ -3343,7 +3343,14 @@ export default function ManagementPage() {
 
       setCommandNotice({
         kind: 'success',
-        text: `${result.changedCardCount} program değişikliği kaydedildi.`,
+        text: [
+          result.changedCardCount > 0
+            ? `${result.changedCardCount} program değişikliği`
+            : null,
+          result.changedRequirementCount > 0
+            ? `${result.changedRequirementCount} ders planı değişikliği`
+            : null,
+        ].filter(Boolean).join(' + ') + ' kaydedildi.',
       });
 
       // Refresh the secondary management panels after the fresh Program
@@ -4518,6 +4525,11 @@ export default function ManagementPage() {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
+            if (workspaceLocalSessionActive) {
+              throw new Error(
+                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
+              );
+            }
 
             return previewManagementRequirementTeacherPolicy(
               session.accessToken,
@@ -4534,6 +4546,11 @@ export default function ManagementPage() {
           ) => {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+            if (workspaceLocalSessionActive) {
+              throw new Error(
+                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
+              );
             }
 
             setCommandBusy(true);
@@ -4564,6 +4581,11 @@ export default function ManagementPage() {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
+            if (workspaceLocalSessionActive) {
+              throw new Error(
+                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
+              );
+            }
 
             return previewManagementRequirementTeacherReconciliation(
               session.accessToken,
@@ -4578,6 +4600,11 @@ export default function ManagementPage() {
           ) => {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+            if (workspaceLocalSessionActive) {
+              throw new Error(
+                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
+              );
             }
 
             setCommandBusy(true);
@@ -4604,6 +4631,11 @@ export default function ManagementPage() {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
+            if (workspaceLocalSessionActive) {
+              throw new Error(
+                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
+              );
+            }
 
             return previewManagementCoordinatedTeacherReconciliation(
               session.accessToken,
@@ -4616,6 +4648,11 @@ export default function ManagementPage() {
           ) => {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+            if (workspaceLocalSessionActive) {
+              throw new Error(
+                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
+              );
             }
 
             setCommandBusy(true);
@@ -4654,6 +4691,11 @@ export default function ManagementPage() {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
+            if (workspaceLocalSessionActive) {
+              throw new Error(
+                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
+              );
+            }
 
             return previewManagementRequirementStructure(
               session.accessToken,
@@ -4663,6 +4705,11 @@ export default function ManagementPage() {
           onApplyStructure={async (input, expectedStructureToken) => {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+            if (workspaceLocalSessionActive) {
+              throw new Error(
+                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
+              );
             }
 
             setCommandBusy(true);
