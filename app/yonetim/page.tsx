@@ -55,10 +55,6 @@ import {
   translateManagementSolverProposalApplyReason,
 } from '@/lib/managementSolverProposal';
 import {
-  createManagementRoomResource,
-  createManagementTeacherResource,
-  deleteManagementRoomResource,
-  deleteManagementTeacherResource,
   fetchManagementResources,
   previewManagementRoomDeparture,
   previewManagementTeacherDeparture,
@@ -166,6 +162,8 @@ import {
   prepareManagementWorkspaceTeacherPolicyV1,
 } from '@/lib/managementWorkspaceTeacherPolicy';
 import {
+  prepareManagementWorkspaceResourceCreateV1,
+  prepareManagementWorkspaceResourceDeleteV1,
   prepareManagementWorkspaceRoomDepartureV1,
   prepareManagementWorkspaceRoomNameEditV1,
   prepareManagementWorkspaceRoomProfileV1,
@@ -4950,48 +4948,40 @@ export default function ManagementPage() {
             );
           }}
           onCreateTeacher={async (name) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
-            assertServerResourceMutationAllowed();
 
-            setCommandBusy(true);
-            setCommandActivity('Öğretmen kaydı ekleniyor.');
-
-            try {
-              await createManagementTeacherResource(
-                session.accessToken,
-                resources.revisionId,
-                name,
-              );
-              setCommandNotice({ kind: 'success', text: `Öğretmen “${name}” kaynaklara eklendi.` });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            const resourceId = crypto.randomUUID();
+            const prepared = prepareManagementWorkspaceResourceCreateV1(
+              localWorkingCopy,
+              'TEACHER',
+              resourceId,
+              name,
+            );
+            applyLocalInventoryCommand(
+              prepared.command,
+              `Öğretmen “${name.trim()}” yerel çalışma alanına eklendi. Ana Kaydet ile veritabanına yazılacak.`,
+            );
           }}
           onCreateRoom={async (name) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
-            assertServerResourceMutationAllowed();
 
-            setCommandBusy(true);
-            setCommandActivity('Salon kaydı ekleniyor.');
-
-            try {
-              await createManagementRoomResource(
-                session.accessToken,
-                resources.revisionId,
-                name,
-              );
-              setCommandNotice({ kind: 'success', text: `Salon “${name}” kaynaklara eklendi.` });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            const resourceId = crypto.randomUUID();
+            const prepared = prepareManagementWorkspaceResourceCreateV1(
+              localWorkingCopy,
+              'ROOM',
+              resourceId,
+              name,
+            );
+            applyLocalInventoryCommand(
+              prepared.command,
+              `Salon “${name.trim()}” yerel çalışma alanına eklendi. Ana Kaydet ile veritabanına yazılacak.`,
+            );
           }}
           onSetTeacherStatus={async (teacherId, operationalStatus) => {
             const localWorkingCopy = workspaceWorkingCopyRef.current;
@@ -5207,29 +5197,20 @@ export default function ManagementPage() {
             });
           }}
           onDeleteTeacher={async (teacherId) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
-            assertServerResourceMutationAllowed();
 
-            setCommandBusy(true);
-            setCommandActivity('Kullanılmayan öğretmen kaydı siliniyor.');
-
-            try {
-              await deleteManagementTeacherResource(
-                session.accessToken,
-                resources.revisionId,
-                teacherId,
-              );
-              setCommandNotice({
-                kind: 'success',
-                text: 'Kullanılmayan öğretmen kaydı silindi.',
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            const prepared = prepareManagementWorkspaceResourceDeleteV1(
+              localWorkingCopy,
+              'TEACHER',
+              teacherId,
+            );
+            applyLocalInventoryCommand(
+              prepared.command,
+              'Öğretmen kaydı yerel çalışma alanından kaldırıldı. Ana Kaydet ile veritabanından silinecek.',
+            );
           }}
           onPreviewRoomDeparture={async (roomId) => {
             if (!session || !access?.canEdit || !resources) {
@@ -5355,26 +5336,20 @@ export default function ManagementPage() {
             });
           }}
           onDeleteRoom={async (roomId) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
-            assertServerResourceMutationAllowed();
 
-            setCommandBusy(true);
-            setCommandActivity('Salon kaydı siliniyor.');
-
-            try {
-              await deleteManagementRoomResource(
-                session.accessToken,
-                resources.revisionId,
-                roomId,
-              );
-              setCommandNotice({ kind: 'success', text: 'Kullanılmayan salon kaydı silindi.' });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            const prepared = prepareManagementWorkspaceResourceDeleteV1(
+              localWorkingCopy,
+              'ROOM',
+              roomId,
+            );
+            applyLocalInventoryCommand(
+              prepared.command,
+              'Salon kaydı yerel çalışma alanından kaldırıldı. Ana Kaydet ile veritabanından silinecek.',
+            );
           }}
           onOpenProgramResource={openResourceInProgram}
           onPreviewRoomProfile={async (
