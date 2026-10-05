@@ -288,22 +288,25 @@ describe('management workspace inventory edits', () => {
       }],
     };
     const copy = createManagementWorkspaceWorkingCopyV1(source);
-    copy.teacherInventoryById['teacher-1'] = {
-      ...copy.teacherInventoryById['teacher-1'],
-      operationalStatus: 'INACTIVE',
-    };
-    setManagementWorkspacePlacementV1(copy, {
-      ...copy.placementsByCardId['card-1'],
-      teacherId: 'teacher-1',
-    });
+    const statusPlan = prepareManagementWorkspaceTeacherStatusEditV1(
+      copy,
+      'teacher-1',
+      'INACTIVE',
+    );
 
     const preview = previewManagementWorkspaceCommandsV1(
       source,
-      createManagementWorkspaceWorkingCopyV1(source),
-      [{
-        type: 'SET_PLACEMENT',
-        placement: copy.placementsByCardId['card-1'],
-      }],
+      copy,
+      [
+        statusPlan.command,
+        {
+          type: 'SET_PLACEMENT',
+          placement: {
+            ...copy.placementsByCardId['card-1'],
+            teacherId: 'teacher-1',
+          },
+        },
+      ],
     );
 
     expect(preview.applied).toBe(false);
