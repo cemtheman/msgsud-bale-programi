@@ -86,9 +86,7 @@ import {
   type ManagementPlacementAssistantSlot,
 } from '@/lib/managementPlacementAssistant';
 import {
-  applyManagementRequirementStructure,
   fetchManagementCoursePlan,
-  previewManagementRequirementStructure,
   updateManagementRequirementRoomStrategy,
   type ManagementCoursePlanData,
   type ManagementPlanStage,
@@ -161,6 +159,10 @@ import {
   prepareManagementWorkspaceCoordinatedTeacherReconciliationV1,
   prepareManagementWorkspaceTeacherReconciliationV1,
 } from '@/lib/managementWorkspaceTeacherReconciliation';
+import {
+  prepareManagementWorkspaceRequirementStructureV1,
+  previewManagementWorkspaceRequirementStructureV1,
+} from '@/lib/managementWorkspaceStructure';
 import {
   prepareManagementWorkspaceResourceCreateV1,
   prepareManagementWorkspaceResourceDeleteV1,
@@ -4950,48 +4952,75 @@ export default function ManagementPage() {
             );
           }}
           onPreviewStructure={async (input) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-            }
-            if (workspaceLocalSessionActive) {
-              throw new Error(
-                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
-              );
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            return previewManagementRequirementStructure(
-              session.accessToken,
+            return previewManagementWorkspaceRequirementStructureV1(
+              localSnapshot,
+              localWorkingCopy,
               input,
             );
           }}
           onApplyStructure={async (input, expectedStructureToken) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+            const serverBoard = serverBoardRef.current;
+            if (
+              !access?.canEdit
+              || !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+              || !serverBoard
+            ) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
-            if (workspaceLocalSessionActive) {
+
+            const prepared = prepareManagementWorkspaceRequirementStructureV1(
+              localSnapshot,
+              localWorkingCopy,
+              input,
+              expectedStructureToken,
+            );
+            const result = executeManagementWorkspaceCommandV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              prepared.command,
+            );
+
+            if (!result.applied) {
               throw new Error(
-                'Kaydedilmemiş yerel değişiklikler varken bu sunucu işlemi kullanılamaz. Önce Kaydet veya Geri Al yapın.',
+                result.issues.length > 0
+                  ? `Ders yapısı uygulanamıyor: ${workspaceIssueSummary(
+                    result.issues.map((issue) => issue.code),
+                  )}.`
+                  : 'Ders yapısı uygulanamıyor.',
               );
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Ders yapısı güvenli biçimde uygulanıyor.');
-
-            try {
-              await applyManagementRequirementStructure(
-                session.accessToken,
-                input,
-                expectedStructureToken,
-              );
-              setCommandNotice({
-                kind: 'success',
-                text: 'Ders yapısı güncellendi. Program kartları yeni plana göre yenilendi.',
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            setBoard(
+              projectManagementBoardFromWorkspaceV1(
+                serverBoard,
+                localWorkingCopy,
+                localSnapshot,
+              ),
+            );
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+            setCandidateFocus(null);
+            setCandidateDetail(null);
+            setCommandNotice({
+              kind: 'success',
+              text: `Ders yapısı yerel çalışma alanında güncellendi. ${prepared.preview.preservedCards.length} kart korundu, ${prepared.preview.removedCards.length} kart kaldırıldı, ${prepared.preview.createdBlocks.length} yeni kart oluşturuldu; ana Kaydet ile veritabanına yazılacak.`,
+            });
           }}
         />
       ) : activeSection === 'RESOURCES' ? (
