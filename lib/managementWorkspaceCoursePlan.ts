@@ -79,28 +79,55 @@ export function projectManagementCoursePlanFromWorkspaceV1(
   );
 
   const projectedRows = coursePlan.rows.map((row) => {
-      const resource =
-        workingCopy.requirementResourcesById[row.requirementId] ?? null;
+    const resource =
+      workingCopy.requirementResourcesById[row.requirementId] ?? null;
+    const structure =
+      workingCopy.requirementStructureById[row.requirementId] ?? null;
+    const localCards = Object.values(workingCopy.cardsById)
+      .filter((card) => card.requirementId === row.requirementId);
+    const placedBlockCount = localCards.filter((card) => {
+      const placement = workingCopy.placementsByCardId[card.id];
+      return Boolean(
+        placement
+        && placement.dayOfWeek !== null
+        && placement.startPeriod !== null
+      );
+    }).length;
 
-      if (!resource) return row;
+    if (!resource && !structure) return row;
 
-      return {
-        ...row,
-        teacherMode: resource.teacherMode,
-        teacherAssignmentScope: resource.teacherAssignmentScope,
-        teacherContinuity: resource.teacherContinuity,
-        teacherIds: [...resource.teacherIds],
-        teacherNames: resource.teacherIds.map(
-          (id) => teacherNames.get(id) ?? 'Bilinmeyen öğretmen',
-        ),
-        resourceMode: resource.resourceMode,
-        roomIds: [...resource.roomIds],
-        roomNames: resource.roomIds.map(
-          (id) => roomNames.get(id) ?? 'Bilinmeyen salon',
-        ),
-        requiredCapability: resource.requiredCapability,
-      };
-    });
+    return {
+      ...row,
+      weeklyLoad: structure?.weeklyLoad ?? row.weeklyLoad,
+      preferredPartition:
+        structure ? [...structure.preferredPartition] : row.preferredPartition,
+      allowedPartitions: structure
+        ? structure.allowedPartitions.map((partition) => [...partition])
+        : row.allowedPartitions,
+      termStatus: structure?.termStatus ?? row.termStatus,
+      placedBlockCount: structure ? placedBlockCount : row.placedBlockCount,
+      teacherMode: resource?.teacherMode ?? row.teacherMode,
+      teacherAssignmentScope:
+        resource?.teacherAssignmentScope ?? row.teacherAssignmentScope,
+      teacherContinuity:
+        resource?.teacherContinuity ?? row.teacherContinuity,
+      teacherIds: resource ? [...resource.teacherIds] : row.teacherIds,
+      teacherNames: resource
+        ? resource.teacherIds.map(
+            (id) => teacherNames.get(id) ?? 'Bilinmeyen öğretmen',
+          )
+        : row.teacherNames,
+      resourceMode: resource?.resourceMode ?? row.resourceMode,
+      roomIds: resource ? [...resource.roomIds] : row.roomIds,
+      roomNames: resource
+        ? resource.roomIds.map(
+            (id) => roomNames.get(id) ?? 'Bilinmeyen salon',
+          )
+        : row.roomNames,
+      requiredCapability:
+        resource?.requiredCapability ?? row.requiredCapability,
+    };
+  });
 
   const policyByRequirement = new Map(
     projectedRows.map((row) => [
