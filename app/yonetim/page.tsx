@@ -129,6 +129,7 @@ import {
   createManagementWorkspaceWorkingCopyV1,
   diffManagementWorkspaceV1,
   hydrateManagementWorkspaceInventoryDisplayNamesV1,
+  hydrateManagementWorkspaceRequirementCatalogV1,
   type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
@@ -912,7 +913,21 @@ export default function ManagementPage() {
 
     void fetchManagementCoursePlan(session.accessToken)
       .then((nextCoursePlan) => {
-        if (active) setCoursePlan(nextCoursePlan);
+        if (!active) return;
+        const localWorkingCopy = workspaceWorkingCopyRef.current;
+        if (
+          localWorkingCopy
+          && nextCoursePlan.revisionId
+            === localWorkingCopy.baseline.revisionId
+          && nextCoursePlan.requirementSetId
+            === localWorkingCopy.baseline.requirementSetId
+        ) {
+          hydrateManagementWorkspaceRequirementCatalogV1(
+            localWorkingCopy,
+            nextCoursePlan.rows,
+          );
+        }
+        setCoursePlan(nextCoursePlan);
       })
       .catch((reason: unknown) => {
         if (!active) return;
