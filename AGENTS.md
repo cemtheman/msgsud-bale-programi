@@ -8432,3 +8432,44 @@ Tests added/updated:
 - old direct working-copy fixtures extended with structural state
 
 Gate status: **PENDING**
+
+
+### 5 Oct 2026 — ACTIVE structure v10 gate regression fix
+
+Gate result at HEAD `da59cf4732c6969959b395c48bca0518c7a8a73e`:
+- full tests: 35 files, 230 tests
+- result: 34 files PASS / 1 file FAIL
+- tests: 229 PASS / 1 FAIL
+- build: PASS
+- TypeScript: PASS
+- static routes: 9/9 PASS
+- migration parity through `20261005174816`: PASS
+
+Single failure:
+- `tests/managementWorkspaceStructure.test.ts`
+- case: complete structural card graph Undo/Redo
+- runtime error: `Workspace working copy kartı bulunamadı (undefined)`
+
+Root cause:
+- `applyOperationState()` in `lib/managementWorkspaceHistory.ts`
+  had no explicit `SET_REQUIREMENT_STRUCTURE` dispatch.
+- Undo/Redo therefore fell through to generic placement handling and interpreted
+  a structure bundle as a placement, producing `cardId = undefined`.
+
+Fix:
+- added explicit `SET_REQUIREMENT_STRUCTURE` branch
+- structural BEFORE/AFTER bundles now restore through
+  `applyManagementWorkspaceRequirementStructureBundleV1()`
+- added direct history regression coverage so structural operations cannot
+  silently fall through to placement dispatch again
+
+Fix commits:
+- `4e29f8fcade6a3b283c7d7493d752af00c3fa1df`
+  — fix: dispatch structure state in workspace undo redo
+- `96233f2075efb6012a54c3d64d741d46852ee020`
+  — test: regress structure undo redo dispatch
+
+DB modifications for this fix: **NO**
+New migration for this fix: **NO**
+
+Gate status remains: **PENDING rerun**
