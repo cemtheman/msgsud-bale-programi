@@ -5112,7 +5112,7 @@ export default function ManagementPage() {
           cards={board?.cards ?? []}
           teacherOptions={coursePlan?.teacherOptions ?? []}
           roomOptions={coursePlan?.roomOptions ?? []}
-          canEdit={access?.canEdit === true && !workspaceLocalSessionActive}
+          canEdit={access?.canEdit === true}
           commandBusy={commandBusy}
           onIssueAction={handleHealthIssueAction}
           onOperationalQueueAction={(kind, cardId) => {
@@ -5123,12 +5123,20 @@ export default function ManagementPage() {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
-            return previewManagementPlacementResourceChange(
-              session.accessToken,
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+            if (!localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            return prepareManagementWorkspaceResourceEditV1(
+              localSnapshot,
+              localWorkingCopy,
               cardIds,
               resourceType,
               resourceId,
-            );
+            ).preview;
           }}
           onBulkApply={async (
             cardIds,
@@ -5140,34 +5148,95 @@ export default function ManagementPage() {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity(
-              resourceType === 'TEACHER'
-                ? 'Toplu öğretmen ataması uygulanıyor.'
-                : 'Toplu salon ataması uygulanıyor.',
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+            const serverBoard = serverBoardRef.current;
+
+            if (
+              !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+              || !serverBoard
+            ) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            const prepared = prepareManagementWorkspaceResourceEditV1(
+              localSnapshot,
+              localWorkingCopy,
+              cardIds,
+              resourceType,
+              resourceId,
             );
 
-            try {
-              const result = await applyManagementPlacementResourceChange(
-                session.accessToken,
-                cardIds,
-                resourceType,
-                resourceId,
-                expectedStateToken,
+            if (prepared.preview.stateToken !== expectedStateToken) {
+              throw new Error(
+                'Toplu atama önizlemeden sonra değişti. Lütfen yeniden kontrol edin.',
               );
-
-              setCommandNotice({
-                kind: 'success',
-                text: resourceType === 'TEACHER'
-                  ? `Öğretmen “${result.resourceName}” toplu olarak atandı. ${result.affectedCardCount} kart güncellendi.`
-                  : `Salon “${result.resourceName}” toplu olarak atandı. ${result.affectedCardCount} kart güncellendi.`,
-              });
-              setRefreshToken((value) => value + 1);
-              return result;
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
             }
+
+            if (!prepared.preview.canApply || prepared.commands.length === 0) {
+              throw new Error(
+                prepared.preview.blockReasons[0]
+                  ? translateManagementPlacementResourceBlockReason(
+                    prepared.preview.blockReasons[0],
+                  )
+                  : 'Toplu atama artık uygulanamıyor.',
+              );
+            }
+
+            const result = executeManagementWorkspaceCommandsV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              prepared.commands,
+            );
+
+            if (!result.applied) {
+              throw new Error(
+                result.issues.length > 0
+                  ? `Toplu atama uygulanamıyor: ${workspaceIssueSummary(
+                    result.issues.map((issue) => issue.code),
+                  )}.`
+                  : 'Toplu atama uygulanamıyor.',
+              );
+            }
+
+            setBoard(
+              projectManagementBoardFromWorkspaceV1(
+                serverBoard,
+                localWorkingCopy,
+              ),
+            );
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+
+            setCommandNotice({
+              kind: 'success',
+              text: resourceType === 'TEACHER'
+                ? `${prepared.preview.affectedCardCount} yerleşimde öğretmen yerel olarak güncellendi.`
+                : `${prepared.preview.affectedCardCount} yerleşimde salon yerel olarak güncellendi.`,
+            });
+
+            return {
+              applied: true,
+              resourceType,
+              resourceId,
+              resourceName: prepared.preview.resourceName,
+              affectedCardCount: prepared.preview.affectedCardCount,
+              poolExpansionCount: 0,
+              outsidePlanningPoolCount: 0,
+              requirementWideExpansionCount:
+                prepared.preview.requirementWideExpansionCount,
+              planningPoolChanged: false,
+              transactionId: prepared.preview.stateToken,
+              publishedChanged: false as const,
+            };
           }}
         />
       )}
