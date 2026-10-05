@@ -14,10 +14,21 @@ export interface ManagementWorkspacePlacementStateV1 {
   roomId: string | null;
 }
 
+export interface ManagementWorkspaceRequirementResourceStateV1 {
+  requirementId: string;
+  teacherIds: string[];
+  teacherMode: string;
+  resourceMode: string;
+  roomIds: string[];
+  requiredCapability: string | null;
+}
+
 export interface ManagementWorkspaceWorkingCopyV1 {
   schemaVersion: typeof MANAGEMENT_WORKSPACE_COPY_SCHEMA_VERSION;
   baseline: ManagementWorkspaceSnapshotIdentityV1;
   placementsByCardId: Record<string, ManagementWorkspacePlacementStateV1>;
+  requirementResourcesById:
+    Record<string, ManagementWorkspaceRequirementResourceStateV1>;
 }
 
 export interface ManagementWorkspacePlacementChangeV1 {
@@ -26,11 +37,20 @@ export interface ManagementWorkspacePlacementChangeV1 {
   after: ManagementWorkspacePlacementStateV1;
 }
 
+export interface ManagementWorkspaceRequirementResourceChangeV1 {
+  requirementId: string;
+  before: ManagementWorkspaceRequirementResourceStateV1;
+  after: ManagementWorkspaceRequirementResourceStateV1;
+}
+
 export interface ManagementWorkspaceDiffV1 {
   baseline: ManagementWorkspaceSnapshotIdentityV1;
   hasChanges: boolean;
   dirtyCardIds: string[];
+  dirtyRequirementIds: string[];
   placementChanges: ManagementWorkspacePlacementChangeV1[];
+  requirementResourceChanges:
+    ManagementWorkspaceRequirementResourceChangeV1[];
 }
 
 function cloneIdentity(
@@ -57,7 +77,7 @@ function emptyPlacement(cardId: string): ManagementWorkspacePlacementStateV1 {
   };
 }
 
-function clonePlacement(
+export function cloneManagementWorkspacePlacementV1(
   placement: ManagementWorkspacePlacementStateV1,
 ): ManagementWorkspacePlacementStateV1 {
   return {
@@ -66,6 +86,19 @@ function clonePlacement(
     startPeriod: placement.startPeriod,
     teacherId: placement.teacherId,
     roomId: placement.roomId,
+  };
+}
+
+export function cloneManagementWorkspaceRequirementResourceV1(
+  value: ManagementWorkspaceRequirementResourceStateV1,
+): ManagementWorkspaceRequirementResourceStateV1 {
+  return {
+    requirementId: value.requirementId,
+    teacherIds: [...value.teacherIds].sort((a, b) => a.localeCompare(b)),
+    teacherMode: value.teacherMode,
+    resourceMode: value.resourceMode,
+    roomIds: [...value.roomIds].sort((a, b) => a.localeCompare(b)),
+    requiredCapability: value.requiredCapability,
   };
 }
 
@@ -79,6 +112,29 @@ function equalPlacement(
     && left.startPeriod === right.startPeriod
     && left.teacherId === right.teacherId
     && left.roomId === right.roomId
+  );
+}
+
+function equalStringArrays(left: string[], right: string[]) {
+  if (left.length !== right.length) return false;
+
+  const sortedLeft = [...left].sort((a, b) => a.localeCompare(b));
+  const sortedRight = [...right].sort((a, b) => a.localeCompare(b));
+
+  return sortedLeft.every((value, index) => value === sortedRight[index]);
+}
+
+function equalRequirementResource(
+  left: ManagementWorkspaceRequirementResourceStateV1,
+  right: ManagementWorkspaceRequirementResourceStateV1,
+) {
+  return (
+    left.requirementId === right.requirementId
+    && equalStringArrays(left.teacherIds, right.teacherIds)
+    && left.teacherMode === right.teacherMode
+    && left.resourceMode === right.resourceMode
+    && equalStringArrays(left.roomIds, right.roomIds)
+    && left.requiredCapability === right.requiredCapability
   );
 }
 
@@ -110,6 +166,43 @@ function baselinePlacementsByCardId(
   return result;
 }
 
+export function baselineRequirementResourcesById(
+  snapshot: ManagementWorkspaceSnapshotV1,
+) {
+  const teacherIdsByRequirement = new Map<string, string[]>();
+  const roomIdsByRequirement = new Map<string, string[]>();
+
+  snapshot.teacherPools.forEach((entry) => {
+    const values = teacherIdsByRequirement.get(entry.requirementId) ?? [];
+    values.push(entry.teacherId);
+    teacherIdsByRequirement.set(entry.requirementId, values);
+  });
+
+  snapshot.roomPools.forEach((entry) => {
+    const values = roomIdsByRequirement.get(entry.requirementId) ?? [];
+    values.push(entry.roomId);
+    roomIdsByRequirement.set(entry.requirementId, values);
+  });
+
+  return Object.fromEntries(
+    snapshot.requirements.map((requirement) => [
+      requirement.id,
+      {
+        requirementId: requirement.id,
+        teacherIds: [
+          ...(teacherIdsByRequirement.get(requirement.id) ?? []),
+        ].sort((a, b) => a.localeCompare(b)),
+        teacherMode: requirement.teacherMode,
+        resourceMode: requirement.resourceMode,
+        roomIds: [
+          ...(roomIdsByRequirement.get(requirement.id) ?? []),
+        ].sort((a, b) => a.localeCompare(b)),
+        requiredCapability: requirement.requiredCapability,
+      } satisfies ManagementWorkspaceRequirementResourceStateV1,
+    ]),
+  );
+}
+
 function assertWorkingCopyMatchesSnapshot(
   snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
@@ -137,6 +230,7 @@ export function createManagementWorkspaceWorkingCopyV1(
     schemaVersion: MANAGEMENT_WORKSPACE_COPY_SCHEMA_VERSION,
     baseline: cloneIdentity(snapshot.identity),
     placementsByCardId: baselinePlacementsByCardId(snapshot),
+    requirementResourcesById: baselineRequirementResourcesById(snapshot),
   };
 }
 
@@ -150,7 +244,8 @@ export function setManagementWorkspacePlacementV1(
     );
   }
 
-  workingCopy.placementsByCardId[placement.cardId] = clonePlacement(placement);
+  workingCopy.placementsByCardId[placement.cardId] =
+    cloneManagementWorkspacePlacementV1(placement);
 }
 
 export function removeManagementWorkspacePlacementV1(
@@ -166,6 +261,59 @@ export function removeManagementWorkspacePlacementV1(
   workingCopy.placementsByCardId[cardId] = emptyPlacement(cardId);
 }
 
+export function setManagementWorkspaceRequirementTeachersV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  requirementId: string,
+  teacherIds: string[],
+) {
+  const current = workingCopy.requirementResourcesById[requirementId];
+  if (!current) {
+    throw new Error(
+      `Workspace working copy requirement bulunamadı (${requirementId}).`,
+    );
+  }
+
+  const uniqueTeacherIds = Array.from(new Set(teacherIds))
+    .sort((a, b) => a.localeCompare(b));
+
+  workingCopy.requirementResourcesById[requirementId] = {
+    ...cloneManagementWorkspaceRequirementResourceV1(current),
+    teacherIds: uniqueTeacherIds,
+    teacherMode: uniqueTeacherIds.length === 0
+      ? 'UNKNOWN'
+      : uniqueTeacherIds.length === 1
+        ? 'FIXED'
+        : 'ELIGIBLE_POOL',
+  };
+}
+
+export function setManagementWorkspaceRequirementRoomsV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  requirementId: string,
+  input: {
+    resourceMode: string;
+    roomIds: string[];
+    requiredCapability: string | null;
+  },
+) {
+  const current = workingCopy.requirementResourcesById[requirementId];
+  if (!current) {
+    throw new Error(
+      `Workspace working copy requirement bulunamadı (${requirementId}).`,
+    );
+  }
+
+  const uniqueRoomIds = Array.from(new Set(input.roomIds))
+    .sort((a, b) => a.localeCompare(b));
+
+  workingCopy.requirementResourcesById[requirementId] = {
+    ...cloneManagementWorkspaceRequirementResourceV1(current),
+    resourceMode: input.resourceMode,
+    roomIds: uniqueRoomIds,
+    requiredCapability: input.requiredCapability,
+  };
+}
+
 export function diffManagementWorkspaceV1(
   snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
@@ -173,13 +321,24 @@ export function diffManagementWorkspaceV1(
   assertWorkingCopyMatchesSnapshot(snapshot, workingCopy);
 
   const baselineByCardId = baselinePlacementsByCardId(snapshot);
+  const baselineResourcesById = baselineRequirementResourcesById(snapshot);
   const snapshotCardIds = new Set(snapshot.cards.map((card) => card.id));
-  const workingCardIds = Object.keys(workingCopy.placementsByCardId);
+  const snapshotRequirementIds = new Set(
+    snapshot.requirements.map((requirement) => requirement.id),
+  );
 
-  workingCardIds.forEach((cardId) => {
+  Object.keys(workingCopy.placementsByCardId).forEach((cardId) => {
     if (!snapshotCardIds.has(cardId)) {
       throw new Error(
         `Workspace working copy bilinmeyen kart içeriyor (${cardId}).`,
+      );
+    }
+  });
+
+  Object.keys(workingCopy.requirementResourcesById).forEach((requirementId) => {
+    if (!snapshotRequirementIds.has(requirementId)) {
+      throw new Error(
+        `Workspace working copy bilinmeyen requirement içeriyor (${requirementId}).`,
       );
     }
   });
@@ -199,8 +358,8 @@ export function diffManagementWorkspaceV1(
 
       return {
         cardId: card.id,
-        before: clonePlacement(before),
-        after: clonePlacement(after),
+        before: cloneManagementWorkspacePlacementV1(before),
+        after: cloneManagementWorkspacePlacementV1(after),
       };
     })
     .filter(
@@ -209,14 +368,51 @@ export function diffManagementWorkspaceV1(
     )
     .sort((left, right) => left.cardId.localeCompare(right.cardId));
 
+  const requirementResourceChanges = snapshot.requirements
+    .map((requirement) => {
+      const before = baselineResourcesById[requirement.id];
+      const after = workingCopy.requirementResourcesById[requirement.id];
+
+      if (!before || !after) {
+        throw new Error(
+          `Workspace working copy requirement kaynak durumu eksik (${requirement.id}).`,
+        );
+      }
+
+      if (equalRequirementResource(before, after)) return null;
+
+      return {
+        requirementId: requirement.id,
+        before: cloneManagementWorkspaceRequirementResourceV1(before),
+        after: cloneManagementWorkspaceRequirementResourceV1(after),
+      };
+    })
+    .filter(
+      (
+        change,
+      ): change is ManagementWorkspaceRequirementResourceChangeV1 =>
+        change !== null,
+    )
+    .sort((left, right) =>
+      left.requirementId.localeCompare(right.requirementId),
+    );
+
   const dirtyCardIds = placementChanges
     .map((change) => change.cardId)
     .sort((left, right) => left.localeCompare(right));
 
+  const dirtyRequirementIds = requirementResourceChanges
+    .map((change) => change.requirementId)
+    .sort((left, right) => left.localeCompare(right));
+
   return {
     baseline: cloneIdentity(snapshot.identity),
-    hasChanges: placementChanges.length > 0,
+    hasChanges:
+      placementChanges.length > 0
+      || requirementResourceChanges.length > 0,
     dirtyCardIds,
+    dirtyRequirementIds,
     placementChanges,
+    requirementResourceChanges,
   };
 }
