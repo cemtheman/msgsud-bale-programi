@@ -360,7 +360,7 @@ export function validateManagementWorkspaceV1(
     }),
   );
   const cards = new Map(
-    snapshot.cards.map((card) => [card.id, card]),
+    Object.values(workingCopy.cardsById).map((card) => [card.id, card]),
   );
   const snapshotTeacherById = new Map(
     snapshot.teachers.map((teacher) => [teacher.id, teacher]),
@@ -537,7 +537,7 @@ export function validateManagementWorkspaceV1(
     roomConflictKey: string | null;
   }> = [];
 
-  snapshot.cards.forEach((card) => {
+  Object.values(workingCopy.cardsById).forEach((card) => {
     const placement = workingCopy.placementsByCardId[card.id];
     const requirement = requirements.get(card.requirementId);
     if (!placement || !requirement) return;
@@ -984,7 +984,7 @@ export function validateManagementWorkspaceV1(
       if (distinctDays.size < requirement.minDistinctDays) {
         pushIssue(issues, {
           code: 'MIN_DISTINCT_DAYS',
-          cardIds: cardsForRequirement(snapshot, requirement.id),
+          cardIds: cardsForRequirement(workingCopy, requirement.id),
           requirementId: requirement.id,
           dayOfWeek: null,
         });
@@ -1011,10 +1011,10 @@ export function validateManagementWorkspaceV1(
 }
 
 function cardsForRequirement(
-  snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
   requirementId: string,
 ) {
-  return snapshot.cards
+  return Object.values(workingCopy.cardsById)
     .filter((card) => card.requirementId === requirementId)
     .map((card) => card.id);
 }
