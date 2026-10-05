@@ -170,8 +170,10 @@ import {
 import {
   prepareManagementWorkspaceRoomNameEditV1,
   prepareManagementWorkspaceRoomStatusEditV1,
+  prepareManagementWorkspaceTeacherDepartureV1,
   prepareManagementWorkspaceTeacherNameEditV1,
   prepareManagementWorkspaceTeacherStatusEditV1,
+  previewManagementWorkspaceTeacherDepartureV1,
 } from '@/lib/managementWorkspaceInventoryEdits';
 import {
   projectManagementBoardFromWorkspaceV1,
@@ -5080,15 +5082,29 @@ export default function ManagementPage() {
               setCommandActivity(null);
             }
           }}
-          onPreviewTeacherDeparture={async (teacherId) => {
+          onPreviewTeacherDeparture={async (teacherId, intent) => {
             if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
-            assertServerResourceMutationAllowed();
 
-            return previewManagementTeacherDeparture(
-              session.accessToken,
-              resources.revisionId,
+            if (intent === 'ARCHIVE') {
+              assertServerResourceMutationAllowed();
+              return previewManagementTeacherDeparture(
+                session.accessToken,
+                resources.revisionId,
+                teacherId,
+              );
+            }
+
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            return previewManagementWorkspaceTeacherDepartureV1(
+              localSnapshot,
+              localWorkingCopy,
               teacherId,
             );
           }}
@@ -5100,39 +5116,94 @@ export default function ManagementPage() {
             if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
-            assertServerResourceMutationAllowed();
 
-            setCommandBusy(true);
-            setCommandActivity(
-              mode === 'ARCHIVE_CLEAR'
-                ? 'Öğretmen kaydı derslerden ayrılıp arşivleniyor.'
-                : mode === 'INACTIVATE_CLEAR'
-                  ? 'Öğretmen derslerden çıkarılıp atamaya kapatılıyor.'
-                  : 'Öğretmen yeni atamalara kapatılıyor.',
-            );
+            if (mode === 'ARCHIVE_CLEAR') {
+              assertServerResourceMutationAllowed();
+              setCommandBusy(true);
+              setCommandActivity('Öğretmen kaydı derslerden ayrılıp arşivleniyor.');
 
-            try {
-              const result = await applyManagementTeacherDeparture(
-                session.accessToken,
-                resources.revisionId,
-                teacherId,
-                mode,
-                expectedStateToken,
-              );
-
-              setCommandNotice({
-                kind: 'success',
-                text: mode === 'ARCHIVE_CLEAR'
-                  ? `“${result.teacherName}” aktif kaynaklardan silindi. ${result.placedBlockCount} program bloğu gün/saat/salon korunarak öğretmensiz bırakıldı.`
-                  : mode === 'INACTIVATE_CLEAR'
-                    ? `“${result.teacherName}” atamaya kapatıldı. ${result.placedBlockCount} program bloğu gün/saat/salon korunarak öğretmensiz bırakıldı.`
-                    : `“${result.teacherName}” yeni atamalara kapatıldı; mevcut ${result.placedBlockCount} program bloğundaki öğretmen kaydı korundu.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
+              try {
+                const result = await applyManagementTeacherDeparture(
+                  session.accessToken,
+                  resources.revisionId,
+                  teacherId,
+                  mode,
+                  expectedStateToken,
+                );
+                setCommandNotice({
+                  kind: 'success',
+                  text: `“${result.teacherName}” aktif kaynaklardan silindi. ${result.placedBlockCount} program bloğu gün/saat/salon korunarak öğretmensiz bırakıldı.`,
+                });
+                setRefreshToken((value) => value + 1);
+              } finally {
+                setCommandBusy(false);
+                setCommandActivity(null);
+              }
+              return;
             }
+
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+            const serverBoard = serverBoardRef.current;
+            if (
+              !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+              || !serverBoard
+            ) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            const prepared = prepareManagementWorkspaceTeacherDepartureV1(
+              localSnapshot,
+              localWorkingCopy,
+              teacherId,
+              mode,
+            );
+            if (prepared.preview.stateToken !== expectedStateToken) {
+              throw new Error(
+                'Öğretmen değişikliği önizlemeden sonra değişti. Lütfen yeniden kontrol edin.',
+              );
+            }
+
+            const result = executeManagementWorkspaceCommandsV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              prepared.commands,
+            );
+            if (!result.applied) {
+              throw new Error(
+                result.issues.length > 0
+                  ? `Öğretmen değişikliği uygulanamıyor: ${workspaceIssueSummary(
+                    result.issues.map((issue) => issue.code),
+                  )}.`
+                  : 'Öğretmen değişikliği uygulanamıyor.',
+              );
+            }
+
+            setBoard(
+              projectManagementBoardFromWorkspaceV1(
+                serverBoard,
+                localWorkingCopy,
+              ),
+            );
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+            setResources((current) => current ? { ...current } : current);
+            setCandidateFocus(null);
+            setCandidateDetail(null);
+            setCommandNotice({
+              kind: 'success',
+              text: mode === 'INACTIVATE_CLEAR'
+                ? `“${prepared.preview.teacherName}” yerel çalışma alanında atamaya kapatıldı. ${prepared.preview.placedBlockCount} program bloğu aynı gün/saat/salonda öğretmensiz bırakıldı. Ana Kaydet ile veritabanına yazılacak.`
+                : `“${prepared.preview.teacherName}” yerel çalışma alanında yeni atamalara kapatıldı; mevcut ${prepared.preview.placedBlockCount} program bloğundaki öğretmen korundu. Ana Kaydet ile veritabanına yazılacak.`,
+            });
           }}
           onDeleteTeacher={async (teacherId) => {
             if (!session || !access?.canEdit || !resources) {
