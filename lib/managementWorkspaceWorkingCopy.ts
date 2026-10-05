@@ -14,6 +14,24 @@ export interface ManagementWorkspacePlacementStateV1 {
   roomId: string | null;
 }
 
+export interface ManagementWorkspaceTeacherInventoryStateV1 {
+  resourceType: 'TEACHER';
+  resourceId: string;
+  displayName: string;
+  operationalStatus: 'ACTIVE' | 'INACTIVE';
+}
+
+export interface ManagementWorkspaceRoomInventoryStateV1 {
+  resourceType: 'ROOM';
+  resourceId: string;
+  displayName: string;
+  operationalStatus: 'ACTIVE' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
+}
+
+export type ManagementWorkspaceInventoryStateV1 =
+  | ManagementWorkspaceTeacherInventoryStateV1
+  | ManagementWorkspaceRoomInventoryStateV1;
+
 export interface ManagementWorkspaceRequirementResourceStateV1 {
   requirementId: string;
   teacherIds: string[];
@@ -31,6 +49,10 @@ export interface ManagementWorkspaceWorkingCopyV1 {
   placementsByCardId: Record<string, ManagementWorkspacePlacementStateV1>;
   requirementResourcesById:
     Record<string, ManagementWorkspaceRequirementResourceStateV1>;
+  teacherInventoryById:
+    Record<string, ManagementWorkspaceTeacherInventoryStateV1>;
+  roomInventoryById:
+    Record<string, ManagementWorkspaceRoomInventoryStateV1>;
 }
 
 export interface ManagementWorkspacePlacementChangeV1 {
@@ -45,14 +67,23 @@ export interface ManagementWorkspaceRequirementResourceChangeV1 {
   after: ManagementWorkspaceRequirementResourceStateV1;
 }
 
+export interface ManagementWorkspaceInventoryChangeV1 {
+  resourceType: 'TEACHER' | 'ROOM';
+  resourceId: string;
+  before: ManagementWorkspaceInventoryStateV1;
+  after: ManagementWorkspaceInventoryStateV1;
+}
+
 export interface ManagementWorkspaceDiffV1 {
   baseline: ManagementWorkspaceSnapshotIdentityV1;
   hasChanges: boolean;
   dirtyCardIds: string[];
   dirtyRequirementIds: string[];
+  dirtyResourceIds: string[];
   placementChanges: ManagementWorkspacePlacementChangeV1[];
   requirementResourceChanges:
     ManagementWorkspaceRequirementResourceChangeV1[];
+  inventoryChanges: ManagementWorkspaceInventoryChangeV1[];
 }
 
 function cloneIdentity(
@@ -89,6 +120,46 @@ export function cloneManagementWorkspacePlacementV1(
     teacherId: placement.teacherId,
     roomId: placement.roomId,
   };
+}
+
+export function cloneManagementWorkspaceInventoryV1(
+  value: ManagementWorkspaceInventoryStateV1,
+): ManagementWorkspaceInventoryStateV1 {
+  return { ...value };
+}
+
+function normalizeTeacherOperationalStatus(
+  value: string,
+): ManagementWorkspaceTeacherInventoryStateV1['operationalStatus'] {
+  if (value === 'ACTIVE' || value === 'INACTIVE') return value;
+  throw new Error(
+    `Workspace snapshot geçersiz öğretmen durumu içeriyor (${value}).`,
+  );
+}
+
+function normalizeRoomOperationalStatus(
+  value: string,
+): ManagementWorkspaceRoomInventoryStateV1['operationalStatus'] {
+  if (
+    value === 'ACTIVE'
+    || value === 'MAINTENANCE'
+    || value === 'OUT_OF_SERVICE'
+  ) return value;
+  throw new Error(
+    `Workspace snapshot geçersiz salon durumu içeriyor (${value}).`,
+  );
+}
+
+function equalInventory(
+  left: ManagementWorkspaceInventoryStateV1,
+  right: ManagementWorkspaceInventoryStateV1,
+) {
+  return (
+    left.resourceType === right.resourceType
+    && left.resourceId === right.resourceId
+    && left.displayName === right.displayName
+    && left.operationalStatus === right.operationalStatus
+  );
 }
 
 export function cloneManagementWorkspaceRequirementResourceV1(
@@ -247,6 +318,42 @@ export function baselineRequirementResourcesById(
   );
 }
 
+export function baselineTeacherInventoryById(
+  snapshot: ManagementWorkspaceSnapshotV1,
+): Record<string, ManagementWorkspaceTeacherInventoryStateV1> {
+  return Object.fromEntries(
+    snapshot.teachers.map((teacher) => [
+      teacher.id,
+      {
+        resourceType: 'TEACHER' as const,
+        resourceId: teacher.id,
+        displayName: teacher.name,
+        operationalStatus: normalizeTeacherOperationalStatus(
+          teacher.operationalStatus,
+        ),
+      },
+    ]),
+  );
+}
+
+export function baselineRoomInventoryById(
+  snapshot: ManagementWorkspaceSnapshotV1,
+): Record<string, ManagementWorkspaceRoomInventoryStateV1> {
+  return Object.fromEntries(
+    snapshot.rooms.map((room) => [
+      room.id,
+      {
+        resourceType: 'ROOM' as const,
+        resourceId: room.id,
+        displayName: room.name,
+        operationalStatus: normalizeRoomOperationalStatus(
+          room.operationalStatus,
+        ),
+      },
+    ]),
+  );
+}
+
 function assertWorkingCopyMatchesSnapshot(
   snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
@@ -275,6 +382,8 @@ export function createManagementWorkspaceWorkingCopyV1(
     baseline: cloneIdentity(snapshot.identity),
     placementsByCardId: baselinePlacementsByCardId(snapshot),
     requirementResourcesById: baselineRequirementResourcesById(snapshot),
+    teacherInventoryById: baselineTeacherInventoryById(snapshot),
+    roomInventoryById: baselineRoomInventoryById(snapshot),
   };
 }
 
@@ -303,6 +412,66 @@ export function removeManagementWorkspacePlacementV1(
   }
 
   workingCopy.placementsByCardId[cardId] = emptyPlacement(cardId);
+}
+
+export function setManagementWorkspaceTeacherInventoryV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resourceId: string,
+  input: {
+    displayName?: string;
+    operationalStatus?: 'ACTIVE' | 'INACTIVE';
+  },
+) {
+  const current = workingCopy.teacherInventoryById[resourceId];
+  if (!current) {
+    throw new Error(
+      `Workspace working copy öğretmeni bulunamadı (${resourceId}).`,
+    );
+  }
+
+  const displayName = input.displayName === undefined
+    ? current.displayName
+    : input.displayName.trim();
+
+  if (displayName.length === 0 || displayName.length > 120) {
+    throw new Error('Öğretmen görünen adı 1–120 karakter olmalı.');
+  }
+
+  workingCopy.teacherInventoryById[resourceId] = {
+    ...current,
+    displayName,
+    operationalStatus: input.operationalStatus ?? current.operationalStatus,
+  };
+}
+
+export function setManagementWorkspaceRoomInventoryV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resourceId: string,
+  input: {
+    displayName?: string;
+    operationalStatus?: 'ACTIVE' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
+  },
+) {
+  const current = workingCopy.roomInventoryById[resourceId];
+  if (!current) {
+    throw new Error(
+      `Workspace working copy salonu bulunamadı (${resourceId}).`,
+    );
+  }
+
+  const displayName = input.displayName === undefined
+    ? current.displayName
+    : input.displayName.trim();
+
+  if (displayName.length === 0 || displayName.length > 120) {
+    throw new Error('Salon görünen adı 1–120 karakter olmalı.');
+  }
+
+  workingCopy.roomInventoryById[resourceId] = {
+    ...current,
+    displayName,
+    operationalStatus: input.operationalStatus ?? current.operationalStatus,
+  };
 }
 
 export function setManagementWorkspaceRequirementTeacherPolicyV1(
@@ -388,6 +557,8 @@ export function diffManagementWorkspaceV1(
 
   const baselineByCardId = baselinePlacementsByCardId(snapshot);
   const baselineResourcesById = baselineRequirementResourcesById(snapshot);
+  const baselineTeacherInventory = baselineTeacherInventoryById(snapshot);
+  const baselineRoomInventory = baselineRoomInventoryById(snapshot);
   const snapshotCardIds = new Set(snapshot.cards.map((card) => card.id));
   const snapshotRequirementIds = new Set(
     snapshot.requirements.map((requirement) => requirement.id),
@@ -405,6 +576,22 @@ export function diffManagementWorkspaceV1(
     if (!snapshotRequirementIds.has(requirementId)) {
       throw new Error(
         `Workspace working copy bilinmeyen requirement içeriyor (${requirementId}).`,
+      );
+    }
+  });
+
+  Object.keys(workingCopy.teacherInventoryById).forEach((resourceId) => {
+    if (!baselineTeacherInventory[resourceId]) {
+      throw new Error(
+        `Workspace working copy bilinmeyen öğretmen içeriyor (${resourceId}).`,
+      );
+    }
+  });
+
+  Object.keys(workingCopy.roomInventoryById).forEach((resourceId) => {
+    if (!baselineRoomInventory[resourceId]) {
+      throw new Error(
+        `Workspace working copy bilinmeyen salon içeriyor (${resourceId}).`,
       );
     }
   });
@@ -463,6 +650,34 @@ export function diffManagementWorkspaceV1(
       left.requirementId.localeCompare(right.requirementId),
     );
 
+  const inventoryChanges: ManagementWorkspaceInventoryChangeV1[] = [
+    ...snapshot.teachers.flatMap((teacher) => {
+      const before = baselineTeacherInventory[teacher.id];
+      const after = workingCopy.teacherInventoryById[teacher.id];
+      if (!before || !after || equalInventory(before, after)) return [];
+      return [{
+        resourceType: 'TEACHER' as const,
+        resourceId: teacher.id,
+        before: cloneManagementWorkspaceInventoryV1(before),
+        after: cloneManagementWorkspaceInventoryV1(after),
+      }];
+    }),
+    ...snapshot.rooms.flatMap((room) => {
+      const before = baselineRoomInventory[room.id];
+      const after = workingCopy.roomInventoryById[room.id];
+      if (!before || !after || equalInventory(before, after)) return [];
+      return [{
+        resourceType: 'ROOM' as const,
+        resourceId: room.id,
+        before: cloneManagementWorkspaceInventoryV1(before),
+        after: cloneManagementWorkspaceInventoryV1(after),
+      }];
+    }),
+  ].sort((left, right) =>
+    left.resourceType.localeCompare(right.resourceType)
+    || left.resourceId.localeCompare(right.resourceId),
+  );
+
   const dirtyCardIds = placementChanges
     .map((change) => change.cardId)
     .sort((left, right) => left.localeCompare(right));
@@ -471,14 +686,21 @@ export function diffManagementWorkspaceV1(
     .map((change) => change.requirementId)
     .sort((left, right) => left.localeCompare(right));
 
+  const dirtyResourceIds = inventoryChanges
+    .map((change) => change.resourceId)
+    .sort((left, right) => left.localeCompare(right));
+
   return {
     baseline: cloneIdentity(snapshot.identity),
     hasChanges:
       placementChanges.length > 0
-      || requirementResourceChanges.length > 0,
+      || requirementResourceChanges.length > 0
+      || inventoryChanges.length > 0,
     dirtyCardIds,
     dirtyRequirementIds,
+    dirtyResourceIds,
     placementChanges,
     requirementResourceChanges,
+    inventoryChanges,
   };
 }
