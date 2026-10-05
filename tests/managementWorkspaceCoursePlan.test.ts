@@ -116,6 +116,26 @@ function workingCopy(): ManagementWorkspaceWorkingCopyV1 {
 }
 
 describe('management workspace Course Plan adapter', () => {
+  it('projects dirty local inventory names into Course Plan options and rows', () => {
+    const source = coursePlan();
+    const copy = workingCopy();
+
+    copy.teacherInventoryById['teacher-1'].displayName =
+      'Yerel Öğretmen 1';
+    copy.roomInventoryById['room-1'].displayName =
+      'Yerel Salon 1';
+
+    const projected = projectManagementCoursePlanFromWorkspaceV1(
+      source,
+      copy,
+    );
+
+    expect(projected.teacherOptions.find((item) => item.id === 'teacher-1')?.name)
+      .toBe('Yerel Öğretmen 1');
+    expect(projected.roomOptions.find((item) => item.id === 'room-1')?.name)
+      .toBe('Yerel Salon 1');
+  });
+
   it('projects local teacher and room definitions without mutating server data', () => {
     const source = coursePlan();
     const projected = projectManagementCoursePlanFromWorkspaceV1(
