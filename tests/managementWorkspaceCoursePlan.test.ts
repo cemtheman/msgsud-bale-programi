@@ -112,6 +112,20 @@ function workingCopy(): ManagementWorkspaceWorkingCopyV1 {
         operationalStatus: 'ACTIVE',
       },
     },
+    teacherPlanningById: {
+      'teacher-1': {
+        teacherId: 'teacher-1',
+        minimumLoad: null,
+        targetLoad: null,
+        maximumLoad: null,
+      },
+      'teacher-2': {
+        teacherId: 'teacher-2',
+        minimumLoad: null,
+        targetLoad: null,
+        maximumLoad: null,
+      },
+    },
   };
 }
 
