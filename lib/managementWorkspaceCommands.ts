@@ -3,11 +3,13 @@ import type {
 } from '@/lib/managementWorkspace';
 import {
   createManagementWorkspaceWorkingCopyV1,
+  type ManagementWorkspaceInventoryStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
   type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
+  applyManagementWorkspaceInventoryOperationV1,
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
   applyManagementWorkspaceRequirementResourceOperationV1,
@@ -33,6 +35,10 @@ export type ManagementWorkspaceCommandV1 =
   | {
       type: 'SET_REQUIREMENT_RESOURCES';
       resource: ManagementWorkspaceRequirementResourceStateV1;
+    }
+  | {
+      type: 'SET_INVENTORY_RESOURCE';
+      resource: ManagementWorkspaceInventoryStateV1;
     };
 
 export interface ManagementWorkspaceCommandResultV1 {
@@ -84,6 +90,18 @@ function cloneWorkingCopy(
         ],
       ),
     ),
+    teacherInventoryById: Object.fromEntries(
+      Object.entries(source.teacherInventoryById).map(([id, resource]) => [
+        id,
+        { ...resource },
+      ]),
+    ),
+    roomInventoryById: Object.fromEntries(
+      Object.entries(source.roomInventoryById).map(([id, resource]) => [
+        id,
+        { ...resource },
+      ]),
+    ),
   };
 }
 
@@ -117,6 +135,14 @@ function applyCommand(
 
   if (command.type === 'SET_REQUIREMENT_RESOURCES') {
     return applyManagementWorkspaceRequirementResourceOperationV1(
+      workingCopy,
+      history,
+      command.resource,
+    );
+  }
+
+  if (command.type === 'SET_INVENTORY_RESOURCE') {
+    return applyManagementWorkspaceInventoryOperationV1(
       workingCopy,
       history,
       command.resource,
@@ -366,6 +392,8 @@ export function resetManagementWorkspaceWorkingCopyV1(
   target.baseline = clean.baseline;
   target.placementsByCardId = clean.placementsByCardId;
   target.requirementResourcesById = clean.requirementResourcesById;
+  target.teacherInventoryById = clean.teacherInventoryById;
+  target.roomInventoryById = clean.roomInventoryById;
 
   history.nextSequence = 1;
   history.nextBatchId = 1;
