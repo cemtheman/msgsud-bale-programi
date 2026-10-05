@@ -47,6 +47,19 @@ export interface ManagementWorkspaceCommitPayloadV1 {
       operational_status: string;
     };
   }>;
+  teacherPlanningChanges: Array<{
+    teacher_id: string;
+    before: {
+      minimum_load: number | null;
+      target_load: number | null;
+      maximum_load: number | null;
+    };
+    after: {
+      minimum_load: number | null;
+      target_load: number | null;
+      maximum_load: number | null;
+    };
+  }>;
   requirementChanges: Array<{
     requirement_id: string;
     before: {
@@ -173,6 +186,19 @@ export function prepareManagementWorkspaceCommitV1(
           room_id: change.after.roomId,
         },
       })),
+      teacherPlanningChanges: diff.teacherPlanningChanges.map((change) => ({
+        teacher_id: change.teacherId,
+        before: {
+          minimum_load: change.before.minimumLoad,
+          target_load: change.before.targetLoad,
+          maximum_load: change.before.maximumLoad,
+        },
+        after: {
+          minimum_load: change.after.minimumLoad,
+          target_load: change.after.targetLoad,
+          maximum_load: change.after.maximumLoad,
+        },
+      })),
       resourceChanges: diff.inventoryChanges.map((change) => ({
         resource_type: change.resourceType,
         resource_id: change.resourceId,
@@ -218,7 +244,7 @@ export async function commitManagementWorkspaceV1(
   const token = await getFreshManagementAccessToken(accessToken);
 
   const response = await fetch(
-    `${url}/rest/v1/rpc/management_commit_workspace_v4`,
+    `${url}/rest/v1/rpc/management_commit_workspace_v5`,
     {
       method: 'POST',
       headers: {
@@ -235,6 +261,7 @@ export async function commitManagementWorkspaceV1(
         p_changes: payload.changes,
         p_requirement_changes: payload.requirementChanges,
         p_resource_changes: payload.resourceChanges,
+        p_teacher_planning_changes: payload.teacherPlanningChanges,
       }),
     },
   );
