@@ -86,6 +86,25 @@ function copy(): ManagementWorkspaceWorkingCopyV1 {
         roomId: null,
       },
     },
+    cardsById: {
+      'card-1': {
+        id: 'card-1',
+        requirementId: 'requirement-1',
+        blockIndex: 1,
+        durationPeriods: 1,
+        locked: false,
+        baselineExists: true,
+      },
+    },
+    requirementStructureById: {
+      'requirement-1': {
+        requirementId: 'requirement-1',
+        weeklyLoad: 1,
+        preferredPartition: [1],
+        allowedPartitions: [[1]],
+        termStatus: 'ACTIVE',
+      },
+    },
     requirementResourcesById: {
       'requirement-1': {
         requirementId: 'requirement-1',
