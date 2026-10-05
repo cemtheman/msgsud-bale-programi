@@ -7212,3 +7212,39 @@ After PASS:
 - browser acceptance: policy preview/apply, Undo/Redo, main Save, reload
 - then move to **Resources inventory/status editing** as the next major local
   workspace boundary
+
+
+#### Teacher-policy build type fix — 5 Oct 2026
+
+Gate status after policy localization:
+- tests: **32/32 files PASS**
+- tests: **177/177 PASS**
+- migration parity: PASS through
+  `20261005085241_management_workspace_teacher_policy`
+- production build initially failed only on TypeScript narrowing in
+  `managementWorkspaceWorkingCopy.ts`
+
+Root cause:
+- snapshot contract exposes `teacherAssignmentScope` and
+  `teacherContinuity` as generic strings
+- local working-copy state intentionally uses narrow policy unions
+
+Fix:
+- added explicit snapshot-boundary validators/normalizers
+- invalid policy values now fail early with a clear workspace snapshot error
+- `baselineRequirementResourcesById` now returns an explicitly typed record
+  instead of allowing Object.fromEntries inference to widen the policy fields
+
+Commits:
+- `37683018beefd8bd6b38a69b34d15a2dad8e805b`
+  validate + narrow teacher policy snapshot values
+- `5d95ea885ea3dfd00409919f8bc174ac86a17885`
+  test invalid policy snapshot rejection
+
+Required re-gate:
+```bash
+npm test -- tests/managementWorkspaceWorkingCopy.test.ts
+npm run build
+```
+
+If both pass, the teacher-policy localization milestone is accepted.
