@@ -6949,3 +6949,50 @@ Still intentionally server-backed:
 Next after this gate:
 - localize teacher assignment scope / continuity policy, because it is the last
   major teacher-policy state inside Ders Planı before moving to Resources.
+
+
+#### Course Plan local-edit UX clarification
+
+The Course Plan editors now make the local/persistent boundary explicit:
+- teacher-pool editor button:
+  - `Çalışmaya uygula`
+  - busy label: `Uygulanıyor…`
+- room-strategy editor uses the same wording
+- helper text states that these changes first enter the local workspace and
+  become persistent only through the management screen's main `Kaydet`
+- placed-requirement guidance explicitly requires:
+  - remove from Program
+  - main Save
+  - then edit the Course Plan on the new unplaced baseline
+
+Commits:
+- `e130be877eaeef3dbeb7917e165f6c43dc0e4b3e`
+  Course Plan teacher editor wording
+- `b6d8a071695c0c93576ed460f356966307336e12`
+  room-strategy editor wording
+
+Gate status:
+- **PENDING**
+- no claim of test/build PASS should be made until Codespaces runs the gate
+
+Required gate:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+npm test
+npm run build
+npx supabase migration list | tail -10
+```
+
+Expected remote migration tail includes:
+`20261005081416_management_workspace_requirement_resources`
+
+After PASS, browser acceptance should focus on one baseline-unplaced requirement:
+1. teacher pool -> Çalışmaya uygula
+2. Course Plan and Program projection update immediately
+3. Undo / Redo work locally
+4. room strategy behaves identically
+5. Save persists through workspace v2
+6. reload shows persisted definition and a clean workspace
+
+Do not proceed to teacher scope/continuity localization until this gate is clean.
