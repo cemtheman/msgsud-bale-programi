@@ -140,6 +140,7 @@ import {
 import {
   createManagementWorkspaceWorkingCopyV1,
   diffManagementWorkspaceV1,
+  hydrateManagementWorkspaceInventoryDisplayNamesV1,
   type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
@@ -938,7 +939,17 @@ export default function ManagementPage() {
 
     void fetchManagementResources(session.accessToken)
       .then((nextResources) => {
-        if (active) setResources(nextResources);
+        if (!active) return;
+
+        const localWorkingCopy = workspaceWorkingCopyRef.current;
+        if (localWorkingCopy) {
+          hydrateManagementWorkspaceInventoryDisplayNamesV1(
+            localWorkingCopy,
+            nextResources,
+          );
+        }
+
+        setResources(nextResources);
       })
       .catch((reason: unknown) => {
         if (!active) return;
