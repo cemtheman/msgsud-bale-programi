@@ -8033,3 +8033,20 @@ Expected migration parity includes:
 - `20261005125959 | 20261005125959`
 
 Do not start the next workspace localization sub-phase until this gate is green.
+
+
+### 5 Oct 2026 — Room profile gate TypeScript fix
+
+Gate result:
+- full suite: **34/34 files, 215/215 tests PASS**
+- migration parity: **PASS**
+  - `20261005125556` local = remote
+  - `20261005125959` local = remote
+- build reached TypeScript and failed only on nullable `room.knowledgeStatus` when creating local room-profile baseline
+
+Fix:
+- normalize snapshot `knowledgeStatus: null` to workspace `'UNKNOWN'`
+- commit: `68d6e0d8b2ece75b1c44f6c8b2b6de952ac192bc`
+- no DB or behavioral contract change
+
+Gate status remains: **PENDING BUILD RECHECK**
