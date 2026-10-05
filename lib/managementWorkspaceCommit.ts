@@ -20,6 +20,28 @@ export interface ManagementWorkspaceCommitPayloadV1 {
   revisionVersion: number;
   snapshotHash: string;
   baselineHash: string;
+  structureChanges: Array<{
+    requirement_id: string;
+    before: {
+      weekly_load: number;
+      preferred_partition: number[];
+      allowed_partitions: number[][];
+      term_status: 'ACTIVE';
+    };
+    after: {
+      weekly_load: number;
+      preferred_partition: number[];
+      allowed_partitions: number[][];
+      term_status: 'ACTIVE';
+    };
+    final_cards: Array<{
+      card_id: string;
+      block_index: number;
+      duration_periods: number;
+      baseline_exists: boolean;
+      locked: boolean;
+    }>;
+  }>;
   resourceCreates: Array<{
     resource_type: 'TEACHER' | 'ROOM';
     resource_id: string;
@@ -216,6 +238,38 @@ export function prepareManagementWorkspaceCommitV1(
       revisionVersion: diff.baseline.revisionVersion,
       snapshotHash: diff.baseline.snapshotHash,
       baselineHash: diff.baseline.baselineHash,
+      structureChanges: diff.requirementStructureChanges.map((change) => ({
+        requirement_id: change.requirementId,
+        before: {
+          weekly_load: change.before.weeklyLoad,
+          preferred_partition: [...change.before.preferredPartition],
+          allowed_partitions: change.before.allowedPartitions.map(
+            (partition) => [...partition],
+          ),
+          term_status: change.before.termStatus,
+        },
+        after: {
+          weekly_load: change.after.weeklyLoad,
+          preferred_partition: [...change.after.preferredPartition],
+          allowed_partitions: change.after.allowedPartitions.map(
+            (partition) => [...partition],
+          ),
+          term_status: change.after.termStatus,
+        },
+        final_cards: Object.values(workingCopy.cardsById)
+          .filter((card) => card.requirementId === change.requirementId)
+          .sort((left, right) =>
+            left.blockIndex - right.blockIndex
+            || left.id.localeCompare(right.id),
+          )
+          .map((card) => ({
+            card_id: card.id,
+            block_index: card.blockIndex,
+            duration_periods: card.durationPeriods,
+            baseline_exists: card.baselineExists,
+            locked: card.locked,
+          })),
+      })),
       resourceCreates: diff.resourceCreates.map((change) => {
         const lifecycle = workingCopy.resourceLifecycleById[change.resourceId];
         const inventory = change.resourceType === 'TEACHER'
@@ -363,7 +417,7 @@ export async function commitManagementWorkspaceV1(
   const token = await getFreshManagementAccessToken(accessToken);
 
   const response = await fetch(
-    `${url}/rest/v1/rpc/management_commit_workspace_v9`,
+    `${url}/rest/v1/rpc/management_commit_workspace_v10`,
     {
       method: 'POST',
       headers: {
@@ -385,6 +439,7 @@ export async function commitManagementWorkspaceV1(
         p_room_profile_changes: payload.roomProfileChanges,
         p_resource_creates: payload.resourceCreates,
         p_resource_deletes: payload.resourceDeletes,
+        p_structure_changes: payload.structureChanges,
       }),
     },
   );
@@ -464,6 +519,21 @@ export function translateManagementWorkspaceCommitErrorV1(
 
   if (normalized.includes('WORKSPACE_V1_LOCKED_CARD_CHANGED')) {
     return 'Kilitli bir ders değiştirildiği için çalışma alanı kaydedilemedi.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V10_STRUCTURE_BEFORE_STALE')
+    || normalized.includes('WORKSPACE_V10_STRUCTURE_CARD_GRAPH_STALE')
+  ) {
+    return 'Ders yapısı çalışma alanı açıldıktan sonra değişmiş. Çalışma alanını yenileyip yapı değişikliğini yeniden uygulayın.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V10_STRUCTURE_BLOCKED')
+    || normalized.includes('WORKSPACE_V10_STRUCTURE_GRAPH_MISMATCH')
+    || normalized.includes('WORKSPACE_V10_STRUCTURE_INVALID')
+  ) {
+    return 'Ders yapısı mevcut program kartlarıyla güvenli biçimde uygulanamıyor. Etki önizlemesini yeniden kontrol edin.';
   }
 
   if (
