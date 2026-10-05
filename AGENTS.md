@@ -8298,3 +8298,51 @@ Accepted behavior:
 
 Next active sub-phase:
 **Course Plan requirement structure localization**
+
+
+### 5 Oct 2026 — Requirement structure localization architecture checkpoint
+
+Server semantics verified:
+- deterministic card matching uses:
+  - durationPeriods
+  - duration-rank within equal-duration cards
+- preserved cards keep their IDs and may receive new blockIndex values
+- removed cards must still be unplaced and unlocked
+- created blocks become new schedule_cards
+- placed-card removal blocks apply
+- equal-duration ambiguity with placed cards blocks apply
+- structural apply updates:
+  - weeklyLoad
+  - preferredPartition
+  - allowedPartitions
+  - termStatus
+- server writes an explicit STRUCTURE history barrier after apply
+
+Important snapshot boundary:
+- current solver/workspace snapshot contains only ACTIVE requirements/cards
+- Course Plan contains all requirements, including INACTIVE
+- current live data:
+  - ACTIVE requirements: 192
+  - INACTIVE requirements: 1
+  - the inactive requirement is B. Uygulama / 5A BALLET
+  - it currently has no cards, teacher pool or room pool
+- therefore INACTIVE -> ACTIVE is not safely representable by the current
+  ACTIVE-only workspace snapshot without a broader catalog contract
+
+Decision:
+- do not silently broaden existing solver `requirements/cards` semantics
+- ACTIVE requirement structure localization may proceed with local card graph
+  + atomic structural commit
+- term-status lifecycle transitions that cross ACTIVE/INACTIVE remain an
+  explicit separate boundary until an all-requirement workspace catalog is
+  introduced
+- this avoids destabilizing solver/validator assumptions while still
+  localizing the normal weeklyLoad / partition editing path
+
+Next implementation target:
+- local requirement structure state for ACTIVE requirements
+- local deterministic card graph transformation
+- shared Undo/Redo
+- Course Plan immediate projection
+- atomic Save v10 with server-side structure stale verification/history barrier
+- no structure mutation should bypass the main Save
