@@ -61,10 +61,10 @@ export function projectManagementBoardFromWorkspaceV1(
     }
   });
   const requirementById = new Map(
-    snapshot?.requirements.map((requirement) => [
-      requirement.id,
+    Object.values(workingCopy.requirementCatalogById).map((requirement) => [
+      requirement.requirementId,
       requirement,
-    ]) ?? [],
+    ]),
   );
 
   const resolvedTeachersByRequirement = new Map<string, Set<string>>();
@@ -128,19 +128,26 @@ export function projectManagementBoardFromWorkspaceV1(
             groupType: requirement!.groupType,
             classCodes: [],
             audienceTargets: [],
-            weeklyLoad: structure?.weeklyLoad ?? requirement!.weeklyLoad,
-            teacherMode: requirement!.teacherMode,
+            weeklyLoad:
+              structure?.weeklyLoad ?? requirement!.baselineWeeklyLoad,
+            teacherMode:
+              resource?.teacherMode ?? requirement!.baselineTeacherMode,
             teacherRequirement:
               requirement!.teacherRequirement as ManagementBoardCard['teacherRequirement'],
             teacherAssignmentScope:
-              requirement!.teacherAssignmentScope as ManagementBoardCard['teacherAssignmentScope'],
+              (resource?.teacherAssignmentScope
+                ?? requirement!.baselineTeacherAssignmentScope)
+              as ManagementBoardCard['teacherAssignmentScope'],
             teacherContinuity:
-              requirement!.teacherContinuity as ManagementBoardCard['teacherContinuity'],
+              (resource?.teacherContinuity
+                ?? requirement!.baselineTeacherContinuity)
+              as ManagementBoardCard['teacherContinuity'],
             resolvedRequirementTeacherId: null,
             teacherContinuityConflict: false,
             teacherIds: [],
             teacherNames: [],
-            resourceMode: requirement!.resourceMode,
+            resourceMode:
+              resource?.resourceMode ?? requirement!.baselineResourceMode,
             roomIds: [],
             roomNames: [],
             courseCharacter: requirement!.courseCharacter ?? '',
