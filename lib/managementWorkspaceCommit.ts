@@ -238,6 +238,8 @@ export function translateManagementWorkspaceCommitErrorV1(
     || normalized.includes('WORKSPACE_V1_REVISION_VERSION_STALE')
     || normalized.includes('WORKSPACE_V1_REQUIREMENT_SET_STALE')
     || normalized.includes('WORKSPACE_V1_BEFORE_STATE_STALE')
+    || normalized.includes('WORKSPACE_V2_REQUIREMENT_BEFORE_STALE')
+    || normalized.includes('WORKSPACE_V2_REQUIREMENT_NOT_IN_SET')
   ) {
     return 'Taslak program siz çalışırken değişmiş. Yerel değişiklikler korunuyor; güncel programı almadan kaydetme yapılmadı.';
   }
