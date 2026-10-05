@@ -18,6 +18,8 @@ export interface ManagementWorkspaceRequirementResourceStateV1 {
   requirementId: string;
   teacherIds: string[];
   teacherMode: string;
+  teacherAssignmentScope: 'REQUIREMENT' | 'BLOCK' | 'UNSPECIFIED';
+  teacherContinuity: 'REQUIRED' | 'PREFERRED' | 'NONE';
   resourceMode: string;
   roomIds: string[];
   requiredCapability: string | null;
@@ -96,6 +98,8 @@ export function cloneManagementWorkspaceRequirementResourceV1(
     requirementId: value.requirementId,
     teacherIds: [...value.teacherIds].sort((a, b) => a.localeCompare(b)),
     teacherMode: value.teacherMode,
+    teacherAssignmentScope: value.teacherAssignmentScope,
+    teacherContinuity: value.teacherContinuity,
     resourceMode: value.resourceMode,
     roomIds: [...value.roomIds].sort((a, b) => a.localeCompare(b)),
     requiredCapability: value.requiredCapability,
@@ -132,6 +136,8 @@ function equalRequirementResource(
     left.requirementId === right.requirementId
     && equalStringArrays(left.teacherIds, right.teacherIds)
     && left.teacherMode === right.teacherMode
+    && left.teacherAssignmentScope === right.teacherAssignmentScope
+    && left.teacherContinuity === right.teacherContinuity
     && left.resourceMode === right.resourceMode
     && equalStringArrays(left.roomIds, right.roomIds)
     && left.requiredCapability === right.requiredCapability
@@ -193,6 +199,8 @@ export function baselineRequirementResourcesById(
           ...(teacherIdsByRequirement.get(requirement.id) ?? []),
         ].sort((a, b) => a.localeCompare(b)),
         teacherMode: requirement.teacherMode,
+        teacherAssignmentScope: requirement.teacherAssignmentScope,
+        teacherContinuity: requirement.teacherContinuity,
         resourceMode: requirement.resourceMode,
         roomIds: [
           ...(roomIdsByRequirement.get(requirement.id) ?? []),
@@ -259,6 +267,28 @@ export function removeManagementWorkspacePlacementV1(
   }
 
   workingCopy.placementsByCardId[cardId] = emptyPlacement(cardId);
+}
+
+export function setManagementWorkspaceRequirementTeacherPolicyV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  requirementId: string,
+  input: {
+    teacherAssignmentScope: 'REQUIREMENT' | 'BLOCK' | 'UNSPECIFIED';
+    teacherContinuity: 'REQUIRED' | 'PREFERRED' | 'NONE';
+  },
+) {
+  const current = workingCopy.requirementResourcesById[requirementId];
+  if (!current) {
+    throw new Error(
+      `Workspace working copy requirement bulunamadı (${requirementId}).`,
+    );
+  }
+
+  workingCopy.requirementResourcesById[requirementId] = {
+    ...cloneManagementWorkspaceRequirementResourceV1(current),
+    teacherAssignmentScope: input.teacherAssignmentScope,
+    teacherContinuity: input.teacherContinuity,
+  };
 }
 
 export function setManagementWorkspaceRequirementTeachersV1(
