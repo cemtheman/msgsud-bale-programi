@@ -714,6 +714,15 @@ function applyOperationState(
     ? operation.before
     : operation.after;
 
+  if (operation.kind === 'SET_REQUIREMENT_STRUCTURE') {
+    applyManagementWorkspaceRequirementStructureBundleV1(
+      workingCopy,
+      operation.requirementId,
+      value as ManagementWorkspaceRequirementStructureBundleV1,
+    );
+    return;
+  }
+
   if (operation.kind === 'SET_REQUIREMENT_RESOURCES') {
     applyRequirementResourceState(
       workingCopy,
