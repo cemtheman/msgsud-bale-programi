@@ -162,6 +162,13 @@ export interface ManagementSolverHardConstraintContract {
   rules: string[];
 }
 
+export interface ManagementSolverTeacherLoadTarget {
+  teacherId: string;
+  minimumLoad: number | null;
+  targetLoad: number | null;
+  maximumLoad: number | null;
+}
+
 export interface ManagementSolverSnapshotPreview {
   snapshotVersion: string;
   solverEngineStatus: 'SNAPSHOT_ONLY' | string;
@@ -183,6 +190,7 @@ export interface ManagementSolverSnapshotPreview {
   roomPools: ManagementSolverRoomPoolEntry[];
   teachers: ManagementSolverTeacher[];
   teacherUnavailablePeriods?: ManagementSolverTeacherUnavailablePeriod[];
+  teacherLoadTargets?: ManagementSolverTeacherLoadTarget[];
   rooms: ManagementSolverRoom[];
   baselinePlacements: ManagementSolverBaselinePlacement[];
   baselineMetrics: ManagementSolverBaselineMetrics;
