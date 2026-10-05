@@ -267,10 +267,16 @@ describe('management workspace working copy v1', () => {
   });
 
   it('rejects invalid teacher policy values at the snapshot boundary', () => {
-    const source = snapshot();
-    source.requirements[0] = {
-      ...source.requirements[0],
-      teacherAssignmentScope: 'INVALID_SCOPE',
+    const base = snapshot();
+    const source = {
+      ...base,
+      requirements: [
+        {
+          ...base.requirements[0],
+          teacherAssignmentScope: 'INVALID_SCOPE',
+        },
+        ...base.requirements.slice(1),
+      ],
     };
 
     expect(() => createManagementWorkspaceWorkingCopyV1(source))
