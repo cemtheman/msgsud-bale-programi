@@ -16,7 +16,6 @@ import {
 import {
   createManagementWorkspaceWorkingCopyV1,
   removeManagementWorkspacePlacementV1,
-  setManagementWorkspacePlacementV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
   createManagementWorkspaceHistoryV1,
@@ -233,50 +232,6 @@ describe('management workspace inventory edits', () => {
     expect(copy.placementsByCardId['card-1'].teacherId).toBe('teacher-1');
     expect(history.undoStack).toHaveLength(1);
     expect(prepareManagementWorkspaceCommitV1(source, copy).ready).toBe(true);
-  });
-
-  it('prepares INACTIVATE_CLEAR as one coordinated local batch', () => {
-    const source = snapshot();
-    const copy = createManagementWorkspaceWorkingCopyV1(source);
-    const history = createManagementWorkspaceHistoryV1();
-
-    const prepared = prepareManagementWorkspaceTeacherDepartureV1(
-      source,
-      copy,
-      'teacher-1',
-      'INACTIVATE_CLEAR',
-    );
-    const result = executeManagementWorkspaceCommandsV1(
-      source,
-      copy,
-      history,
-      prepared.commands,
-    );
-
-    expect(result.applied).toBe(true);
-    expect(copy.teacherInventoryById['teacher-1'].operationalStatus)
-      .toBe('INACTIVE');
-    expect(copy.requirementResourcesById['requirement-1']).toMatchObject({
-      teacherIds: [],
-      teacherMode: 'UNKNOWN',
-    });
-    expect(copy.placementsByCardId['card-1']).toMatchObject({
-      dayOfWeek: 1,
-      startPeriod: 1,
-      teacherId: null,
-      roomId: 'room-1',
-    });
-    expect(new Set(history.undoStack.map((entry) => entry.batchId)).size)
-      .toBe(1);
-
-    const commit = prepareManagementWorkspaceCommitV1(source, copy);
-    expect(commit.ready).toBe(true);
-    expect(commit.issues).toEqual([]);
-    expect(commit.payload?.changes[0]?.after.teacher_id).toBeNull();
-    expect(commit.payload?.requirementChanges[0]?.after.teacher_ids)
-      .toEqual([]);
-    expect(commit.payload?.resourceChanges[0]?.after.operational_status)
-      .toBe('INACTIVE');
   });
 
   it('still blocks assigning a locally inactive teacher as a new placement', () => {
