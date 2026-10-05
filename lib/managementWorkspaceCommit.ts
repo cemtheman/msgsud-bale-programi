@@ -47,6 +47,17 @@ export interface ManagementWorkspaceCommitPayloadV1 {
       operational_status: string;
     };
   }>;
+  roomProfileChanges: Array<{
+    room_id: string;
+    before: {
+      capabilities: string[];
+      knowledge_status: 'CONFIRMED' | 'OBSERVED' | 'UNKNOWN';
+    };
+    after: {
+      capabilities: string[];
+      knowledge_status: 'CONFIRMED' | 'OBSERVED' | 'UNKNOWN';
+    };
+  }>;
   teacherAvailabilityChanges: Array<{
     teacher_id: string;
     before: Array<{
@@ -197,6 +208,17 @@ export function prepareManagementWorkspaceCommitV1(
           room_id: change.after.roomId,
         },
       })),
+      roomProfileChanges: diff.roomProfileChanges.map((change) => ({
+        room_id: change.roomId,
+        before: {
+          capabilities: [...change.before.capabilities],
+          knowledge_status: change.before.knowledgeStatus,
+        },
+        after: {
+          capabilities: [...change.after.capabilities],
+          knowledge_status: change.after.knowledgeStatus,
+        },
+      })),
       teacherAvailabilityChanges: diff.teacherAvailabilityChanges.map((change) => ({
         teacher_id: change.teacherId,
         before: change.before.unavailablePeriods.map((slot) => ({
@@ -266,7 +288,7 @@ export async function commitManagementWorkspaceV1(
   const token = await getFreshManagementAccessToken(accessToken);
 
   const response = await fetch(
-    `${url}/rest/v1/rpc/management_commit_workspace_v7`,
+    `${url}/rest/v1/rpc/management_commit_workspace_v8`,
     {
       method: 'POST',
       headers: {
@@ -285,6 +307,7 @@ export async function commitManagementWorkspaceV1(
         p_resource_changes: payload.resourceChanges,
         p_teacher_planning_changes: payload.teacherPlanningChanges,
         p_teacher_availability_changes: payload.teacherAvailabilityChanges,
+        p_room_profile_changes: payload.roomProfileChanges,
       }),
     },
   );
@@ -364,6 +387,20 @@ export function translateManagementWorkspaceCommitErrorV1(
 
   if (normalized.includes('WORKSPACE_V1_LOCKED_CARD_CHANGED')) {
     return 'Kilitli bir ders değiştirildiği için çalışma alanı kaydedilemedi.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V8_ROOM_PROFILE_BEFORE_STALE')
+    || normalized.includes('WORKSPACE_V8_ROOM_NOT_FOUND')
+  ) {
+    return 'Salon özellikleri çalışma alanı açıldıktan sonra değişmiş. Çalışma alanını yenileyip işlemi yeniden uygulayın.';
+  }
+
+  if (
+    normalized.includes('WORKSPACE_V8_ROOM_PROFILE_BLOCKED')
+    || normalized.includes('WORKSPACE_V8_INVALID_ROOM_PROFILE')
+  ) {
+    return 'Salon özellikleri bu haliyle mevcut programı geçersiz kılıyor. Etkilenen yerleşimleri düzeltip işlemi yeniden uygulayın.';
   }
 
   if (normalized.includes('WORKSPACE_V7_MULTIPLE_ROOM_DEPARTURES_UNSUPPORTED')) {
