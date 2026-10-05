@@ -7298,3 +7298,166 @@ Next milestone:
 **Resources inventory/status localization**
 starting with teacher/room identity + operational status. Departure/load/availability
 will remain separate sub-phases.
+
+
+### 5 Oct 2026 — Resources inventory name/status joined local workspace
+
+Scope of this phase:
+- teacher draft display name
+- room draft display name
+- teacher operational status: ACTIVE / INACTIVE
+- room operational status: ACTIVE / MAINTENANCE / OUT_OF_SERVICE
+
+Intentionally still server-backed:
+- create/delete teacher or room
+- teacher departure
+- room departure
+- teacher load targets
+- teacher hard availability
+- room capability / knowledge profile
+Those callbacks are guarded while local unsaved history exists.
+
+Working-copy model:
+- added `teacherInventoryById`
+- added `roomInventoryById`
+- diff adds:
+  - `dirtyResourceIds`
+  - `inventoryChanges`
+- inventory operations use shared `SET_INVENTORY_RESOURCE`
+- same global Undo/Redo stack as placements and Course Plan
+
+Display-name baseline nuance:
+- solver snapshot does NOT resolve M18.2 name-override tables
+- therefore snapshot `teacher.name` / `room.name` cannot safely be treated as
+  effective DRAFT display-name baseline
+- inventory state now keeps:
+  - `baselineDisplayName`
+  - `displayName`
+- when Resources data is loaded, effective DRAFT names hydrate both values only
+  if no local rename is pending
+- Program/Course Plan/Resources projections preserve their server effective
+  names until a genuinely dirty local rename exists
+- atomic diff then sends the hydrated effective name as exact `before`
+
+Operational-status semantics mirror existing controlled server rules:
+- teacher -> INACTIVE blocked while teacher is used by current local placements
+- room -> MAINTENANCE/OUT_OF_SERVICE blocked while canonical room family has a
+  current local placement
+- canonical-family guard includes alias room placements
+- activation is allowed
+- local PLACE candidates immediately exclude locally non-active teachers/rooms
+- validator sees local inventory status before DB Save
+
+Local Resources UI:
+- teacher name edit -> local
+- room name edit -> local
+- teacher status edit -> local
+- room status preview/apply -> local
+- Resources screen projects local state immediately
+- Program and Course Plan project dirty local names immediately
+- server-backed Resources mutations call
+  `assertServerResourceMutationAllowed()` while local history is active
+- legacy direct name/status RPC references in `app/yonetim/page.tsx`: **0**
+
+Atomic Save v3:
+- client now sends:
+  - placement changes
+  - requirement plan/policy changes
+  - resource inventory changes
+- RPC:
+  `management_commit_workspace_v3`
+- result adds `changedResourceCount`
+- exact effective display-name + status before-state stale guard
+- uses accepted controlled resource mutation functions
+
+Remote migrations:
+- `20261005092501_management_workspace_resource_inventory`
+- `20261005094055_management_workspace_resource_ordering`
+
+Ordering fix is important:
+1. validate/lock exact resource before-state
+2. apply names + ACTIVE transitions
+3. commit Course Plan/policy/placements through workspace v2
+4. apply INACTIVE/MAINTENANCE/OUT_OF_SERVICE transitions
+5. return final hashes
+This supports both in one main Save:
+- activate resource -> assign/place it
+- remove final placement -> deactivate resource
+All steps stay in one PostgreSQL transaction.
+
+Key commits:
+- `e460b733e3fbcd9fb677fb8ce465dc9f6cc81ac1`
+  inventory working-copy/diff foundation
+- `1d5c3012967ce1226b94be53c13cda9c30844ea7`
+  inventory history
+- `acbb8b6d6fd3ac0f9cb2ba3c99aa8daede700ac1`
+  shared command layer
+- `2fb423e2c1439b26fca4710944763c972febb8b2`
+  validator uses local status
+- `b5bee4d9533d6b9b2ee119e1b737b2647a969c8a`
+  PLACE candidates use local status
+- `22e1f03701bb4b9312520ddbb1ef7504bad67bc3`
+  local inventory edit helper
+- `aa41577075eebe7d8389b6c6ff0d7ed1bc086185`
+  Resources UI local integration
+- `e387372850986f1506abb0e00393b0d38e1bfea6`
+  atomic inventory payload + v3 client
+- `b9bbb85fb872a91788d9a6048d676e853b5c8531`
+  v3 remote parity migration
+- `8a7cb03ed968a6bf6da0df8c20a9d3560f33d0f8`
+  effective display-name baseline split
+- `c1d5778a424045259608927ac9d123e71ac03f81`
+  Resources hydration into effective baseline
+- `90ba7ee0b90fbdf69be28a5b3a87b30c3250658a`
+  inventory history discriminant narrowing
+- `234376fc79657d9951b9d43ac76cc94f310dbe1c`
+  alias-family room-status guard
+- `98976acfde2e3bffa30a6823e45a2ec6f781a1f2`
+  activation/deactivation ordering migration parity
+- `108a1b131e2ffc13c0534c44d56cb0b953a0fb93`
+  v3 user-facing blocker translations
+
+Tests added/extended:
+- working-copy inventory diff
+- effective DRAFT name hydration
+- hydration does not overwrite an unsaved rename
+- inventory global Undo/Redo
+- local teacher/room status safety
+- canonical room alias-family status safety
+- atomic resourceChanges payload
+- Program inventory-name projection
+- Course Plan inventory-name projection
+- Resources projection
+- inactive resources excluded from local PLACE candidates
+- shared command routing for inventory edits
+
+Gate status:
+**PENDING**
+
+Focused gate:
+```bash
+npm test -- \
+  tests/managementWorkspaceInventory.test.ts \
+  tests/managementWorkspaceInventoryProjection.test.ts \
+  tests/managementWorkspaceWorkingCopy.test.ts \
+  tests/managementWorkspaceHistory.test.ts \
+  tests/managementWorkspaceCommands.test.ts \
+  tests/managementWorkspaceCommit.test.ts \
+  tests/managementWorkspaceCandidates.test.ts \
+  tests/managementWorkspaceBoardAdapter.test.ts \
+  tests/managementWorkspaceCoursePlan.test.ts
+```
+
+Then:
+```bash
+npm test
+npm run build
+npx supabase migration list | tail -10
+```
+
+Expected migration tail includes both:
+- `20261005092501 management_workspace_resource_inventory`
+- `20261005094055 management_workspace_resource_ordering`
+
+Do not start departure/load/availability/profile localization until this gate is
+clean.
