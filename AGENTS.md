@@ -7772,3 +7772,35 @@ No DB contract or migration behavior changed.
 
 Gate status remains: **PENDING**
 Rerun focused/full/build/parity gate before closing teacher-load localization.
+
+
+### 5 Oct 2026 — Teacher load target localization CLOSED / PASS
+
+Acceptance gate:
+- full suite: **34/34 files, 202/202 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: **PASS**
+- `git diff --check`: PASS
+- migration parity: **PASS**
+  - `20261005120354` local = remote
+
+Status: **CLOSED / PASS**
+
+Accepted behavior:
+- teacher minimum/target/maximum load values are snapshot-backed local planning inputs
+- edits live in workspace working copy
+- shared Undo/Redo applies
+- Resources projection updates immediately
+- main Save persists planning changes through `management_commit_workspace_v5`
+- v5 performs stale before-state checks and load-range/order validation
+- planning changes and placement/requirement/resource/departure changes commit in one PostgreSQL transaction chain
+
+Next active sub-phase:
+**Hard teacher availability localization**
+- move unavailable-period edits into workspace working copy
+- preserve existing hard-block behavior for new placements
+- preserve current-program overlap visibility without silently moving lessons
+- shared Undo/Redo
+- atomic Save extension on top of v5
