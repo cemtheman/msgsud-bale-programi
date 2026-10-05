@@ -15,6 +15,7 @@ import {
   cloneManagementWorkspaceCardV1,
   cloneManagementWorkspacePlacementV1,
   cloneManagementWorkspaceRequirementStructureV1,
+  diffManagementWorkspaceV1,
   getManagementWorkspaceRequirementStructureBundleV1,
   type ManagementWorkspaceCardStateV1,
   type ManagementWorkspaceRequirementStructureBundleV1,
@@ -152,6 +153,18 @@ export function previewManagementWorkspaceRequirementStructureV1(
   input: ManagementRequirementStructurePreviewInput,
 ): ManagementRequirementStructurePreview {
   validateActiveStructureInput(input);
+
+  const existingStructureChange = diffManagementWorkspaceV1(
+    snapshot,
+    workingCopy,
+  ).requirementStructureChanges.some(
+    (change) => change.requirementId === input.requirementId,
+  );
+  if (existingStructureChange) {
+    throw new Error(
+      'Bu dersin yapısı bu çalışma oturumunda zaten değiştirildi. Yeni bir yapı kararı için önce Geri Al veya ana Kaydet kullanın.',
+    );
+  }
 
   const requirement = snapshot.requirements.find(
     (item) => item.id === input.requirementId,
