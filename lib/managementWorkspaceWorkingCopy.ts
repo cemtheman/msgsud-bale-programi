@@ -14,6 +14,29 @@ export interface ManagementWorkspacePlacementStateV1 {
   roomId: string | null;
 }
 
+export interface ManagementWorkspaceCardStateV1 {
+  id: string;
+  requirementId: string;
+  blockIndex: number;
+  durationPeriods: number;
+  locked: boolean;
+  baselineExists: boolean;
+}
+
+export interface ManagementWorkspaceRequirementStructureStateV1 {
+  requirementId: string;
+  weeklyLoad: number;
+  preferredPartition: number[];
+  allowedPartitions: number[][];
+  termStatus: 'ACTIVE';
+}
+
+export interface ManagementWorkspaceRequirementStructureBundleV1 {
+  structure: ManagementWorkspaceRequirementStructureStateV1;
+  cards: ManagementWorkspaceCardStateV1[];
+  placements: ManagementWorkspacePlacementStateV1[];
+}
+
 export interface ManagementWorkspaceTeacherInventoryStateV1 {
   resourceType: 'TEACHER';
   resourceId: string;
@@ -92,6 +115,9 @@ export interface ManagementWorkspaceWorkingCopyV1 {
   schemaVersion: typeof MANAGEMENT_WORKSPACE_COPY_SCHEMA_VERSION;
   baseline: ManagementWorkspaceSnapshotIdentityV1;
   placementsByCardId: Record<string, ManagementWorkspacePlacementStateV1>;
+  cardsById: Record<string, ManagementWorkspaceCardStateV1>;
+  requirementStructureById:
+    Record<string, ManagementWorkspaceRequirementStructureStateV1>;
   requirementResourcesById:
     Record<string, ManagementWorkspaceRequirementResourceStateV1>;
   teacherInventoryById:
@@ -112,6 +138,12 @@ export interface ManagementWorkspacePlacementChangeV1 {
   cardId: string;
   before: ManagementWorkspacePlacementStateV1;
   after: ManagementWorkspacePlacementStateV1;
+}
+
+export interface ManagementWorkspaceRequirementStructureChangeV1 {
+  requirementId: string;
+  before: ManagementWorkspaceRequirementStructureStateV1;
+  after: ManagementWorkspaceRequirementStructureStateV1;
 }
 
 export interface ManagementWorkspaceRequirementResourceChangeV1 {
@@ -162,6 +194,8 @@ export interface ManagementWorkspaceDiffV1 {
   dirtyRequirementIds: string[];
   dirtyResourceIds: string[];
   placementChanges: ManagementWorkspacePlacementChangeV1[];
+  requirementStructureChanges:
+    ManagementWorkspaceRequirementStructureChangeV1[];
   requirementResourceChanges:
     ManagementWorkspaceRequirementResourceChangeV1[];
   inventoryChanges: ManagementWorkspaceInventoryChangeV1[];
@@ -206,6 +240,61 @@ export function cloneManagementWorkspacePlacementV1(
     teacherId: placement.teacherId,
     roomId: placement.roomId,
   };
+}
+
+export function cloneManagementWorkspaceCardV1(
+  card: ManagementWorkspaceCardStateV1,
+): ManagementWorkspaceCardStateV1 {
+  return { ...card };
+}
+
+export function cloneManagementWorkspaceRequirementStructureV1(
+  value: ManagementWorkspaceRequirementStructureStateV1,
+): ManagementWorkspaceRequirementStructureStateV1 {
+  return {
+    requirementId: value.requirementId,
+    weeklyLoad: value.weeklyLoad,
+    preferredPartition: [...value.preferredPartition],
+    allowedPartitions: value.allowedPartitions.map((partition) => [...partition]),
+    termStatus: 'ACTIVE',
+  };
+}
+
+export function cloneManagementWorkspaceRequirementStructureBundleV1(
+  value: ManagementWorkspaceRequirementStructureBundleV1,
+): ManagementWorkspaceRequirementStructureBundleV1 {
+  return {
+    structure: cloneManagementWorkspaceRequirementStructureV1(value.structure),
+    cards: value.cards
+      .map(cloneManagementWorkspaceCardV1)
+      .sort((a, b) => a.blockIndex - b.blockIndex || a.id.localeCompare(b.id)),
+    placements: value.placements
+      .map(cloneManagementWorkspacePlacementV1)
+      .sort((a, b) => a.cardId.localeCompare(b.cardId)),
+  };
+}
+
+function equalNumberArrays(left: number[], right: number[]) {
+  return left.length === right.length
+    && left.every((value, index) => value === right[index]);
+}
+
+function equalNumberMatrix(left: number[][], right: number[][]) {
+  return left.length === right.length
+    && left.every((partition, index) =>
+      equalNumberArrays(partition, right[index] ?? []),
+    );
+}
+
+function equalRequirementStructure(
+  left: ManagementWorkspaceRequirementStructureStateV1,
+  right: ManagementWorkspaceRequirementStructureStateV1,
+) {
+  return left.requirementId === right.requirementId
+    && left.weeklyLoad === right.weeklyLoad
+    && equalNumberArrays(left.preferredPartition, right.preferredPartition)
+    && equalNumberMatrix(left.allowedPartitions, right.allowedPartitions)
+    && left.termStatus === right.termStatus;
 }
 
 export function cloneManagementWorkspaceInventoryV1(
@@ -406,6 +495,42 @@ function equalRequirementResource(
     && left.resourceMode === right.resourceMode
     && equalStringArrays(left.roomIds, right.roomIds)
     && left.requiredCapability === right.requiredCapability
+  );
+}
+
+export function baselineCardsById(
+  snapshot: ManagementWorkspaceSnapshotV1,
+): Record<string, ManagementWorkspaceCardStateV1> {
+  return Object.fromEntries(
+    snapshot.cards.map((card) => [
+      card.id,
+      {
+        id: card.id,
+        requirementId: card.requirementId,
+        blockIndex: card.blockIndex,
+        durationPeriods: card.durationPeriods,
+        locked: card.locked,
+        baselineExists: true,
+      },
+    ]),
+  );
+}
+
+export function baselineRequirementStructureById(
+  snapshot: ManagementWorkspaceSnapshotV1,
+): Record<string, ManagementWorkspaceRequirementStructureStateV1> {
+  return Object.fromEntries(
+    snapshot.requirements.map((requirement) => [
+      requirement.id,
+      {
+        requirementId: requirement.id,
+        weeklyLoad: requirement.weeklyLoad,
+        preferredPartition: [...(requirement.preferredPartition ?? [])],
+        allowedPartitions: (requirement.allowedPartitions ?? [])
+          .map((partition) => [...partition]),
+        termStatus: 'ACTIVE' as const,
+      },
+    ]),
   );
 }
 
@@ -659,6 +784,8 @@ export function createManagementWorkspaceWorkingCopyV1(
     schemaVersion: MANAGEMENT_WORKSPACE_COPY_SCHEMA_VERSION,
     baseline: cloneIdentity(snapshot.identity),
     placementsByCardId: baselinePlacementsByCardId(snapshot),
+    cardsById: baselineCardsById(snapshot),
+    requirementStructureById: baselineRequirementStructureById(snapshot),
     requirementResourcesById: baselineRequirementResourcesById(snapshot),
     teacherInventoryById: baselineTeacherInventoryById(snapshot),
     roomInventoryById: baselineRoomInventoryById(snapshot),
@@ -842,6 +969,71 @@ export function createManagementWorkspaceResourceBundleV1(
       knowledgeStatus: 'UNKNOWN',
     },
   };
+}
+
+export function getManagementWorkspaceRequirementStructureBundleV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  requirementId: string,
+): ManagementWorkspaceRequirementStructureBundleV1 | null {
+  const structure = workingCopy.requirementStructureById[requirementId];
+  if (!structure) return null;
+
+  const cards = Object.values(workingCopy.cardsById)
+    .filter((card) => card.requirementId === requirementId)
+    .sort((a, b) => a.blockIndex - b.blockIndex || a.id.localeCompare(b.id));
+  const placements = cards.map((card) => {
+    const placement = workingCopy.placementsByCardId[card.id];
+    if (!placement) {
+      throw new Error(
+        `Workspace kart yerleşimi eksik (${card.id}).`,
+      );
+    }
+    return placement;
+  });
+
+  return cloneManagementWorkspaceRequirementStructureBundleV1({
+    structure,
+    cards,
+    placements,
+  });
+}
+
+export function applyManagementWorkspaceRequirementStructureBundleV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  requirementId: string,
+  bundle: ManagementWorkspaceRequirementStructureBundleV1,
+) {
+  if (bundle.structure.requirementId !== requirementId) {
+    throw new Error('Ders yapısı paketi requirement kimliğiyle eşleşmiyor.');
+  }
+
+  const existingCardIds = Object.values(workingCopy.cardsById)
+    .filter((card) => card.requirementId === requirementId)
+    .map((card) => card.id);
+
+  existingCardIds.forEach((cardId) => {
+    delete workingCopy.cardsById[cardId];
+    delete workingCopy.placementsByCardId[cardId];
+  });
+
+  workingCopy.requirementStructureById[requirementId] =
+    cloneManagementWorkspaceRequirementStructureV1(bundle.structure);
+
+  bundle.cards.forEach((card) => {
+    if (card.requirementId !== requirementId) {
+      throw new Error('Ders yapısı paketi farklı requirement kartı içeriyor.');
+    }
+    workingCopy.cardsById[card.id] =
+      cloneManagementWorkspaceCardV1(card);
+  });
+
+  bundle.placements.forEach((placement) => {
+    if (!workingCopy.cardsById[placement.cardId]) {
+      throw new Error('Ders yapısı paketi bilinmeyen kart yerleşimi içeriyor.');
+    }
+    workingCopy.placementsByCardId[placement.cardId] =
+      cloneManagementWorkspacePlacementV1(placement);
+  });
 }
 
 export function setManagementWorkspacePlacementV1(
@@ -1113,6 +1305,8 @@ export function diffManagementWorkspaceV1(
   assertWorkingCopyMatchesSnapshot(snapshot, workingCopy);
 
   const baselineByCardId = baselinePlacementsByCardId(snapshot);
+  const baselineCards = baselineCardsById(snapshot);
+  const baselineStructures = baselineRequirementStructureById(snapshot);
   const baselineResourcesById = baselineRequirementResourcesById(snapshot);
   const baselineTeacherInventory = baselineTeacherInventoryById(snapshot);
   const baselineRoomInventory = baselineRoomInventoryById(snapshot);
@@ -1120,15 +1314,35 @@ export function diffManagementWorkspaceV1(
   const baselineTeacherAvailability = baselineTeacherAvailabilityById(snapshot);
   const baselineRoomProfiles = baselineRoomProfileById(snapshot);
   const baselineResourceLifecycle = baselineResourceLifecycleById(snapshot);
-  const snapshotCardIds = new Set(snapshot.cards.map((card) => card.id));
   const snapshotRequirementIds = new Set(
     snapshot.requirements.map((requirement) => requirement.id),
   );
 
-  Object.keys(workingCopy.placementsByCardId).forEach((cardId) => {
-    if (!snapshotCardIds.has(cardId)) {
+  Object.values(workingCopy.cardsById).forEach((card) => {
+    if (!snapshotRequirementIds.has(card.requirementId)) {
       throw new Error(
-        `Workspace working copy bilinmeyen kart içeriyor (${cardId}).`,
+        `Workspace working copy bilinmeyen requirement kartı içeriyor (${card.id}).`,
+      );
+    }
+    if (!workingCopy.placementsByCardId[card.id]) {
+      throw new Error(
+        `Workspace working copy kart yerleşimi eksik (${card.id}).`,
+      );
+    }
+  });
+
+  Object.keys(workingCopy.placementsByCardId).forEach((cardId) => {
+    if (!workingCopy.cardsById[cardId]) {
+      throw new Error(
+        `Workspace working copy kart grafiğinde olmayan yerleşim içeriyor (${cardId}).`,
+      );
+    }
+  });
+
+  Object.keys(workingCopy.requirementStructureById).forEach((requirementId) => {
+    if (!snapshotRequirementIds.has(requirementId)) {
+      throw new Error(
+        `Workspace working copy bilinmeyen requirement yapısı içeriyor (${requirementId}).`,
       );
     }
   });
@@ -1141,72 +1355,16 @@ export function diffManagementWorkspaceV1(
     }
   });
 
-  Object.values(workingCopy.resourceLifecycleById).forEach((lifecycle) => {
-    const baseline = baselineResourceLifecycle[lifecycle.resourceId];
-    if (lifecycle.baselineExists) {
-      if (
-        !baseline
-        || baseline.resourceType !== lifecycle.resourceType
-      ) {
-        throw new Error(
-          `Workspace working copy geçersiz kaynak yaşam döngüsü içeriyor (${lifecycle.resourceId}).`,
-        );
-      }
-    } else if (baseline) {
-      throw new Error(
-        `Workspace working copy oluşturulan kaynak baseline ile çakışıyor (${lifecycle.resourceId}).`,
-      );
-    }
-
-    if (lifecycle.resourceType === 'TEACHER') {
-      if (
-        !workingCopy.teacherInventoryById[lifecycle.resourceId]
-        || !workingCopy.teacherPlanningById[lifecycle.resourceId]
-        || !workingCopy.teacherAvailabilityById[lifecycle.resourceId]
-      ) {
-        throw new Error(
-          `Workspace working copy öğretmen kaynak paketi eksik (${lifecycle.resourceId}).`,
-        );
-      }
-    } else if (
-      !workingCopy.roomInventoryById[lifecycle.resourceId]
-      || !workingCopy.roomProfileById[lifecycle.resourceId]
-    ) {
-      throw new Error(
-        `Workspace working copy salon kaynak paketi eksik (${lifecycle.resourceId}).`,
-      );
-    }
-  });
-
-  Object.keys(workingCopy.teacherInventoryById).forEach((resourceId) => {
-    const lifecycle = workingCopy.resourceLifecycleById[resourceId];
-    if (!lifecycle || lifecycle.resourceType !== 'TEACHER') {
-      throw new Error(
-        `Workspace working copy bilinmeyen öğretmen içeriyor (${resourceId}).`,
-      );
-    }
-  });
-
-  Object.keys(workingCopy.roomInventoryById).forEach((resourceId) => {
-    const lifecycle = workingCopy.resourceLifecycleById[resourceId];
-    if (!lifecycle || lifecycle.resourceType !== 'ROOM') {
-      throw new Error(
-        `Workspace working copy bilinmeyen salon içeriyor (${resourceId}).`,
-      );
-    }
-  });
-
-  const placementChanges = snapshot.cards
+  const placementChanges = Object.values(workingCopy.cardsById)
     .map((card) => {
-      const before = baselineByCardId[card.id];
       const after = workingCopy.placementsByCardId[card.id];
-
       if (!after) {
         throw new Error(
           `Workspace working copy kart durumu eksik (${card.id}).`,
         );
       }
 
+      const before = baselineByCardId[card.id] ?? emptyPlacement(card.id);
       if (equalPlacement(before, after)) return null;
 
       return {
@@ -1220,6 +1378,30 @@ export function diffManagementWorkspaceV1(
         change !== null,
     )
     .sort((left, right) => left.cardId.localeCompare(right.cardId));
+
+  const requirementStructureChanges = snapshot.requirements
+    .map((requirement) => {
+      const before = baselineStructures[requirement.id];
+      const after = workingCopy.requirementStructureById[requirement.id];
+      if (!before || !after) {
+        throw new Error(
+          `Workspace working copy requirement yapı durumu eksik (${requirement.id}).`,
+        );
+      }
+      if (equalRequirementStructure(before, after)) return null;
+      return {
+        requirementId: requirement.id,
+        before: cloneManagementWorkspaceRequirementStructureV1(before),
+        after: cloneManagementWorkspaceRequirementStructureV1(after),
+      };
+    })
+    .filter(
+      (change): change is ManagementWorkspaceRequirementStructureChangeV1 =>
+        change !== null,
+    )
+    .sort((left, right) =>
+      left.requirementId.localeCompare(right.requirementId),
+    );
 
   const requirementResourceChanges = snapshot.requirements
     .map((requirement) => {
@@ -1396,13 +1578,25 @@ export function diffManagementWorkspaceV1(
         || left.resourceId.localeCompare(right.resourceId),
       );
 
-  const dirtyCardIds = placementChanges
-    .map((change) => change.cardId)
-    .sort((left, right) => left.localeCompare(right));
+  const structurallyDirtyCardIds = requirementStructureChanges.flatMap(
+    (change) => [
+      ...Object.values(baselineCards)
+        .filter((card) => card.requirementId === change.requirementId)
+        .map((card) => card.id),
+      ...Object.values(workingCopy.cardsById)
+        .filter((card) => card.requirementId === change.requirementId)
+        .map((card) => card.id),
+    ],
+  );
+  const dirtyCardIds = Array.from(new Set([
+    ...placementChanges.map((change) => change.cardId),
+    ...structurallyDirtyCardIds,
+  ])).sort((left, right) => left.localeCompare(right));
 
-  const dirtyRequirementIds = requirementResourceChanges
-    .map((change) => change.requirementId)
-    .sort((left, right) => left.localeCompare(right));
+  const dirtyRequirementIds = Array.from(new Set([
+    ...requirementResourceChanges.map((change) => change.requirementId),
+    ...requirementStructureChanges.map((change) => change.requirementId),
+  ])).sort((left, right) => left.localeCompare(right));
 
   const dirtyResourceIds = Array.from(new Set([
     ...inventoryChanges.map((change) => change.resourceId),
@@ -1417,6 +1611,7 @@ export function diffManagementWorkspaceV1(
     baseline: cloneIdentity(snapshot.identity),
     hasChanges:
       placementChanges.length > 0
+      || requirementStructureChanges.length > 0
       || requirementResourceChanges.length > 0
       || inventoryChanges.length > 0
       || teacherPlanningChanges.length > 0
@@ -1428,6 +1623,7 @@ export function diffManagementWorkspaceV1(
     dirtyRequirementIds,
     dirtyResourceIds,
     placementChanges,
+    requirementStructureChanges,
     requirementResourceChanges,
     inventoryChanges,
     teacherPlanningChanges,
