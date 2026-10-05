@@ -3,7 +3,6 @@ import type {
   ManagementRoomStatusPreview,
   ManagementTeacherOperationalStatus,
   ManagementTeacherDeparturePreview,
-  type ManagementTeacherDepartureMode,
 } from '@/lib/managementResources';
 import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
@@ -349,7 +348,7 @@ export function prepareManagementWorkspaceTeacherDepartureV1(
   snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   teacherId: string,
-  mode: Exclude<ManagementTeacherDepartureMode, 'ARCHIVE_CLEAR'>,
+  _mode: 'INACTIVATE_KEEP',
 ): {
   commands: ManagementWorkspaceCommandV1[];
   preview: ManagementTeacherDeparturePreview;
@@ -371,43 +370,7 @@ export function prepareManagementWorkspaceTeacherDepartureV1(
     },
   }];
 
-  if (mode === 'INACTIVATE_CLEAR') {
-    Object.values(workingCopy.requirementResourcesById)
-      .filter((resource) => resource.teacherIds.includes(teacherId))
-      .sort((left, right) =>
-        left.requirementId.localeCompare(right.requirementId),
-      )
-      .forEach((resource) => {
-        const teacherIds = resource.teacherIds.filter(
-          (id) => id !== teacherId,
-        );
-        commands.push({
-          type: 'SET_REQUIREMENT_RESOURCES',
-          resource: {
-            ...resource,
-            teacherIds,
-            teacherMode: teacherIds.length === 0
-              ? 'UNKNOWN'
-              : teacherIds.length === 1
-                ? 'FIXED'
-                : 'ELIGIBLE_POOL',
-          },
-        });
-      });
 
-    Object.values(workingCopy.placementsByCardId)
-      .filter((placement) => placement.teacherId === teacherId)
-      .sort((left, right) => left.cardId.localeCompare(right.cardId))
-      .forEach((placement) => {
-        commands.push({
-          type: 'SET_PLACEMENT',
-          placement: {
-            ...placement,
-            teacherId: null,
-          },
-        });
-      });
-  }
 
   return { commands, preview };
 }
