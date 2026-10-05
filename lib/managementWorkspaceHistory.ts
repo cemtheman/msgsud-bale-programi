@@ -2,12 +2,14 @@ import {
   cloneManagementWorkspaceInventoryV1,
   cloneManagementWorkspacePlacementV1,
   cloneManagementWorkspaceRequirementResourceV1,
+  cloneManagementWorkspaceRoomProfileV1,
   cloneManagementWorkspaceTeacherAvailabilityV1,
   cloneManagementWorkspaceTeacherPlanningV1,
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
   type ManagementWorkspaceInventoryStateV1,
   type ManagementWorkspaceRoomInventoryStateV1,
+  type ManagementWorkspaceRoomProfileStateV1,
   type ManagementWorkspaceTeacherInventoryStateV1,
   type ManagementWorkspaceTeacherAvailabilityStateV1,
   type ManagementWorkspaceTeacherPlanningStateV1,
@@ -22,7 +24,8 @@ export type ManagementWorkspaceOperationKindV1 =
   | 'SET_REQUIREMENT_RESOURCES'
   | 'SET_INVENTORY_RESOURCE'
   | 'SET_TEACHER_PLANNING'
-  | 'SET_TEACHER_AVAILABILITY';
+  | 'SET_TEACHER_AVAILABILITY'
+  | 'SET_ROOM_PROFILE';
 
 export interface ManagementWorkspacePlacementOperationV1 {
   sequence: number;
@@ -79,12 +82,24 @@ export interface ManagementWorkspaceTeacherAvailabilityOperationV1 {
   after: ManagementWorkspaceTeacherAvailabilityStateV1;
 }
 
+export interface ManagementWorkspaceRoomProfileOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_ROOM_PROFILE';
+  cardId: null;
+  requirementId: null;
+  resourceId: string;
+  before: ManagementWorkspaceRoomProfileStateV1;
+  after: ManagementWorkspaceRoomProfileStateV1;
+}
+
 export type ManagementWorkspaceOperationV1 =
   | ManagementWorkspacePlacementOperationV1
   | ManagementWorkspaceRequirementResourceOperationV1
   | ManagementWorkspaceInventoryOperationV1
   | ManagementWorkspaceTeacherPlanningOperationV1
-  | ManagementWorkspaceTeacherAvailabilityOperationV1;
+  | ManagementWorkspaceTeacherAvailabilityOperationV1
+  | ManagementWorkspaceRoomProfileOperationV1;
 
 export interface ManagementWorkspaceHistoryV1 {
   nextSequence: number;
@@ -121,6 +136,15 @@ function currentInventory(
   }
 
   return cloneManagementWorkspaceInventoryV1(current);
+}
+
+function currentRoomProfile(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  roomId: string,
+) {
+  const value = workingCopy.roomProfileById[roomId];
+  if (!value) throw new Error(`Workspace geçmiş işlemi için salon profili bulunamadı (${roomId}).`);
+  return cloneManagementWorkspaceRoomProfileV1(value);
 }
 
 function currentTeacherAvailability(
@@ -199,6 +223,17 @@ function applyRequirementResourceState(
 
   workingCopy.requirementResourcesById[resource.requirementId] =
     cloneManagementWorkspaceRequirementResourceV1(resource);
+}
+
+function applyRoomProfileState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  profile: ManagementWorkspaceRoomProfileStateV1,
+) {
+  if (!workingCopy.roomProfileById[profile.roomId]) {
+    throw new Error(`Workspace geçmiş işlemi için salon profili bulunamadı (${profile.roomId}).`);
+  }
+  workingCopy.roomProfileById[profile.roomId] =
+    cloneManagementWorkspaceRoomProfileV1(profile);
 }
 
 function applyTeacherAvailabilityState(
@@ -290,6 +325,14 @@ export function cloneManagementWorkspaceOperationV1(
     };
   }
 
+  if (operation.kind === 'SET_ROOM_PROFILE') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceRoomProfileV1(operation.before),
+      after: cloneManagementWorkspaceRoomProfileV1(operation.after),
+    };
+  }
+
   return {
     ...operation,
     before: cloneManagementWorkspacePlacementV1(operation.before),
@@ -312,6 +355,10 @@ function recordOperation(
       >
     | Omit<
         ManagementWorkspaceTeacherAvailabilityOperationV1,
+        'sequence' | 'batchId'
+      >
+    | Omit<
+        ManagementWorkspaceRoomProfileOperationV1,
         'sequence' | 'batchId'
       >,
 ) {
@@ -476,6 +523,24 @@ export function applyManagementWorkspaceTeacherAvailabilityOperationV1(
   });
 }
 
+export function applyManagementWorkspaceRoomProfileOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  profile: ManagementWorkspaceRoomProfileStateV1,
+) {
+  const before = currentRoomProfile(workingCopy, profile.roomId);
+  const after = cloneManagementWorkspaceRoomProfileV1(profile);
+  applyRoomProfileState(workingCopy, after);
+  return recordOperation(history, {
+    kind: 'SET_ROOM_PROFILE',
+    cardId: null,
+    requirementId: null,
+    resourceId: profile.roomId,
+    before,
+    after,
+  });
+}
+
 function applyOperationState(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   operation: ManagementWorkspaceOperationV1,
@@ -513,6 +578,14 @@ function applyOperationState(
     applyTeacherAvailabilityState(
       workingCopy,
       value as ManagementWorkspaceTeacherAvailabilityStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_ROOM_PROFILE') {
+    applyRoomProfileState(
+      workingCopy,
+      value as ManagementWorkspaceRoomProfileStateV1,
     );
     return;
   }
