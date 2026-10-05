@@ -34,13 +34,24 @@ function sameMatrix(left: number[][], right: number[][]) {
     );
 }
 
-function validateActiveStructureInput(
+function validateStructureInput(
   input: ManagementRequirementStructurePreviewInput,
 ) {
-  if (input.termStatus !== 'ACTIVE') {
-    throw new Error(
-      'Dersin aktif/pasif dönem durumu bu çalışma alanı fazında değiştirilemez. Bu işlem ayrı lifecycle sınırında ele alınacak.',
-    );
+  if (input.termStatus === 'UNKNOWN') {
+    throw new Error('Dönem durumu ACTIVE veya INACTIVE olmalı.');
+  }
+
+  if (input.termStatus === 'INACTIVE') {
+    if (
+      input.weeklyLoad !== 0
+      || input.preferredPartition.length > 0
+      || input.allowedPartitions.length > 0
+    ) {
+      throw new Error(
+        'Pasif bir ders için haftalık saat 0, blok yapıları boş olmalı.',
+      );
+    }
+    return;
   }
 
   if (!Number.isInteger(input.weeklyLoad) || input.weeklyLoad <= 0) {
@@ -152,7 +163,7 @@ export function previewManagementWorkspaceRequirementStructureV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   input: ManagementRequirementStructurePreviewInput,
 ): ManagementRequirementStructurePreview {
-  validateActiveStructureInput(input);
+  validateStructureInput(input);
 
   const existingStructureChange = diffManagementWorkspaceV1(
     snapshot,
@@ -166,12 +177,11 @@ export function previewManagementWorkspaceRequirementStructureV1(
     );
   }
 
-  const requirement = snapshot.requirements.find(
-    (item) => item.id === input.requirementId,
-  );
+  const requirement =
+    workingCopy.requirementCatalogById[input.requirementId];
   if (!requirement) {
     throw new Error(
-      'Bu ders ACTIVE workspace snapshot içinde değil. Aktif/pasif lifecycle geçişi ayrı ele alınmalıdır.',
+      'Ders katalogda bulunamadı. Ders Planı verisini yenileyin.',
     );
   }
 
@@ -184,7 +194,9 @@ export function previewManagementWorkspaceRequirementStructureV1(
   }
 
   const currentByDuration = durationRankedCards(bundle.cards);
-  const proposed = proposedByDuration(input.preferredPartition);
+  const proposed = proposedByDuration(
+    input.termStatus === 'ACTIVE' ? input.preferredPartition : [],
+  );
 
   const preservedCards: ManagementRequirementStructureCardImpact[] = [];
   const removedCards: ManagementRequirementStructureCardImpact[] = [];
@@ -291,6 +303,7 @@ export function previewManagementWorkspaceRequirementStructureV1(
       bundle.structure.allowedPartitions,
       input.allowedPartitions,
     )
+    || bundle.structure.termStatus !== input.termStatus
   );
 
   const removedPlacedCount = removedCards.filter((card) => card.placed).length;
@@ -328,7 +341,7 @@ export function previewManagementWorkspaceRequirementStructureV1(
       allowedPartitions: bundle.structure.allowedPartitions.map(
         (partition) => [...partition],
       ),
-      termStatus: 'ACTIVE',
+      termStatus: bundle.structure.termStatus,
       cardCount: bundle.cards.length,
       placedBlockCount: bundle.placements.filter(
         (placement) =>
@@ -342,14 +355,17 @@ export function previewManagementWorkspaceRequirementStructureV1(
       allowedPartitions: input.allowedPartitions.map(
         (partition) => [...partition],
       ),
-      termStatus: 'ACTIVE',
-      cardCount: input.preferredPartition.length,
+      termStatus: input.termStatus,
+      cardCount: input.termStatus === 'ACTIVE'
+        ? input.preferredPartition.length
+        : 0,
     },
     preservedCards,
     removedCards,
     createdBlocks,
     ambiguities,
-    candidateRebuildCardCount: input.preferredPartition.length,
+    candidateRebuildCardCount:
+      input.termStatus === 'ACTIVE' ? input.preferredPartition.length : 0,
     previewOnly: true,
   };
 }
@@ -435,7 +451,7 @@ export function prepareManagementWorkspaceRequirementStructureV1(
       allowedPartitions: input.allowedPartitions.map(
         (partition) => [...partition],
       ),
-      termStatus: 'ACTIVE',
+      termStatus: input.termStatus,
     }),
     cards,
     placements,
