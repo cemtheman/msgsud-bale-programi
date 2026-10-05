@@ -99,7 +99,7 @@ function workingCopy(): ManagementWorkspaceWorkingCopyV1 {
         capabilities: [],
         knowledgeStatus: 'CONFIRMED',
       }
-    },,
+    },
     resourceLifecycleById: {
       'teacher-1': {
         resourceType: 'TEACHER',
