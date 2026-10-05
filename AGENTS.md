@@ -7804,3 +7804,55 @@ Next active sub-phase:
 - preserve current-program overlap visibility without silently moving lessons
 - shared Undo/Redo
 - atomic Save extension on top of v5
+
+
+### 5 Oct 2026 — Hard teacher availability localization
+
+Implemented:
+- workspace working copy adds `teacherAvailabilityById`
+- snapshot hard-availability slots are grouped per teacher into local state
+- availability edits participate in:
+  - local diff
+  - shared Undo/Redo history
+  - workspace dirty state
+  - local hard-constraint validation
+  - Resources immediate projection
+- local validator now reads working-copy availability, so new/moved placements are checked against unsaved availability edits immediately
+- Resources unavailable-period count/configured state updates immediately
+- Resources existing-placement overlap count is recomputed from local placements + card durations when workspace snapshot is available
+- Resources availability modal now writes local command state; no immediate Supabase mutation
+- main Save payload includes `teacherAvailabilityChanges`
+- commit client targets `management_commit_workspace_v6`
+
+DB contract:
+- migration: `20261005121805_management_workspace_teacher_hard_availability`
+- applied successfully to Supabase
+- v6 performs stale before-state comparison against `management_teacher_unavailable_periods`
+- validates day 1..5 / period 1..12 / no duplicates
+- delegates each accepted availability change to existing M39.1.2 `management_set_teacher_unavailable_periods`
+- refreshes solver snapshot identity
+- then commits teacher planning + all remaining workspace changes through v5 in the same PostgreSQL transaction
+
+Tests added:
+- teacher availability local diff
+- teacher availability Undo/Redo
+- local availability validation
+- atomic commit payload
+- immediate Resources projection
+
+Gate status: **PENDING**
+
+Required gate:
+```bash
+git pull --ff-only
+npm test -- tests/managementWorkspaceWorkingCopy.test.ts tests/managementWorkspaceHistory.test.ts tests/managementWorkspaceValidation.test.ts tests/managementWorkspaceCommit.test.ts tests/managementWorkspaceInventoryProjection.test.ts
+npm test
+npm run build
+git diff --check
+npx supabase migration list | tail -10
+```
+
+Expected migration parity:
+`20261005121805 | 20261005121805`
+
+Do not move to the next workspace localization sub-phase until this gate is green.
