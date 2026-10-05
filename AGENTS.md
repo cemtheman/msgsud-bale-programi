@@ -8505,3 +8505,98 @@ Accepted behavior:
 - server STRUCTURE_APPLY history barrier is preserved
 - one unsaved structure decision per requirement is enforced
 - ACTIVE <-> INACTIVE remains the next explicit lifecycle boundary
+
+
+### 5 Oct 2026 — Requirement ACTIVE/INACTIVE lifecycle localization v11 checkpoint
+
+Previous gate:
+- ACTIVE structure localization: **35/35 files, 231/231 tests PASS**
+- build / TypeScript / 9/9 static generation: PASS
+- v10 migration parity through `20261005174816`: PASS
+- phase closed before opening lifecycle work
+
+All-requirement catalog:
+- Course Plan rows now expose `subjectId` + `groupId`
+- workspace adds `requirementCatalogById`
+- catalog is hydrated lazily from Course Plan because solver snapshot remains
+  intentionally ACTIVE-only
+- catalog carries:
+  - subject/group identity and names
+  - groupType + classCodes
+  - hard scheduling inputs
+  - course character / delivery mode
+  - teacher requirement
+  - full baseline structure
+  - full baseline teacher/room resource definition
+  - baseline termStatus
+- command trial copies deep-clone catalog array fields
+- Program projection uses catalog metadata for newly activated client-ID cards
+- Course Plan projection uses local structure termStatus immediately
+
+Local lifecycle semantics:
+- `ACTIVE -> INACTIVE`
+  - requires weeklyLoad=0
+  - preferredPartition=[]
+  - allowedPartitions=[]
+  - local final card graph becomes empty
+  - placed card removal still blocks preview until user removes it locally
+  - locked card removal still blocks
+- `INACTIVE -> ACTIVE`
+  - hydrated inactive requirement can be activated without broadening solver snapshot
+  - preferred partition creates client UUID cards locally
+  - new cards participate immediately in Program, candidates and validation
+- `UNKNOWN` remains non-applicable
+- same requirement still permits one unsaved structural/lifecycle decision at a time
+- structural Undo/Redo continues to restore the complete structure/card/placement bundle
+
+Important diff fix:
+- placement diff now uses the union of baseline + local card IDs
+- if a baseline card is removed by structure/lifecycle, a prior local placement
+  removal is retained in the final diff instead of disappearing with the card
+- this makes staged-removal ordering real rather than theoretical
+
+Atomic Save v11:
+- client now calls `management_commit_workspace_v11`
+- payload shape remains structureChanges + final card graph
+- v11 separates:
+  - term-status lifecycle changes
+  - ACTIVE->ACTIVE structure changes
+- deactivation ordering:
+  1. apply staged placement removals for cards that will disappear
+  2. run existing server structure preview
+  3. delegate ACTIVE->INACTIVE to existing structure primitive/history contract
+- activation ordering:
+  1. run server structure preview against current INACTIVE requirement
+  2. stale-check before state
+  3. verify local final graph matches server-created-block plan
+  4. update requirement ACTIVE
+  5. insert the exact client UUID cards
+  6. refresh candidate subset
+  7. write STRUCTURE_APPLY history barrier
+- all remaining placement/resource/ACTIVE-structure changes then flow through v10
+  and existing v9/v2 chain in the same transaction
+- pre-lifecycle placement counts are folded into the final commit result
+
+Migration:
+- remote applied: `20261005181246_management_workspace_requirement_lifecycle`
+- repo migration file aligned to the live v11 definition
+
+Security:
+- v11 authenticated execute: YES
+- v11 anon execute: NO
+- v11 uses SECURITY DEFINER with fixed search_path
+- v11 enforces `has_management_role('EDITOR')` internally
+- Security Advisor lists v11 only under the expected generic
+  authenticated-SECURITY-DEFINER warning; no anon exposure exists
+
+Regression coverage added:
+- ACTIVE -> INACTIVE unplaced lifecycle
+- deactivation blocked while a card remains placed
+- INACTIVE catalog hydration -> ACTIVE client UUID cards
+- staged placement removal survives structural card deletion in diff
+- Course Plan immediate lifecycle projection
+- v11 lifecycle commit payload
+- newly activated card Program metadata + classCodes
+- direct working-copy fixtures extended with requirement catalog
+
+Gate status: **PENDING**
