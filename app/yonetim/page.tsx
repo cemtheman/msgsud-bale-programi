@@ -67,7 +67,7 @@ import {
   applyManagementRoomDeparture,
   applyManagementTeacherDeparture,
   validateManagementTeacherLoadTargets,
-  updateManagementTeacherUnavailablePeriods,
+  validateManagementTeacherUnavailablePeriods,
   type ManagementResourceInventoryData,
 } from '@/lib/managementResources';
 import {
@@ -5054,39 +5054,30 @@ export default function ManagementPage() {
             teacherId,
             unavailablePeriods,
           ) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
-            assertServerResourceMutationAllowed();
 
-            setCommandBusy(true);
-            setCommandActivity('Öğretmenin uygun olmadığı saatler güncelleniyor.');
-
-            try {
-              const result = await updateManagementTeacherUnavailablePeriods(
-                session.accessToken,
-                resources.revisionId,
-                teacherId,
-                unavailablePeriods,
-              );
-
-              const overlapText = result.unavailablePlacedBlockCount > 0
-                ? ` ${result.unavailablePlacedBlockCount} mevcut ders bu saatlerle çakışıyor; program otomatik olarak değiştirilmedi.`
-                : ' Mevcut program otomatik olarak değiştirilmedi.';
-
-              setCommandNotice({
-                kind: result.unavailablePlacedBlockCount > 0
-                  ? 'info'
-                  : 'success',
-                text: result.availabilityConfigured
-                  ? `${result.unavailablePeriodCount} uygun olmayan ders saati kaydedildi.${overlapText}`
-                  : `Öğretmenin uygunluk kısıtları temizlendi.${overlapText}`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
+            const validationError = validateManagementTeacherUnavailablePeriods(
+              unavailablePeriods,
+            );
+            if (validationError) {
+              throw new Error(validationError);
             }
+
+            applyLocalInventoryCommand(
+              {
+                type: 'SET_TEACHER_AVAILABILITY',
+                availability: {
+                  teacherId,
+                  unavailablePeriods,
+                },
+              },
+              unavailablePeriods.length > 0
+                ? `${unavailablePeriods.length} uygun olmayan ders saati yerel çalışma alanında güncellendi. Mevcut program otomatik taşınmadı; ana Kaydet ile veritabanına yazılacak.`
+                : 'Öğretmenin uygunluk kısıtları yerel çalışma alanında temizlendi. Ana Kaydet ile veritabanına yazılacak.',
+            );
           }}
           onPreviewTeacherDeparture={async (teacherId, intent) => {
             if (!session || !access?.canEdit || !resources) {
