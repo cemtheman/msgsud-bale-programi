@@ -60,6 +60,8 @@ function workingCopy(): ManagementWorkspaceWorkingCopyV1 {
       baselineHash: 'baseline-hash',
     },
     placementsByCardId: {},
+    cardsById: {},
+    requirementStructureById: {},
     requirementResourcesById: {},
     teacherInventoryById: {
       'teacher-1': {
