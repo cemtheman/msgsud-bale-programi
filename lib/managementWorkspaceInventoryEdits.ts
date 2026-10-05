@@ -5,7 +5,7 @@ import type {
 } from '@/lib/managementResources';
 import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
-  previewManagementWorkspaceCommandV1,
+  previewManagementWorkspaceCommandsV1,
   type ManagementWorkspaceCommandV1,
 } from '@/lib/managementWorkspaceCommands';
 import type {
@@ -142,10 +142,10 @@ export function prepareManagementWorkspaceRoomStatusEditV1(
     resource,
   };
 
-  const validation = previewManagementWorkspaceCommandV1(
+  const validation = previewManagementWorkspaceCommandsV1(
     snapshot,
     workingCopy,
-    command,
+    [command],
   );
 
   const familyIds = new Set(roomFamilyIds(snapshot, roomId));
