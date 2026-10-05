@@ -1,4 +1,5 @@
 import type {
+  ManagementRoomDeparturePreview,
   ManagementRoomOperationalStatus,
   ManagementRoomStatusPreview,
   ManagementTeacherOperationalStatus,
@@ -403,6 +404,157 @@ export function prepareManagementWorkspaceTeacherDepartureV1(
           placement: {
             ...placement,
             teacherId: null,
+          },
+        });
+      });
+  }
+
+  return { commands, preview };
+}
+
+
+function roomDepartureStateToken(
+  snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  roomId: string,
+) {
+  const room = workingCopy.roomInventoryById[roomId];
+  if (!room) throw new Error('Salon kaynak kaydı bulunamadı.');
+
+  const requirementState = Object.values(workingCopy.requirementResourcesById)
+    .filter((resource) => resource.roomIds.includes(roomId))
+    .map((resource) => [
+      resource.requirementId,
+      resource.resourceMode,
+      [...resource.roomIds].sort().join(','),
+      resource.requiredCapability ?? '',
+    ].join(':'))
+    .sort()
+    .join('|');
+
+  const placementState = Object.values(workingCopy.placementsByCardId)
+    .filter((placement) => placement.roomId === roomId)
+    .map((placement) => [
+      placement.cardId,
+      placement.dayOfWeek ?? '',
+      placement.startPeriod ?? '',
+      placement.teacherId ?? '',
+    ].join(':'))
+    .sort()
+    .join('|');
+
+  return [
+    'LOCAL_ROOM_DEPARTURE_V1',
+    snapshot.identity.revisionId,
+    snapshot.identity.snapshotHash,
+    roomId,
+    room.operationalStatus,
+    requirementState,
+    placementState,
+  ].join('|');
+}
+
+export function previewManagementWorkspaceRoomDepartureV1(
+  snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  roomId: string,
+): ManagementRoomDeparturePreview {
+  const sourceRoom = snapshot.rooms.find((room) => room.id === roomId);
+  const room = workingCopy.roomInventoryById[roomId];
+  if (!sourceRoom || !room) throw new Error('Salon kaynak kaydı bulunamadı.');
+  if (sourceRoom.canonicalRoomId !== null) {
+    throw new Error('Salon alias kayıtları ayrılış işlemine konu olamaz.');
+  }
+
+  const assignmentCount = Object.values(
+    workingCopy.requirementResourcesById,
+  ).filter((resource) => resource.roomIds.includes(roomId)).length;
+
+  const placedBlockCount = Object.values(workingCopy.placementsByCardId)
+    .filter((placement) => placement.roomId === roomId)
+    .length;
+
+  const aliasCount = snapshot.rooms.filter(
+    (candidate) => candidate.canonicalRoomId === roomId,
+  ).length;
+
+  return {
+    roomId,
+    roomName: room.displayName,
+    operationalStatus: room.operationalStatus,
+    assignmentCount,
+    activeRequirementCount: assignmentCount,
+    placedBlockCount,
+    aliasCount,
+    stateToken: roomDepartureStateToken(snapshot, workingCopy, roomId),
+    publishedChanged: false,
+  };
+}
+
+export function prepareManagementWorkspaceRoomDepartureV1(
+  snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  roomId: string,
+  mode: 'OUT_OF_SERVICE_KEEP' | 'OUT_OF_SERVICE_CLEAR',
+): {
+  commands: ManagementWorkspaceCommandV1[];
+  preview: ManagementRoomDeparturePreview;
+} {
+  const sourceRoom = snapshot.rooms.find((room) => room.id === roomId);
+  const room = workingCopy.roomInventoryById[roomId];
+  if (!sourceRoom || !room) throw new Error('Salon kaynak kaydı bulunamadı.');
+  if (sourceRoom.canonicalRoomId !== null) {
+    throw new Error('Salon alias kayıtları ayrılış işlemine konu olamaz.');
+  }
+
+  const preview = previewManagementWorkspaceRoomDepartureV1(
+    snapshot,
+    workingCopy,
+    roomId,
+  );
+
+  const commands: ManagementWorkspaceCommandV1[] = [{
+    type: 'SET_INVENTORY_RESOURCE',
+    resource: {
+      ...room,
+      operationalStatus: 'OUT_OF_SERVICE',
+    },
+  }];
+
+  if (mode === 'OUT_OF_SERVICE_CLEAR') {
+    Object.values(workingCopy.requirementResourcesById)
+      .filter((resource) => resource.roomIds.includes(roomId))
+      .sort((left, right) =>
+        left.requirementId.localeCompare(right.requirementId),
+      )
+      .forEach((resource) => {
+        const roomIds = resource.roomIds.filter((id) => id !== roomId);
+        commands.push({
+          type: 'SET_REQUIREMENT_RESOURCES',
+          resource: {
+            ...resource,
+            roomIds,
+            resourceMode: roomIds.length === 0
+              ? resource.resourceMode
+              : roomIds.length === 1
+                ? 'FIXED'
+                : 'ELIGIBLE_POOL',
+            requiredCapability: roomIds.length === 0
+              ? resource.requiredCapability
+              : null,
+          },
+        });
+      });
+
+    Object.values(workingCopy.placementsByCardId)
+      .filter((placement) => placement.roomId === roomId)
+      .sort((left, right) => left.cardId.localeCompare(right.cardId))
+      .forEach((placement) => {
+        commands.push({
+          type: 'SET_PLACEMENT',
+          placement: {
+            ...placement,
+            roomId: null,
           },
         });
       });
