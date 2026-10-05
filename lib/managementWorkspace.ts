@@ -57,7 +57,7 @@ export interface ManagementWorkspaceSnapshotV1 {
   readonly teachers: readonly ManagementSolverTeacher[];
   readonly teacherUnavailablePeriods:
     readonly ManagementSolverTeacherUnavailablePeriod[];
-  readonly teacherLoadTargets:
+  readonly teacherLoadTargets?:
     readonly ManagementSolverTeacherLoadTarget[];
   readonly rooms: readonly ManagementSolverRoom[];
   readonly baselinePlacements: readonly ManagementSolverBaselinePlacement[];
