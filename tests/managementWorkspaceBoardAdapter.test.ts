@@ -130,6 +130,13 @@ function copy(): ManagementWorkspaceWorkingCopyV1 {
         unavailablePeriods: [],
       }
     },
+    roomProfileById: {
+      'room-1': {
+        roomId: 'room-1',
+        capabilities: [],
+        knowledgeStatus: 'CONFIRMED',
+      }
+    },
   };
 }
 
