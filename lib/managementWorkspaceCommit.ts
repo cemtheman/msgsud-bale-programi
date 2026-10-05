@@ -104,7 +104,6 @@ export function prepareManagementWorkspaceCommitV1(
   const issueKey = (issue: ManagementWorkspaceValidationIssueV1) => [
     issue.code,
     issue.requirementId ?? '',
-    issue.dayOfWeek ?? '',
     [...issue.cardIds].sort((left, right) => left.localeCompare(right)).join(','),
   ].join('|');
 
