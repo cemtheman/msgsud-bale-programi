@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
   buildManagementWorkspaceMoveCandidateDetailV1,
+  buildManagementWorkspacePlacementCandidateDetailV1,
 } from '@/lib/managementWorkspaceCandidates';
 import {
   createManagementWorkspaceWorkingCopyV1,
@@ -140,7 +141,47 @@ describe('management workspace local move candidates', () => {
     ))).toBe(true);
   });
 
-  it('returns null for an unplaced card so resource-aware fallback can run', () => {
+  it('builds pool placement candidates locally from requirement pools', () => {
+    const source = snapshot();
+
+    const detail = buildManagementWorkspacePlacementCandidateDetailV1(
+      source,
+      'card-1',
+    );
+
+    expect(detail).not.toBeNull();
+    expect(detail?.assessments).toHaveLength(60);
+    expect(detail?.validCandidates).toHaveLength(60);
+    expect(detail?.assessments.every((candidate) => (
+      candidate.teacherId === 'teacher-1'
+      && candidate.roomId === 'room-1'
+      && candidate.status === 'VALID'
+      && candidate.isComplete
+    ))).toBe(true);
+  });
+
+  it('marks unresolved pool placement resources instead of inventing them', () => {
+    const source = {
+      ...snapshot(),
+      teacherPools: [],
+      roomPools: [],
+    };
+
+    const detail = buildManagementWorkspacePlacementCandidateDetailV1(
+      source,
+      'card-1',
+    );
+
+    expect(detail).not.toBeNull();
+    expect(detail?.validCandidates).toHaveLength(0);
+    expect(detail?.assessments.every((candidate) => (
+      candidate.status === 'UNRESOLVED'
+      && candidate.reasonCodes.includes('TEACHER_ASSIGNMENT_MISSING')
+      && candidate.reasonCodes.includes('ROOM_ASSIGNMENT_MISSING')
+    ))).toBe(true);
+  });
+
+  it('returns null for an unplaced MOVE candidate so PLACE generation is explicit', () => {
     const source = snapshot();
     const copy = createManagementWorkspaceWorkingCopyV1(source);
 
