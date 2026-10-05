@@ -6,6 +6,7 @@ import {
   diffManagementWorkspaceV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
+  applyManagementWorkspaceInventoryOperationV1,
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
   applyManagementWorkspaceRequirementResourceOperationV1,
@@ -322,6 +323,38 @@ describe('management workspace history v1', () => {
     redoManagementWorkspaceOperationV1(copy, history);
     expect(diffManagementWorkspaceV1(source, copy).dirtyRequirementIds)
       .toEqual(['requirement-1']);
+  });
+
+  it('undoes and redoes resource inventory changes in the global local history', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    applyManagementWorkspaceInventoryOperationV1(
+      copy,
+      history,
+      {
+        resourceType: 'TEACHER',
+        resourceId: 'teacher-1',
+        displayName: 'Türkçe Öğretmeni A',
+        operationalStatus: 'ACTIVE',
+      },
+    );
+
+    expect(diffManagementWorkspaceV1(source, copy).dirtyResourceIds)
+      .toEqual(['teacher-1']);
+    expect(history.undoStack[0].kind).toBe('SET_INVENTORY_RESOURCE');
+
+    undoManagementWorkspaceOperationV1(copy, history);
+    expect(diffManagementWorkspaceV1(source, copy).hasChanges).toBe(false);
+    expect(copy.teacherInventoryById['teacher-1'].displayName)
+      .toBe('Türkçe Öğretmeni');
+
+    redoManagementWorkspaceOperationV1(copy, history);
+    expect(diffManagementWorkspaceV1(source, copy).dirtyResourceIds)
+      .toEqual(['teacher-1']);
+    expect(copy.teacherInventoryById['teacher-1'].displayName)
+      .toBe('Türkçe Öğretmeni A');
   });
 
   it('returns null when undo or redo stacks are empty', () => {
