@@ -17,8 +17,14 @@ export function projectManagementResourcesFromWorkspaceV1(
 
       return {
         ...teacher,
-        name: local.displayName,
-        nameOverridden: local.displayName !== teacher.baseName,
+        name: local.displayName !== local.baselineDisplayName
+          ? local.displayName
+          : teacher.name,
+        nameOverridden: (
+          local.displayName !== local.baselineDisplayName
+            ? local.displayName
+            : teacher.name
+        ) !== teacher.baseName,
         operationalStatus: local.operationalStatus,
       };
     }),
@@ -28,8 +34,14 @@ export function projectManagementResourcesFromWorkspaceV1(
 
       return {
         ...room,
-        name: local.displayName,
-        nameOverridden: local.displayName !== room.baseName,
+        name: local.displayName !== local.baselineDisplayName
+          ? local.displayName
+          : room.name,
+        nameOverridden: (
+          local.displayName !== local.baselineDisplayName
+            ? local.displayName
+            : room.name
+        ) !== room.baseName,
         operationalStatus: local.operationalStatus,
       };
     }),
