@@ -168,11 +168,13 @@ import {
   prepareManagementWorkspaceTeacherPolicyV1,
 } from '@/lib/managementWorkspaceTeacherPolicy';
 import {
+  prepareManagementWorkspaceRoomDepartureV1,
   prepareManagementWorkspaceRoomNameEditV1,
   prepareManagementWorkspaceRoomStatusEditV1,
   prepareManagementWorkspaceTeacherDepartureV1,
   prepareManagementWorkspaceTeacherNameEditV1,
   prepareManagementWorkspaceTeacherStatusEditV1,
+  previewManagementWorkspaceRoomDepartureV1,
   previewManagementWorkspaceTeacherDepartureV1,
 } from '@/lib/managementWorkspaceInventoryEdits';
 import {
@@ -5234,11 +5236,16 @@ export default function ManagementPage() {
             if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
-            assertServerResourceMutationAllowed();
 
-            return previewManagementRoomDeparture(
-              session.accessToken,
-              resources.revisionId,
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            return previewManagementWorkspaceRoomDepartureV1(
+              localSnapshot,
+              localWorkingCopy,
               roomId,
             );
           }}
@@ -5250,39 +5257,103 @@ export default function ManagementPage() {
             if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
-            assertServerResourceMutationAllowed();
 
-            setCommandBusy(true);
-            setCommandActivity(
-              mode === 'ARCHIVE_CLEAR'
-                ? 'Salon kaydı derslerden ayrılıp arşivleniyor.'
-                : mode === 'OUT_OF_SERVICE_CLEAR'
-                  ? 'Salon derslerden çıkarılıp kullanım dışına alınıyor.'
-                  : 'Salon yeni kullanımlara kapatılıyor.',
-            );
-
-            try {
-              const result = await applyManagementRoomDeparture(
-                session.accessToken,
-                resources.revisionId,
-                roomId,
-                mode,
-                expectedStateToken,
+            if (mode === 'ARCHIVE_CLEAR') {
+              assertServerResourceMutationAllowed();
+              setCommandBusy(true);
+              setCommandActivity(
+                'Salon kaydı derslerden ayrılıp arşivleniyor.',
               );
 
-              setCommandNotice({
-                kind: 'success',
-                text: mode === 'ARCHIVE_CLEAR'
-                  ? `“${result.roomName}” aktif kaynaklardan silindi. ${result.placedBlockCount} program bloğu gün/saat/öğretmen korunarak salonsuz bırakıldı.`
-                  : mode === 'OUT_OF_SERVICE_CLEAR'
-                    ? `“${result.roomName}” kullanım dışına alındı. ${result.placedBlockCount} program bloğu gün/saat/öğretmen korunarak salonsuz bırakıldı.`
-                    : `“${result.roomName}” yeni kullanımlara kapatıldı; mevcut ${result.placedBlockCount} program bloğundaki salon kaydı korundu.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
+              try {
+                const serverPreview = await previewManagementRoomDeparture(
+                  session.accessToken,
+                  resources.revisionId,
+                  roomId,
+                );
+                const result = await applyManagementRoomDeparture(
+                  session.accessToken,
+                  resources.revisionId,
+                  roomId,
+                  mode,
+                  serverPreview.stateToken,
+                );
+
+                setCommandNotice({
+                  kind: 'success',
+                  text: `“${result.roomName}” aktif kaynaklardan silindi. ${result.placedBlockCount} program bloğu gün/saat/öğretmen korunarak salonsuz bırakıldı.`,
+                });
+                setRefreshToken((value) => value + 1);
+              } finally {
+                setCommandBusy(false);
+                setCommandActivity(null);
+              }
+              return;
             }
+
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+            const serverBoard = serverBoardRef.current;
+            if (
+              !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+              || !serverBoard
+            ) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            const prepared = prepareManagementWorkspaceRoomDepartureV1(
+              localSnapshot,
+              localWorkingCopy,
+              roomId,
+              mode,
+            );
+
+            if (prepared.preview.stateToken !== expectedStateToken) {
+              throw new Error(
+                'Salon değişikliği önizlemeden sonra değişti. Lütfen yeniden kontrol edin.',
+              );
+            }
+
+            const result = executeManagementWorkspaceCommandsV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              prepared.commands,
+            );
+            if (!result.applied) {
+              throw new Error(
+                result.issues.length > 0
+                  ? `Salon değişikliği uygulanamıyor: ${workspaceIssueSummary(
+                    result.issues.map((issue) => issue.code),
+                  )}.`
+                  : 'Salon değişikliği uygulanamıyor.',
+              );
+            }
+
+            setBoard(
+              projectManagementBoardFromWorkspaceV1(
+                serverBoard,
+                localWorkingCopy,
+              ),
+            );
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+            setResources((current) => current ? { ...current } : current);
+            setCandidateFocus(null);
+            setCandidateDetail(null);
+            setCommandNotice({
+              kind: 'success',
+              text: mode === 'OUT_OF_SERVICE_CLEAR'
+                ? `“${prepared.preview.roomName}” yerel çalışma alanında kullanım dışına alındı. ${prepared.preview.placedBlockCount} program bloğu aynı gün/saat/öğretmenle salonsuz bırakıldı. Ana Kaydet ile veritabanına yazılacak.`
+                : `“${prepared.preview.roomName}” yerel çalışma alanında yeni kullanımlara kapatıldı; mevcut ${prepared.preview.placedBlockCount} program bloğundaki salon korundu. Ana Kaydet ile veritabanına yazılacak.`,
+            });
           }}
           onDeleteRoom={async (roomId) => {
             if (!session || !access?.canEdit || !resources) {
