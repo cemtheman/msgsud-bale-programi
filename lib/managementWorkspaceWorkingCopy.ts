@@ -17,6 +17,7 @@ export interface ManagementWorkspacePlacementStateV1 {
 export interface ManagementWorkspaceTeacherInventoryStateV1 {
   resourceType: 'TEACHER';
   resourceId: string;
+  baselineDisplayName: string;
   displayName: string;
   operationalStatus: 'ACTIVE' | 'INACTIVE';
 }
@@ -24,6 +25,7 @@ export interface ManagementWorkspaceTeacherInventoryStateV1 {
 export interface ManagementWorkspaceRoomInventoryStateV1 {
   resourceType: 'ROOM';
   resourceId: string;
+  baselineDisplayName: string;
   displayName: string;
   operationalStatus: 'ACTIVE' | 'MAINTENANCE' | 'OUT_OF_SERVICE';
 }
@@ -327,6 +329,7 @@ export function baselineTeacherInventoryById(
       {
         resourceType: 'TEACHER' as const,
         resourceId: teacher.id,
+        baselineDisplayName: teacher.name,
         displayName: teacher.name,
         operationalStatus: normalizeTeacherOperationalStatus(
           teacher.operationalStatus,
@@ -345,6 +348,7 @@ export function baselineRoomInventoryById(
       {
         resourceType: 'ROOM' as const,
         resourceId: room.id,
+        baselineDisplayName: room.name,
         displayName: room.name,
         operationalStatus: normalizeRoomOperationalStatus(
           room.operationalStatus,
@@ -352,6 +356,34 @@ export function baselineRoomInventoryById(
       },
     ]),
   );
+}
+
+export function hydrateManagementWorkspaceInventoryDisplayNamesV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  input: {
+    teachers: readonly { id: string; name: string }[];
+    rooms: readonly { id: string; name: string }[];
+  },
+) {
+  input.teachers.forEach((teacher) => {
+    const current = workingCopy.teacherInventoryById[teacher.id];
+    if (!current) return;
+
+    if (current.displayName === current.baselineDisplayName) {
+      current.baselineDisplayName = teacher.name;
+      current.displayName = teacher.name;
+    }
+  });
+
+  input.rooms.forEach((room) => {
+    const current = workingCopy.roomInventoryById[room.id];
+    if (!current) return;
+
+    if (current.displayName === current.baselineDisplayName) {
+      current.baselineDisplayName = room.name;
+      current.displayName = room.name;
+    }
+  });
 }
 
 function assertWorkingCopyMatchesSnapshot(
@@ -652,9 +684,18 @@ export function diffManagementWorkspaceV1(
 
   const inventoryChanges: ManagementWorkspaceInventoryChangeV1[] = [
     ...snapshot.teachers.flatMap((teacher) => {
-      const before = baselineTeacherInventory[teacher.id];
+      const sourceBefore = baselineTeacherInventory[teacher.id];
       const after = workingCopy.teacherInventoryById[teacher.id];
-      if (!before || !after || equalInventory(before, after)) return [];
+      if (!sourceBefore || !after) return [];
+
+      const before: ManagementWorkspaceTeacherInventoryStateV1 = {
+        ...sourceBefore,
+        baselineDisplayName: after.baselineDisplayName,
+        displayName: after.baselineDisplayName,
+      };
+
+      if (equalInventory(before, after)) return [];
+
       return [{
         resourceType: 'TEACHER' as const,
         resourceId: teacher.id,
@@ -663,9 +704,18 @@ export function diffManagementWorkspaceV1(
       }];
     }),
     ...snapshot.rooms.flatMap((room) => {
-      const before = baselineRoomInventory[room.id];
+      const sourceBefore = baselineRoomInventory[room.id];
       const after = workingCopy.roomInventoryById[room.id];
-      if (!before || !after || equalInventory(before, after)) return [];
+      if (!sourceBefore || !after) return [];
+
+      const before: ManagementWorkspaceRoomInventoryStateV1 = {
+        ...sourceBefore,
+        baselineDisplayName: after.baselineDisplayName,
+        displayName: after.baselineDisplayName,
+      };
+
+      if (equalInventory(before, after)) return [];
+
       return [{
         resourceType: 'ROOM' as const,
         resourceId: room.id,
