@@ -3,8 +3,6 @@ import {
   cloneManagementWorkspaceRequirementResourceV1,
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
-  setManagementWorkspaceRequirementRoomsV1,
-  setManagementWorkspaceRequirementTeachersV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
   type ManagementWorkspaceWorkingCopyV1,
@@ -101,30 +99,14 @@ function applyRequirementResourceState(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   resource: ManagementWorkspaceRequirementResourceStateV1,
 ) {
-  setManagementWorkspaceRequirementTeachersV1(
-    workingCopy,
-    resource.requirementId,
-    resource.teacherIds,
-  );
-  setManagementWorkspaceRequirementRoomsV1(
-    workingCopy,
-    resource.requirementId,
-    {
-      resourceMode: resource.resourceMode,
-      roomIds: resource.roomIds,
-      requiredCapability: resource.requiredCapability,
-    },
-  );
+  if (!workingCopy.requirementResourcesById[resource.requirementId]) {
+    throw new Error(
+      `Workspace geçmiş işlemi için requirement bulunamadı (${resource.requirementId}).`,
+    );
+  }
 
-  // Teacher-mode derivation normally follows teacherIds. Preserve the exact
-  // historical state for undo/redo in case an imported legacy snapshot used a
-  // non-derived mode.
-  workingCopy.requirementResourcesById[resource.requirementId] = {
-    ...cloneManagementWorkspaceRequirementResourceV1(
-      workingCopy.requirementResourcesById[resource.requirementId],
-    ),
-    teacherMode: resource.teacherMode,
-  };
+  workingCopy.requirementResourcesById[resource.requirementId] =
+    cloneManagementWorkspaceRequirementResourceV1(resource);
 }
 
 export function cloneManagementWorkspaceOperationV1(
