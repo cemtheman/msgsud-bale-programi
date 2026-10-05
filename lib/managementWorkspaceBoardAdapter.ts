@@ -12,19 +12,27 @@ export function projectManagementBoardFromWorkspaceV1(
   const teacherNamesById = {
     ...board.teacherNamesById,
     ...Object.fromEntries(
-      Object.values(workingCopy.teacherInventoryById).map((resource) => [
-        resource.resourceId,
-        resource.displayName,
-      ]),
+      Object.values(workingCopy.teacherInventoryById)
+        .filter((resource) =>
+          resource.displayName !== resource.baselineDisplayName,
+        )
+        .map((resource) => [
+          resource.resourceId,
+          resource.displayName,
+        ]),
     ),
   };
   const roomNamesById = {
     ...board.roomNamesById,
     ...Object.fromEntries(
-      Object.values(workingCopy.roomInventoryById).map((resource) => [
-        resource.resourceId,
-        resource.displayName,
-      ]),
+      Object.values(workingCopy.roomInventoryById)
+        .filter((resource) =>
+          resource.displayName !== resource.baselineDisplayName,
+        )
+        .map((resource) => [
+          resource.resourceId,
+          resource.displayName,
+        ]),
     ),
   };
 
