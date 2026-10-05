@@ -350,6 +350,8 @@ export function validateManagementWorkspaceV1(
           ? {
               ...requirement,
               teacherMode: resource.teacherMode,
+              teacherAssignmentScope: resource.teacherAssignmentScope,
+              teacherContinuity: resource.teacherContinuity,
               resourceMode: resource.resourceMode,
               requiredCapability: resource.requiredCapability,
             }
@@ -398,16 +400,27 @@ export function validateManagementWorkspaceV1(
   );
 
   resourceDiff.requirementResourceChanges.forEach((change) => {
-    if (!baselinePlacedRequirementIds.has(change.requirementId)) return;
+    const sourceResourcesChanged = (
+      change.before.teacherMode !== change.after.teacherMode
+      || change.before.resourceMode !== change.after.resourceMode
+      || change.before.requiredCapability !== change.after.requiredCapability
+      || change.before.teacherIds.join('|') !== change.after.teacherIds.join('|')
+      || change.before.roomIds.join('|') !== change.after.roomIds.join('|')
+    );
 
-    pushIssue(issues, {
-      code: 'REQUIREMENT_RESOURCES_REQUIRE_UNPLACED',
-      cardIds: snapshot.cards
-        .filter((card) => card.requirementId === change.requirementId)
-        .map((card) => card.id),
-      requirementId: change.requirementId,
-      dayOfWeek: null,
-    });
+    if (
+      sourceResourcesChanged
+      && baselinePlacedRequirementIds.has(change.requirementId)
+    ) {
+      pushIssue(issues, {
+        code: 'REQUIREMENT_RESOURCES_REQUIRE_UNPLACED',
+        cardIds: snapshot.cards
+          .filter((card) => card.requirementId === change.requirementId)
+          .map((card) => card.id),
+        requirementId: change.requirementId,
+        dayOfWeek: null,
+      });
+    }
   });
 
   const unavailable = new Set(
