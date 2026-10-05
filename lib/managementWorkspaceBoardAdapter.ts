@@ -126,8 +126,8 @@ export function projectManagementBoardFromWorkspaceV1(
             groupId: requirement!.groupId,
             groupName: requirement!.groupName,
             groupType: requirement!.groupType,
-            classCodes: [],
-            audienceTargets: [],
+            classCodes: [...requirement!.classCodes],
+            audienceTargets: [...requirement!.classCodes],
             weeklyLoad:
               structure?.weeklyLoad ?? requirement!.baselineWeeklyLoad,
             teacherMode:
