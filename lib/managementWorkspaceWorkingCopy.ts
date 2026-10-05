@@ -51,6 +51,13 @@ export interface ManagementWorkspaceRoomProfileStateV1 {
   knowledgeStatus: 'CONFIRMED' | 'OBSERVED' | 'UNKNOWN';
 }
 
+function normalizeWorkspaceRoomKnowledgeStatus(
+  value: string | null | undefined,
+): ManagementWorkspaceRoomProfileStateV1['knowledgeStatus'] {
+  if (value === 'CONFIRMED' || value === 'OBSERVED') return value;
+  return 'UNKNOWN';
+}
+
 export type ManagementWorkspaceInventoryStateV1 =
   | ManagementWorkspaceTeacherInventoryStateV1
   | ManagementWorkspaceRoomInventoryStateV1;
@@ -494,7 +501,9 @@ export function baselineRoomProfileById(
       cloneManagementWorkspaceRoomProfileV1({
         roomId: room.id,
         capabilities: room.capabilities,
-        knowledgeStatus: room.knowledgeStatus ?? 'UNKNOWN',
+        knowledgeStatus: normalizeWorkspaceRoomKnowledgeStatus(
+          room.knowledgeStatus,
+        ),
       }),
     ]),
   );
