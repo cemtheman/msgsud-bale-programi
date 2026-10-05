@@ -86,6 +86,16 @@ function copy(): ManagementWorkspaceWorkingCopyV1 {
         roomId: null,
       },
     },
+    requirementResourcesById: {
+      'requirement-1': {
+        requirementId: 'requirement-1',
+        teacherIds: ['teacher-1'],
+        teacherMode: 'FIXED',
+        resourceMode: 'ELIGIBLE_POOL',
+        roomIds: ['room-1'],
+        requiredCapability: null,
+      },
+    },
   };
 }
 
@@ -96,6 +106,33 @@ describe('management workspace board adapter v1', () => {
 
     expect(projected.cards[0].placement).toBeNull();
     expect(source.cards[0].placement?.dayOfWeek).toBe(1);
+  });
+
+  it('projects local requirement resource definitions onto cards', () => {
+    const source = board();
+    const workingCopy = copy();
+
+    workingCopy.requirementResourcesById['requirement-1'] = {
+      requirementId: 'requirement-1',
+      teacherIds: [],
+      teacherMode: 'UNKNOWN',
+      resourceMode: 'UNKNOWN',
+      roomIds: [],
+      requiredCapability: null,
+    };
+
+    const projected = projectManagementBoardFromWorkspaceV1(
+      source,
+      workingCopy,
+    );
+
+    expect(projected.cards[0].teacherMode).toBe('UNKNOWN');
+    expect(projected.cards[0].teacherIds).toEqual([]);
+    expect(projected.cards[0].teacherNames).toEqual([]);
+    expect(projected.cards[0].resourceMode).toBe('UNKNOWN');
+    expect(projected.cards[0].roomIds).toEqual([]);
+    expect(projected.cards[0].roomNames).toEqual([]);
+    expect(source.cards[0].teacherIds).toEqual(['teacher-1']);
   });
 
   it('projects local placement resource names from board dictionaries', () => {
