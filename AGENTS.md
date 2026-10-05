@@ -6996,3 +6996,47 @@ After PASS, browser acceptance should focus on one baseline-unplaced requirement
 6. reload shows persisted definition and a clean workspace
 
 Do not proceed to teacher scope/continuity localization until this gate is clean.
+
+
+#### Gate failure fixes — 5 Oct 2026
+
+First full gate after local Course Plan resource integration:
+- 31 test files
+- 171 tests total
+- 3 failures:
+  1. multi-card batch Undo restored only the last operation
+  2. requirement-resource command success fixture used a placed baseline even
+     though the new safety rule intentionally requires baseline-unplaced
+  3. inherited hard issue was reclassified as new after only its day changed
+
+Root fixes:
+- batchId is now written to the real `history.undoStack` entries, not only the
+  returned operation clones
+- batch test now asserts both returned operations and actual history entries
+  share the same batchId
+- requirement resource command success test now uses an unplaced baseline
+  requirement, matching the accepted M17.1/M18.4 safety semantics
+- inherited issue identity no longer includes `dayOfWeek`; identity is:
+  - issue code
+  - requirement id
+  - sorted card ids
+- this keeps the same inherited issue inherited when an otherwise valid edit
+  moves its card to another day; genuine conflicts remain distinguishable by
+  their card set
+
+Commits:
+- `4c615929a3bb03cad637b699d2f8fa9d43581028`
+  batch history + command-layer inherited issue identity
+- `da766c9fc050cb2a0a79d8cd1a23f7554e231fb0`
+  commit-preparation inherited issue identity
+- `95eb253757b8b2faf761708c256a2d50c4a2d843`
+  aligned command tests + stronger batch assertion
+
+Next verification:
+```bash
+npm test -- tests/managementWorkspaceCommands.test.ts tests/managementWorkspaceCommit.test.ts
+npm test
+npm run build
+```
+
+Gate remains PENDING until these pass.
