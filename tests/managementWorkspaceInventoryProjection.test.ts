@@ -188,4 +188,24 @@ describe('management workspace Resources projection', () => {
     });
   });
 
+
+  it('projects local room profile changes into Resources immediately', () => {
+    const copy = workingCopy();
+    copy.roomProfileById['room-1'] = {
+      roomId: 'room-1',
+      capabilities: ['STUDIO_SMALL_GROUP'],
+      knowledgeStatus: 'OBSERVED',
+    };
+
+    const projected = projectManagementResourcesFromWorkspaceV1(
+      resources(),
+      copy,
+    );
+
+    expect(projected.rooms[0]).toMatchObject({
+      capabilities: ['STUDIO_SMALL_GROUP'],
+      knowledgeStatus: 'OBSERVED',
+    });
+  });
+
 });
