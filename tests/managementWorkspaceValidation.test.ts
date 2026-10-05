@@ -694,7 +694,7 @@ describe('management workspace local validation v1', () => {
 
 
   it('uses local teacher availability immediately during validation', () => {
-    const source = snapshot();
+    const source = baseSnapshot();
     const copy = createManagementWorkspaceWorkingCopyV1(source);
 
     copy.teacherAvailabilityById['teacher-1'] = {
