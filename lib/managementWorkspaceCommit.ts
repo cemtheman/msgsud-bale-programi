@@ -40,6 +40,8 @@ export interface ManagementWorkspaceCommitPayloadV1 {
     before: {
       teacher_ids: string[];
       teacher_mode: string;
+      teacher_assignment_scope: 'REQUIREMENT' | 'BLOCK' | 'UNSPECIFIED';
+      teacher_continuity: 'REQUIRED' | 'PREFERRED' | 'NONE';
       resource_mode: string;
       room_ids: string[];
       required_capability: string | null;
@@ -47,6 +49,8 @@ export interface ManagementWorkspaceCommitPayloadV1 {
     after: {
       teacher_ids: string[];
       teacher_mode: string;
+      teacher_assignment_scope: 'REQUIREMENT' | 'BLOCK' | 'UNSPECIFIED';
+      teacher_continuity: 'REQUIRED' | 'PREFERRED' | 'NONE';
       resource_mode: string;
       room_ids: string[];
       required_capability: string | null;
@@ -161,6 +165,8 @@ export function prepareManagementWorkspaceCommitV1(
         before: {
           teacher_ids: [...change.before.teacherIds],
           teacher_mode: change.before.teacherMode,
+          teacher_assignment_scope: change.before.teacherAssignmentScope,
+          teacher_continuity: change.before.teacherContinuity,
           resource_mode: change.before.resourceMode,
           room_ids: [...change.before.roomIds],
           required_capability: change.before.requiredCapability,
@@ -168,6 +174,8 @@ export function prepareManagementWorkspaceCommitV1(
         after: {
           teacher_ids: [...change.after.teacherIds],
           teacher_mode: change.after.teacherMode,
+          teacher_assignment_scope: change.after.teacherAssignmentScope,
+          teacher_continuity: change.after.teacherContinuity,
           resource_mode: change.after.resourceMode,
           room_ids: [...change.after.roomIds],
           required_capability: change.after.requiredCapability,
