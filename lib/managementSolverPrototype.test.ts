@@ -166,6 +166,49 @@ describe('M33.2 in-memory feasibility prototype', () => {
     });
   });
 
+  it('resolves a missing placement teacher from a single active FIXED planning teacher', () => {
+    const base = snapshot();
+    const result = runManagementFeasibilityPrototype(snapshot({
+      baselinePlacements: [{
+        ...base.baselinePlacements[0],
+        teacherId: null,
+      }],
+    }));
+
+    expect(result.status).toBe('FEASIBLE');
+    expect(result.baselineWasFeasible).toBe(true);
+    expect(result.metrics.visitedNodeCount).toBe(0);
+    expect(result.metrics.baselineReuseCount).toBe(1);
+    expect(result.baselineIssues).toEqual([]);
+    expect(result.placements[0]).toMatchObject({
+      cardId: 'c1',
+      teacherId: 't1',
+      baseline: true,
+    });
+  });
+
+  it('does not invent a FIXED teacher when more than one active teacher is in the planning pool', () => {
+    const base = snapshot();
+    const result = runManagementFeasibilityPrototype(snapshot({
+      teacherPools: [
+        { requirementId: 'r1', teacherId: 't1' },
+        { requirementId: 'r1', teacherId: 't2' },
+      ],
+      teachers: [
+        ...base.teachers,
+        { id: 't2', name: 'İkinci Öğretmen', operationalStatus: 'ACTIVE' },
+      ],
+      baselinePlacements: [{
+        ...base.baselinePlacements[0],
+        teacherId: null,
+      }],
+    }), {
+      maxVisitedNodes: 1,
+    });
+
+    expect(result.baselineWasFeasible).toBe(false);
+  });
+
   it('moves an unlocked baseline card in memory when participant groups conflict', () => {
     const data = snapshot({
       requirements: [

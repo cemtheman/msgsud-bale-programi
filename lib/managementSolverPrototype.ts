@@ -775,16 +775,44 @@ function createContext(
   const cards = new Map(
     snapshot.cards.map((card) => [card.id, card]),
   );
-  const baseline = new Map(
-    snapshot.baselinePlacements.map((placement) => [
-      placement.cardId,
-      placement,
-    ]),
-  );
   const activeTeacherIds = new Set(
     snapshot.teachers
       .filter((teacher) => teacher.operationalStatus === 'ACTIVE')
       .map((teacher) => teacher.id),
+  );
+  const teacherPools = buildPoolMap(
+    snapshot.teacherPools,
+    (entry) => entry.teacherId,
+  );
+  const baseline = new Map(
+    snapshot.baselinePlacements.map((placement) => {
+      const card = cards.get(placement.cardId);
+      const requirement = card
+        ? requirements.get(card.requirementId)
+        : null;
+      const plannedTeachers = requirement
+        ? (teacherPools.get(requirement.id) ?? [])
+            .filter((teacherId) => activeTeacherIds.has(teacherId))
+        : [];
+      const effectiveTeacherId = (
+        placement.teacherId == null
+        && requirement?.teacherRequirement === 'REQUIRED'
+        && requirement.teacherMode === 'FIXED'
+        && plannedTeachers.length === 1
+      )
+        ? plannedTeachers[0]
+        : placement.teacherId;
+
+      return [
+        placement.cardId,
+        effectiveTeacherId === placement.teacherId
+          ? placement
+          : {
+              ...placement,
+              teacherId: effectiveTeacherId,
+            },
+      ];
+    }),
   );
   const teachers = new Map(
     snapshot.teachers.map((teacher) => [teacher.id, teacher]),
@@ -805,10 +833,6 @@ function createContext(
     snapshot.rooms
       .filter((room) => room.operationalStatus === 'ACTIVE')
       .map((room) => room.id),
-  );
-  const teacherPools = buildPoolMap(
-    snapshot.teacherPools,
-    (entry) => entry.teacherId,
   );
   const roomPools = buildPoolMap(
     snapshot.roomPools,
