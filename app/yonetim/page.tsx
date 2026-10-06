@@ -51,6 +51,7 @@ import {
   type ManagementSolverWorkspace,
 } from '@/lib/managementSolver';
 import {
+  buildManagementSolverProposalWorkspaceCommands,
   prepareManagementSolverProposalApply,
   translateManagementSolverProposalApplyReason,
 } from '@/lib/managementSolverProposal';
@@ -103,7 +104,6 @@ import {
   moveManagementCardBundle,
   placeManagementCard,
   placeManagementCardBundle,
-  applyManagementSolverProposalBundle,
   previewManagementCandidateForwardImpacts,
   redoManagement,
   redoManagementBundle,
@@ -5677,26 +5677,71 @@ export default function ManagementPage() {
                 );
               }
 
+              const localSnapshot = workspaceSnapshotRef.current;
+              const localWorkingCopy = workspaceWorkingCopyRef.current;
+              const localHistory = workspaceHistoryRef.current;
+              const serverBoard = serverBoardRef.current;
+
+              if (
+                !localSnapshot
+                || !localWorkingCopy
+                || !localHistory
+                || !serverBoard
+              ) {
+                throw new Error('Yerel çalışma alanı hazır değil.');
+              }
+
+              if (
+                localSnapshot.identity.snapshotHash !== proposal.snapshotHash
+                || localSnapshot.identity.baselineHash !== proposal.baselineHash
+              ) {
+                throw new Error(
+                  'Programın yerel çalışma alanı öneri oluşturulduktan sonra değişti. Seçeneği yeniden hesaplayın.',
+                );
+              }
+
               setCommandActivity(
-                `${plan.items.length} ders tek işlem olarak güncelleniyor.`,
+                `${plan.items.length} ders yerel çalışma alanında doğrulanıyor.`,
               );
 
-              await applyManagementSolverProposalBundle(
-                session.accessToken,
-                {
-                  items: plan.items,
-                  expectedBaselineHash: proposal.baselineHash,
-                },
+              const result = executeManagementWorkspaceCommandsV1(
+                localSnapshot,
+                localWorkingCopy,
+                localHistory,
+                buildManagementSolverProposalWorkspaceCommands(plan),
               );
 
-              // The old history descriptor predates this proposal bundle.
-              // Disable it until the refreshed transaction state is loaded.
+              if (!result.applied) {
+                throw new Error(
+                  result.issues.length > 0
+                    ? `Öneri yerel programa uygulanamıyor: ${workspaceIssueSummary(
+                      result.issues.map((issue) => issue.code),
+                    )}.`
+                    : 'Öneri yerel programa uygulanamıyor.',
+                );
+              }
+
+              setBoard(
+                projectManagementBoardFromWorkspaceV1(
+                  serverBoard,
+                  localWorkingCopy,
+                  localSnapshot,
+                ),
+              );
+              setWorkspaceDirty(
+                diffManagementWorkspaceV1(
+                  localSnapshot,
+                  localWorkingCopy,
+                ).hasChanges,
+              );
+
+              // Any legacy server descriptor predates the local proposal batch.
+              // The proposal now belongs exclusively to shared workspace history.
               setCommandState({ undo: null, redo: null });
               setCommandNotice({
                 kind: 'success',
-                text: `${plan.items.length} ders için önerilen yerleşim uygulandı. İşlem Geri Al ile tek adımda geri alınabilir.`,
+                text: `${plan.items.length} ders için önerilen yerleşim yerel çalışma alanına uygulandı. Ana Kaydet ile veritabanına yazılacak; Geri Al ile tek adımda geri alınabilir.`,
               });
-              setRefreshToken((value) => value + 1);
             } finally {
               setCommandBusy(false);
               setCommandActivity(null);

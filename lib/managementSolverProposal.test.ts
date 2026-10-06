@@ -7,6 +7,7 @@ import type {
   ManagementOptimizationResult,
 } from '@/lib/managementSolverPrototype';
 import {
+  buildManagementSolverProposalWorkspaceCommands,
   prepareManagementSolverProposalApply,
 } from '@/lib/managementSolverProposal';
 
@@ -223,6 +224,38 @@ describe('M33.4 solver proposal apply preparation', () => {
         roomId: 'room-a',
       },
     ]);
+  });
+
+  it('converts an accepted proposal into one local workspace placement batch', () => {
+    const plan = prepareManagementSolverProposalApply(
+      result(),
+      workspace(),
+    );
+
+    expect(buildManagementSolverProposalWorkspaceCommands(plan)).toEqual([
+      {
+        type: 'SET_PLACEMENT',
+        placement: {
+          cardId: 'card-a',
+          dayOfWeek: 1,
+          startPeriod: 2,
+          teacherId: 'teacher-a',
+          roomId: 'room-a',
+        },
+      },
+    ]);
+  });
+
+  it('does not build local commands for a rejected proposal', () => {
+    const current = workspace();
+    current.preview.snapshotHash = 'snapshot-2';
+
+    const plan = prepareManagementSolverProposalApply(
+      result(),
+      current,
+    );
+
+    expect(buildManagementSolverProposalWorkspaceCommands(plan)).toEqual([]);
   });
 
   it('rejects a proposal when the program baseline changed', () => {

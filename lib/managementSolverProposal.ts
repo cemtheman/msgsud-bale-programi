@@ -7,6 +7,9 @@ import type {
 import type {
   ManagementOptimizationResult,
 } from '@/lib/managementSolverPrototype';
+import type {
+  ManagementWorkspaceCommandV1,
+} from '@/lib/managementWorkspaceCommands';
 
 export interface ManagementSolverProposalApplyPlan {
   canApply: boolean;
@@ -89,4 +92,22 @@ export function translateManagementSolverProposalApplyReason(
     default:
       return 'Öneri şu anda uygulanamıyor.';
   }
+}
+
+
+export function buildManagementSolverProposalWorkspaceCommands(
+  plan: ManagementSolverProposalApplyPlan,
+): ManagementWorkspaceCommandV1[] {
+  if (!plan.canApply) return [];
+
+  return plan.items.map((item) => ({
+    type: 'SET_PLACEMENT' as const,
+    placement: {
+      cardId: item.cardId,
+      dayOfWeek: item.dayOfWeek,
+      startPeriod: item.startPeriod,
+      teacherId: item.teacherId,
+      roomId: item.roomId,
+    },
+  }));
 }
