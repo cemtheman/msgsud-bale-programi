@@ -13,12 +13,12 @@
 | Aktif çalışma ortamı | `GitHub Codespaces` |
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
-| Son doğrulanmış implementation checkpoint | `4870d5c5bb249a831b1a9a724511f981d6037530` — v11 lifecycle localization code gate CLOSED / PASS; 35/35 files, 237/237 tests, production build + TypeScript + 9/9 static generation PASS |
-| Aktif implementation checkpoint | `4870d5c5bb249a831b1a9a724511f981d6037530` — requirement ACTIVE/INACTIVE lifecycle localization v11 code-complete; browser acceptance pending |
+| Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
+| Aktif implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — requirement ACTIVE/INACTIVE lifecycle v11 accepted end-to-end in browser and live DB |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
-| Son documentation checkpoint | v11 requirement ACTIVE/INACTIVE lifecycle localization code gate closure documented |
-| Son kullanıcı/QA kabulü | **v11 code gate PASS** — 35/35 files, 237/237 tests; production build, TypeScript and 9/9 static generation PASS. ACTIVE↔INACTIVE browser acceptance not yet recorded. |
-| Sıradaki iş paketi | **v11 browser acceptance: Course Plan ACTIVE↔INACTIVE lifecycle → immediate local projection → Undo/Redo → atomic Save verification** |
+| Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
+| Son kullanıcı/QA kabulü | **v11 browser acceptance CLOSED / PASS** — INACTIVE→ACTIVE and ACTIVE→INACTIVE preview/apply/local Undo/Redo/atomic Save verified; reload persistence verified; live DB confirms 5A B. Uygulama INACTIVE, weekly_load=0, no draft cards. |
+| Sıradaki iş paketi | **Post-v11 cleanup / next Management Workspace v1 sub-phase** — preserve local-only editing contract and keep legacy server history isolated from workspace-owned structure changes |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -8665,3 +8665,77 @@ Important acceptance boundary:
 
 Next active sub-phase:
 **v11 browser acceptance — Course Plan lifecycle immediate projection, Undo/Redo, and atomic Save**
+
+
+### 6 Oct 2026 — v11 browser/runtime acceptance CLOSED / PASS
+
+Accepted implementation:
+- `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d`
+  — fix: keep workspace structure undo local
+
+Regression gate:
+- focused: **3/3 files, 28/28 tests PASS**
+- full suite: **36/36 files, 241/241 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+
+Browser acceptance — INACTIVE -> ACTIVE:
+- 5A `B. Uygulama` previewed from inactive state
+- activation proposal: 3 hours, preferred partition `2 + 1`, alternatives `2 + 1; 3`
+- preview: 0 preserved / 0 removed / 2 new cards
+- local Apply: immediate Course Plan + Program projection PASS
+- local Undo: cards removed and inactive state restored PASS
+- local Redo: two cards restored PASS
+- atomic Save: PASS
+- reload persistence: ACTIVE / 3 hours / `2 + 1` persisted PASS
+
+Browser acceptance — ACTIVE -> INACTIVE:
+- preview: 3 hours / 2 cards -> 0 hours / 0 cards
+- preview impact: 0 preserved / 2 removed / 0 new
+- local Apply: PASS
+- local Undo: PASS
+- local Redo: PASS
+- atomic Save: PASS
+
+Runtime issue discovered during first deactivation acceptance:
+- DB commit itself was correct
+- a legacy server-side `STRUCTURE_REVERT` was still reachable from management history after Save
+- this violated the Management Workspace contract: workspace-owned structure history must remain local before Save; after Save, the old server STRUCTURE undo must not silently mutate persisted state
+
+Evidence from live DB history:
+- `2026-10-06 12:28:37 UTC`: STRUCTURE_APPLY ACTIVE -> INACTIVE
+- `2026-10-06 12:31:24 UTC`: STRUCTURE_REVERT INACTIVE -> ACTIVE
+- root cause: legacy server STRUCTURE undo remained exposed after workspace Save
+
+Fix:
+- when the workspace owns structure history, server-side STRUCTURE undo/redo descriptors are suppressed
+- global history controls no longer expose the committed STRUCTURE revert path
+- success toast no longer exposes “Ders yapısı değişikliğini geri al” for workspace-owned structure history
+- non-STRUCTURE legacy server history remains available for the still-unmigrated flows
+- regression policy test added
+
+Final browser persistence acceptance after fix:
+- ACTIVE -> INACTIVE Save completed
+- success toast contained no legacy STRUCTURE revert action
+- full page reload retained the inactive state
+- Course Plan “Aktif olmayanlar” shows 5A `B. Uygulama` as **Bu dönem kapalı / 0 saat**
+- active B. Uygulama aggregate reduced to 5 groups / 9 hours
+
+Live DB verification after reload:
+- requirement: `ef61dce7-751c-449d-97f5-a266a8d631c9`
+- subject/group: `B. Uygulama / 5A BALLET`
+- `term_status = INACTIVE`
+- `weekly_load = 0`
+- `preferred_partition = []`
+- `allowed_partitions = []`
+- DRAFT card count = **0**
+- latest STRUCTURE_APPLY is not reverted
+
+Status: **v11 LIFECYCLE BROWSER/RUNTIME ACCEPTANCE CLOSED / PASS**
+
+Important contract confirmed:
+- trial changes live in the local workspace
+- local Undo/Redo owns those trial changes before Save
+- the main Save is the persistence boundary
+- committed workspace structure changes are not exposed to the legacy server STRUCTURE undo path
