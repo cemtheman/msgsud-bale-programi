@@ -134,14 +134,14 @@ export function projectManagementBoardFromWorkspaceV1(
               resource?.teacherMode ?? requirement!.baselineTeacherMode,
             teacherRequirement:
               requirement!.teacherRequirement as ManagementBoardCard['teacherRequirement'],
-            teacherAssignmentScope:
-              (resource?.teacherAssignmentScope
-                ?? requirement!.baselineTeacherAssignmentScope)
-              as ManagementBoardCard['teacherAssignmentScope'],
-            teacherContinuity:
-              (resource?.teacherContinuity
-                ?? requirement!.baselineTeacherContinuity)
-              as ManagementBoardCard['teacherContinuity'],
+            teacherAssignmentScope: (
+              resource?.teacherAssignmentScope
+              ?? requirement!.baselineTeacherAssignmentScope
+            ) as ManagementBoardCard['teacherAssignmentScope'],
+            teacherContinuity: (
+              resource?.teacherContinuity
+              ?? requirement!.baselineTeacherContinuity
+            ) as ManagementBoardCard['teacherContinuity'],
             resolvedRequirementTeacherId: null,
             teacherContinuityConflict: false,
             teacherIds: [],
