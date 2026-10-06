@@ -18,16 +18,18 @@ body {
    Aktif sekmede ince mor→pembe→turuncu gradient çerçeve kullanılır. */
 .management-primary-tabs {
   --management-tab-surface: #ffffff;
+  white-space: nowrap;
 }
 
 .management-primary-tab {
   display: inline-flex;
+  flex: 0 0 auto;
   height: 38px;
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
   border-radius: 16px;
-  padding: 0 15px;
+  padding: 0 13px;
   background: transparent;
   color: #94a3b8;
   font-size: 12px;

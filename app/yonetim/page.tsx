@@ -3746,11 +3746,11 @@ export default function ManagementPage() {
       </div>
 
       <header className="shrink-0 border-b border-slate-200 bg-white">
-        <div className="flex h-[60px] items-center gap-6 px-5">
-          <div className="flex h-full items-center gap-6">
+        <div className="flex h-[60px] items-center gap-3 px-4">
+          <div className="flex h-full min-w-0 items-center gap-4">
             <PartisyonBrand compact />
 
-            <nav className="management-primary-tabs flex h-full items-center gap-1">
+            <nav className="management-primary-tabs flex h-full shrink-0 items-center gap-1">
               <button
                 type="button"
                 onClick={() => {
@@ -3813,8 +3813,8 @@ export default function ManagementPage() {
             </nav>
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
-            <span className="hidden max-w-[210px] truncate text-[10px] font-medium text-slate-400 xl:block">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+            <span className="hidden max-w-[160px] truncate text-[10px] font-medium text-slate-400 2xl:block">
               {session?.email}
               {overview ? ` · Taslak v${overview.versionNumber}` : ''}
             </span>
