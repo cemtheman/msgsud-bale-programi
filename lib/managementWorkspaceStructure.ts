@@ -397,6 +397,10 @@ export function prepareManagementWorkspaceRequirementStructureV1(
     );
   }
 
+  if (input.termStatus === 'UNKNOWN') {
+    throw new Error('Dönem durumu ACTIVE veya INACTIVE olmalı.');
+  }
+
   const current = getManagementWorkspaceRequirementStructureBundleV1(
     workingCopy,
     input.requirementId,

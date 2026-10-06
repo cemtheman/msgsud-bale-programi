@@ -807,7 +807,7 @@ export function baselineResourceLifecycleById(
 
 export function hydrateManagementWorkspaceRequirementCatalogV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
-  rows: readonly Array<{
+  rows: ReadonlyArray<{
     requirementId: string;
     subjectId: string;
     subjectName: string;

@@ -50,7 +50,6 @@ function snapshot(
       groupId: 'group-1',
       groupName: '5A',
       groupType: 'SECTION',
-      classCodes: ['5A'],
       weeklyLoad: 2,
       preferredPartition: [1, 1],
       allowedPartitions: [[1, 1]],

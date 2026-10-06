@@ -914,6 +914,10 @@ export default function ManagementPage() {
     void fetchManagementCoursePlan(session.accessToken)
       .then((nextCoursePlan) => {
         if (!active) return;
+        if (!nextCoursePlan) {
+          setCoursePlan(null);
+          return;
+        }
         const localWorkingCopy = workspaceWorkingCopyRef.current;
         if (
           localWorkingCopy
