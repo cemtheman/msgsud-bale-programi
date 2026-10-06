@@ -8600,3 +8600,31 @@ Regression coverage added:
 - direct working-copy fixtures extended with requirement catalog
 
 Gate status: **PENDING**
+
+
+### 6 Oct 2026 — v11 gate syntax fix
+
+Gate result at lifecycle v11 checkpoint:
+- migration parity through `20261005181246`: PASS
+- tests could not complete because one suite failed to transform
+- build failed for the same parser error
+- no runtime/behavior assertion failed before transform
+
+Root cause:
+- `lib/managementWorkspaceBoardAdapter.ts`
+- multiline TypeScript `as` assertions on object literal properties were parsed
+  as an unexpected token by esbuild/webpack
+
+Fix:
+- parenthesized both catalog-backed type assertions:
+  - `teacherAssignmentScope`
+  - `teacherContinuity`
+- logic unchanged
+- DB modifications: NO
+- migration changes: NO
+
+Fix commit:
+- `a8af1e5384a650a9bc813762c3e188c6a3915f53`
+  — fix: parenthesize board catalog type assertions
+
+Gate status remains: **PENDING rerun**
