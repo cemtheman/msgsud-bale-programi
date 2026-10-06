@@ -3750,7 +3750,7 @@ export default function ManagementPage() {
           <div className="flex h-full items-center gap-6">
             <PartisyonBrand compact />
 
-            <nav className="flex h-full items-center gap-5">
+            <nav className="flex h-full items-end gap-1 pt-2">
               <button
                 type="button"
                 onClick={() => {
@@ -3760,8 +3760,8 @@ export default function ManagementPage() {
                 }}
                 className={
                   activeSection === 'PROGRAM'
-                    ? 'inline-flex h-[32px] items-center border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'inline-flex h-[32px] items-center border-b-2 border-transparent px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'relative -mb-px inline-flex h-[38px] items-center rounded-t-[11px] border border-slate-200 border-b-white bg-white px-3 text-[12px] font-bold text-slate-950 shadow-[0_-1px_0_rgba(15,23,42,0.02)]'
+                    : 'inline-flex h-[36px] items-center rounded-t-[11px] border border-transparent px-3 text-[12px] font-semibold text-slate-400 transition hover:border-slate-100 hover:bg-slate-50/80 hover:text-slate-700'
                 }
               >
                 Program
@@ -3771,8 +3771,8 @@ export default function ManagementPage() {
                 onClick={() => setActiveSection('PLAN')}
                 className={
                   activeSection === 'PLAN'
-                    ? 'inline-flex h-[32px] items-center border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'inline-flex h-[32px] items-center border-b-2 border-transparent px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'relative -mb-px inline-flex h-[38px] items-center rounded-t-[11px] border border-slate-200 border-b-white bg-white px-3 text-[12px] font-bold text-slate-950 shadow-[0_-1px_0_rgba(15,23,42,0.02)]'
+                    : 'inline-flex h-[36px] items-center rounded-t-[11px] border border-transparent px-3 text-[12px] font-semibold text-slate-400 transition hover:border-slate-100 hover:bg-slate-50/80 hover:text-slate-700'
                 }
               >
                 Ders Planı
@@ -3782,8 +3782,8 @@ export default function ManagementPage() {
                 onClick={() => setActiveSection('RESOURCES')}
                 className={
                   activeSection === 'RESOURCES'
-                    ? 'inline-flex h-[32px] items-center border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'inline-flex h-[32px] items-center border-b-2 border-transparent px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'relative -mb-px inline-flex h-[38px] items-center rounded-t-[11px] border border-slate-200 border-b-white bg-white px-3 text-[12px] font-bold text-slate-950 shadow-[0_-1px_0_rgba(15,23,42,0.02)]'
+                    : 'inline-flex h-[36px] items-center rounded-t-[11px] border border-transparent px-3 text-[12px] font-semibold text-slate-400 transition hover:border-slate-100 hover:bg-slate-50/80 hover:text-slate-700'
                 }
               >
                 Kaynaklar
@@ -3793,8 +3793,8 @@ export default function ManagementPage() {
                 onClick={() => setActiveSection('SOLVER')}
                 className={
                   activeSection === 'SOLVER'
-                    ? 'inline-flex h-[32px] items-center border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'inline-flex h-[32px] items-center border-b-2 border-transparent px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'relative -mb-px inline-flex h-[38px] items-center rounded-t-[11px] border border-slate-200 border-b-white bg-white px-3 text-[12px] font-bold text-slate-950 shadow-[0_-1px_0_rgba(15,23,42,0.02)]'
+                    : 'inline-flex h-[36px] items-center rounded-t-[11px] border border-transparent px-3 text-[12px] font-semibold text-slate-400 transition hover:border-slate-100 hover:bg-slate-50/80 hover:text-slate-700'
                 }
               >
                 Öncelikler
@@ -3804,8 +3804,8 @@ export default function ManagementPage() {
                 onClick={() => setActiveSection('STATUS')}
                 className={
                   activeSection === 'STATUS'
-                    ? 'inline-flex h-[32px] items-center border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'inline-flex h-[32px] items-center border-b-2 border-transparent px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'relative -mb-px inline-flex h-[38px] items-center rounded-t-[11px] border border-slate-200 border-b-white bg-white px-3 text-[12px] font-bold text-slate-950 shadow-[0_-1px_0_rgba(15,23,42,0.02)]'
+                    : 'inline-flex h-[36px] items-center rounded-t-[11px] border border-transparent px-3 text-[12px] font-semibold text-slate-400 transition hover:border-slate-100 hover:bg-slate-50/80 hover:text-slate-700'
                 }
               >
                 Program Durumu
