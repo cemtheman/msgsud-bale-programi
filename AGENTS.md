@@ -13,12 +13,12 @@
 | Aktif çalışma ortamı | `GitHub Codespaces` |
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
-| Son doğrulanmış implementation checkpoint | `754560f95680643eb81d8137eebb7028c1db2cee` — Workspace UI checkpoint 3 PASS; grouped inspector move fixed, grouped local MOVE/REMOVE + one-step Undo/Redo accepted |
-| Aktif implementation checkpoint | `754560f95680643eb81d8137eebb7028c1db2cee` — grouped local workspace interaction accepted in browser |
+| Son doğrulanmış implementation checkpoint | `4870d5c5bb249a831b1a9a724511f981d6037530` — v11 lifecycle localization code gate CLOSED / PASS; 35/35 files, 237/237 tests, production build + TypeScript + 9/9 static generation PASS |
+| Aktif implementation checkpoint | `4870d5c5bb249a831b1a9a724511f981d6037530` — requirement ACTIVE/INACTIVE lifecycle localization v11 code-complete; browser acceptance pending |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
-| Son documentation checkpoint | Management Workspace v1 Phase 1–2 + first browser acceptance documented |
-| Son kullanıcı/QA kabulü | **Workspace UI checkpoint 3 PASS** — grouped MOVE/REMOVE local, sibling resource preservation works, one-step Undo/Redo works, dirty-state guards visible |
-| Sıradaki iş paketi | **Atomic Save/Commit RPC: diff → stale baseline/version/hash guard → server hard validation → single transaction apply/rollback** |
+| Son documentation checkpoint | v11 requirement ACTIVE/INACTIVE lifecycle localization code gate closure documented |
+| Son kullanıcı/QA kabulü | **v11 code gate PASS** — 35/35 files, 237/237 tests; production build, TypeScript and 9/9 static generation PASS. ACTIVE↔INACTIVE browser acceptance not yet recorded. |
+| Sıradaki iş paketi | **v11 browser acceptance: Course Plan ACTIVE↔INACTIVE lifecycle → immediate local projection → Undo/Redo → atomic Save verification** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -8628,3 +8628,40 @@ Fix commit:
   — fix: parenthesize board catalog type assertions
 
 Gate status remains: **PENDING rerun**
+
+
+### 6 Oct 2026 — Requirement ACTIVE/INACTIVE lifecycle v11 code gate CLOSED / PASS
+
+Final fix commit:
+- `4870d5c5bb249a831b1a9a724511f981d6037530`
+  — fix: close v11 TypeScript gate regressions
+
+TypeScript/build-only fixes in that commit:
+- Course Plan loader now guards the legitimate `null` result before catalog hydration
+- structure preparation explicitly narrows `UNKNOWN` out before writing workspace state
+- invalid `readonly Array<...>` syntax corrected to `ReadonlyArray<...>`
+- obsolete `classCodes` field removed from the solver requirement fixture
+- DB modifications: NO
+- migration changes: NO
+
+Acceptance gate after the fix:
+- full suite: **35/35 files, 237/237 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: build route PASS
+
+Status: **CODE GATE CLOSED / PASS**
+
+Accepted at code-gate level:
+- all-requirement Course Plan catalog compiles cleanly with ACTIVE-only solver snapshot boundaries preserved
+- ACTIVE -> INACTIVE and INACTIVE -> ACTIVE local lifecycle implementation remains covered by the regression suite
+- structural/local card graph Undo/Redo and v11 commit payload remain green in the full suite
+- no new DB or migration work was introduced by the gate fixes
+
+Important acceptance boundary:
+- this closes the automated code/build gate only
+- browser/runtime acceptance for ACTIVE↔INACTIVE lifecycle is still pending and must be recorded separately
+
+Next active sub-phase:
+**v11 browser acceptance — Course Plan lifecycle immediate projection, Undo/Redo, and atomic Save**
