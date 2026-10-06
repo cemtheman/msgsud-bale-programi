@@ -95,6 +95,7 @@ import {
   type ManagementTeacherContinuity,
 } from '@/lib/managementCoursePlan';
 import {
+  canUseServerManagementHistoryDescriptor,
   fetchManagementCommandState,
   fetchManagementPlacedCardIds,
   fetchManagementSlotBlockers,
@@ -1076,6 +1077,20 @@ export default function ManagementPage() {
       workspaceHistoryRef.current.nextSequence > 1
       || workspaceHistoryRef.current.redoStack.length > 0
     )
+  );
+  const workspaceOwnsStructureHistory = Boolean(
+    workspaceSnapshotRef.current
+    && workspaceWorkingCopyRef.current
+    && workspaceHistoryRef.current
+    && serverBoardRef.current
+  );
+  const serverUndoAvailable = canUseServerManagementHistoryDescriptor(
+    commandState.undo,
+    workspaceOwnsStructureHistory,
+  );
+  const serverRedoAvailable = canUseServerManagementHistoryDescriptor(
+    commandState.redo,
+    workspaceOwnsStructureHistory,
   );
 
   useEffect(() => {
@@ -2989,7 +3004,7 @@ export default function ManagementPage() {
       return;
     }
 
-    const descriptor = commandState.undo;
+    const descriptor = serverUndoAvailable ? commandState.undo : null;
 
     if (
       !session
@@ -3099,7 +3114,7 @@ export default function ManagementPage() {
       return;
     }
 
-    const descriptor = commandState.redo;
+    const descriptor = serverRedoAvailable ? commandState.redo : null;
 
     if (
       !session
@@ -3829,17 +3844,17 @@ export default function ManagementPage() {
             )}
             {access?.canEdit && (
               <ManagementHistoryActions
-                undoAvailable={(localUndoAvailable || Boolean(commandState.undo)) && !dataLoading}
-                redoAvailable={(localRedoAvailable || Boolean(commandState.redo)) && !dataLoading}
+                undoAvailable={(localUndoAvailable || serverUndoAvailable) && !dataLoading}
+                redoAvailable={(localRedoAvailable || serverRedoAvailable) && !dataLoading}
                 busy={commandBusy || dataLoading}
                 undoTitle={localUndoAvailable
                   ? 'Yerel program değişikliğini geri al'
-                  : commandState.undo
+                  : serverUndoAvailable && commandState.undo
                     ? `${commandContextLabel(commandState.undo, board)}${commandState.undo.bundleSize > 1 ? ` · ${commandState.undo.bundleSize} kayıt` : ''}${commandState.undo.autoCount > 0 ? ` + ${commandState.undo.autoCount} otomatik` : ''} geri al`
                     : 'Geri alınabilecek işlem yok'}
                 redoTitle={localRedoAvailable
                   ? 'Yerel program değişikliğini yeniden uygula'
-                  : commandState.redo
+                  : serverRedoAvailable && commandState.redo
                     ? `${commandContextLabel(commandState.redo, board)}${commandState.redo.bundleSize > 1 ? ` · ${commandState.redo.bundleSize} kayıt` : ''}${commandState.redo.autoCount > 0 ? ` + ${commandState.redo.autoCount} otomatik` : ''} yeniden uygula`
                     : 'Yinelenecek işlem yok'}
                 onUndo={() => void runUndo()}
@@ -4146,6 +4161,7 @@ export default function ManagementPage() {
               </p>
 
               {commandNotice.kind === 'success'
+                && !workspaceOwnsStructureHistory
                 && commandState.undo?.action === 'STRUCTURE' && (
                 <button
                   type="button"

@@ -39,6 +39,19 @@ export interface ManagementCommandState {
   redo: ManagementCommandDescriptor | null;
 }
 
+export function canUseServerManagementHistoryDescriptor(
+  descriptor: ManagementCommandDescriptor | null,
+  workspaceOwnsStructureHistory: boolean,
+) {
+  return Boolean(
+    descriptor
+    && (
+      !workspaceOwnsStructureHistory
+      || descriptor.action !== 'STRUCTURE'
+    ),
+  );
+}
+
 export interface ManagementBundleCandidateInput {
   cardId: string;
   dayOfWeek: number;
