@@ -330,6 +330,26 @@ export function ManagementSolverWorkspacePanel({
   const issueSummary = [...issueCodeCounts.entries()]
     .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
 
+  const feasibilityPlacementByCardId = new Map(
+    (feasibilityResult?.placements ?? []).map((placement) => [
+      placement.cardId,
+      placement,
+    ]),
+  );
+  const preferenceAdjustedCards = (optimizationResult?.changedCards ?? [])
+    .filter((item) => {
+      const seed = feasibilityPlacementByCardId.get(item.cardId);
+      if (!seed) return true;
+
+      return (
+        seed.dayOfWeek !== item.proposed.dayOfWeek
+        || seed.startPeriod !== item.proposed.startPeriod
+        || seed.teacherId !== item.proposed.teacherId
+        || seed.roomId !== item.proposed.roomId
+      );
+    });
+  const mandatoryRepairCount = feasibilityResult?.changedCards?.length ?? 0;
+
   const loadProfile = (profile: ManagementSolverObjectiveProfile | null) => {
     setSelectedProfileId(profile?.id ?? null);
     setName(profile?.name ?? '');
@@ -1290,9 +1310,9 @@ export function ManagementSolverWorkspacePanel({
                   </p>
                   <p className="mt-1 text-[11px] font-medium leading-4 text-slate-600">
                     {optimizationResult.status === 'IMPROVED'
-                      ? `${optimizationResult.changedCards.length} ders için farklı yerleşim öneriliyor.`
+                      ? `Temel çözüm ${mandatoryRepairCount} dersi düzeltiyor; tercihler bunun üzerine ${preferenceAdjustedCards.length} derste ek ayar yapıyor. Nihai öneri mevcut programa göre ${optimizationResult.changedCards.length} dersi etkiliyor.`
                       : optimizationResult.status === 'UNCHANGED'
-                        ? 'Mevcut program korunuyor.'
+                        ? 'Tercihler, kurallara uygun temel çözümün üzerine ek bir iyileştirme getirmedi.'
                         : optimizationResult.reasons.includes('FEASIBLE_SEED_INVALID')
                           ? 'Program kontrolündeki temel çözüm artık kullanılamıyor. Programı yeniden kontrol edin.'
                           : 'Kurallara uygun temel çözüm ve en az bir açık tercih gerektiğini kontrol edin.'}
@@ -1322,7 +1342,7 @@ export function ManagementSolverWorkspacePanel({
                     <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                         <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
-                          Değişen karar
+                          Mevcut programa uzaklık
                         </p>
                         <p className="mt-1 text-[11px] font-black text-slate-900">
                           {optimizationResult.baselineMetrics.changeCost}
@@ -1333,7 +1353,7 @@ export function ManagementSolverWorkspacePanel({
 
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                         <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
-                          Öğretmen değişimi
+                          Öğretmen süreklilik kırılması
                         </p>
                         <p className="mt-1 text-[11px] font-black text-slate-900">
                           {optimizationResult.baselineMetrics.preferredTeacherContinuityBreaks}
@@ -1355,7 +1375,7 @@ export function ManagementSolverWorkspacePanel({
 
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                         <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
-                          Salon değişimi
+                          Salon süreklilik kırılması
                         </p>
                         <p className="mt-1 text-[11px] font-black text-slate-900">
                           {optimizationResult.baselineMetrics.roomStabilityBreaks}
@@ -1365,39 +1385,75 @@ export function ManagementSolverWorkspacePanel({
                       </div>
                     </div>
 
-                    {optimizationResult.changedCards.length > 0 && (
-                      <div className="mt-3 grid gap-2">
-                        {optimizationResult.changedCards.slice(0, 12).map((item) => (
-                          <div
-                            key={item.cardId}
-                            className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
-                          >
+                    {optimizationResult.status !== 'BLOCKED' && (
+                      <div className="mt-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
                             <p className="text-[11px] font-black text-slate-900">
-                              {displayGroupName(item.groupName)} · {item.subjectName} · {item.blockIndex}. bölüm
+                              Tercihlerin temel çözüme ek etkisi
                             </p>
-                            <p className="mt-1 text-[12px] font-medium text-slate-500">
-                              Mevcut: {placementSummary(
-                                item.baseline.dayOfWeek,
-                                item.baseline.startPeriod,
-                                item.baseline.teacherName,
-                                item.baseline.roomName,
-                              )}
-                            </p>
-                            <p className="mt-0.5 text-[12px] font-bold text-slate-700">
-                              Öneri: {placementSummary(
-                                item.proposed.dayOfWeek,
-                                item.proposed.startPeriod,
-                                item.proposed.teacherName,
-                                item.proposed.roomName,
-                              )}
+                            <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                              {preferenceAdjustedCards.length > 0
+                                ? `${preferenceAdjustedCards.length} derste temel çözümden farklı bir tercih yapıldı.`
+                                : 'Tercihler temel çözümde ek ders değişikliği oluşturmadı.'}
                             </p>
                           </div>
-                        ))}
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
+                            {optimizationResult.changedCards.length} toplam etkilenen ders
+                          </span>
+                        </div>
 
-                        {optimizationResult.changedCards.length > 12 && (
-                          <p className="text-[12px] font-bold text-slate-400">
-                            Ayrıca {optimizationResult.changedCards.length - 12} ders daha değişiyor.
-                          </p>
+                        {preferenceAdjustedCards.length > 0 && (
+                          <div className="mt-2 grid gap-2">
+                            {preferenceAdjustedCards.slice(0, 12).map((item) => {
+                              const seed = feasibilityPlacementByCardId.get(item.cardId);
+                              const seedTeacherName = seed?.teacherId
+                                ? data.preview.teachers.find(
+                                  (teacher) => teacher.id === seed.teacherId,
+                                )?.name ?? null
+                                : null;
+                              const seedRoomName = seed?.roomId
+                                ? data.preview.rooms.find(
+                                  (room) => room.id === seed.roomId,
+                                )?.name ?? null
+                                : null;
+
+                              return (
+                                <div
+                                  key={item.cardId}
+                                  className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
+                                >
+                                  <p className="text-[11px] font-black text-slate-900">
+                                    {displayGroupName(item.groupName)} · {item.subjectName} · {item.blockIndex}. bölüm
+                                  </p>
+                                  <p className="mt-1 text-[12px] font-medium text-slate-500">
+                                    Temel çözüm: {seed
+                                      ? placementSummary(
+                                          seed.dayOfWeek,
+                                          seed.startPeriod,
+                                          seedTeacherName,
+                                          seedRoomName,
+                                        )
+                                      : '—'}
+                                  </p>
+                                  <p className="mt-0.5 text-[12px] font-bold text-slate-700">
+                                    Tercihli öneri: {placementSummary(
+                                      item.proposed.dayOfWeek,
+                                      item.proposed.startPeriod,
+                                      item.proposed.teacherName,
+                                      item.proposed.roomName,
+                                    )}
+                                  </p>
+                                </div>
+                              );
+                            })}
+
+                            {preferenceAdjustedCards.length > 12 && (
+                              <p className="text-[12px] font-bold text-slate-400">
+                                Ayrıca {preferenceAdjustedCards.length - 12} tercih değişikliği daha var.
+                              </p>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
@@ -1426,7 +1482,8 @@ export function ManagementSolverWorkspacePanel({
                               Bu öneri programa uygulansın mı?
                             </p>
                             <p className="mt-1 text-[12px] font-medium leading-4 text-amber-800">
-                              {optimizationResult.changedCards.length} dersin yerleşimi değişecek.
+                              Nihai öneri mevcut programa göre {optimizationResult.changedCards.length} dersi etkileyecek.
+                              Bunun {mandatoryRepairCount} dersi zorunlu kural düzeltmesi; {preferenceAdjustedCards.length} dersinde ise temel çözüme göre tercih kaynaklı ek ayar var.
                               Uygulamadan hemen önce programın hâlâ aynı olduğu doğrulanacak ve değişiklikler tek işlem olarak kaydedilecek.
                             </p>
                             <div className="mt-3 flex flex-wrap justify-end gap-2">
