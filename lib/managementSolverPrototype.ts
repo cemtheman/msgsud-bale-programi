@@ -1708,6 +1708,9 @@ function tryBaselinePinnedTeacherResolution(
 
     const chosen = viableBundles[0];
     if (!chosen) {
+      diagnostics.push(
+        `PINNED_GREEDY_NO_VIABLE_BUNDLE:${unit.id}:${unit.bundles.length}`,
+      );
       greedyFailed = true;
       break;
     }
@@ -1715,15 +1718,24 @@ function tryBaselinePinnedTeacherResolution(
     greedyVisitedNodeCount += 1;
     const attempt = tryBundle(chosen, true);
     if (!attempt.valid) {
+      diagnostics.push(
+        `PINNED_GREEDY_COMMIT_FAILED:${unit.id}`,
+      );
       greedyFailed = true;
       break;
     }
   }
 
-  if (
+  const greedyFinalRulesHold = (
     !greedyFailed
     && finalRequirementRulesHold(assignments, context)
-  ) {
+  );
+
+  if (!greedyFailed && !greedyFinalRulesHold) {
+    diagnostics.push('PINNED_GREEDY_FINAL_RULES_FAILED');
+  }
+
+  if (greedyFinalRulesHold) {
     return {
       assignments,
       visitedNodeCount: greedyVisitedNodeCount,
