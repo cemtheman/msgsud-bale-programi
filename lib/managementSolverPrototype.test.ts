@@ -1130,3 +1130,21 @@ describe('M33.2 in-memory feasibility prototype', () => {
     expect(result.reasons).toContain('LOCKED_CARD_BASELINE_MISSING');
   });
 });
+
+
+describe('pinned repair diagnostics', () => {
+  it('keeps feasibility failure reasons available for pinned repair debugging', () => {
+    const base = snapshot();
+    const result = runManagementFeasibilityPrototype(snapshot({
+      baselinePlacements: [{
+        ...base.baselinePlacements[0],
+        teacherId: null,
+      }],
+      teacherPools: [],
+    }), {
+      maxVisitedNodes: 1,
+    });
+
+    expect(result.reasons.length).toBeGreaterThan(0);
+  });
+});

@@ -1415,6 +1415,7 @@ function tryBaselinePinnedTeacherResolution(
   context: SolverContext,
   maxVisitedNodes: number,
   baselineIssues: ManagementFeasibilityBaselineIssue[],
+  diagnostics: string[],
 ) {
   const domains = new Map<string, Candidate[]>();
   const teacherRepairCardIds = new Set(
@@ -1430,6 +1431,7 @@ function tryBaselinePinnedTeacherResolution(
       teacherRepairCardIds,
     );
     if (candidates.length === 0) {
+      diagnostics.push(`PINNED_REPAIR_EMPTY_DOMAIN:${card.id}`);
       return null;
     }
     domains.set(card.id, candidates);
@@ -1455,7 +1457,10 @@ function tryBaselinePinnedTeacherResolution(
   // programın sabit kısmıdır; bir kez doğrulanıp başlangıç assignment'ı olur.
   for (const card of fixedCards) {
     const candidate = domains.get(card.id)?.[0];
-    if (!candidate) return null;
+    if (!candidate) {
+      diagnostics.push(`PINNED_REPAIR_FIXED_CANDIDATE_MISSING:${card.id}`);
+      return null;
+    }
 
     remainingByRequirement.set(
       card.requirementId,
@@ -1471,6 +1476,7 @@ function tryBaselinePinnedTeacherResolution(
       remainingByRequirement,
       context,
     )) {
+      diagnostics.push(`PINNED_REPAIR_FIXED_PREFIX_CONFLICT:${card.id}`);
       return null;
     }
 
@@ -1490,7 +1496,10 @@ function tryBaselinePinnedTeacherResolution(
     if (handled.has(card.id)) continue;
 
     const requirement = context.requirements.get(card.requirementId);
-    if (!requirement) return null;
+    if (!requirement) {
+      diagnostics.push(`PINNED_REPAIR_REQUIREMENT_MISSING:${card.requirementId}`);
+      return null;
+    }
 
     const continuityUnit = (
       requirement.teacherAssignmentScope === 'REQUIREMENT'
@@ -1561,7 +1570,12 @@ function tryBaselinePinnedTeacherResolution(
       })
     ));
 
-    if (bundles.length === 0) return null;
+    if (bundles.length === 0) {
+      diagnostics.push(
+        `PINNED_REPAIR_CONTINUITY_NO_COMMON_TEACHER:${card.requirementId}`,
+      );
+      return null;
+    }
 
     units.push({
       id: `requirement:${card.requirementId}`,
@@ -1578,6 +1592,8 @@ function tryBaselinePinnedTeacherResolution(
   let visitedNodeCount = 0;
   let backtrackCount = 0;
   let hitSearchLimit = false;
+  let terminalReached = false;
+  let finalRulesFailed = false;
 
   const search = (index: number): boolean => {
     if (visitedNodeCount >= maxVisitedNodes) {
@@ -1586,7 +1602,10 @@ function tryBaselinePinnedTeacherResolution(
     }
 
     if (index >= units.length) {
-      return finalRequirementRulesHold(assignments, context);
+      terminalReached = true;
+      const valid = finalRequirementRulesHold(assignments, context);
+      if (!valid) finalRulesFailed = true;
+      return valid;
     }
 
     const unit = units[index];
@@ -1649,6 +1668,13 @@ function tryBaselinePinnedTeacherResolution(
   };
 
   if (!search(0)) {
+    if (hitSearchLimit) {
+      diagnostics.push('PINNED_REPAIR_SEARCH_LIMIT');
+    } else if (finalRulesFailed || terminalReached) {
+      diagnostics.push('PINNED_REPAIR_FINAL_RULES_FAILED');
+    } else {
+      diagnostics.push('PINNED_REPAIR_NO_ASSIGNMENT');
+    }
     return null;
   }
 
@@ -1796,6 +1822,7 @@ export function runManagementFeasibilityPrototype(
   const materializedBaselineCount = cards.filter((card) => (
     baselinePlacementIsMaterialized(context.baseline.get(card.id))
   )).length;
+  const pinnedRepairDiagnostics: string[] = [];
 
   if (materializedBaselineCount === cards.length) {
     const baselineAssignments = tryBaseline(cards, context);
@@ -1828,6 +1855,7 @@ export function runManagementFeasibilityPrototype(
       context,
       maxVisitedNodes,
       baselineIssues,
+      pinnedRepairDiagnostics,
     );
 
     if (pinnedResolution) {
@@ -1992,6 +2020,7 @@ export function runManagementFeasibilityPrototype(
         hitSearchLimit
           ? 'SEARCH_NODE_LIMIT_REACHED'
           : 'NO_FEASIBLE_ASSIGNMENT_FOUND',
+        ...pinnedRepairDiagnostics,
       ],
       metrics: resultMetrics(
         cards.length,
