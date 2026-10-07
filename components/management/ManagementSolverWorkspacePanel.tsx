@@ -9,6 +9,8 @@ import type {
   ManagementSolverProfileStatus,
   ManagementSolverRequirement,
   ManagementSolverWorkspace,
+  countEnabledSupportedManagementObjectives,
+  sanitizeManagementSolverObjectiveWeights,
 } from '@/lib/managementSolver';
 import {
   runManagementFeasibilityPrototype,
@@ -183,9 +185,11 @@ function statusMeta(status: ManagementSolverProfileStatus) {
 function profileWeights(
   profile: ManagementSolverObjectiveProfile | null,
 ): ManagementSolverObjectiveWeights {
-  return profile
-    ? { ...EMPTY_WEIGHTS, ...profile.weights }
-    : { ...EMPTY_WEIGHTS };
+  return sanitizeManagementSolverObjectiveWeights(
+    profile
+      ? { ...EMPTY_WEIGHTS, ...profile.weights }
+      : EMPTY_WEIGHTS,
+  );
 }
 
 function weightsEqual(
@@ -285,9 +289,9 @@ export function ManagementSolverWorkspacePanel({
   const unknownRooms = provisionalInputs.find(
     (item) => item.code === 'RESOURCE_MODE_UNKNOWN',
   ) ?? null;
-  const positiveObjectiveCount = OBJECTIVES.filter(
-    (objective) => weights[objective.key] > 0,
-  ).length;
+  const positiveObjectiveCount = countEnabledSupportedManagementObjectives(
+    weights,
+  );
   const canActivate = (
     canEdit
     && !busy
@@ -546,7 +550,7 @@ export function ManagementSolverWorkspacePanel({
                     <p className={`mt-1 text-[11px] font-semibold ${
                       selected ? 'text-slate-300' : 'text-slate-400'
                     }`}>
-                      {Object.values(profile.weights).filter((value) => value > 0).length} tercih açık
+                      {countEnabledSupportedManagementObjectives(profile.weights)} tercih açık
                     </p>
                   </button>
                 );
@@ -675,8 +679,43 @@ export function ManagementSolverWorkspacePanel({
                 );
               })}
             </div>
-            <div className="border-t border-slate-100 px-4 py-2.5 text-[12px] font-medium text-slate-400">
-              Yakında: Öğretmen yük dengesi · Derslerin tercih edilen gün ve saatleri
+            <div className="border-t border-slate-100 bg-slate-50/70">
+              <div className="grid grid-cols-[minmax(0,1fr)_150px] items-center gap-4 px-4 py-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[12px] font-black text-slate-500">
+                      Öğretmen yük dengesi
+                    </p>
+                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                      Yakında
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[12px] font-medium text-slate-400">
+                    Öğretmen yük hedefleri tamamlandığında kullanıma açılacak.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-[11px] font-black text-slate-400">
+                  Kullanılamıyor
+                </div>
+              </div>
+              <div className="grid grid-cols-[minmax(0,1fr)_150px] items-center gap-4 border-t border-slate-100 px-4 py-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[12px] font-black text-slate-500">
+                      Derslerin tercih edilen gün ve saatleri
+                    </p>
+                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                      Yakında
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-[12px] font-medium text-slate-400">
+                    Ders bazlı zaman tercihleri veri modeli tamamlandığında kullanıma açılacak.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-[11px] font-black text-slate-400">
+                  Kullanılamıyor
+                </div>
+              </div>
             </div>
           </section>
 

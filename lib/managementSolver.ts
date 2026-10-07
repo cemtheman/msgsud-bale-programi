@@ -13,10 +13,43 @@ export type ManagementSolverObjectiveKey =
 
 export type ManagementSolverProfileStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
 
+export const SUPPORTED_MANAGEMENT_OBJECTIVE_KEYS = [
+  'changeCost',
+  'preferredTeacherContinuity',
+  'teacherIdleGaps',
+  'roomStability',
+] as const satisfies readonly ManagementSolverObjectiveKey[];
+
+export const UNSUPPORTED_MANAGEMENT_OBJECTIVE_KEYS = [
+  'teacherLoadBalance',
+  'subjectTimePreference',
+] as const satisfies readonly ManagementSolverObjectiveKey[];
+
 export type ManagementSolverObjectiveWeights = Record<
   ManagementSolverObjectiveKey,
   number
 >;
+
+export function sanitizeManagementSolverObjectiveWeights(
+  weights: Partial<ManagementSolverObjectiveWeights> | null | undefined,
+): ManagementSolverObjectiveWeights {
+  return {
+    changeCost: weights?.changeCost ?? 0,
+    preferredTeacherContinuity: weights?.preferredTeacherContinuity ?? 0,
+    teacherIdleGaps: weights?.teacherIdleGaps ?? 0,
+    roomStability: weights?.roomStability ?? 0,
+    teacherLoadBalance: 0,
+    subjectTimePreference: 0,
+  };
+}
+
+export function countEnabledSupportedManagementObjectives(
+  weights: Partial<ManagementSolverObjectiveWeights> | null | undefined,
+) {
+  return SUPPORTED_MANAGEMENT_OBJECTIVE_KEYS.filter(
+    (key) => (weights?.[key] ?? 0) > 0,
+  ).length;
+}
 
 export interface ManagementSolverObjectiveCatalogItem {
   id: ManagementSolverObjectiveKey;
