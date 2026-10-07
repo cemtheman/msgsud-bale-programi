@@ -1650,6 +1650,101 @@ function tryBaselinePinnedTeacherResolution(
     }
   }
 
+  const unitsOverlap = (left: RepairUnit, right: RepairUnit) => {
+    const leftBundle = left.bundles[0] ?? [];
+    const rightBundle = right.bundles[0] ?? [];
+
+    return leftBundle.some((leftCandidate) => (
+      rightBundle.some((rightCandidate) => (
+        leftCandidate.dayOfWeek === rightCandidate.dayOfWeek
+        && overlaps(
+          leftCandidate.startPeriod,
+          leftCandidate.endPeriod,
+          rightCandidate.startPeriod,
+          rightCandidate.endPeriod,
+        )
+      ))
+    ));
+  };
+
+  const conflictDegree = new Map<string, number>();
+  for (const unit of units) {
+    conflictDegree.set(
+      unit.id,
+      units.filter(
+        (other) => other.id !== unit.id && unitsOverlap(unit, other),
+      ).length,
+    );
+  }
+
+  const teacherNameForBundle = (bundle: Candidate[]) => {
+    const teacherId = bundle[0]?.teacherId;
+    if (!teacherId) return '';
+    return context.teachers.get(teacherId)?.name ?? teacherId;
+  };
+
+  // Canlı programın teacher-only alt problemi liste-boyama problemidir.
+  // Önce deterministik greedy çözümü dene: dar domain, sonra yüksek derece.
+  // Başarırsa pahalı generic backtracking'e hiç girme.
+  const greedyUnits = [...units].sort((left, right) => (
+    left.bundles.length - right.bundles.length
+    || (conflictDegree.get(right.id) ?? 0) - (conflictDegree.get(left.id) ?? 0)
+    || left.id.localeCompare(right.id)
+  ));
+
+  const greedyBaseAssignmentCount = assignments.length;
+  let greedyVisitedNodeCount = 0;
+  let greedyFailed = false;
+
+  for (const unit of greedyUnits) {
+    const viableBundles = unit.bundles
+      .filter((bundle) => tryBundle(bundle, false).valid)
+      .sort((left, right) => (
+        teacherNameForBundle(left).localeCompare(
+          teacherNameForBundle(right),
+          'tr',
+        )
+      ));
+
+    const chosen = viableBundles[0];
+    if (!chosen) {
+      greedyFailed = true;
+      break;
+    }
+
+    greedyVisitedNodeCount += 1;
+    const attempt = tryBundle(chosen, true);
+    if (!attempt.valid) {
+      greedyFailed = true;
+      break;
+    }
+  }
+
+  if (
+    !greedyFailed
+    && finalRequirementRulesHold(assignments, context)
+  ) {
+    return {
+      assignments,
+      visitedNodeCount: greedyVisitedNodeCount,
+      backtrackCount: 0,
+      generatedCandidateCount: [...domains.values()].reduce(
+        (sum, candidates) => sum + candidates.length,
+        0,
+      ),
+    };
+  }
+
+  while (assignments.length > greedyBaseAssignmentCount) {
+    const removed = assignments.pop();
+    if (removed) {
+      remainingByRequirement.set(
+        removed.requirementId,
+        (remainingByRequirement.get(removed.requirementId) ?? 0) + 1,
+      );
+    }
+  }
+
   let visitedNodeCount = 0;
   let backtrackCount = 0;
   let hitSearchLimit = false;

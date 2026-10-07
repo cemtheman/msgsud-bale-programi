@@ -1283,3 +1283,89 @@ describe('pinned repair node limit terminal semantics', () => {
     expect(result.metrics.visitedNodeCount).toBe(1);
   });
 });
+
+
+describe('pinned repair greedy teacher coloring', () => {
+  it('colors a broad same-time teacher clique without backtracking', () => {
+    const base = snapshot();
+
+    const requirements = Array.from({ length: 4 }, (_, index) => ({
+      ...base.requirements[0],
+      id: `r${index + 1}`,
+      subjectId: `s${index + 1}`,
+      subjectName: `Ders ${index + 1}`,
+      groupId: `g${index + 1}`,
+      groupName: `${index + 5}A`,
+      teacherMode: 'ELIGIBLE_POOL' as const,
+      teacherAssignmentScope: 'BLOCK' as const,
+      teacherContinuity: 'NONE' as const,
+    }));
+
+    const teacherIds = ['t1', 't2', 't3', 't4'];
+
+    const result = runManagementFeasibilityPrototype(snapshot({
+      requirements,
+      cards: requirements.map((requirement, index) => ({
+        id: `c${index + 1}`,
+        requirementId: requirement.id,
+        blockIndex: 1,
+        durationPeriods: 1,
+        locked: false,
+      })),
+      instructionalGroups: [
+        ...base.instructionalGroups,
+        ...requirements.slice(1).map((requirement, index) => ({
+          id: requirement.groupId,
+          classGroupId: `cg${index + 2}`,
+          name: requirement.groupName,
+          groupType: 'SECTION' as const,
+          termStatus: 'ACTIVE' as const,
+          knowledgeStatus: 'CONFIRMED' as const,
+        })),
+      ],
+      teacherPools: requirements.flatMap((requirement) => (
+        teacherIds.map((teacherId) => ({
+          requirementId: requirement.id,
+          teacherId,
+        }))
+      )),
+      teachers: teacherIds.map((id, index) => ({
+        id,
+        name: `Öğretmen ${index + 1}`,
+        operationalStatus: 'ACTIVE' as const,
+      })),
+      roomPools: requirements.map((requirement, index) => ({
+        requirementId: requirement.id,
+        roomId: `room${index + 1}`,
+      })),
+      rooms: requirements.map((_, index) => ({
+        id: `room${index + 1}`,
+        name: `Salon ${index + 1}`,
+        canonicalRoomId: null,
+        capabilities: [],
+        knowledgeStatus: 'CONFIRMED' as const,
+        operationalStatus: 'ACTIVE' as const,
+      })),
+      baselinePlacements: requirements.map((_, index) => ({
+        cardId: `c${index + 1}`,
+        dayOfWeek: 1,
+        startPeriod: 1,
+        teacherId: null,
+        roomId: `room${index + 1}`,
+      })),
+      baselineMetrics: {
+        ...base.baselineMetrics,
+        cardCount: 4,
+        placedCardCount: 4,
+      },
+    }), {
+      maxVisitedNodes: 1,
+    });
+
+    expect(result.status).toBe('FEASIBLE');
+    expect(result.metrics.backtrackCount).toBe(0);
+    expect(new Set(result.placements.map(
+      (placement) => placement.teacherId,
+    )).size).toBe(4);
+  });
+});
