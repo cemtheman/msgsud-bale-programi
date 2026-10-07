@@ -1319,6 +1319,185 @@ function tryBaseline(
     : null;
 }
 
+
+function baselinePinnedCandidatesForCard(
+  card: ManagementSolverCard,
+  context: SolverContext,
+) {
+  const requirement = context.requirements.get(card.requirementId);
+  const baseline = context.baseline.get(card.id);
+
+  if (!requirement || !baselinePlacementIsMaterialized(baseline)) {
+    return [];
+  }
+
+  const days = context.snapshot.hardConstraintContract.days;
+  const periods = context.snapshot.hardConstraintContract.periods;
+  if (
+    !days.includes(baseline.dayOfWeek)
+    || !periods.includes(baseline.startPeriod)
+    || !validTimeStart(
+      baseline.startPeriod,
+      card.durationPeriods,
+      periods,
+    )
+  ) {
+    return [];
+  }
+
+  const teacherIds = baseline.teacherId != null
+    ? [baseline.teacherId]
+    : requirement.teacherRequirement === 'REQUIRED'
+      ? teacherChoices(requirement, baseline, card.locked, context)
+      : [null];
+
+  const candidates: Candidate[] = [];
+
+  for (const teacherId of teacherIds) {
+    const effectiveBaseline = {
+      ...baseline,
+      teacherId,
+    };
+
+    if (!baselineResourceDimensionsAllowed(
+      requirement,
+      effectiveBaseline,
+      context,
+    )) {
+      continue;
+    }
+
+    if (teacherIsUnavailable(
+      teacherId,
+      baseline.dayOfWeek,
+      baseline.startPeriod,
+      card.durationPeriods,
+      context,
+    )) {
+      continue;
+    }
+
+    candidates.push({
+      cardId: card.id,
+      requirementId: card.requirementId,
+      groupId: requirement.groupId,
+      durationPeriods: card.durationPeriods,
+      dayOfWeek: baseline.dayOfWeek,
+      startPeriod: baseline.startPeriod,
+      endPeriod: baseline.startPeriod + card.durationPeriods - 1,
+      teacherId,
+      roomId: baseline.roomId,
+      roomConflictKey: roomConflictKey(baseline.roomId, context),
+      provisionalRoom: requirement.resourceMode === 'UNKNOWN',
+      baseline: teacherId === baseline.teacherId,
+    });
+  }
+
+  return candidates;
+}
+
+function tryBaselinePinnedTeacherResolution(
+  cards: ManagementSolverCard[],
+  context: SolverContext,
+  maxVisitedNodes: number,
+) {
+  const domains = new Map<string, Candidate[]>();
+
+  for (const card of cards) {
+    const candidates = baselinePinnedCandidatesForCard(card, context);
+    if (candidates.length === 0) {
+      return null;
+    }
+    domains.set(card.id, candidates);
+  }
+
+  const orderedCards = [...cards].sort((left, right) => (
+    (domains.get(left.id)?.length ?? Number.MAX_SAFE_INTEGER)
+    - (domains.get(right.id)?.length ?? Number.MAX_SAFE_INTEGER)
+    || left.id.localeCompare(right.id)
+  ));
+
+  const assignments: Candidate[] = [];
+  const remainingByRequirement = new Map<string, number>();
+  for (const card of orderedCards) {
+    remainingByRequirement.set(
+      card.requirementId,
+      (remainingByRequirement.get(card.requirementId) ?? 0) + 1,
+    );
+  }
+
+  let visitedNodeCount = 0;
+  let backtrackCount = 0;
+  let hitSearchLimit = false;
+
+  const search = (index: number): boolean => {
+    if (visitedNodeCount >= maxVisitedNodes) {
+      hitSearchLimit = true;
+      return false;
+    }
+
+    if (index >= orderedCards.length) {
+      return finalRequirementRulesHold(assignments, context);
+    }
+
+    const card = orderedCards[index];
+    const candidates = domains.get(card.id) ?? [];
+
+    remainingByRequirement.set(
+      card.requirementId,
+      Math.max(
+        (remainingByRequirement.get(card.requirementId) ?? 1) - 1,
+        0,
+      ),
+    );
+
+    for (const candidate of candidates) {
+      visitedNodeCount += 1;
+
+      if (!canAssign(
+        candidate,
+        assignments,
+        remainingByRequirement,
+        context,
+      )) {
+        continue;
+      }
+
+      assignments.push(candidate);
+
+      if (search(index + 1)) {
+        return true;
+      }
+
+      assignments.pop();
+      backtrackCount += 1;
+
+      if (hitSearchLimit) break;
+    }
+
+    remainingByRequirement.set(
+      card.requirementId,
+      (remainingByRequirement.get(card.requirementId) ?? 0) + 1,
+    );
+
+    return false;
+  };
+
+  if (!search(0)) {
+    return null;
+  }
+
+  return {
+    assignments,
+    visitedNodeCount,
+    backtrackCount,
+    generatedCandidateCount: [...domains.values()].reduce(
+      (sum, candidates) => sum + candidates.length,
+      0,
+    ),
+  };
+}
+
 function toPublicPlacement(
   candidate: Candidate,
 ): ManagementFeasibilityPlacement {
@@ -1474,6 +1653,40 @@ export function runManagementFeasibilityPrototype(
           baselineAssignments.length,
           0,
           0,
+          Date.now() - startedAt,
+        ),
+      };
+    }
+
+    const pinnedResolution = tryBaselinePinnedTeacherResolution(
+      cards,
+      context,
+      maxVisitedNodes,
+    );
+
+    if (pinnedResolution) {
+      return {
+        engineVersion: ENGINE_VERSION,
+        status: 'FEASIBLE',
+        snapshotHash: snapshot.snapshotHash,
+        baselineHash: snapshot.baselineHash,
+        baselineWasFeasible: false,
+        writesPerformed: false,
+        objectiveProfileUsed: false,
+        placements: pinnedResolution.assignments.map(toPublicPlacement),
+        reasons: [],
+        baselineIssues,
+        changedCards: changedCardDiagnostics(
+          pinnedResolution.assignments,
+          baselineIssues,
+          context,
+        ),
+        metrics: resultMetrics(
+          cards.length,
+          pinnedResolution.assignments,
+          pinnedResolution.generatedCandidateCount,
+          pinnedResolution.visitedNodeCount,
+          pinnedResolution.backtrackCount,
           Date.now() - startedAt,
         ),
       };

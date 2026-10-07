@@ -209,6 +209,163 @@ describe('M33.2 in-memory feasibility prototype', () => {
     expect(result.baselineWasFeasible).toBe(false);
   });
 
+  it('keeps baseline times and resolves missing REQUIRED pool teachers before full timetable search', () => {
+    const base = snapshot();
+    const requirement = {
+      ...base.requirements[0],
+      teacherMode: 'ELIGIBLE_POOL' as const,
+      teacherAssignmentScope: 'BLOCK' as const,
+      teacherContinuity: 'NONE' as const,
+      weeklyLoad: 2,
+    };
+
+    const result = runManagementFeasibilityPrototype(snapshot({
+      requirements: [requirement],
+      cards: [
+        {
+          id: 'c1',
+          requirementId: 'r1',
+          blockIndex: 1,
+          durationPeriods: 1,
+          locked: false,
+        },
+        {
+          id: 'c2',
+          requirementId: 'r1',
+          blockIndex: 2,
+          durationPeriods: 1,
+          locked: false,
+        },
+      ],
+      teacherPools: [
+        { requirementId: 'r1', teacherId: 't1' },
+        { requirementId: 'r1', teacherId: 't2' },
+      ],
+      teachers: [
+        { id: 't1', name: 'Ö1', operationalStatus: 'ACTIVE' },
+        { id: 't2', name: 'Ö2', operationalStatus: 'ACTIVE' },
+      ],
+      baselinePlacements: [
+        {
+          cardId: 'c1',
+          dayOfWeek: 1,
+          startPeriod: 1,
+          teacherId: null,
+          roomId: 'room1',
+        },
+        {
+          cardId: 'c2',
+          dayOfWeek: 1,
+          startPeriod: 2,
+          teacherId: null,
+          roomId: 'room1',
+        },
+      ],
+      baselineMetrics: {
+        ...base.baselineMetrics,
+        cardCount: 2,
+        placedCardCount: 2,
+      },
+    }));
+
+    expect(result.status).toBe('FEASIBLE');
+    expect(result.baselineWasFeasible).toBe(false);
+    expect(result.placements).toHaveLength(2);
+    expect(result.placements.map((placement) => [
+      placement.dayOfWeek,
+      placement.startPeriod,
+    ])).toEqual([
+      [1, 1],
+      [1, 2],
+    ]);
+    expect(result.placements.every(
+      (placement) => placement.teacherId != null,
+    )).toBe(true);
+    expect(result.metrics.visitedNodeCount).toBeLessThan(20);
+  });
+
+  it('uses different eligible teachers when pinned baseline times overlap', () => {
+    const base = snapshot();
+    const requirements = [
+      {
+        ...base.requirements[0],
+        id: 'r1',
+        teacherMode: 'ELIGIBLE_POOL' as const,
+      },
+      {
+        ...base.requirements[0],
+        id: 'r2',
+        subjectId: 's2',
+        subjectName: 'Fen',
+        groupId: 'g2',
+        groupName: '6A',
+        teacherMode: 'ELIGIBLE_POOL' as const,
+      },
+    ];
+
+    const result = runManagementFeasibilityPrototype(snapshot({
+      requirements,
+      cards: [
+        { id: 'c1', requirementId: 'r1', blockIndex: 1, durationPeriods: 1, locked: false },
+        { id: 'c2', requirementId: 'r2', blockIndex: 1, durationPeriods: 1, locked: false },
+      ],
+      instructionalGroups: [
+        ...base.instructionalGroups,
+        {
+          id: 'g2',
+          classGroupId: 'cg2',
+          name: '6A',
+          groupType: 'SECTION',
+          termStatus: 'ACTIVE',
+          knowledgeStatus: 'CONFIRMED',
+        },
+      ],
+      teacherPools: [
+        { requirementId: 'r1', teacherId: 't1' },
+        { requirementId: 'r1', teacherId: 't2' },
+        { requirementId: 'r2', teacherId: 't1' },
+        { requirementId: 'r2', teacherId: 't2' },
+      ],
+      teachers: [
+        { id: 't1', name: 'Ö1', operationalStatus: 'ACTIVE' },
+        { id: 't2', name: 'Ö2', operationalStatus: 'ACTIVE' },
+      ],
+      roomPools: [
+        { requirementId: 'r1', roomId: 'room1' },
+        { requirementId: 'r2', roomId: 'room2' },
+      ],
+      rooms: [
+        ...base.rooms,
+        {
+          id: 'room2',
+          name: 'A102',
+          canonicalRoomId: null,
+          capabilities: [],
+          knowledgeStatus: 'CONFIRMED',
+          operationalStatus: 'ACTIVE',
+        },
+      ],
+      baselinePlacements: [
+        { cardId: 'c1', dayOfWeek: 1, startPeriod: 1, teacherId: null, roomId: 'room1' },
+        { cardId: 'c2', dayOfWeek: 1, startPeriod: 1, teacherId: null, roomId: 'room2' },
+      ],
+      baselineMetrics: {
+        ...base.baselineMetrics,
+        cardCount: 2,
+        placedCardCount: 2,
+      },
+    }));
+
+    expect(result.status).toBe('FEASIBLE');
+    expect(result.placements[0].dayOfWeek).toBe(1);
+    expect(result.placements[1].dayOfWeek).toBe(1);
+    expect(result.placements[0].startPeriod).toBe(1);
+    expect(result.placements[1].startPeriod).toBe(1);
+    expect(result.placements[0].teacherId).not.toBe(
+      result.placements[1].teacherId,
+    );
+  });
+
   it('moves an unlocked baseline card in memory when participant groups conflict', () => {
     const data = snapshot({
       requirements: [
