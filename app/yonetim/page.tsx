@@ -5677,6 +5677,11 @@ export default function ManagementPage() {
                 );
               }
 
+              // Solver snapshotHash includes objective-profile state and is not
+              // comparable to the profile-neutral Program workspace snapshotHash.
+              // The fresh server solver workspace above already verifies the
+              // proposal's solver snapshot. Locally, revision/requirement-set
+              // identity plus baselineHash are the schedule-staleness contract.
               const localSnapshot = workspaceSnapshotRef.current;
               const localWorkingCopy = workspaceWorkingCopyRef.current;
               const localHistory = workspaceHistoryRef.current;
@@ -5692,7 +5697,8 @@ export default function ManagementPage() {
               }
 
               if (
-                localSnapshot.identity.snapshotHash !== proposal.snapshotHash
+                localSnapshot.identity.revisionId !== currentWorkspace?.revisionId
+                || localSnapshot.identity.requirementSetId !== currentWorkspace?.requirementSetId
                 || localSnapshot.identity.baselineHash !== proposal.baselineHash
               ) {
                 throw new Error(

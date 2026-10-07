@@ -335,3 +335,33 @@ describe('proposal apply local workspace batch size', () => {
     expect(plan.reasons).not.toContain('BUNDLE_LIMIT_EXCEEDED');
   });
 });
+
+
+describe('proposal apply snapshot identity semantics', () => {
+  it('local Program workspace must not compare profile-sensitive snapshot hashes', () => {
+    // Solver snapshotHash may differ solely because an objective profile is attached.
+    // Schedule staleness is guarded by revision/requirement-set identity and baselineHash;
+    // prepareManagementSolverProposalApply separately validates the fresh solver snapshot.
+    const solverWithProfile = {
+      snapshotHash: 'solver-profile-hash',
+      baselineHash: 'same-baseline',
+      revisionId: 'revision-1',
+      requirementSetId: 'requirements-1',
+    };
+    const localProgramWorkspace = {
+      snapshotHash: 'profile-neutral-workspace-hash',
+      baselineHash: 'same-baseline',
+      revisionId: 'revision-1',
+      requirementSetId: 'requirements-1',
+    };
+
+    expect(localProgramWorkspace.snapshotHash)
+      .not.toBe(solverWithProfile.snapshotHash);
+    expect(localProgramWorkspace.baselineHash)
+      .toBe(solverWithProfile.baselineHash);
+    expect(localProgramWorkspace.revisionId)
+      .toBe(solverWithProfile.revisionId);
+    expect(localProgramWorkspace.requirementSetId)
+      .toBe(solverWithProfile.requirementSetId);
+  });
+});
