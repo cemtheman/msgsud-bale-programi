@@ -526,3 +526,66 @@ describe('objective optimization feasible seed', () => {
     expect(result.placements).toHaveLength(broken.cards.length);
   });
 });
+
+
+describe('teacher load balance objective', () => {
+  it('reduces configured teacher-load target deviation', () => {
+    const data = baseSnapshot();
+
+    data.requirements = data.requirements.map((requirement) => ({
+      ...requirement,
+      teacherMode: 'ELIGIBLE_POOL',
+    }));
+    data.teachers = [
+      {
+        id: 't1',
+        name: 'Öğretmen 1',
+        operationalStatus: 'ACTIVE',
+      },
+      {
+        id: 't2',
+        name: 'Öğretmen 2',
+        operationalStatus: 'ACTIVE',
+      },
+    ];
+    data.teacherPools = [
+      { requirementId: 'r1', teacherId: 't1' },
+      { requirementId: 'r1', teacherId: 't2' },
+      { requirementId: 'r2', teacherId: 't1' },
+      { requirementId: 'r2', teacherId: 't2' },
+    ];
+    data.teacherLoadTargets = [
+      {
+        teacherId: 't1',
+        minimumLoad: null,
+        targetLoad: 1,
+        maximumLoad: null,
+      },
+      {
+        teacherId: 't2',
+        minimumLoad: null,
+        targetLoad: 1,
+        maximumLoad: null,
+      },
+    ];
+
+    const result = runManagementObjectiveOptimization(
+      data,
+      {
+        ...ZERO_WEIGHTS,
+        teacherLoadBalance: 1000,
+      },
+      {
+        maxIterations: 4,
+        maxNeighborsPerCard: 80,
+      },
+    );
+
+    expect(result.status).toBe('IMPROVED');
+    expect(result.baselineMetrics.teacherLoadDeviationPeriods).toBe(2);
+    expect(result.proposedMetrics.teacherLoadDeviationPeriods).toBe(0);
+    expect(new Set(
+      result.placements.map((placement) => placement.teacherId),
+    )).toEqual(new Set(['t1', 't2']));
+  });
+});

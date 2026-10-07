@@ -6,6 +6,7 @@ import type {
   ManagementSolverRoom,
   ManagementSolverSnapshotPreview,
   ManagementSolverTeacher,
+  ManagementSolverTeacherLoadTarget,
   ManagementSolverObjectiveWeights,
 } from '@/lib/managementSolver';
 
@@ -101,6 +102,7 @@ interface SolverContext {
   activeTeacherIds: Set<string>;
   teachers: Map<string, ManagementSolverTeacher>;
   teacherUnavailableKeys: Set<string>;
+  teacherLoadTargets: Map<string, ManagementSolverTeacherLoadTarget>;
   rooms: Map<string, ManagementSolverRoom>;
   activeRoomIds: Set<string>;
   teacherPools: Map<string, string[]>;
@@ -831,6 +833,12 @@ function createContext(
       )
     )),
   );
+  const teacherLoadTargets = new Map(
+    (snapshot.teacherLoadTargets ?? []).map((target) => [
+      target.teacherId,
+      target,
+    ]),
+  );
   const rooms = new Map(
     snapshot.rooms.map((room) => [room.id, room]),
   );
@@ -859,6 +867,7 @@ function createContext(
     activeTeacherIds,
     teachers,
     teacherUnavailableKeys,
+    teacherLoadTargets,
     rooms,
     activeRoomIds,
     teacherPools,
@@ -2262,6 +2271,7 @@ export interface ManagementOptimizationMetricVector {
   preferredTeacherContinuityBreaks: number;
   teacherIdleGapPeriods: number;
   roomStabilityBreaks: number;
+  teacherLoadDeviationPeriods: number;
 }
 
 export interface ManagementOptimizationScoreComponent {
@@ -2278,6 +2288,7 @@ export interface ManagementOptimizationScore {
     preferredTeacherContinuity: ManagementOptimizationScoreComponent;
     teacherIdleGaps: ManagementOptimizationScoreComponent;
     roomStability: ManagementOptimizationScoreComponent;
+    teacherLoadBalance: ManagementOptimizationScoreComponent;
   };
 }
 
@@ -2340,6 +2351,7 @@ function objectiveMetricVector(
 
   const byRequirement = new Map<string, Candidate[]>();
   const byTeacherDay = new Map<string, Candidate[]>();
+  const loadByTeacher = new Map<string, number>();
 
   for (const assignment of assignments) {
     const requirementAssignments = byRequirement.get(
@@ -2356,6 +2368,11 @@ function objectiveMetricVector(
       const teacherAssignments = byTeacherDay.get(key) ?? [];
       teacherAssignments.push(assignment);
       byTeacherDay.set(key, teacherAssignments);
+      loadByTeacher.set(
+        assignment.teacherId,
+        (loadByTeacher.get(assignment.teacherId) ?? 0)
+          + assignment.durationPeriods,
+      );
     }
   }
 
@@ -2409,11 +2426,39 @@ function objectiveMetricVector(
     );
   }
 
+  let teacherLoadDeviationPeriods = 0;
+
+  for (const target of context.teacherLoadTargets.values()) {
+    const actualLoad = loadByTeacher.get(target.teacherId) ?? 0;
+
+    if (target.targetLoad != null) {
+      teacherLoadDeviationPeriods += Math.abs(
+        actualLoad - target.targetLoad,
+      );
+      continue;
+    }
+
+    if (
+      target.minimumLoad != null
+      && actualLoad < target.minimumLoad
+    ) {
+      teacherLoadDeviationPeriods += target.minimumLoad - actualLoad;
+    }
+
+    if (
+      target.maximumLoad != null
+      && actualLoad > target.maximumLoad
+    ) {
+      teacherLoadDeviationPeriods += actualLoad - target.maximumLoad;
+    }
+  }
+
   return {
     changeCost,
     preferredTeacherContinuityBreaks,
     teacherIdleGapPeriods,
     roomStabilityBreaks,
+    teacherLoadDeviationPeriods,
   };
 }
 
@@ -2456,18 +2501,25 @@ function objectiveScore(
     weights.roomStability,
     cardCount,
   );
+  const teacherLoadBalance = optimizationScoreComponent(
+    metrics.teacherLoadDeviationPeriods,
+    weights.teacherLoadBalance,
+    cardCount,
+  );
 
   return {
     total:
       changeCost.contribution
       + preferredTeacherContinuity.contribution
       + teacherIdleGaps.contribution
-      + roomStability.contribution,
+      + roomStability.contribution
+      + teacherLoadBalance.contribution,
     components: {
       changeCost,
       preferredTeacherContinuity,
       teacherIdleGaps,
       roomStability,
+      teacherLoadBalance,
     },
   };
 }
@@ -2480,6 +2532,7 @@ function supportedPositiveWeightCount(
     weights.preferredTeacherContinuity,
     weights.teacherIdleGaps,
     weights.roomStability,
+    weights.teacherLoadBalance,
   ].filter((weight) => weight > 0).length;
 }
 
@@ -2589,6 +2642,9 @@ function metricDelta(
     roomStabilityBreaks:
       proposed.roomStabilityBreaks
       - baseline.roomStabilityBreaks,
+    teacherLoadDeviationPeriods:
+      proposed.teacherLoadDeviationPeriods
+      - baseline.teacherLoadDeviationPeriods,
   };
 }
 
@@ -2725,7 +2781,8 @@ function singleObjectiveSeedWeights(
     key:
       | 'preferredTeacherContinuity'
       | 'teacherIdleGaps'
-      | 'roomStability',
+      | 'roomStability'
+      | 'teacherLoadBalance',
   ) => {
     if (weights[key] <= 0) return;
     seeds.push({
@@ -2742,6 +2799,7 @@ function singleObjectiveSeedWeights(
   add('preferredTeacherContinuity');
   add('teacherIdleGaps');
   add('roomStability');
+  add('teacherLoadBalance');
 
   return seeds;
 }
@@ -2856,6 +2914,7 @@ export function runManagementObjectiveOptimization(
     preferredTeacherContinuityBreaks: 0,
     teacherIdleGapPeriods: 0,
     roomStabilityBreaks: 0,
+    teacherLoadDeviationPeriods: 0,
   };
   const emptyScore = objectiveScore(
     emptyMetrics,
@@ -2993,6 +3052,8 @@ export function runManagementObjectiveOptimization(
       - right.metrics.teacherIdleGapPeriods
     || left.metrics.roomStabilityBreaks
       - right.metrics.roomStabilityBreaks
+    || left.metrics.teacherLoadDeviationPeriods
+      - right.metrics.teacherLoadDeviationPeriods
     || left.sourceKey.localeCompare(right.sourceKey)
   ));
 

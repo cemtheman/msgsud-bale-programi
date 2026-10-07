@@ -107,18 +107,21 @@ function result(): ManagementOptimizationResult {
       preferredTeacherContinuityBreaks: 0,
       teacherIdleGapPeriods: 5,
       roomStabilityBreaks: 0,
+      teacherLoadDeviationPeriods: 0,
     },
     proposedMetrics: {
       changeCost: 1,
       preferredTeacherContinuityBreaks: 0,
       teacherIdleGapPeriods: 2,
       roomStabilityBreaks: 0,
+      teacherLoadDeviationPeriods: 0,
     },
     delta: {
       changeCost: 1,
       preferredTeacherContinuityBreaks: 0,
       teacherIdleGapPeriods: -3,
       roomStabilityBreaks: 0,
+      teacherLoadDeviationPeriods: 0,
     },
     baselineScore: {
       total: 5,
@@ -142,6 +145,12 @@ function result(): ManagementOptimizationResult {
           contribution: 5,
         },
         roomStability: {
+          rawValue: 0,
+          normalizedValue: 0,
+          weight: 0,
+          contribution: 0,
+        },
+        teacherLoadBalance: {
           rawValue: 0,
           normalizedValue: 0,
           weight: 0,
@@ -171,6 +180,12 @@ function result(): ManagementOptimizationResult {
           contribution: 2,
         },
         roomStability: {
+          rawValue: 0,
+          normalizedValue: 0,
+          weight: 0,
+          contribution: 0,
+        },
+        teacherLoadBalance: {
           rawValue: 0,
           normalizedValue: 0,
           weight: 0,

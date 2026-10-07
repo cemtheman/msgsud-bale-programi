@@ -6,7 +6,7 @@ import {
 } from '@/lib/managementSolver';
 
 describe('management solver objective weight compatibility', () => {
-  it('zeros legacy unsupported objective weights while keeping supported values', () => {
+  it('keeps teacher-load weights while zeroing the still-unsupported time preference', () => {
     expect(sanitizeManagementSolverObjectiveWeights({
       changeCost: 250,
       preferredTeacherContinuity: 250,
@@ -19,7 +19,7 @@ describe('management solver objective weight compatibility', () => {
       preferredTeacherContinuity: 250,
       teacherIdleGaps: 250,
       roomStability: 250,
-      teacherLoadBalance: 0,
+      teacherLoadBalance: 1000,
       subjectTimePreference: 0,
     });
   });
@@ -32,6 +32,6 @@ describe('management solver objective weight compatibility', () => {
       roomStability: 250,
       teacherLoadBalance: 1000,
       subjectTimePreference: 0,
-    })).toBe(4);
+    })).toBe(5);
   });
 });

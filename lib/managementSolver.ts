@@ -18,10 +18,10 @@ export const SUPPORTED_MANAGEMENT_OBJECTIVE_KEYS = [
   'preferredTeacherContinuity',
   'teacherIdleGaps',
   'roomStability',
+  'teacherLoadBalance',
 ] as const satisfies readonly ManagementSolverObjectiveKey[];
 
 export const UNSUPPORTED_MANAGEMENT_OBJECTIVE_KEYS = [
-  'teacherLoadBalance',
   'subjectTimePreference',
 ] as const satisfies readonly ManagementSolverObjectiveKey[];
 
@@ -38,7 +38,7 @@ export function sanitizeManagementSolverObjectiveWeights(
     preferredTeacherContinuity: weights?.preferredTeacherContinuity ?? 0,
     teacherIdleGaps: weights?.teacherIdleGaps ?? 0,
     roomStability: weights?.roomStability ?? 0,
-    teacherLoadBalance: 0,
+    teacherLoadBalance: weights?.teacherLoadBalance ?? 0,
     subjectTimePreference: 0,
   };
 }
