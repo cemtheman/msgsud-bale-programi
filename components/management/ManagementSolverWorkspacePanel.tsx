@@ -1,16 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type {
-  ManagementSolverObjectiveKey,
-  ManagementSolverObjectiveProfile,
-  ManagementSolverObjectiveWeights,
-  ManagementSolverProfileInput,
-  ManagementSolverProfileStatus,
-  ManagementSolverRequirement,
-  ManagementSolverWorkspace,
+import {
   countEnabledSupportedManagementObjectives,
   sanitizeManagementSolverObjectiveWeights,
+  type ManagementSolverObjectiveKey,
+  type ManagementSolverObjectiveProfile,
+  type ManagementSolverObjectiveWeights,
+  type ManagementSolverProfileInput,
+  type ManagementSolverProfileStatus,
+  type ManagementSolverRequirement,
+  type ManagementSolverWorkspace,
 } from '@/lib/managementSolver';
 import {
   runManagementFeasibilityPrototype,
