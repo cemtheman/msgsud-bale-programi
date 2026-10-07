@@ -1345,8 +1345,20 @@ function baselinePinnedCandidatesForCard(
     return [];
   }
 
+  const activePoolTeachers = (
+    context.teacherPools.get(requirement.id) ?? []
+  ).filter((teacherId) => context.activeTeacherIds.has(teacherId));
+
   const teacherIds = baseline.teacherId != null
-    ? [baseline.teacherId]
+    ? (
+        !card.locked
+        && requirement.teacherMode === 'ELIGIBLE_POOL'
+      )
+        ? unique([
+            baseline.teacherId,
+            ...activePoolTeachers,
+          ])
+        : [baseline.teacherId]
     : requirement.teacherRequirement === 'REQUIRED'
       ? teacherChoices(requirement, baseline, card.locked, context)
       : [null];

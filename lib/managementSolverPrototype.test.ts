@@ -366,6 +366,123 @@ describe('M33.2 in-memory feasibility prototype', () => {
     );
   });
 
+  it('keeps time pinned but can replace a conflicting ELIGIBLE_POOL baseline teacher', () => {
+    const base = snapshot();
+
+    const result = runManagementFeasibilityPrototype(snapshot({
+      requirements: [
+        {
+          ...base.requirements[0],
+          id: 'r1',
+          teacherMode: 'FIXED',
+        },
+        {
+          ...base.requirements[0],
+          id: 'r2',
+          subjectId: 's2',
+          subjectName: 'Pilates',
+          groupId: 'g2',
+          groupName: '11A + 12A',
+          teacherMode: 'ELIGIBLE_POOL',
+        },
+      ],
+      cards: [
+        {
+          id: 'c1',
+          requirementId: 'r1',
+          blockIndex: 1,
+          durationPeriods: 1,
+          locked: false,
+        },
+        {
+          id: 'c2',
+          requirementId: 'r2',
+          blockIndex: 1,
+          durationPeriods: 1,
+          locked: false,
+        },
+      ],
+      instructionalGroups: [
+        ...base.instructionalGroups,
+        {
+          id: 'g2',
+          classGroupId: 'cg2',
+          name: '11A + 12A',
+          groupType: 'SECTION',
+          termStatus: 'ACTIVE',
+          knowledgeStatus: 'CONFIRMED',
+        },
+      ],
+      teacherPools: [
+        { requirementId: 'r1', teacherId: 't1' },
+        { requirementId: 'r2', teacherId: 't1' },
+        { requirementId: 'r2', teacherId: 't2' },
+      ],
+      teachers: [
+        { id: 't1', name: 'E. Gemalmaz', operationalStatus: 'ACTIVE' },
+        { id: 't2', name: 'Pilates Öğretmeni', operationalStatus: 'ACTIVE' },
+      ],
+      roomPools: [
+        { requirementId: 'r1', roomId: 'room1' },
+        { requirementId: 'r2', roomId: 'room2' },
+      ],
+      rooms: [
+        ...base.rooms,
+        {
+          id: 'room2',
+          name: 'B Salon',
+          canonicalRoomId: null,
+          capabilities: [],
+          knowledgeStatus: 'CONFIRMED',
+          operationalStatus: 'ACTIVE',
+        },
+      ],
+      baselinePlacements: [
+        {
+          cardId: 'c1',
+          dayOfWeek: 5,
+          startPeriod: 8,
+          teacherId: 't1',
+          roomId: 'room1',
+        },
+        {
+          cardId: 'c2',
+          dayOfWeek: 5,
+          startPeriod: 8,
+          teacherId: 't1',
+          roomId: 'room2',
+        },
+      ],
+      baselineMetrics: {
+        ...base.baselineMetrics,
+        cardCount: 2,
+        placedCardCount: 2,
+      },
+    }));
+
+    expect(result.status).toBe('FEASIBLE');
+    expect(result.baselineWasFeasible).toBe(false);
+
+    const fixed = result.placements.find(
+      (placement) => placement.cardId === 'c1',
+    );
+    const eligible = result.placements.find(
+      (placement) => placement.cardId === 'c2',
+    );
+
+    expect(fixed).toMatchObject({
+      dayOfWeek: 5,
+      startPeriod: 8,
+      teacherId: 't1',
+    });
+    expect(eligible).toMatchObject({
+      dayOfWeek: 5,
+      startPeriod: 8,
+      teacherId: 't2',
+    });
+    expect(result.metrics.visitedNodeCount).toBeLessThan(10);
+  });
+
   it('moves an unlocked baseline card in memory when participant groups conflict', () => {
     const data = snapshot({
       requirements: [
