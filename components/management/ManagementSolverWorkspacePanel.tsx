@@ -359,6 +359,15 @@ export function ManagementSolverWorkspacePanel({
   );
   const preferenceAdjustedCards = (optimizationResult?.changedCards ?? [])
     .filter((item) => preferenceAdjustedCardIds.has(item.cardId));
+  const mandatoryRepairCardIds = new Set(
+    (feasibilityResult?.changedCards ?? []).map((item) => item.cardId),
+  );
+  const preferenceNewCardCount = preferenceAdjustedCards.filter(
+    (item) => !mandatoryRepairCardIds.has(item.cardId),
+  ).length;
+  const preferenceOverlapCount = (
+    preferenceAdjustedCards.length - preferenceNewCardCount
+  );
   const mandatoryRepairCount = feasibilityResult?.changedCards?.length ?? 0;
 
   const loadProfile = (profile: ManagementSolverObjectiveProfile | null) => {
@@ -1321,7 +1330,7 @@ export function ManagementSolverWorkspacePanel({
                   </p>
                   <p className="mt-1 text-[11px] font-medium leading-4 text-slate-600">
                     {optimizationResult.status === 'IMPROVED'
-                      ? `Temel çözüm ${mandatoryRepairCount} dersi düzeltiyor; tercihler bunun üzerine ${preferenceAdjustedCards.length} derste ek ayar yapıyor. Nihai öneri mevcut programa göre ${optimizationResult.changedCards.length} dersi etkiliyor.`
+                      ? `Temel çözüm ${mandatoryRepairCount} dersi düzeltiyor. Tercihler ${preferenceAdjustedCards.length} dersin temel çözümdeki yerleşimini yeniden ayarlıyor; bunların ${preferenceNewCardCount} tanesi toplam etkiye yeni ekleniyor${preferenceOverlapCount > 0 ? `, ${preferenceOverlapCount} tanesi zaten zorunlu düzeltme kapsamındaydı` : ''}. Nihai öneri mevcut programa göre ${optimizationResult.changedCards.length} dersi etkiliyor.`
                       : optimizationResult.status === 'UNCHANGED'
                         ? 'Tercihler, kurallara uygun temel çözümün üzerine ek bir iyileştirme getirmedi.'
                         : optimizationResult.reasons.includes('FEASIBLE_SEED_INVALID')
@@ -1404,7 +1413,7 @@ export function ManagementSolverWorkspacePanel({
                             </p>
                             <p className="mt-0.5 text-[10px] font-medium text-slate-500">
                               {preferenceAdjustedCards.length > 0
-                                ? `${preferenceAdjustedCards.length} derste temel çözümden farklı bir tercih yapıldı.`
+                                ? `${preferenceAdjustedCards.length} ders yeniden ayarlanıyor; ${preferenceNewCardCount} ders toplam etkiye yeni ekleniyor.`
                                 : 'Tercihler temel çözümde ek ders değişikliği oluşturmadı.'}
                             </p>
                           </div>
