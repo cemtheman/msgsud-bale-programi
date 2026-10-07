@@ -1733,6 +1733,27 @@ function tryBaselinePinnedTeacherResolution(
 
   if (!greedyFailed && !greedyFinalRulesHold) {
     diagnostics.push('PINNED_GREEDY_FINAL_RULES_FAILED');
+    diagnostics.push(
+      `PINNED_GREEDY_ASSIGNMENT_COUNT:${assignments.length}/${cards.length}`,
+    );
+
+    for (const requirement of context.requirements.values()) {
+      if (requirement.minDistinctDays == null) continue;
+
+      const distinctDays = new Set(
+        assignments
+          .filter(
+            (assignment) => assignment.requirementId === requirement.id,
+          )
+          .map((assignment) => assignment.dayOfWeek),
+      ).size;
+
+      if (distinctDays < requirement.minDistinctDays) {
+        diagnostics.push(
+          `PINNED_GREEDY_MIN_DISTINCT_DAYS:${requirement.id}:${distinctDays}/${requirement.minDistinctDays}`,
+        );
+      }
+    }
   }
 
   if (greedyFinalRulesHold) {
