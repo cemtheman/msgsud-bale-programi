@@ -1323,6 +1323,7 @@ function tryBaseline(
 function baselinePinnedCandidatesForCard(
   card: ManagementSolverCard,
   context: SolverContext,
+  teacherRepairCardIds: Set<string>,
 ) {
   const requirement = context.requirements.get(card.requirementId);
   const baseline = context.baseline.get(card.id);
@@ -1353,6 +1354,7 @@ function baselinePinnedCandidatesForCard(
     ? (
         !card.locked
         && requirement.teacherMode === 'ELIGIBLE_POOL'
+        && teacherRepairCardIds.has(card.id)
       )
         ? unique([
             baseline.teacherId,
@@ -1412,11 +1414,21 @@ function tryBaselinePinnedTeacherResolution(
   cards: ManagementSolverCard[],
   context: SolverContext,
   maxVisitedNodes: number,
+  baselineIssues: ManagementFeasibilityBaselineIssue[],
 ) {
   const domains = new Map<string, Candidate[]>();
+  const teacherRepairCardIds = new Set(
+    baselineIssues
+      .filter((issue) => issue.codes.includes('BASELINE_TEACHER_CONFLICT'))
+      .map((issue) => issue.cardId),
+  );
 
   for (const card of cards) {
-    const candidates = baselinePinnedCandidatesForCard(card, context);
+    const candidates = baselinePinnedCandidatesForCard(
+      card,
+      context,
+      teacherRepairCardIds,
+    );
     if (candidates.length === 0) {
       return null;
     }
@@ -1674,6 +1686,7 @@ export function runManagementFeasibilityPrototype(
       cards,
       context,
       maxVisitedNodes,
+      baselineIssues,
     );
 
     if (pinnedResolution) {
