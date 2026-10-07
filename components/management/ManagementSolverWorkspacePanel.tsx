@@ -236,6 +236,7 @@ export function ManagementSolverWorkspacePanel({
   const [activationPending, setActivationPending] = useState(false);
   const [proposalApplyPending, setProposalApplyPending] = useState(false);
   const [proposalApplyError, setProposalApplyError] = useState<string | null>(null);
+  const [feasibilityDetailsOpen, setFeasibilityDetailsOpen] = useState(false);
 
   const selectedProfile = useMemo(
     () => data?.profiles.find((profile) => profile.id === selectedProfileId) ?? null,
@@ -304,6 +305,30 @@ export function ManagementSolverWorkspacePanel({
   const additionalBaselineIssues = (
     feasibilityResult?.baselineIssues ?? []
   ).filter((issue) => !changedCardIds.has(issue.cardId));
+
+  const feasibilityChangedCards = feasibilityResult?.changedCards ?? [];
+  const directChangedCount = feasibilityChangedCards.filter(
+    (item) => item.baselineIssueCodes.length > 0,
+  ).length;
+  const rippleChangedCount = feasibilityChangedCards.length - directChangedCount;
+  const timeChangedCount = feasibilityChangedCards.filter((item) => (
+    item.baseline.dayOfWeek !== item.proposed.dayOfWeek
+    || item.baseline.startPeriod !== item.proposed.startPeriod
+  )).length;
+  const teacherChangedCount = feasibilityChangedCards.filter(
+    (item) => item.baseline.teacherName !== item.proposed.teacherName,
+  ).length;
+  const roomChangedCount = feasibilityChangedCards.filter(
+    (item) => item.baseline.roomName !== item.proposed.roomName,
+  ).length;
+  const issueCodeCounts = new Map<string, number>();
+  for (const issue of feasibilityResult?.baselineIssues ?? []) {
+    for (const code of issue.codes) {
+      issueCodeCounts.set(code, (issueCodeCounts.get(code) ?? 0) + 1);
+    }
+  }
+  const issueSummary = [...issueCodeCounts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
 
   const loadProfile = (profile: ManagementSolverObjectiveProfile | null) => {
     setSelectedProfileId(profile?.id ?? null);
@@ -385,6 +410,7 @@ export function ManagementSolverWorkspacePanel({
     setLocalError(null);
 
     try {
+      setFeasibilityDetailsOpen(false);
       setFeasibilityResult(
         runManagementFeasibilityPrototype(data.preview),
       );
@@ -903,156 +929,266 @@ export function ManagementSolverWorkspacePanel({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[12px] font-black text-amber-950">
-                      Kurallara uygun bir seçenek bulmak için {feasibilityResult.changedCards.length} dersin yeri değişti
+                      Uygun seçenek için {feasibilityResult.changedCards.length} ders etkileniyor
                     </p>
                     <p className="mt-1 max-w-4xl text-[11px] font-medium leading-4 text-amber-800">
-                      Bu yalnızca karşılaştırmadır; program değişmedi. Aşağıda hangi derslerin neden etkilendiğini görebilirsiniz.
+                      Bu yalnızca karşılaştırmadır; program değişmedi. Önce özet etkiyi inceleyin, gerekirse ders ayrıntılarını açın.
                     </p>
                   </div>
                   <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-black text-amber-700">
-                    {feasibilityResult.baselineIssues?.length ?? 0} kural uyuşmazlığı
+                    {feasibilityResult.baselineIssues?.length ?? 0} uyarılı ders
                   </span>
                 </div>
 
-                <div className="mt-3 grid gap-2">
-                  {feasibilityResult.changedCards.map((item) => (
-                    <div
-                      key={item.cardId}
-                      className="rounded-xl border border-amber-100 bg-white px-3 py-3"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="text-[12px] font-black text-slate-900">
-                            {displayGroupName(item.groupName)} · {item.subjectName} · {item.blockIndex}. bölüm
-                          </p>
-                          <p className="mt-1 text-[11px] font-medium text-slate-500">
-                            Önce: {placementSummary(
-                              item.baseline.dayOfWeek,
-                              item.baseline.startPeriod,
-                              item.baseline.teacherName,
-                              item.baseline.roomName,
-                            )}
-                          </p>
-                          <p className="mt-0.5 text-[11px] font-bold text-slate-700">
-                            Alternatif yerleşim: {placementSummary(
-                              item.proposed.dayOfWeek,
-                              item.proposed.startPeriod,
-                              item.proposed.teacherName,
-                              item.proposed.roomName,
-                            )}
-                          </p>
-                        </div>
-                      </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-5">
+                  <div className="rounded-xl border border-amber-100 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-400">
+                      Doğrudan düzeltme
+                    </p>
+                    <p className="mt-1 text-[14px] font-black text-slate-900">
+                      {directChangedCount}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                      Kendi kural sorunu nedeniyle
+                    </p>
+                  </div>
 
-                      {item.baselineIssueCodes.length > 0 ? (
-                        <div className="mt-2">
-                          <div className="flex flex-wrap gap-1.5">
-                            {item.baselineIssueCodes.map((code) => (
-                              <span
-                                key={code}
-                                className="rounded-full bg-amber-100 px-2 py-1 text-[12px] font-black text-amber-800"
-                                title={BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
-                              >
-                                {BASELINE_ISSUE_LABELS[code] ?? code}
-                              </span>
-                            ))}
-                          </div>
-                          {item.baselineIssueCodes.map((code) => {
-                            const detail = baselineIssueDetail(
-                              code,
-                              data.preview.requirements.find(
-                                (requirement) => requirement.id === item.requirementId,
-                              ),
-                            );
+                  <div className="rounded-xl border border-amber-100 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-400">
+                      Zincirleme etki
+                    </p>
+                    <p className="mt-1 text-[14px] font-black text-slate-900">
+                      {rippleChangedCount}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                      Diğer dersleri çözmek için
+                    </p>
+                  </div>
 
-                            return detail ? (
-                              <p
-                                key={`${code}-detail`}
-                                className="mt-1.5 text-[12px] font-semibold text-amber-800"
-                              >
-                                {detail}
-                              </p>
-                            ) : null;
-                          })}
-                        </div>
-                      ) : (
-                        <p className="mt-2 text-[12px] font-bold text-slate-400">
-                          Bu derste doğrudan bir sorun yok; diğer derslerdeki uyuşmazlıkları gidermek için alternatif yerleşimde yeri değişti.
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                  <div className="rounded-xl border border-amber-100 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-400">
+                      Gün / saat
+                    </p>
+                    <p className="mt-1 text-[14px] font-black text-slate-900">
+                      {timeChangedCount}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                      Zamanı değişen ders
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-100 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-400">
+                      Öğretmen
+                    </p>
+                    <p className="mt-1 text-[14px] font-black text-slate-900">
+                      {teacherChangedCount}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                      Öğretmeni değişen ders
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-100 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-400">
+                      Salon
+                    </p>
+                    <p className="mt-1 text-[14px] font-black text-slate-900">
+                      {roomChangedCount}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                      Salonu değişen ders
+                    </p>
+                  </div>
                 </div>
 
-                {additionalBaselineIssues.length > 0 && (
-                  <div className="mt-4 border-t border-amber-200 pt-3">
-                    <p className="text-[11px] font-black text-amber-950">
-                      Yeri değişmeden kalan diğer uyarılı dersler
-                    </p>
-                    <p className="mt-1 text-[12px] font-medium leading-4 text-amber-800">
-                      Bu derslerin yeri değişmedi; ancak aynı kural uyuşmazlığından etkileniyorlar.
-                    </p>
-
-                    <div className="mt-2 grid gap-2">
-                      {additionalBaselineIssues.map((issue) => {
-                        const requirement = data.preview.requirements.find(
-                          (item) => item.id === issue.requirementId,
-                        );
-                        const placement = data.preview.baselinePlacements.find(
-                          (item) => item.cardId === issue.cardId,
-                        );
-                        const teacherName = placement?.teacherId
-                          ? data.preview.teachers.find(
-                            (item) => item.id === placement.teacherId,
-                          )?.name ?? null
-                          : null;
-                        const roomName = placement?.roomId
-                          ? data.preview.rooms.find(
-                            (item) => item.id === placement.roomId,
-                          )?.name ?? null
-                          : null;
-
-                        return (
-                          <div
-                            key={issue.cardId}
-                            className="rounded-xl border border-amber-100 bg-white px-3 py-2.5"
-                          >
-                            <p className="text-[11px] font-black text-slate-900">
-                              {displayGroupName(issue.groupName)} · {issue.subjectName} · {issue.blockIndex}. bölüm
-                            </p>
-                            <p className="mt-1 text-[12px] font-medium text-slate-500">
-                              Mevcut: {placementSummary(
-                                placement?.dayOfWeek ?? null,
-                                placement?.startPeriod ?? null,
-                                teacherName,
-                                roomName,
-                              )}
-                            </p>
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {issue.codes.map((code) => (
-                                <span
-                                  key={code}
-                                  className="rounded-full bg-amber-100 px-2 py-1 text-[12px] font-black text-amber-800"
-                                >
-                                  {BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
-                                </span>
-                              ))}
-                            </div>
-                            {issue.codes.map((code) => {
-                              const detail = baselineIssueDetail(code, requirement);
-                              return detail ? (
-                                <p
-                                  key={`${code}-detail`}
-                                  className="mt-1.5 text-[12px] font-semibold text-amber-800"
-                                >
-                                  {detail}
-                                </p>
-                              ) : null;
-                            })}
-                          </div>
-                        );
-                      })}
+                {issueSummary.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-amber-100 bg-white px-3 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-[11px] font-black text-slate-900">
+                        Mevcut programdaki başlıca uyarılar
+                      </p>
+                      <p className="text-[10px] font-semibold text-slate-400">
+                        Aynı ders birden fazla uyarıya dahil olabilir.
+                      </p>
                     </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {issueSummary.map(([code, count]) => (
+                        <span
+                          key={code}
+                          className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-black text-amber-800"
+                        >
+                          {BASELINE_ISSUE_LABELS[code] ?? code} · {count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-amber-200 pt-3">
+                  <div>
+                    <p className="text-[11px] font-black text-amber-950">
+                      Ders bazında karşılaştırma
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-amber-800">
+                      {feasibilityResult.changedCards.length} değişen ders
+                      {additionalBaselineIssues.length > 0
+                        ? ` · ${additionalBaselineIssues.length} yerinde kalan uyarılı ders`
+                        : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFeasibilityDetailsOpen((current) => !current)}
+                    className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-[11px] font-black text-amber-800 hover:bg-amber-50"
+                  >
+                    {feasibilityDetailsOpen ? 'Ayrıntıları kapat' : 'Ders ayrıntılarını göster'}
+                  </button>
+                </div>
+
+                {feasibilityDetailsOpen && (
+                  <div className="mt-3">
+                    <div className="grid gap-2">
+                      {feasibilityResult.changedCards.map((item) => (
+                        <div
+                          key={item.cardId}
+                          className="rounded-xl border border-amber-100 bg-white px-3 py-3"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="text-[12px] font-black text-slate-900">
+                                {displayGroupName(item.groupName)} · {item.subjectName} · {item.blockIndex}. bölüm
+                              </p>
+                              <p className="mt-1 text-[11px] font-medium text-slate-500">
+                                Önce: {placementSummary(
+                                  item.baseline.dayOfWeek,
+                                  item.baseline.startPeriod,
+                                  item.baseline.teacherName,
+                                  item.baseline.roomName,
+                                )}
+                              </p>
+                              <p className="mt-0.5 text-[11px] font-bold text-slate-700">
+                                Alternatif: {placementSummary(
+                                  item.proposed.dayOfWeek,
+                                  item.proposed.startPeriod,
+                                  item.proposed.teacherName,
+                                  item.proposed.roomName,
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          {item.baselineIssueCodes.length > 0 ? (
+                            <div className="mt-2">
+                              <div className="flex flex-wrap gap-1.5">
+                                {item.baselineIssueCodes.map((code) => (
+                                  <span
+                                    key={code}
+                                    className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-800"
+                                    title={BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
+                                  >
+                                    {BASELINE_ISSUE_LABELS[code] ?? code}
+                                  </span>
+                                ))}
+                              </div>
+                              {item.baselineIssueCodes.map((code) => {
+                                const detail = baselineIssueDetail(
+                                  code,
+                                  data.preview.requirements.find(
+                                    (requirement) => requirement.id === item.requirementId,
+                                  ),
+                                );
+
+                                return detail ? (
+                                  <p
+                                    key={`${code}-detail`}
+                                    className="mt-1.5 text-[11px] font-semibold text-amber-800"
+                                  >
+                                    {detail}
+                                  </p>
+                                ) : null;
+                              })}
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-[11px] font-bold text-slate-400">
+                              Doğrudan kural sorunu yok; diğer uyuşmazlıkları çözmek için zincirleme olarak değişiyor.
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {additionalBaselineIssues.length > 0 && (
+                      <div className="mt-4 border-t border-amber-200 pt-3">
+                        <p className="text-[11px] font-black text-amber-950">
+                          Yeri değişmeden kalan uyarılı dersler
+                        </p>
+                        <p className="mt-1 text-[11px] font-medium leading-4 text-amber-800">
+                          Alternatifte bu derslerin yeri korunuyor; ancak mevcut programdaki uyarının diğer tarafında yer alıyorlar.
+                        </p>
+
+                        <div className="mt-2 grid gap-2">
+                          {additionalBaselineIssues.map((issue) => {
+                            const requirement = data.preview.requirements.find(
+                              (item) => item.id === issue.requirementId,
+                            );
+                            const placement = data.preview.baselinePlacements.find(
+                              (item) => item.cardId === issue.cardId,
+                            );
+                            const teacherName = placement?.teacherId
+                              ? data.preview.teachers.find(
+                                (item) => item.id === placement.teacherId,
+                              )?.name ?? null
+                              : null;
+                            const roomName = placement?.roomId
+                              ? data.preview.rooms.find(
+                                (item) => item.id === placement.roomId,
+                              )?.name ?? null
+                              : null;
+
+                            return (
+                              <div
+                                key={issue.cardId}
+                                className="rounded-xl border border-amber-100 bg-white px-3 py-2.5"
+                              >
+                                <p className="text-[11px] font-black text-slate-900">
+                                  {displayGroupName(issue.groupName)} · {issue.subjectName} · {issue.blockIndex}. bölüm
+                                </p>
+                                <p className="mt-1 text-[11px] font-medium text-slate-500">
+                                  Mevcut: {placementSummary(
+                                    placement?.dayOfWeek ?? null,
+                                    placement?.startPeriod ?? null,
+                                    teacherName,
+                                    roomName,
+                                  )}
+                                </p>
+                                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                  {issue.codes.map((code) => (
+                                    <span
+                                      key={code}
+                                      className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-800"
+                                    >
+                                      {BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
+                                    </span>
+                                  ))}
+                                </div>
+                                {issue.codes.map((code) => {
+                                  const detail = baselineIssueDetail(code, requirement);
+                                  return detail ? (
+                                    <p
+                                      key={`${code}-detail`}
+                                      className="mt-1.5 text-[11px] font-semibold text-amber-800"
+                                    >
+                                      {detail}
+                                    </p>
+                                  ) : null;
+                                })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
