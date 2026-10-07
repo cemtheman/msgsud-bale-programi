@@ -431,6 +431,7 @@ export function ManagementSolverWorkspacePanel({
       !hardReady
       || optimizationBusy
       || positiveObjectiveCount === 0
+      || feasibilityResult?.status !== 'FEASIBLE'
     ) {
       return;
     }
@@ -454,6 +455,9 @@ export function ManagementSolverWorkspacePanel({
         runManagementObjectiveOptimization(
           data.preview,
           weights,
+          {
+            seedPlacements: feasibilityResult.placements,
+          },
         ),
       );
     } catch (reason: unknown) {
@@ -1207,8 +1211,8 @@ export function ManagementSolverWorkspacePanel({
                   Bu tercihlere göre daha uygun bir yerleşim var mı?
                 </h2>
                 <p className="mt-2 text-[12px] font-medium leading-5 text-slate-600">
-                  Ekranda seçili öncelikleri kullanarak mevcut programa yakın alternatifleri karşılaştırır.
-                  Denemek için ayarı kaydetmeniz gerekmez; sonuç yalnızca öneridir ve programı değiştirmez.
+                  Önce program kontrolünde bulunan kurallara uygun temel çözümü esas alır; ardından ekrandaki önceliklere göre
+                  daha iyi bir seçenek arar. Denemek için ayarı kaydetmeniz gerekmez; sonuç yalnızca öneridir ve programı değiştirmez.
                 </p>
               </div>
 
@@ -1219,6 +1223,7 @@ export function ManagementSolverWorkspacePanel({
                   !hardReady
                   || optimizationBusy
                   || positiveObjectiveCount === 0
+                  || feasibilityResult?.status !== 'FEASIBLE'
                 }
                 className="shrink-0 rounded-xl bg-[#A63D48] px-4 py-2.5 text-[12px] font-black text-white hover:bg-[#8F3340] disabled:cursor-not-allowed disabled:opacity-35"
               >
@@ -1249,9 +1254,15 @@ export function ManagementSolverWorkspacePanel({
               </div>
             )}
 
+            {feasibilityResult?.status !== 'FEASIBLE' && (
+              <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-[11px] font-bold text-blue-800">
+                Önce Program kontrolü bölümünde kurallara uygun bir temel çözüm bulun.
+              </div>
+            )}
+
             {positiveObjectiveCount === 0 && (
               <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-bold text-amber-800">
-                Önce en az bir tercihe Düşük, Orta, Yüksek veya Çok yüksek öncelik verin.
+                Ardından en az bir tercihe Düşük, Orta, Yüksek veya Çok yüksek öncelik verin.
               </div>
             )}
 
@@ -1282,7 +1293,9 @@ export function ManagementSolverWorkspacePanel({
                       ? `${optimizationResult.changedCards.length} ders için farklı yerleşim öneriliyor.`
                       : optimizationResult.status === 'UNCHANGED'
                         ? 'Mevcut program korunuyor.'
-                        : 'Önce program kontrolünün temiz olduğundan ve en az bir tercihin açık olduğundan emin olun.'}
+                        : optimizationResult.reasons.includes('FEASIBLE_SEED_INVALID')
+                          ? 'Program kontrolündeki temel çözüm artık kullanılamıyor. Programı yeniden kontrol edin.'
+                          : 'Kurallara uygun temel çözüm ve en az bir açık tercih gerektiğini kontrol edin.'}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-400">

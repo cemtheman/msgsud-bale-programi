@@ -483,3 +483,46 @@ describe('M33.3 weighted objective optimization', () => {
     expect(result.writesPerformed).toBe(false);
   });
 });
+
+
+describe('objective optimization feasible seed', () => {
+  it('can optimize from a feasible repair even when the original baseline is not feasible', () => {
+    const source = baseSnapshot();
+    const baselinePlacement = source.baselinePlacements[0];
+
+    const broken = {
+      ...source,
+      baselinePlacements: source.baselinePlacements.map((placement, index) => (
+        index === 0
+          ? { ...placement, teacherId: null }
+          : placement
+      )),
+    };
+
+    const seed = source.baselinePlacements.map((placement) => ({
+      cardId: placement.cardId,
+      dayOfWeek: placement.dayOfWeek as number,
+      startPeriod: placement.startPeriod as number,
+      teacherId: placement.teacherId,
+      roomId: placement.roomId,
+      provisionalRoom: false,
+      baseline: placement.cardId !== baselinePlacement.cardId,
+    }));
+
+    const result = runManagementObjectiveOptimization(
+      broken,
+      {
+        changeCost: 1000,
+        preferredTeacherContinuity: 0,
+        teacherIdleGaps: 0,
+        roomStability: 0,
+        teacherLoadBalance: 0,
+        subjectTimePreference: 0,
+      },
+      { seedPlacements: seed },
+    );
+
+    expect(result.status).not.toBe('BLOCKED');
+    expect(result.placements).toHaveLength(broken.cards.length);
+  });
+});

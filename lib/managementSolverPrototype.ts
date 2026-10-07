@@ -2311,6 +2311,7 @@ export interface ManagementOptimizationOptions {
   maxIterations?: number;
   maxNeighborsPerCard?: number;
   maxCandidatesPerCard?: number;
+  seedPlacements?: ManagementFeasibilityPlacement[];
 }
 
 const DEFAULT_OPTIMIZATION_ITERATIONS = 8;
@@ -2758,6 +2759,80 @@ function targetScoreForAssignments(
   };
 }
 
+function assignmentsFromOptimizationSeed(
+  placements: ManagementFeasibilityPlacement[],
+  cards: ManagementSolverCard[],
+  context: SolverContext,
+) {
+  if (placements.length !== cards.length) return null;
+
+  const byCardId = new Map(
+    placements.map((placement) => [placement.cardId, placement]),
+  );
+  if (byCardId.size !== cards.length) return null;
+
+  const assignments: Candidate[] = [];
+  const remainingByRequirement = new Map<string, number>();
+
+  for (const card of cards) {
+    remainingByRequirement.set(
+      card.requirementId,
+      (remainingByRequirement.get(card.requirementId) ?? 0) + 1,
+    );
+  }
+
+  for (const card of cards) {
+    const placement = byCardId.get(card.id);
+    const requirement = context.requirements.get(card.requirementId);
+    if (!placement || !requirement) return null;
+
+    const baseline = context.baseline.get(card.id);
+    const candidate: Candidate = {
+      cardId: card.id,
+      requirementId: card.requirementId,
+      groupId: requirement.groupId,
+      durationPeriods: card.durationPeriods,
+      dayOfWeek: placement.dayOfWeek,
+      startPeriod: placement.startPeriod,
+      endPeriod: placement.startPeriod + card.durationPeriods - 1,
+      teacherId: placement.teacherId,
+      roomId: placement.roomId,
+      roomConflictKey: roomConflictKey(placement.roomId, context),
+      provisionalRoom: placement.provisionalRoom,
+      baseline: (
+        baselinePlacementIsMaterialized(baseline)
+        && baseline.dayOfWeek === placement.dayOfWeek
+        && baseline.startPeriod === placement.startPeriod
+        && baseline.teacherId === placement.teacherId
+        && baseline.roomId === placement.roomId
+      ),
+    };
+
+    remainingByRequirement.set(
+      card.requirementId,
+      Math.max(
+        (remainingByRequirement.get(card.requirementId) ?? 1) - 1,
+        0,
+      ),
+    );
+
+    if (!canAssign(
+      candidate,
+      assignments,
+      remainingByRequirement,
+      context,
+    )) {
+      return null;
+    }
+
+    assignments.push(candidate);
+  }
+
+  return finalRequirementRulesHold(assignments, context)
+    ? assignments
+    : null;
+}
+
 export function runManagementObjectiveOptimization(
   snapshot: ManagementSolverSnapshotPreview,
   weights: ManagementSolverObjectiveWeights,
@@ -2819,9 +2894,20 @@ export function runManagementObjectiveOptimization(
     return blocked('NO_ACTIVE_SUPPORTED_PRIORITIES');
   }
 
-  const baselineAssignments = tryBaseline(cards, context);
+  const baselineAssignments = options.seedPlacements
+    ? assignmentsFromOptimizationSeed(
+        options.seedPlacements,
+        cards,
+        context,
+      )
+    : tryBaseline(cards, context);
+
   if (!baselineAssignments) {
-    return blocked('BASELINE_NOT_FEASIBLE');
+    return blocked(
+      options.seedPlacements
+        ? 'FEASIBLE_SEED_INVALID'
+        : 'BASELINE_NOT_FEASIBLE',
+    );
   }
 
   const domains = new Map<string, Candidate[]>();
