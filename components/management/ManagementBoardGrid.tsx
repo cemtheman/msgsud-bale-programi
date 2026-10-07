@@ -572,6 +572,7 @@ export function ManagementBoardGrid({
   dragStartOffsetsByCardId,
   dragCandidateDetails,
   dragLoading,
+  onDragPrepare,
   onDragStart,
   onDragEnd,
   onDropCandidates,
@@ -591,6 +592,7 @@ export function ManagementBoardGrid({
   dragStartOffsetsByCardId: Record<string, number>;
   dragCandidateDetails: Record<string, ManagementCandidateDetail>;
   dragLoading: boolean;
+  onDragPrepare: (cardId: string, sourceCardIds?: string[]) => void;
   onDragStart: (cardId: string, sourceCardIds?: string[]) => void;
   onDragEnd: () => void;
   onDropCandidates: (candidates: ManagementGroupDropCandidate[]) => void;
@@ -773,6 +775,11 @@ export function ManagementBoardGrid({
                             key={displayCard.id}
                             type="button"
                             draggable={draggable}
+                            onPointerDown={() => {
+                              if (draggable) {
+                                onDragPrepare(card.id, displayCard.sourceCardIds);
+                              }
+                            }}
                             onDragStart={(event) => {
                               if (!draggable) {
                                 event.preventDefault();
