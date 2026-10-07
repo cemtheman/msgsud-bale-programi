@@ -1148,3 +1148,90 @@ describe('pinned repair diagnostics', () => {
     expect(result.reasons.length).toBeGreaterThan(0);
   });
 });
+
+
+describe('pinned repair MRV pruning', () => {
+  it('prunes teacher bundles already blocked by fixed baseline assignments', () => {
+    const base = snapshot();
+
+    const result = runManagementFeasibilityPrototype(snapshot({
+      requirements: [
+        {
+          ...base.requirements[0],
+          id: 'r-fixed-1',
+          teacherMode: 'FIXED',
+        },
+        {
+          ...base.requirements[0],
+          id: 'r-fixed-2',
+          subjectId: 's-fixed-2',
+          subjectName: 'Sabit 2',
+          groupId: 'g-fixed-2',
+          groupName: '6A',
+          teacherMode: 'FIXED',
+        },
+        {
+          ...base.requirements[0],
+          id: 'r-variable',
+          subjectId: 's-variable',
+          subjectName: 'Doğaçlama',
+          groupId: 'g-variable',
+          groupName: '7A',
+          teacherMode: 'ELIGIBLE_POOL',
+          teacherAssignmentScope: 'BLOCK',
+          teacherContinuity: 'NONE',
+        },
+      ],
+      cards: [
+        { id: 'fixed-1', requirementId: 'r-fixed-1', blockIndex: 1, durationPeriods: 1, locked: false },
+        { id: 'fixed-2', requirementId: 'r-fixed-2', blockIndex: 1, durationPeriods: 1, locked: false },
+        { id: 'variable', requirementId: 'r-variable', blockIndex: 1, durationPeriods: 1, locked: false },
+      ],
+      instructionalGroups: [
+        ...base.instructionalGroups,
+        { id: 'g-fixed-2', classGroupId: 'cg2', name: '6A', groupType: 'SECTION', termStatus: 'ACTIVE', knowledgeStatus: 'CONFIRMED' },
+        { id: 'g-variable', classGroupId: 'cg3', name: '7A', groupType: 'SECTION', termStatus: 'ACTIVE', knowledgeStatus: 'CONFIRMED' },
+      ],
+      teacherPools: [
+        { requirementId: 'r-fixed-1', teacherId: 't1' },
+        { requirementId: 'r-fixed-2', teacherId: 't2' },
+        { requirementId: 'r-variable', teacherId: 't1' },
+        { requirementId: 'r-variable', teacherId: 't2' },
+        { requirementId: 'r-variable', teacherId: 't3' },
+      ],
+      teachers: [
+        { id: 't1', name: 'Ö1', operationalStatus: 'ACTIVE' },
+        { id: 't2', name: 'Ö2', operationalStatus: 'ACTIVE' },
+        { id: 't3', name: 'Ö3', operationalStatus: 'ACTIVE' },
+      ],
+      roomPools: [
+        { requirementId: 'r-fixed-1', roomId: 'room1' },
+        { requirementId: 'r-fixed-2', roomId: 'room2' },
+        { requirementId: 'r-variable', roomId: 'room3' },
+      ],
+      rooms: [
+        ...base.rooms,
+        { id: 'room2', name: 'A102', canonicalRoomId: null, capabilities: [], knowledgeStatus: 'CONFIRMED', operationalStatus: 'ACTIVE' },
+        { id: 'room3', name: 'A103', canonicalRoomId: null, capabilities: [], knowledgeStatus: 'CONFIRMED', operationalStatus: 'ACTIVE' },
+      ],
+      baselinePlacements: [
+        { cardId: 'fixed-1', dayOfWeek: 1, startPeriod: 1, teacherId: 't1', roomId: 'room1' },
+        { cardId: 'fixed-2', dayOfWeek: 1, startPeriod: 1, teacherId: 't2', roomId: 'room2' },
+        { cardId: 'variable', dayOfWeek: 1, startPeriod: 1, teacherId: null, roomId: 'room3' },
+      ],
+      baselineMetrics: {
+        ...base.baselineMetrics,
+        cardCount: 3,
+        placedCardCount: 3,
+      },
+    }), {
+      maxVisitedNodes: 1,
+    });
+
+    expect(result.status).toBe('FEASIBLE');
+    expect(
+      result.placements.find((placement) => placement.cardId === 'variable')?.teacherId,
+    ).toBe('t3');
+    expect(result.metrics.visitedNodeCount).toBe(1);
+  });
+});

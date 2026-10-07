@@ -1584,10 +1584,71 @@ function tryBaselinePinnedTeacherResolution(
     });
   }
 
-  units.sort((left, right) => (
-    left.bundles.length - right.bundles.length
-    || left.id.localeCompare(right.id)
-  ));
+  const tryBundle = (
+    bundle: Candidate[],
+    commit: boolean,
+  ) => {
+    const added: Candidate[] = [];
+    let valid = true;
+
+    for (const candidate of bundle) {
+      remainingByRequirement.set(
+        candidate.requirementId,
+        Math.max(
+          (remainingByRequirement.get(candidate.requirementId) ?? 1) - 1,
+          0,
+        ),
+      );
+
+      if (!canAssign(
+        candidate,
+        assignments,
+        remainingByRequirement,
+        context,
+      )) {
+        remainingByRequirement.set(
+          candidate.requirementId,
+          (remainingByRequirement.get(candidate.requirementId) ?? 0) + 1,
+        );
+        valid = false;
+        break;
+      }
+
+      assignments.push(candidate);
+      added.push(candidate);
+    }
+
+    if (!commit || !valid) {
+      while (added.length > 0) {
+        const removed = added.pop();
+        assignments.pop();
+
+        if (removed) {
+          remainingByRequirement.set(
+            removed.requirementId,
+            (remainingByRequirement.get(removed.requirementId) ?? 0) + 1,
+          );
+        }
+      }
+    }
+
+    return {
+      valid,
+      addedCount: commit && valid ? added.length : 0,
+    };
+  };
+
+  // Sabit prefix'e karşı zaten imkânsız olan adayları baştan temizle.
+  for (const unit of units) {
+    unit.bundles = unit.bundles.filter(
+      (bundle) => tryBundle(bundle, false).valid,
+    );
+
+    if (unit.bundles.length === 0) {
+      diagnostics.push(`PINNED_REPAIR_EMPTY_UNIT:${unit.id}`);
+      return null;
+    }
+  }
 
   let visitedNodeCount = 0;
   let backtrackCount = 0;
@@ -1595,62 +1656,64 @@ function tryBaselinePinnedTeacherResolution(
   let terminalReached = false;
   let finalRulesFailed = false;
 
-  const search = (index: number): boolean => {
+  const search = (remainingUnits: RepairUnit[]): boolean => {
     if (visitedNodeCount >= maxVisitedNodes) {
       hitSearchLimit = true;
       return false;
     }
 
-    if (index >= units.length) {
+    if (remainingUnits.length === 0) {
       terminalReached = true;
       const valid = finalRequirementRulesHold(assignments, context);
       if (!valid) finalRulesFailed = true;
       return valid;
     }
 
-    const unit = units[index];
+    // Dinamik MRV: mevcut prefix altında gerçekten en az uygulanabilir
+    // bundle'ı kalan unit önce çözülür.
+    const ranked = remainingUnits.map((unit) => {
+      const viableBundles = unit.bundles.filter(
+        (bundle) => tryBundle(bundle, false).valid,
+      );
 
-    for (const bundle of unit.bundles) {
+      return {
+        unit,
+        viableBundles,
+      };
+    }).sort((left, right) => (
+      left.viableBundles.length - right.viableBundles.length
+      || right.unit.bundles.length - left.unit.bundles.length
+      || left.unit.id.localeCompare(right.unit.id)
+    ));
+
+    const selected = ranked[0];
+    if (!selected || selected.viableBundles.length === 0) {
+      return false;
+    }
+
+    const nextUnits = remainingUnits.filter(
+      (unit) => unit.id !== selected.unit.id,
+    );
+
+    for (const bundle of selected.viableBundles) {
       visitedNodeCount += 1;
 
-      const added: Candidate[] = [];
-      let valid = true;
-
-      for (const candidate of bundle) {
-        remainingByRequirement.set(
-          candidate.requirementId,
-          Math.max(
-            (remainingByRequirement.get(candidate.requirementId) ?? 1) - 1,
-            0,
-          ),
-        );
-
-        if (!canAssign(
-          candidate,
-          assignments,
-          remainingByRequirement,
-          context,
-        )) {
-          remainingByRequirement.set(
-            candidate.requirementId,
-            (remainingByRequirement.get(candidate.requirementId) ?? 0) + 1,
-          );
-          valid = false;
-          break;
-        }
-
-        assignments.push(candidate);
-        added.push(candidate);
+      if (visitedNodeCount > maxVisitedNodes) {
+        hitSearchLimit = true;
+        break;
       }
 
-      if (valid && search(index + 1)) {
+      const attempt = tryBundle(bundle, true);
+      if (!attempt.valid) {
+        continue;
+      }
+
+      if (search(nextUnits)) {
         return true;
       }
 
-      while (added.length > 0) {
-        const removed = added.pop();
-        assignments.pop();
-
+      for (let index = 0; index < attempt.addedCount; index += 1) {
+        const removed = assignments.pop();
         if (removed) {
           remainingByRequirement.set(
             removed.requirementId,
@@ -1667,7 +1730,7 @@ function tryBaselinePinnedTeacherResolution(
     return false;
   };
 
-  if (!search(0)) {
+  if (!search(units)) {
     if (hitSearchLimit) {
       diagnostics.push('PINNED_REPAIR_SEARCH_LIMIT');
     } else if (finalRulesFailed || terminalReached) {
