@@ -559,6 +559,84 @@ describe('M33.2 in-memory feasibility prototype', () => {
     ).toBe('t1');
   });
 
+  it('does not count fixed baseline cards as search nodes during pinned teacher repair', () => {
+    const base = snapshot();
+
+    const result = runManagementFeasibilityPrototype(snapshot({
+      requirements: [
+        {
+          ...base.requirements[0],
+          id: 'r1',
+          teacherMode: 'FIXED',
+        },
+        {
+          ...base.requirements[0],
+          id: 'r2',
+          subjectId: 's2',
+          subjectName: 'Fen',
+          groupId: 'g2',
+          groupName: '6A',
+          teacherMode: 'ELIGIBLE_POOL',
+        },
+      ],
+      cards: [
+        { id: 'fixed-1', requirementId: 'r1', blockIndex: 1, durationPeriods: 1, locked: false },
+        { id: 'fixed-2', requirementId: 'r1', blockIndex: 2, durationPeriods: 1, locked: false },
+        { id: 'variable', requirementId: 'r2', blockIndex: 1, durationPeriods: 1, locked: false },
+      ],
+      instructionalGroups: [
+        ...base.instructionalGroups,
+        {
+          id: 'g2',
+          classGroupId: 'cg2',
+          name: '6A',
+          groupType: 'SECTION',
+          termStatus: 'ACTIVE',
+          knowledgeStatus: 'CONFIRMED',
+        },
+      ],
+      teacherPools: [
+        { requirementId: 'r1', teacherId: 't1' },
+        { requirementId: 'r2', teacherId: 't2' },
+        { requirementId: 'r2', teacherId: 't3' },
+      ],
+      teachers: [
+        { id: 't1', name: 'Sabit', operationalStatus: 'ACTIVE' },
+        { id: 't2', name: 'Aday 1', operationalStatus: 'ACTIVE' },
+        { id: 't3', name: 'Aday 2', operationalStatus: 'ACTIVE' },
+      ],
+      roomPools: [
+        { requirementId: 'r1', roomId: 'room1' },
+        { requirementId: 'r2', roomId: 'room2' },
+      ],
+      rooms: [
+        ...base.rooms,
+        {
+          id: 'room2',
+          name: 'A102',
+          canonicalRoomId: null,
+          capabilities: [],
+          knowledgeStatus: 'CONFIRMED',
+          operationalStatus: 'ACTIVE',
+        },
+      ],
+      baselinePlacements: [
+        { cardId: 'fixed-1', dayOfWeek: 1, startPeriod: 1, teacherId: 't1', roomId: 'room1' },
+        { cardId: 'fixed-2', dayOfWeek: 2, startPeriod: 1, teacherId: 't1', roomId: 'room1' },
+        { cardId: 'variable', dayOfWeek: 1, startPeriod: 2, teacherId: null, roomId: 'room2' },
+      ],
+      baselineMetrics: {
+        ...base.baselineMetrics,
+        cardCount: 3,
+        placedCardCount: 3,
+      },
+    }));
+
+    expect(result.status).toBe('FEASIBLE');
+    expect(result.metrics.visitedNodeCount).toBeLessThanOrEqual(2);
+    expect(result.placements).toHaveLength(3);
+  });
+
   it('moves an unlocked baseline card in memory when participant groups conflict', () => {
     const data = snapshot({
       requirements: [

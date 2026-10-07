@@ -1435,19 +1435,50 @@ function tryBaselinePinnedTeacherResolution(
     domains.set(card.id, candidates);
   }
 
-  const orderedCards = [...cards].sort((left, right) => (
-    (domains.get(left.id)?.length ?? Number.MAX_SAFE_INTEGER)
-    - (domains.get(right.id)?.length ?? Number.MAX_SAFE_INTEGER)
-    || left.id.localeCompare(right.id)
-  ));
+  const fixedCards = cards.filter(
+    (card) => (domains.get(card.id)?.length ?? 0) === 1,
+  );
+  const variableCards = cards
+    .filter((card) => (domains.get(card.id)?.length ?? 0) > 1)
+    .sort((left, right) => (
+      (domains.get(left.id)?.length ?? Number.MAX_SAFE_INTEGER)
+      - (domains.get(right.id)?.length ?? Number.MAX_SAFE_INTEGER)
+      || left.id.localeCompare(right.id)
+    ));
 
   const assignments: Candidate[] = [];
   const remainingByRequirement = new Map<string, number>();
-  for (const card of orderedCards) {
+  for (const card of cards) {
     remainingByRequirement.set(
       card.requirementId,
       (remainingByRequirement.get(card.requirementId) ?? 0) + 1,
     );
+  }
+
+  // Tek adaylı baseline kartları search ağacına sokma. Bunlar mevcut
+  // programın sabit kısmıdır; bir kez doğrulanıp başlangıç assignment'ı olur.
+  for (const card of fixedCards) {
+    const candidate = domains.get(card.id)?.[0];
+    if (!candidate) return null;
+
+    remainingByRequirement.set(
+      card.requirementId,
+      Math.max(
+        (remainingByRequirement.get(card.requirementId) ?? 1) - 1,
+        0,
+      ),
+    );
+
+    if (!canAssign(
+      candidate,
+      assignments,
+      remainingByRequirement,
+      context,
+    )) {
+      return null;
+    }
+
+    assignments.push(candidate);
   }
 
   let visitedNodeCount = 0;
@@ -1460,11 +1491,11 @@ function tryBaselinePinnedTeacherResolution(
       return false;
     }
 
-    if (index >= orderedCards.length) {
+    if (index >= variableCards.length) {
       return finalRequirementRulesHold(assignments, context);
     }
 
-    const card = orderedCards[index];
+    const card = variableCards[index];
     const candidates = domains.get(card.id) ?? [];
 
     remainingByRequirement.set(
