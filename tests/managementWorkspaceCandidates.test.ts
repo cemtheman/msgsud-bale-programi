@@ -4,6 +4,7 @@ import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
   buildManagementWorkspaceMoveCandidateDetailV1,
   buildManagementWorkspacePlacementCandidateDetailV1,
+  buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1,
 } from '@/lib/managementWorkspaceCandidates';
 import {
   applyManagementWorkspaceResourceBundleV1,
@@ -124,6 +125,86 @@ function snapshot(): ManagementWorkspaceSnapshotV1 {
 }
 
 describe('management workspace local move candidates', () => {
+  it('prevalidates drag slots against current hard constraints without scanning per row', () => {
+    const base = snapshot();
+    const source: ManagementWorkspaceSnapshotV1 = {
+      ...base,
+      requirements: [
+        ...base.requirements,
+        {
+          ...base.requirements[0],
+          id: 'requirement-2',
+          groupId: 'group-2',
+          groupName: '7A BALLET',
+        },
+      ],
+      cards: [
+        ...base.cards,
+        {
+          ...base.cards[0],
+          id: 'card-2',
+          requirementId: 'requirement-2',
+        },
+      ],
+      instructionalGroups: [
+        ...base.instructionalGroups,
+        {
+          ...base.instructionalGroups[0],
+          id: 'group-2',
+          name: '7A BALLET',
+        },
+      ],
+      teacherPools: [
+        ...base.teacherPools,
+        {
+          requirementId: 'requirement-2',
+          teacherId: 'teacher-1',
+        },
+      ],
+      roomPools: [
+        ...base.roomPools,
+        {
+          requirementId: 'requirement-2',
+          roomId: 'room-1',
+        },
+      ],
+      baselinePlacements: [
+        ...base.baselinePlacements,
+        {
+          cardId: 'card-2',
+          dayOfWeek: 2,
+          startPeriod: 7,
+          teacherId: 'teacher-1',
+          roomId: 'room-1',
+        },
+      ],
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    const details = buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
+      source,
+      copy,
+      ['card-1'],
+      { 'card-1': 0 },
+    );
+
+    expect(details).not.toBeNull();
+
+    const conflict = details?.['card-1'].assessments.find((candidate) => (
+      candidate.dayOfWeek === 2
+      && candidate.startPeriod === 7
+    ));
+    const free = details?.['card-1'].assessments.find((candidate) => (
+      candidate.dayOfWeek === 3
+      && candidate.startPeriod === 3
+    ));
+
+    expect(conflict?.status).toBe('INVALID');
+    expect(conflict?.reasonCodes).toContain('TEACHER_CONFLICT');
+    expect(free?.status).toBe('VALID');
+    expect(free?.isComplete).toBe(true);
+  });
+
   it('builds the drag matrix locally while preserving current resources', () => {
     const source = snapshot();
     const copy = createManagementWorkspaceWorkingCopyV1(source);

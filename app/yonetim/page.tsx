@@ -150,6 +150,7 @@ import {
 import {
   buildManagementWorkspaceMoveCandidateDetailV1,
   buildManagementWorkspacePlacementCandidateDetailV1,
+  buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1,
 } from '@/lib/managementWorkspaceCandidates';
 import {
   prepareManagementWorkspaceResourceEditV1,
@@ -1937,29 +1938,34 @@ export default function ManagementPage() {
       ]))
       : Object.fromEntries(ids.map((id) => [id, 0]));
 
-    const entries = ids.map((id) => {
+    const allPlaced = ids.every((id) => {
       const placement = localWorkingCopy.placementsByCardId[id];
-      const isPlaced = Boolean(
+      return Boolean(
         placement
         && placement.dayOfWeek !== null
         && placement.startPeriod !== null
       );
-
-      return [
-        id,
-        isPlaced
-          ? buildManagementWorkspaceMoveCandidateDetailV1(
-            localSnapshot,
-            localWorkingCopy,
-            id,
-          )
-          : buildManagementWorkspacePlacementCandidateDetailV1(
-            localSnapshot,
-            localWorkingCopy,
-            id,
-          ),
-      ] as const;
     });
+
+    const prevalidatedMoveDetails = allPlaced
+      ? buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
+        localSnapshot,
+        localWorkingCopy,
+        ids,
+        startOffsetsByCardId,
+      )
+      : null;
+
+    const entries = prevalidatedMoveDetails
+      ? ids.map((id) => [id, prevalidatedMoveDetails[id]] as const)
+      : ids.map((id) => [
+        id,
+        buildManagementWorkspacePlacementCandidateDetailV1(
+          localSnapshot,
+          localWorkingCopy,
+          id,
+        ),
+      ] as const);
 
     if (entries.some(([, detail]) => detail === null)) {
       dragPreparedRef.current = null;

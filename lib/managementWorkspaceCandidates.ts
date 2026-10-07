@@ -1,6 +1,7 @@
 import type { ManagementCandidateDetail } from '@/lib/managementBoard';
 import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import type { ManagementWorkspaceWorkingCopyV1 } from '@/lib/managementWorkspaceWorkingCopy';
+import { previewManagementWorkspaceCommandsV1 } from '@/lib/managementWorkspaceCommands';
 
 function workspaceRequirementForCandidates(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
@@ -85,6 +86,148 @@ export function buildManagementWorkspaceMoveCandidateDetailV1(
     policyResolvedTeacherId: null,
     policyConflict: false,
   };
+}
+
+
+export function buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
+  snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  cardIds: string[],
+  startOffsetsByCardId: Record<string, number>,
+): Record<string, ManagementCandidateDetail> | null {
+  const uniqueCardIds = Array.from(new Set(cardIds));
+  const details = Object.fromEntries(
+    uniqueCardIds.map((cardId) => [
+      cardId,
+      buildManagementWorkspaceMoveCandidateDetailV1(
+        snapshot,
+        workingCopy,
+        cardId,
+      ),
+    ]),
+  );
+
+  if (
+    uniqueCardIds.length === 0
+    || uniqueCardIds.some((cardId) => details[cardId] === null)
+  ) {
+    return null;
+  }
+
+  const nextDetails = Object.fromEntries(
+    uniqueCardIds.map((cardId) => {
+      const detail = details[cardId] as ManagementCandidateDetail;
+      return [
+        cardId,
+        {
+          ...detail,
+          assessments: detail.assessments.map((assessment) => ({
+            ...assessment,
+            reasonCodes: [...assessment.reasonCodes],
+          })),
+        } satisfies ManagementCandidateDetail,
+      ];
+    }),
+  ) as Record<string, ManagementCandidateDetail>;
+
+  for (const dayOfWeek of snapshot.hardConstraintContract.days) {
+    for (const anchorStartPeriod of snapshot.hardConstraintContract.periods) {
+      const slotAssessments = uniqueCardIds.map((cardId) => {
+        const startPeriod =
+          anchorStartPeriod + (startOffsetsByCardId[cardId] ?? 0);
+        const detail = nextDetails[cardId];
+        const assessment = detail.assessments.find((candidate) => (
+          candidate.dayOfWeek === dayOfWeek
+          && candidate.startPeriod === startPeriod
+        )) ?? null;
+
+        return {
+          cardId,
+          startPeriod,
+          assessment,
+        };
+      });
+
+      const outsideDay = slotAssessments.some(({ startPeriod, assessment }) => (
+        startPeriod < 1
+        || startPeriod > 12
+        || assessment === null
+      ));
+
+      if (outsideDay) {
+        slotAssessments.forEach(({ assessment }) => {
+          if (!assessment) return;
+          assessment.status = 'INVALID';
+          assessment.isComplete = false;
+          assessment.reasonCodes = Array.from(new Set([
+            ...assessment.reasonCodes,
+            'TIME_OUTSIDE_DAY',
+          ]));
+        });
+        continue;
+      }
+
+      if (slotAssessments.some(({ assessment }) => (
+        !assessment
+        || assessment.status !== 'VALID'
+        || !assessment.isComplete
+      ))) {
+        continue;
+      }
+
+      const preview = previewManagementWorkspaceCommandsV1(
+        snapshot,
+        workingCopy,
+        slotAssessments.map(({ cardId, assessment }) => ({
+          type: 'SET_PLACEMENT' as const,
+          placement: {
+            cardId,
+            dayOfWeek,
+            startPeriod: assessment!.startPeriod,
+            teacherId: assessment!.teacherId,
+            roomId: assessment!.roomId,
+          },
+        })),
+      );
+
+      if (preview.applied) continue;
+
+      const introducedCodes = Array.from(new Set(
+        preview.issues.map((issue) => issue.code),
+      ));
+
+      slotAssessments.forEach(({ assessment }) => {
+        if (!assessment) return;
+        assessment.status = 'INVALID';
+        assessment.isComplete = false;
+        assessment.reasonCodes = Array.from(new Set([
+          ...assessment.reasonCodes,
+          ...introducedCodes,
+        ]));
+      });
+    }
+  }
+
+  Object.values(nextDetails).forEach((detail) => {
+    const reasonMap = new Map<string, number>();
+    detail.assessments.forEach((assessment) => {
+      assessment.reasonCodes.forEach((code) => {
+        reasonMap.set(code, (reasonMap.get(code) ?? 0) + 1);
+      });
+    });
+
+    detail.validCandidates = detail.assessments.filter(
+      (assessment) => assessment.status === 'VALID' && assessment.isComplete,
+    );
+    detail.reasonCounts = Array.from(reasonMap.entries())
+      .map(([code, count]) => ({ code, count }))
+      .sort((left, right) => (
+        right.count - left.count
+        || left.code.localeCompare(right.code)
+      ));
+  });
+
+  return nextDetails;
 }
 
 
