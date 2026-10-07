@@ -1590,16 +1590,6 @@ function tryBaselinePinnedTeacherResolution(
     }
 
     const unit = units[index];
-    const bundleSize = unit.bundles[0]?.length ?? 0;
-
-    remainingByRequirement.set(
-      unit.requirementId,
-      Math.max(
-        (remainingByRequirement.get(unit.requirementId) ?? bundleSize)
-          - bundleSize,
-        0,
-      ),
-    );
 
     for (const bundle of unit.bundles) {
       visitedNodeCount += 1;
@@ -1608,12 +1598,24 @@ function tryBaselinePinnedTeacherResolution(
       let valid = true;
 
       for (const candidate of bundle) {
+        remainingByRequirement.set(
+          candidate.requirementId,
+          Math.max(
+            (remainingByRequirement.get(candidate.requirementId) ?? 1) - 1,
+            0,
+          ),
+        );
+
         if (!canAssign(
           candidate,
           assignments,
           remainingByRequirement,
           context,
         )) {
+          remainingByRequirement.set(
+            candidate.requirementId,
+            (remainingByRequirement.get(candidate.requirementId) ?? 0) + 1,
+          );
           valid = false;
           break;
         }
@@ -1627,20 +1629,21 @@ function tryBaselinePinnedTeacherResolution(
       }
 
       while (added.length > 0) {
-        added.pop();
+        const removed = added.pop();
         assignments.pop();
+
+        if (removed) {
+          remainingByRequirement.set(
+            removed.requirementId,
+            (remainingByRequirement.get(removed.requirementId) ?? 0) + 1,
+          );
+        }
       }
 
       backtrackCount += 1;
 
       if (hitSearchLimit) break;
     }
-
-    remainingByRequirement.set(
-      unit.requirementId,
-      (remainingByRequirement.get(unit.requirementId) ?? 0)
-        + bundleSize,
-    );
 
     return false;
   };
