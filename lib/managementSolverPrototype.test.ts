@@ -1255,8 +1255,14 @@ describe('pinned repair node limit terminal semantics', () => {
         durationPeriods: 1,
         locked: false,
       }],
-      teacherPools: [{ requirementId: 'r1', teacherId: 't1' }],
-      teachers: [{ id: 't1', name: 'Ö1', operationalStatus: 'ACTIVE' }],
+      teacherPools: [
+        { requirementId: 'r1', teacherId: 't1' },
+        { requirementId: 'r1', teacherId: 't2' },
+      ],
+      teachers: [
+        { id: 't1', name: 'Ö1', operationalStatus: 'ACTIVE' },
+        { id: 't2', name: 'Ö2', operationalStatus: 'ACTIVE' },
+      ],
       baselinePlacements: [{
         cardId: 'only-variable',
         dayOfWeek: 1,
