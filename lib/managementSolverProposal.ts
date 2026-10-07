@@ -60,13 +60,6 @@ export function prepareManagementSolverProposalApply(
     reasons.push('NO_CHANGED_PLACEMENTS');
   }
 
-  // M26.8 bundle RPC contract is 1..24 cards. M33.3-v0 currently
-  // accepts at most eight local-improvement moves, so exceeding this
-  // limit indicates that the proposal/apply contracts drifted apart.
-  if (items.length > 24) {
-    reasons.push('BUNDLE_LIMIT_EXCEEDED');
-  }
-
   return {
     canApply: reasons.length === 0,
     items,
@@ -87,8 +80,6 @@ export function translateManagementSolverProposalApplyReason(
       return 'Program, öneri oluşturulduktan sonra değişti. Seçeneği yeniden hesaplayın.';
     case 'NO_CHANGED_PLACEMENTS':
       return 'Öneride uygulanacak bir ders değişikliği yok.';
-    case 'BUNDLE_LIMIT_EXCEEDED':
-      return 'Öneri tek işlemde güvenle uygulanabilecek değişiklik sınırını aşıyor.';
     default:
       return 'Öneri şu anda uygulanamıyor.';
   }

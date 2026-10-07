@@ -302,3 +302,36 @@ describe('M33.4 solver proposal apply preparation', () => {
     expect(plan.reasons).toContain('NO_CHANGED_PLACEMENTS');
   });
 });
+
+
+describe('proposal apply local workspace batch size', () => {
+  it('does not reject proposals above the legacy 24-card RPC limit', () => {
+    const source = optimizationResultFixture();
+    const largeResult = {
+      ...source,
+      status: 'IMPROVED' as const,
+      placements: Array.from({ length: 37 }, (_, index) => ({
+        cardId: `card-${index + 1}`,
+        requirementId: `requirement-${index + 1}`,
+        dayOfWeek: 1 + (index % 5),
+        startPeriod: 1 + (index % 8),
+        teacherId: `teacher-${(index % 4) + 1}`,
+        roomId: `room-${(index % 6) + 1}`,
+        provisionalRoom: false,
+        baseline: false,
+      })),
+    };
+
+    const plan = prepareManagementSolverProposalApply(
+      largeResult,
+      workspaceFixture({
+        snapshotHash: largeResult.snapshotHash,
+        baselineHash: largeResult.baselineHash,
+      }),
+    );
+
+    expect(plan.canApply).toBe(true);
+    expect(plan.items).toHaveLength(37);
+    expect(plan.reasons).not.toContain('BUNDLE_LIMIT_EXCEEDED');
+  });
+});
