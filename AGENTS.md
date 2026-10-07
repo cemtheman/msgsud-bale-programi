@@ -8739,3 +8739,64 @@ Important contract confirmed:
 - local Undo/Redo owns those trial changes before Save
 - the main Save is the persistence boundary
 - committed workspace structure changes are not exposed to the legacy server STRUCTURE undo path
+
+
+### 7 Oct 2026 — Solver proposal apply/save runtime acceptance CLOSED / PASS
+
+Branch:
+- `feat/management-workspace-v1`
+
+Accepted runtime sequence:
+- Program Control produced a hard-rule-clean alternative for the current draft
+- preference optimization produced a solver proposal above the old 24-card bundle size
+- proposal apply now updates the local Management Workspace first
+- main Save persists the workspace as the DB boundary
+- local Undo remains one operation before Save
+
+Important fixes closed during acceptance:
+- removed obsolete 24-card proposal-apply guard inherited from the old bundle RPC path
+- local stale-proposal guard no longer compares profile-sensitive solver `snapshotHash`
+  to the profile-neutral Program workspace hash
+- DB coordinated operation ceiling aligned with the existing 72-card atomic commit ceiling
+- large MOVE bundles no longer rebuild the full candidate domain for every already-placed card
+- MOVE bundle preflight uses exact-target validation plus the existing fast writer
+- fast validator preserves valid provisional NULL teacher/room states
+- active manual teacher/room resources outside planning pools remain valid
+- selected non-null resources must still be active/operational
+- hard availability and teacher/room/group conflict protections remain active
+
+DB migrations applied and repo-aligned:
+- `20261007145500_management_workspace_bundle_limit_72.sql`
+- `20261007150500_management_workspace_fast_move_bundle.sql`
+- `20261007151000_management_workspace_fast_validator_provisional_resources.sql`
+
+Runtime evidence:
+- 37-card solver/workspace MOVE bundle persisted atomically
+  - bundle id `eaa4d38f-94a5-42e3-8a52-36c83e3c1d53`
+  - 37 declared / 37 transaction rows
+  - engine `WORKSPACE_V1-fast-bundle`
+- follow-up 8-card preference MOVE bundle persisted atomically
+  - bundle id `04a5c1b8-ebfe-4aa9-a9cb-5b408127bf89`
+  - 8 declared / 8 transaction rows
+  - engine `WORKSPACE_V1-fast-bundle`
+- both bundles target revision `16d8cb8e-1ea2-4af2-899c-a9df052bde8c`
+- current revision placement count: **299**
+- browser Program Control after apply: **299/299 placed / hard rules clean**
+- Save toast: **37 program changes saved**
+- provisional-resource semantics remain expected:
+  - teacher NULL placements may remain unresolved
+  - room NULL placements may remain unresolved
+  - these are not treated as hard feasibility failures by themselves
+
+Performance finding closed:
+- previous statement timeout occurred inside
+  `refresh_management_candidate_domain_bundle_subset(...)`
+- Postgres/PostgREST statement timeout observed: 2 minutes
+- root cause was full-domain regeneration for every already-placed bundle member
+- current MOVE path validates only requested targets and defers candidate-domain
+  maintenance on already-placed cards
+
+Status: **SOLVER PROPOSAL APPLY/SAVE RUNTIME ACCEPTANCE CLOSED / PASS**
+
+Next active sub-phase:
+**objective model expansion — teacher load balance and preferred day/time objectives**
