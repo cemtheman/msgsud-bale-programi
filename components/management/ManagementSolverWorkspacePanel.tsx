@@ -856,11 +856,11 @@ export function ManagementSolverWorkspacePanel({
             {unknownRooms && (
               <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/70 px-4 py-3">
                 <p className="text-[12px] font-black text-blue-950">
-                  {unknownRooms.count} dersin salonu henüz kesinleşmedi
+                  {unknownRooms.count} ders tanımının salon stratejisi henüz kesinleşmedi
                 </p>
                 <p className="mt-1 text-[11px] font-medium leading-4 text-blue-800">
-                  Bu durum program oluşturmayı engellemez. {unknownRooms.withBaselineRoomEvidence ?? 0} derste
-                  mevcut salon bilgisi var; {unknownRooms.withoutBaselineRoomEvidence ?? 0} derste salon daha sonra belirlenecek.
+                  Bu durum program oluşturmayı engellemez. {unknownRooms.withBaselineRoomEvidence ?? 0} ders tanımında
+                  mevcut salon bilgisi var; {unknownRooms.withoutBaselineRoomEvidence ?? 0} ders tanımında salon daha sonra belirlenecek.
                 </p>
               </div>
             )}
@@ -916,7 +916,7 @@ export function ManagementSolverWorkspacePanel({
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
                   <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-400">
-                    Salonu henüz belirlenmeyen ders
+                    Geçici salonlu program kartı
                   </p>
                   <p className="mt-1 text-[14px] font-black text-slate-900">
                     {feasibilityResult.metrics.provisionalRoomCount}
@@ -929,14 +929,16 @@ export function ManagementSolverWorkspacePanel({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[12px] font-black text-amber-950">
-                      Uygun seçenek için {feasibilityResult.changedCards.length} ders etkileniyor
+                      Uygun seçenek {feasibilityResult.changedCards.length} derste kaynak düzeltmesi yapıyor
                     </p>
                     <p className="mt-1 max-w-4xl text-[11px] font-medium leading-4 text-amber-800">
-                      Bu yalnızca karşılaştırmadır; program değişmedi. Önce özet etkiyi inceleyin, gerekirse ders ayrıntılarını açın.
+                      {timeChangedCount === 0 && roomChangedCount === 0
+                        ? `Gün ve saatler korunuyor; salonlar değişmiyor. ${teacherChangedCount} derste yalnız öğretmen ataması/değişikliği öneriliyor.`
+                        : 'Bu yalnızca karşılaştırmadır; program değişmedi. Önce özet etkiyi inceleyin, gerekirse ders ayrıntılarını açın.'}
                     </p>
                   </div>
                   <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-black text-amber-700">
-                    {feasibilityResult.baselineIssues?.length ?? 0} uyarılı ders
+                    {feasibilityResult.baselineIssues?.length ?? 0} uyarı kaydı
                   </span>
                 </div>
 
