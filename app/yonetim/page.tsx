@@ -182,6 +182,9 @@ import {
   projectManagementBoardFromWorkspaceV1,
 } from '@/lib/managementWorkspaceBoardAdapter';
 import {
+  projectManagementSolverWorkspacePlacementsV1,
+} from '@/lib/managementSolverWorkspaceAdapter';
+import {
   projectManagementCoursePlanFromWorkspaceV1,
 } from '@/lib/managementWorkspaceCoursePlan';
 import {
@@ -1078,6 +1081,18 @@ export default function ManagementPage() {
       || workspaceHistoryRef.current.redoStack.length > 0
     )
   );
+  const solverWorkspaceForView = (
+    workspaceLocalSessionActive
+    && solverWorkspace
+    && workspaceWorkingCopyRef.current
+    && workspaceHistoryRef.current
+  )
+    ? projectManagementSolverWorkspacePlacementsV1(
+        solverWorkspace,
+        workspaceWorkingCopyRef.current,
+        workspaceHistoryRef.current.nextSequence,
+      )
+    : solverWorkspace;
   const workspaceOwnsStructureHistory = Boolean(
     workspaceSnapshotRef.current
     && workspaceWorkingCopyRef.current
@@ -5619,8 +5634,8 @@ export default function ManagementPage() {
         />
       ) : activeSection === 'SOLVER' ? (
         <ManagementSolverWorkspacePanel
-          key={`solver-${refreshToken}-${solverWorkspace?.preview.snapshotHash ?? 'empty'}`}
-          data={solverWorkspace}
+          key={`solver-${refreshToken}-${solverWorkspaceForView?.preview.snapshotHash ?? 'empty'}`}
+          data={solverWorkspaceForView}
           canEdit={access?.canEdit === true && !workspaceLocalSessionActive}
           busy={commandBusy}
           onSave={async (input) => {
