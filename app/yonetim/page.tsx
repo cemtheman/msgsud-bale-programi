@@ -1938,59 +1938,76 @@ export default function ManagementPage() {
     setSelectedCardIds(ids);
     setCommandNotice(null);
 
-    const localWorkingCopy = workspaceWorkingCopyRef.current;
-    const localEntries = (
-      localSnapshot && localWorkingCopy
-    )
-      ? ids.map((id) => {
-        const placement = localWorkingCopy.placementsByCardId[id];
-        const isPlaced = Boolean(
-          placement
-          && placement.dayOfWeek !== null
-          && placement.startPeriod !== null
+    // Let the browser start the native drag immediately. Candidate-domain
+    // preparation can be expensive on the full timetable; doing it inside the
+    // dragstart handler freezes the card under the pointer until calculation
+    // finishes. Defer it by one task so the drag ghost starts moving at once.
+    window.setTimeout(() => {
+      if (
+        dragSequenceRef.current !== sequence
+        || dragCardIdsRef.current.length === 0
+      ) {
+        return;
+      }
+
+      const currentSnapshot = workspaceSnapshotRef.current;
+      const localWorkingCopy = workspaceWorkingCopyRef.current;
+      const localEntries = (
+        currentSnapshot && localWorkingCopy
+      )
+        ? ids.map((id) => {
+          const placement = localWorkingCopy.placementsByCardId[id];
+          const isPlaced = Boolean(
+            placement
+            && placement.dayOfWeek !== null
+            && placement.startPeriod !== null
+          );
+
+          return [
+            id,
+            isPlaced
+              ? buildManagementWorkspaceMoveCandidateDetailV1(
+                currentSnapshot,
+                localWorkingCopy,
+                id,
+              )
+              : buildManagementWorkspacePlacementCandidateDetailV1(
+                currentSnapshot,
+                localWorkingCopy,
+                id,
+              ),
+          ] as const;
+        })
+        : null;
+
+      if (
+        dragSequenceRef.current !== sequence
+        || dragCardIdsRef.current.length === 0
+      ) {
+        return;
+      }
+
+      if (
+        localEntries
+        && localEntries.every(([, detail]) => detail !== null)
+      ) {
+        setDragCandidateDetails(
+          Object.fromEntries(localEntries) as Record<
+            string,
+            ManagementCandidateDetail
+          >,
         );
+        setDragLoading(false);
+        return;
+      }
 
-        return [
-          id,
-          isPlaced
-            ? buildManagementWorkspaceMoveCandidateDetailV1(
-              localSnapshot,
-              localWorkingCopy,
-              id,
-            )
-            : buildManagementWorkspacePlacementCandidateDetailV1(
-              localSnapshot,
-              localWorkingCopy,
-              id,
-            ),
-        ] as const;
-      })
-      : null;
-
-    if (
-      localEntries
-      && localEntries.every(([, detail]) => detail !== null)
-    ) {
-      setDragCandidateDetails(
-        Object.fromEntries(localEntries) as Record<
-          string,
-          ManagementCandidateDetail
-        >,
-      );
-      setDragLoading(false);
-      return;
-    }
-
-    dragCardIdsRef.current = [];
-    setDragCardIds([]);
-    setDragStartOffsetsByCardId({});
-    setDragCandidateDetails({});
-    setDragLoading(false);
-    setCommandNotice({
-      kind: 'error',
-      text: 'Yerel aday bilgisi hazırlanamadı. Programı yenileyip tekrar deneyin.',
-    });
-    setInspectorOpen(true);
+      endDrag();
+      setCommandNotice({
+        kind: 'error',
+        text: 'Yerel aday bilgisi hazırlanamadı. Programı yenileyip tekrar deneyin.',
+      });
+      setInspectorOpen(true);
+    }, 0);
   };
 
   const endDrag = () => {
@@ -3779,7 +3796,7 @@ export default function ManagementPage() {
                     : 'management-primary-tab'
                 }
               >
-                Program
+                Çizelge
               </button>
               <button
                 type="button"
@@ -3790,7 +3807,7 @@ export default function ManagementPage() {
                     : 'management-primary-tab'
                 }
               >
-                Ders Planı
+                Dersler
               </button>
               <button
                 type="button"
@@ -3812,7 +3829,7 @@ export default function ManagementPage() {
                     : 'management-primary-tab'
                 }
               >
-                Öncelikler
+                Tercihler
               </button>
               <button
                 type="button"
@@ -3823,7 +3840,7 @@ export default function ManagementPage() {
                     : 'management-primary-tab'
                 }
               >
-                Program Durumu
+                Kontrol & Yayın
               </button>
             </nav>
           </div>

@@ -623,7 +623,7 @@ export function ManagementBoardGrid({
       {dragCard && (
         <div className="pointer-events-none absolute left-3 top-3 z-40 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-slate-600 shadow-sm backdrop-blur">
           {dragLoading
-            ? `${dragCard.subjectName} için uygun yerler hazırlanıyor…`
+            ? `${dragCard.subjectName} sürükleniyor · uygun yerler hazırlanıyor; şimdi bırakırsanız eski yerine döner`
             : dragCardIds.length > 1
               ? `${dragCard.subjectName} · ${dragCardIds.length} kayıt birlikte taşınacak`
               : `${dragCard.subjectName} · başlangıç saatleri işaretlendi`}
@@ -888,8 +888,13 @@ export function ManagementBoardGrid({
                                 return <div key={period.number} />;
                               }
 
+                              // While candidate calculation is still running, keep
+                              // the card visually draggable but do not accept a drop.
+                              // Releasing now ends the native drag and the card remains
+                              // at its original placement.
                               const droppable = target.state !== 'NONE'
-                                && target.state !== 'CURRENT';
+                                && target.state !== 'CURRENT'
+                                && target.state !== 'LOADING';
                               const anchorLabel = targetDisplayLabel(target);
                               const label = footprint.continuation
                                 ? ''
