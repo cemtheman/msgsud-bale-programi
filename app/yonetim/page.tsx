@@ -700,6 +700,7 @@ export default function ManagementPage() {
     useState<Record<string, ManagementCandidateDetail>>({});
   const [dragLoading, setDragLoading] = useState(false);
   const dragSequenceRef = useRef(0);
+  const dragStartTimerRef = useRef<number | null>(null);
 
   const [commandState, setCommandState] = useState<ManagementCommandState>({
     undo: null,
@@ -1906,111 +1907,129 @@ export default function ManagementPage() {
   const beginDrag = (cardId: string, sourceCardIds?: string[]) => {
     if (!session || !access?.canEdit || status !== 'ready') return;
 
-    const baseIds = Array.from(new Set(
-      sourceCardIds?.length ? sourceCardIds : [cardId],
-    ));
-    const localSnapshot = workspaceSnapshotRef.current;
-    const parallelBundle = localSnapshot
-      ? findManagementWorkspaceParallelBundleV1(localSnapshot, cardId)
-      : null;
-    const ids = Array.from(new Set(
-      parallelBundle
-        ? [...baseIds, ...parallelBundle.cardIds]
-        : baseIds,
-    ));
-    const anchorOffset = parallelBundle?.offsetsByCardId[cardId] ?? 0;
-    const startOffsetsByCardId = parallelBundle
-      ? Object.fromEntries(ids.map((id) => [
-        id,
-        (parallelBundle.offsetsByCardId[id] ?? anchorOffset) - anchorOffset,
-      ]))
-      : Object.fromEntries(ids.map((id) => [id, 0]));
-    const sequence = dragSequenceRef.current + 1;
-    dragSequenceRef.current = sequence;
+    // Native HTML drag does not visibly leave the source card until the
+    // dragstart handler returns. Even local candidate preparation and the
+    // first large-board React render were therefore making cards feel
+    // "sticky". Queue *all* drag-workspace state until the next task so the
+    // browser can create and move the drag ghost first.
+    if (dragStartTimerRef.current !== null) {
+      window.clearTimeout(dragStartTimerRef.current);
+    }
 
-    dragCardIdsRef.current = ids;
-    setDragCardIds(ids);
-    setDragStartOffsetsByCardId(startOffsetsByCardId);
-    setDragCandidateDetails({});
-    setDragLoading(true);
-    setCandidateFocus(null);
-    setSelectedCardId(cardId);
-    setSelectedCardIds(ids);
-    setCommandNotice(null);
+    dragStartTimerRef.current = window.setTimeout(() => {
+      dragStartTimerRef.current = null;
 
-    // Let the browser start the native drag immediately. Candidate-domain
-    // preparation can be expensive on the full timetable; doing it inside the
-    // dragstart handler freezes the card under the pointer until calculation
-    // finishes. Defer it by one task so the drag ghost starts moving at once.
-    window.setTimeout(() => {
-      if (
-        dragSequenceRef.current !== sequence
-        || dragCardIdsRef.current.length === 0
-      ) {
-        return;
-      }
+      if (!session || !access?.canEdit || status !== 'ready') return;
 
-      const currentSnapshot = workspaceSnapshotRef.current;
-      const localWorkingCopy = workspaceWorkingCopyRef.current;
-      const localEntries = (
-        currentSnapshot && localWorkingCopy
-      )
-        ? ids.map((id) => {
-          const placement = localWorkingCopy.placementsByCardId[id];
-          const isPlaced = Boolean(
-            placement
-            && placement.dayOfWeek !== null
-            && placement.startPeriod !== null
-          );
-
-          return [
-            id,
-            isPlaced
-              ? buildManagementWorkspaceMoveCandidateDetailV1(
-                currentSnapshot,
-                localWorkingCopy,
-                id,
-              )
-              : buildManagementWorkspacePlacementCandidateDetailV1(
-                currentSnapshot,
-                localWorkingCopy,
-                id,
-              ),
-          ] as const;
-        })
+      const baseIds = Array.from(new Set(
+        sourceCardIds?.length ? sourceCardIds : [cardId],
+      ));
+      const localSnapshot = workspaceSnapshotRef.current;
+      const parallelBundle = localSnapshot
+        ? findManagementWorkspaceParallelBundleV1(localSnapshot, cardId)
         : null;
+      const ids = Array.from(new Set(
+        parallelBundle
+          ? [...baseIds, ...parallelBundle.cardIds]
+          : baseIds,
+      ));
+      const anchorOffset = parallelBundle?.offsetsByCardId[cardId] ?? 0;
+      const startOffsetsByCardId = parallelBundle
+        ? Object.fromEntries(ids.map((id) => [
+          id,
+          (parallelBundle.offsetsByCardId[id] ?? anchorOffset) - anchorOffset,
+        ]))
+        : Object.fromEntries(ids.map((id) => [id, 0]));
+      const sequence = dragSequenceRef.current + 1;
+      dragSequenceRef.current = sequence;
 
-      if (
-        dragSequenceRef.current !== sequence
-        || dragCardIdsRef.current.length === 0
-      ) {
-        return;
-      }
+      dragCardIdsRef.current = ids;
+      setDragCardIds(ids);
+      setDragStartOffsetsByCardId(startOffsetsByCardId);
+      setDragCandidateDetails({});
+      setDragLoading(true);
+      setCandidateFocus(null);
+      setSelectedCardId(cardId);
+      setSelectedCardIds(ids);
+      setCommandNotice(null);
 
-      if (
-        localEntries
-        && localEntries.every(([, detail]) => detail !== null)
-      ) {
-        setDragCandidateDetails(
-          Object.fromEntries(localEntries) as Record<
-            string,
-            ManagementCandidateDetail
-          >,
-        );
-        setDragLoading(false);
-        return;
-      }
+      // Candidate-domain calculation is a second queued task. If the user
+      // releases before it finishes, native dragend clears the session and the
+      // original placement remains untouched.
+      window.setTimeout(() => {
+        if (
+          dragSequenceRef.current !== sequence
+          || dragCardIdsRef.current.length === 0
+        ) {
+          return;
+        }
 
-      endDrag();
-      setCommandNotice({
-        kind: 'error',
-        text: 'Yerel aday bilgisi hazırlanamadı. Programı yenileyip tekrar deneyin.',
-      });
-      setInspectorOpen(true);
+        const currentSnapshot = workspaceSnapshotRef.current;
+        const localWorkingCopy = workspaceWorkingCopyRef.current;
+        const localEntries = (
+          currentSnapshot && localWorkingCopy
+        )
+          ? ids.map((id) => {
+            const placement = localWorkingCopy.placementsByCardId[id];
+            const isPlaced = Boolean(
+              placement
+              && placement.dayOfWeek !== null
+              && placement.startPeriod !== null
+            );
+
+            return [
+              id,
+              isPlaced
+                ? buildManagementWorkspaceMoveCandidateDetailV1(
+                  currentSnapshot,
+                  localWorkingCopy,
+                  id,
+                )
+                : buildManagementWorkspacePlacementCandidateDetailV1(
+                  currentSnapshot,
+                  localWorkingCopy,
+                  id,
+                ),
+            ] as const;
+          })
+          : null;
+
+        if (
+          dragSequenceRef.current !== sequence
+          || dragCardIdsRef.current.length === 0
+        ) {
+          return;
+        }
+
+        if (
+          localEntries
+          && localEntries.every(([, detail]) => detail !== null)
+        ) {
+          setDragCandidateDetails(
+            Object.fromEntries(localEntries) as Record<
+              string,
+              ManagementCandidateDetail
+            >,
+          );
+          setDragLoading(false);
+          return;
+        }
+
+        endDrag();
+        setCommandNotice({
+          kind: 'error',
+          text: 'Yerel aday bilgisi hazırlanamadı. Programı yenileyip tekrar deneyin.',
+        });
+        setInspectorOpen(true);
+      }, 0);
     }, 0);
   };
 
   const endDrag = () => {
+    if (dragStartTimerRef.current !== null) {
+      window.clearTimeout(dragStartTimerRef.current);
+      dragStartTimerRef.current = null;
+    }
     dragSequenceRef.current += 1;
     dragCardIdsRef.current = [];
     setDragCardIds([]);
