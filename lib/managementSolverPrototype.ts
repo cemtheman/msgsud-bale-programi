@@ -1657,16 +1657,16 @@ function tryBaselinePinnedTeacherResolution(
   let finalRulesFailed = false;
 
   const search = (remainingUnits: RepairUnit[]): boolean => {
-    if (visitedNodeCount >= maxVisitedNodes) {
-      hitSearchLimit = true;
-      return false;
-    }
-
     if (remainingUnits.length === 0) {
       terminalReached = true;
       const valid = finalRequirementRulesHold(assignments, context);
       if (!valid) finalRulesFailed = true;
       return valid;
+    }
+
+    if (visitedNodeCount >= maxVisitedNodes) {
+      hitSearchLimit = true;
+      return false;
     }
 
     // Dinamik MRV: mevcut prefix altında gerçekten en az uygulanabilir

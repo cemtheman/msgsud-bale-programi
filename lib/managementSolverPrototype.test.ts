@@ -1235,3 +1235,45 @@ describe('pinned repair MRV pruning', () => {
     expect(result.metrics.visitedNodeCount).toBe(1);
   });
 });
+
+
+describe('pinned repair node limit terminal semantics', () => {
+  it('allows the last permitted node to reach a terminal feasible state', () => {
+    const base = snapshot();
+
+    const result = runManagementFeasibilityPrototype(snapshot({
+      requirements: [{
+        ...base.requirements[0],
+        teacherMode: 'ELIGIBLE_POOL',
+        teacherAssignmentScope: 'BLOCK',
+        teacherContinuity: 'NONE',
+      }],
+      cards: [{
+        id: 'only-variable',
+        requirementId: 'r1',
+        blockIndex: 1,
+        durationPeriods: 1,
+        locked: false,
+      }],
+      teacherPools: [{ requirementId: 'r1', teacherId: 't1' }],
+      teachers: [{ id: 't1', name: 'Ö1', operationalStatus: 'ACTIVE' }],
+      baselinePlacements: [{
+        cardId: 'only-variable',
+        dayOfWeek: 1,
+        startPeriod: 1,
+        teacherId: null,
+        roomId: 'room1',
+      }],
+      baselineMetrics: {
+        ...base.baselineMetrics,
+        cardCount: 1,
+        placedCardCount: 1,
+      },
+    }), {
+      maxVisitedNodes: 1,
+    });
+
+    expect(result.status).toBe('FEASIBLE');
+    expect(result.metrics.visitedNodeCount).toBe(1);
+  });
+});
