@@ -1347,6 +1347,80 @@ export function ManagementSolverWorkspacePanel({
                   </div>
                 </div>
 
+                {optimizationResult.status === 'IMPROVED'
+                  && canEdit
+                  && onApplyProposal && (
+                  <div className="mt-3">
+                    {!proposalApplyPending ? (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProposalApplyError(null);
+                            setProposalApplyPending(true);
+                          }}
+                          disabled={busy}
+                          className="rounded-xl bg-slate-950 px-4 py-2.5 text-[11px] font-black text-white hover:bg-slate-800 disabled:opacity-40"
+                        >
+                          Öneriyi uygula
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                        <p className="text-[11px] font-black text-amber-950">
+                          Bu öneri programa uygulansın mı?
+                        </p>
+                        <p className="mt-1 text-[12px] font-medium leading-4 text-amber-800">
+                          Nihai öneri mevcut programa göre {optimizationResult.changedCards.length} dersi etkileyecek.
+                          Bunun {mandatoryRepairCount} dersi zorunlu kural düzeltmesi; {preferenceAdjustedCards.length} dersinde ise temel çözüme göre tercih kaynaklı ek ayar var.
+                          Uygulamadan hemen önce programın hâlâ aynı olduğu doğrulanacak ve değişiklikler tek işlem olarak kaydedilecek.
+                        </p>
+                        <div className="mt-3 flex flex-wrap justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProposalApplyPending(false);
+                              setProposalApplyError(null);
+                            }}
+                            disabled={busy}
+                            className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[12px] font-black text-amber-800 disabled:opacity-40"
+                          >
+                            Vazgeç
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProposalApplyError(null);
+                              void onApplyProposal(optimizationResult)
+                                .then(() => {
+                                  setProposalApplyPending(false);
+                                  setProposalApplyError(null);
+                                  setOptimizationResult(null);
+                                })
+                                .catch((reason: unknown) => {
+                                  setProposalApplyError(
+                                    reason instanceof Error
+                                      ? reason.message
+                                      : 'Öneri uygulanamadı.',
+                                  );
+                                });
+                            }}
+                            disabled={busy}
+                            className="rounded-lg bg-[#A63D48] px-3 py-1.5 text-[12px] font-black text-white disabled:opacity-40"
+                          >
+                            Onayla ve uygula
+                          </button>
+                        </div>
+                        {proposalApplyError && (
+                          <p className="mt-2 text-[12px] font-bold text-rose-700">
+                            {proposalApplyError}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {optimizationResult.status !== 'BLOCKED' && (
                   <>
                     <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -1477,79 +1551,7 @@ export function ManagementSolverWorkspacePanel({
                         )}
                       </div>
 
-                    {optimizationResult.status === 'IMPROVED'
-                      && canEdit
-                      && onApplyProposal && (
-                      <div className="mt-4 border-t border-slate-100 pt-3">
-                        {!proposalApplyPending ? (
-                          <div className="flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setProposalApplyError(null);
-                                setProposalApplyPending(true);
-                              }}
-                              disabled={busy}
-                              className="rounded-xl bg-slate-950 px-4 py-2.5 text-[11px] font-black text-white hover:bg-slate-800 disabled:opacity-40"
-                            >
-                              Öneriyi uygula
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                            <p className="text-[11px] font-black text-amber-950">
-                              Bu öneri programa uygulansın mı?
-                            </p>
-                            <p className="mt-1 text-[12px] font-medium leading-4 text-amber-800">
-                              Nihai öneri mevcut programa göre {optimizationResult.changedCards.length} dersi etkileyecek.
-                              Bunun {mandatoryRepairCount} dersi zorunlu kural düzeltmesi; {preferenceAdjustedCards.length} dersinde ise temel çözüme göre tercih kaynaklı ek ayar var.
-                              Uygulamadan hemen önce programın hâlâ aynı olduğu doğrulanacak ve değişiklikler tek işlem olarak kaydedilecek.
-                            </p>
-                            <div className="mt-3 flex flex-wrap justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setProposalApplyPending(false);
-                                  setProposalApplyError(null);
-                                }}
-                                disabled={busy}
-                                className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[12px] font-black text-amber-800 disabled:opacity-40"
-                              >
-                                Vazgeç
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setProposalApplyError(null);
-                                  void onApplyProposal(optimizationResult)
-                                    .then(() => {
-                                      setProposalApplyPending(false);
-                                      setProposalApplyError(null);
-                                      setOptimizationResult(null);
-                                    })
-                                    .catch((reason: unknown) => {
-                                      setProposalApplyError(
-                                        reason instanceof Error
-                                          ? reason.message
-                                          : 'Öneri uygulanamadı.',
-                                      );
-                                    });
-                                }}
-                                disabled={busy}
-                                className="rounded-lg bg-[#A63D48] px-3 py-1.5 text-[12px] font-black text-white disabled:opacity-40"
-                              >
-                                Onayla ve uygula
-                              </button>
-                            </div>
-                            {proposalApplyError && (
-                              <p className="mt-2 text-[12px] font-bold text-rose-700">
-                                {proposalApplyError}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
+
                   </>
                 )}
               </div>
