@@ -1370,3 +1370,27 @@ describe('pinned repair greedy teacher coloring', () => {
   });
 });
 
+
+
+describe('final requirement rules ignore cardless requirements', () => {
+  it('does not reject a feasible schedule because an inactive/cardless requirement has minDistinctDays', () => {
+    const base = snapshot();
+
+    const result = runManagementFeasibilityPrototype(snapshot({
+      requirements: [
+        ...base.requirements,
+        {
+          ...base.requirements[0],
+          id: 'cardless-requirement',
+          subjectId: 'cardless-subject',
+          subjectName: 'Müzik Teorisi',
+          groupId: 'cardless-group',
+          groupName: '10A MUSIC',
+          minDistinctDays: 1,
+        },
+      ],
+    }));
+
+    expect(result.status).toBe('FEASIBLE');
+  });
+});

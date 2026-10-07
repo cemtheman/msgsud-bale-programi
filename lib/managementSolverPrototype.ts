@@ -743,7 +743,12 @@ function finalRequirementRulesHold(
   assignments: Candidate[],
   context: SolverContext,
 ) {
+  const requirementIdsWithCards = new Set(
+    [...context.cards.values()].map((card) => card.requirementId),
+  );
+
   for (const requirement of context.requirements.values()) {
+    if (!requirementIdsWithCards.has(requirement.id)) continue;
     if (requirement.minDistinctDays == null) continue;
 
     const distinctDays = new Set(
