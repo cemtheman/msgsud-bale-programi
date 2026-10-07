@@ -344,8 +344,8 @@ export function ManagementSolverWorkspacePanel({
       return (
         seed.dayOfWeek !== item.proposed.dayOfWeek
         || seed.startPeriod !== item.proposed.startPeriod
-        || seed.teacherId !== item.proposed.teacherId
-        || seed.roomId !== item.proposed.roomId
+        || seed.teacherName !== item.proposed.teacherName
+        || seed.roomName !== item.proposed.roomName
       );
     });
   const mandatoryRepairCount = feasibilityResult?.changedCards?.length ?? 0;
@@ -1385,8 +1385,7 @@ export function ManagementSolverWorkspacePanel({
                       </div>
                     </div>
 
-                    {optimizationResult.status !== 'BLOCKED' && (
-                      <div className="mt-3">
+                    <div className="mt-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
                             <p className="text-[11px] font-black text-slate-900">
@@ -1407,16 +1406,8 @@ export function ManagementSolverWorkspacePanel({
                           <div className="mt-2 grid gap-2">
                             {preferenceAdjustedCards.slice(0, 12).map((item) => {
                               const seed = feasibilityPlacementByCardId.get(item.cardId);
-                              const seedTeacherName = seed?.teacherId
-                                ? data.preview.teachers.find(
-                                  (teacher) => teacher.id === seed.teacherId,
-                                )?.name ?? null
-                                : null;
-                              const seedRoomName = seed?.roomId
-                                ? data.preview.rooms.find(
-                                  (room) => room.id === seed.roomId,
-                                )?.name ?? null
-                                : null;
+                              const seedTeacherName = seed?.teacherName ?? null;
+                              const seedRoomName = seed?.roomName ?? null;
 
                               return (
                                 <div
@@ -1456,7 +1447,6 @@ export function ManagementSolverWorkspacePanel({
                           </div>
                         )}
                       </div>
-                    )}
 
                     {optimizationResult.status === 'IMPROVED'
                       && canEdit
