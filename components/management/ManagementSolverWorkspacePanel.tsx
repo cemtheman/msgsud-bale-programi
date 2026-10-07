@@ -336,18 +336,29 @@ export function ManagementSolverWorkspacePanel({
       placement,
     ]),
   );
-  const preferenceAdjustedCards = (optimizationResult?.changedCards ?? [])
-    .filter((item) => {
-      const seed = feasibilityPlacementByCardId.get(item.cardId);
-      if (!seed) return true;
+  const optimizationPlacementByCardId = new Map(
+    (optimizationResult?.placements ?? []).map((placement) => [
+      placement.cardId,
+      placement,
+    ]),
+  );
+  const preferenceAdjustedCardIds = new Set(
+    [...optimizationPlacementByCardId.entries()]
+      .filter(([cardId, proposed]) => {
+        const seed = feasibilityPlacementByCardId.get(cardId);
+        if (!seed) return true;
 
-      return (
-        seed.dayOfWeek !== item.proposed.dayOfWeek
-        || seed.startPeriod !== item.proposed.startPeriod
-        || seed.teacherName !== item.proposed.teacherName
-        || seed.roomName !== item.proposed.roomName
-      );
-    });
+        return (
+          seed.dayOfWeek !== proposed.dayOfWeek
+          || seed.startPeriod !== proposed.startPeriod
+          || seed.teacherId !== proposed.teacherId
+          || seed.roomId !== proposed.roomId
+        );
+      })
+      .map(([cardId]) => cardId),
+  );
+  const preferenceAdjustedCards = (optimizationResult?.changedCards ?? [])
+    .filter((item) => preferenceAdjustedCardIds.has(item.cardId));
   const mandatoryRepairCount = feasibilityResult?.changedCards?.length ?? 0;
 
   const loadProfile = (profile: ManagementSolverObjectiveProfile | null) => {
@@ -1406,8 +1417,16 @@ export function ManagementSolverWorkspacePanel({
                           <div className="mt-2 grid gap-2">
                             {preferenceAdjustedCards.slice(0, 12).map((item) => {
                               const seed = feasibilityPlacementByCardId.get(item.cardId);
-                              const seedTeacherName = seed?.teacherName ?? null;
-                              const seedRoomName = seed?.roomName ?? null;
+                              const seedTeacherName = seed?.teacherId
+                                ? data.preview.teachers.find(
+                                  (teacher) => teacher.id === seed.teacherId,
+                                )?.name ?? null
+                                : null;
+                              const seedRoomName = seed?.roomId
+                                ? data.preview.rooms.find(
+                                  (room) => room.id === seed.roomId,
+                                )?.name ?? null
+                                : null;
 
                               return (
                                 <div
