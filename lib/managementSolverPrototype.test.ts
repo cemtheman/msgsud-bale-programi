@@ -637,6 +637,49 @@ describe('M33.2 in-memory feasibility prototype', () => {
     expect(result.placements).toHaveLength(3);
   });
 
+  it('binds REQUIREMENT continuity cards as one teacher decision', () => {
+    const base = snapshot();
+
+    const result = runManagementFeasibilityPrototype(snapshot({
+      requirements: [{
+        ...base.requirements[0],
+        teacherMode: 'ELIGIBLE_POOL',
+        teacherAssignmentScope: 'REQUIREMENT',
+        teacherContinuity: 'REQUIRED',
+        weeklyLoad: 3,
+      }],
+      cards: [
+        { id: 'c1', requirementId: 'r1', blockIndex: 1, durationPeriods: 1, locked: false },
+        { id: 'c2', requirementId: 'r1', blockIndex: 2, durationPeriods: 1, locked: false },
+        { id: 'c3', requirementId: 'r1', blockIndex: 3, durationPeriods: 1, locked: false },
+      ],
+      teacherPools: [
+        { requirementId: 'r1', teacherId: 't1' },
+        { requirementId: 'r1', teacherId: 't2' },
+      ],
+      teachers: [
+        { id: 't1', name: 'Ö1', operationalStatus: 'ACTIVE' },
+        { id: 't2', name: 'Ö2', operationalStatus: 'ACTIVE' },
+      ],
+      baselinePlacements: [
+        { cardId: 'c1', dayOfWeek: 1, startPeriod: 1, teacherId: null, roomId: 'room1' },
+        { cardId: 'c2', dayOfWeek: 2, startPeriod: 1, teacherId: null, roomId: 'room1' },
+        { cardId: 'c3', dayOfWeek: 3, startPeriod: 1, teacherId: null, roomId: 'room1' },
+      ],
+      baselineMetrics: {
+        ...base.baselineMetrics,
+        cardCount: 3,
+        placedCardCount: 3,
+      },
+    }));
+
+    expect(result.status).toBe('FEASIBLE');
+    expect(new Set(result.placements.map(
+      (placement) => placement.teacherId,
+    )).size).toBe(1);
+    expect(result.metrics.visitedNodeCount).toBeLessThanOrEqual(2);
+  });
+
   it('moves an unlocked baseline card in memory when participant groups conflict', () => {
     const data = snapshot({
       requirements: [

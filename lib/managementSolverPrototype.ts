@@ -1438,13 +1438,9 @@ function tryBaselinePinnedTeacherResolution(
   const fixedCards = cards.filter(
     (card) => (domains.get(card.id)?.length ?? 0) === 1,
   );
-  const variableCards = cards
-    .filter((card) => (domains.get(card.id)?.length ?? 0) > 1)
-    .sort((left, right) => (
-      (domains.get(left.id)?.length ?? Number.MAX_SAFE_INTEGER)
-      - (domains.get(right.id)?.length ?? Number.MAX_SAFE_INTEGER)
-      || left.id.localeCompare(right.id)
-    ));
+  const variableCards = cards.filter(
+    (card) => (domains.get(card.id)?.length ?? 0) > 1,
+  );
 
   const assignments: Candidate[] = [];
   const remainingByRequirement = new Map<string, number>();
@@ -1481,6 +1477,104 @@ function tryBaselinePinnedTeacherResolution(
     assignments.push(candidate);
   }
 
+  type RepairUnit = {
+    id: string;
+    requirementId: string;
+    bundles: Candidate[][];
+  };
+
+  const units: RepairUnit[] = [];
+  const handled = new Set<string>();
+
+  for (const card of variableCards) {
+    if (handled.has(card.id)) continue;
+
+    const requirement = context.requirements.get(card.requirementId);
+    if (!requirement) return null;
+
+    const continuityUnit = (
+      requirement.teacherAssignmentScope === 'REQUIREMENT'
+      && requirement.teacherContinuity === 'REQUIRED'
+    );
+
+    if (!continuityUnit) {
+      units.push({
+        id: card.id,
+        requirementId: card.requirementId,
+        bundles: (domains.get(card.id) ?? []).map(
+          (candidate) => [candidate],
+        ),
+      });
+      handled.add(card.id);
+      continue;
+    }
+
+    const siblings = variableCards.filter(
+      (item) => item.requirementId === card.requirementId,
+    );
+    for (const sibling of siblings) handled.add(sibling.id);
+
+    const fixedTeachers = unique(
+      assignments
+        .filter(
+          (assignment) => assignment.requirementId === card.requirementId,
+        )
+        .map((assignment) => assignment.teacherId)
+        .filter((teacherId): teacherId is string => teacherId != null),
+    );
+
+    const firstDomain = domains.get(siblings[0].id) ?? [];
+    let teacherIds = unique(
+      firstDomain
+        .map((candidate) => candidate.teacherId)
+        .filter((teacherId): teacherId is string => teacherId != null),
+    );
+
+    for (const sibling of siblings.slice(1)) {
+      const siblingTeachers = new Set(
+        (domains.get(sibling.id) ?? [])
+          .map((candidate) => candidate.teacherId)
+          .filter((teacherId): teacherId is string => teacherId != null),
+      );
+      teacherIds = teacherIds.filter(
+        (teacherId) => siblingTeachers.has(teacherId),
+      );
+    }
+
+    if (fixedTeachers.length > 0) {
+      teacherIds = teacherIds.filter(
+        (teacherId) => fixedTeachers.includes(teacherId),
+      );
+    }
+
+    const bundles = teacherIds.map((teacherId) => (
+      siblings.map((sibling) => {
+        const candidate = (domains.get(sibling.id) ?? []).find(
+          (item) => item.teacherId === teacherId,
+        );
+        if (!candidate) {
+          throw new Error(
+            'Pinned teacher continuity bundle could not be materialized.',
+          );
+        }
+        return candidate;
+      })
+    ));
+
+    if (bundles.length === 0) return null;
+
+    units.push({
+      id: `requirement:${card.requirementId}`,
+      requirementId: card.requirementId,
+      bundles,
+    });
+  }
+
+  units.sort((left, right) => (
+    left.bundles.length - right.bundles.length
+    || left.id.localeCompare(right.id)
+  ));
+
   let visitedNodeCount = 0;
   let backtrackCount = 0;
   let hitSearchLimit = false;
@@ -1491,48 +1585,61 @@ function tryBaselinePinnedTeacherResolution(
       return false;
     }
 
-    if (index >= variableCards.length) {
+    if (index >= units.length) {
       return finalRequirementRulesHold(assignments, context);
     }
 
-    const card = variableCards[index];
-    const candidates = domains.get(card.id) ?? [];
+    const unit = units[index];
+    const bundleSize = unit.bundles[0]?.length ?? 0;
 
     remainingByRequirement.set(
-      card.requirementId,
+      unit.requirementId,
       Math.max(
-        (remainingByRequirement.get(card.requirementId) ?? 1) - 1,
+        (remainingByRequirement.get(unit.requirementId) ?? bundleSize)
+          - bundleSize,
         0,
       ),
     );
 
-    for (const candidate of candidates) {
+    for (const bundle of unit.bundles) {
       visitedNodeCount += 1;
 
-      if (!canAssign(
-        candidate,
-        assignments,
-        remainingByRequirement,
-        context,
-      )) {
-        continue;
+      const added: Candidate[] = [];
+      let valid = true;
+
+      for (const candidate of bundle) {
+        if (!canAssign(
+          candidate,
+          assignments,
+          remainingByRequirement,
+          context,
+        )) {
+          valid = false;
+          break;
+        }
+
+        assignments.push(candidate);
+        added.push(candidate);
       }
 
-      assignments.push(candidate);
-
-      if (search(index + 1)) {
+      if (valid && search(index + 1)) {
         return true;
       }
 
-      assignments.pop();
+      while (added.length > 0) {
+        added.pop();
+        assignments.pop();
+      }
+
       backtrackCount += 1;
 
       if (hitSearchLimit) break;
     }
 
     remainingByRequirement.set(
-      card.requirementId,
-      (remainingByRequirement.get(card.requirementId) ?? 0) + 1,
+      unit.requirementId,
+      (remainingByRequirement.get(unit.requirementId) ?? 0)
+        + bundleSize,
     );
 
     return false;
