@@ -3811,6 +3811,9 @@ export default function ManagementPage() {
           (result.changedStructureCount ?? 0) > 0
             ? `${result.changedStructureCount} ders yapısı değişikliği`
             : null,
+          (result.changedTimePreferenceCount ?? 0) > 0
+            ? `${result.changedTimePreferenceCount} zaman tercihi değişikliği`
+            : null,
         ].filter(Boolean).join(' + ') + ' kaydedildi.',
       });
 
