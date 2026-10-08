@@ -133,6 +133,9 @@ export interface ManagementSolverCard {
   blockIndex: number;
   durationPeriods: number;
   locked: boolean;
+  timePinned?: boolean;
+  teacherPinned?: boolean;
+  roomPinned?: boolean;
 }
 
 export interface ManagementSolverInstructionalGroup {
