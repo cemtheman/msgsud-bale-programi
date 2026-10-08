@@ -392,6 +392,8 @@ function localWorkspaceOperationLabel(
       return 'Program yerleşimi';
     case 'REMOVE_PLACEMENT':
       return 'Programdan kaldırma';
+    case 'SET_CARD_PINS':
+      return 'Kart sabitlemeleri';
     case 'SET_REQUIREMENT_RESOURCES':
       return 'Ders Planı kaynak değişikliği';
     case 'SET_REQUIREMENT_TIME_PREFERENCE':
@@ -3756,6 +3758,7 @@ export default function ManagementPage() {
       prepared.payload.resourceDeletes.length,
       prepared.payload.structureChanges.length,
       prepared.payload.timePreferenceChanges.length,
+      prepared.payload.pinChanges.length,
     ].reduce((total, count) => total + count, 0);
 
     setCommandActivity(
@@ -5001,6 +5004,32 @@ export default function ManagementPage() {
                   strategy,
                   roomIds,
                   requiredCapability,
+                );
+              }}
+              pinState={selectedCardId && workspaceWorkingCopyRef.current
+                ? (() => {
+                    const localCard =
+                      workspaceWorkingCopyRef.current?.cardsById[selectedCardId];
+                    return localCard
+                      ? {
+                          timePinned: localCard.timePinned,
+                          teacherPinned: localCard.teacherPinned,
+                          roomPinned: localCard.roomPinned,
+                        }
+                      : null;
+                  })()
+                : null}
+              onUpdatePins={(pins) => {
+                if (!selectedCardId) return;
+                applyLocalInventoryCommand(
+                  {
+                    type: 'SET_CARD_PINS',
+                    pins: {
+                      cardId: selectedCardId,
+                      ...pins,
+                    },
+                  },
+                  'Kart sabitlemeleri yerel çalışma alanında güncellendi. Ana Kaydet ile veritabanına yazılacak.',
                 );
               }}
               onRemove={requestRemove}
