@@ -3349,3 +3349,33 @@ Validation status:
 - v13 migration dry-run: PENDING
 - DB push: NOT DONE
 - browser acceptance: PENDING
+
+
+### 8 Oct 2026 — M42 v13 gate failure diagnosed and patched — RE-RUN PENDING
+
+Codespaces gate result:
+- Test Files: 9 failed / 30 passed (39)
+- Tests: 86 failed / 203 passed (289)
+- build compile completed, TypeScript failed
+- migration dry-run was clean and listed only `20261008173000_management_workspace_card_pins.sql`
+- DB push remains NOT DONE
+
+Root causes:
+1. `diffManagementWorkspaceV1` referenced `cardPinChanges` but the declaration block had not actually been inserted; this caused the broad ReferenceError cascade.
+2. Inspector pin props exposed optional booleans directly, causing `boolean | undefined` TypeScript errors.
+3. v13 migration originally applied pins before delegating v12, which would prevent pinning a newly-created structural card. Sequencing was corrected to v12 first, pins second, within the same PostgreSQL transaction.
+4. pin diff now treats a newly-created card baseline as false/false/false, while removed structural cards need no separate pin write.
+
+Fix commits:
+- `c61e43d38dd0c0dc8a8fa8beab65b35acedd3925` — define cardPinChanges before dirty aggregation
+- `3b059e6623741436ec591471ae9d4fd617471dfc` — normalize Inspector optional pin flags
+- `cdc988d5c0851d943f025784a237bd8e03ff52b8` — v13 delegates v12 before pin writes
+- `0fe68366a73602266daffdf75a4963b278222043` — support pins on newly-created cards
+- `ed21ddc3c93fab8f26e406b050cec76547a72417` — align v13 migration documentation
+
+Status:
+- code fixes pushed to branch
+- focused/full tests: RE-RUN PENDING
+- build: RE-RUN PENDING
+- migration dry-run: must be repeated after migration edit
+- DB push: NOT DONE
