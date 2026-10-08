@@ -31,6 +31,10 @@ export type ManagementTeacherOperationalStatus =
   | 'ACTIVE'
   | 'INACTIVE';
 
+export type ManagementTeacherLoadTargetSource =
+  | 'DEFAULT_SEED'
+  | 'EXPLICIT';
+
 export interface ManagementTeacherResourceRow {
   id: string;
   name: string;
@@ -43,6 +47,7 @@ export interface ManagementTeacherResourceRow {
   minimumLoad: number | null;
   targetLoad: number | null;
   maximumLoad: number | null;
+  loadTargetSource: ManagementTeacherLoadTargetSource | null;
   loadConfigured: boolean;
   unavailablePeriods: ManagementTeacherUnavailablePeriod[];
   unavailablePeriodCount: number;
@@ -89,6 +94,7 @@ interface TeacherLoadAuditRow {
   minimumLoad: number | null;
   targetLoad: number | null;
   maximumLoad: number | null;
+  loadTargetSource: ManagementTeacherLoadTargetSource | null;
   configured: boolean;
   actualLoadPeriods: number;
   placedBlockCount: number;
@@ -643,6 +649,8 @@ export async function fetchManagementResources(
         teacherLoadById.get(teacher.id)?.targetLoad ?? null,
       maximumLoad:
         teacherLoadById.get(teacher.id)?.maximumLoad ?? null,
+      loadTargetSource:
+        teacherLoadById.get(teacher.id)?.loadTargetSource ?? null,
       loadConfigured:
         teacherLoadById.get(teacher.id)?.configured ?? false,
       unavailablePeriods:
