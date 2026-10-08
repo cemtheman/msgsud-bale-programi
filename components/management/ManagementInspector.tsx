@@ -686,10 +686,10 @@ export function ManagementInspector({
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                Solver sabitlemeleri
+                Sabitlemeler
               </p>
               <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">
-                Yalnız seçtiğiniz boyut sabit kalır; diğer boyutlar önerilerde değişebilir.
+                Seçtiğiniz özellik değiştirilmez. Değiştirmek için önce ilgili sabitlemeyi kaldırın.
               </p>
             </div>
             {card.locked && (
@@ -779,6 +779,7 @@ export function ManagementInspector({
                 || teacherOptions.length <= (placement.teacherId ? 1 : 0)
                 || commandBusy
                 || card.locked
+                || pinState?.teacherPinned === true
               }
               className={`rounded-xl border px-3 py-2.5 text-[10px] font-bold transition ${
                 placementEditMode === 'TEACHER'
