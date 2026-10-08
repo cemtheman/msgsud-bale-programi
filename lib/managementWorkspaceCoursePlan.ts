@@ -84,7 +84,7 @@ export function projectManagementCoursePlanFromWorkspaceV1(
     const structure =
       workingCopy.requirementStructureById[row.requirementId] ?? null;
     const timePreference =
-      workingCopy.requirementTimePreferencesById[row.requirementId] ?? null;
+      workingCopy.requirementTimePreferencesById?.[row.requirementId] ?? null;
     const localCards = Object.values(workingCopy.cardsById)
       .filter((card) => card.requirementId === row.requirementId);
     const placedBlockCount = localCards.filter((card) => {

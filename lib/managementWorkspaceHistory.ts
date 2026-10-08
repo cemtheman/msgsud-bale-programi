@@ -264,7 +264,7 @@ function currentRequirementTimePreference(
   requirementId: string,
 ) {
   return cloneManagementWorkspaceRequirementTimePreferenceV1(
-    workingCopy.requirementTimePreferencesById[requirementId] ?? {
+    workingCopy.requirementTimePreferencesById?.[requirementId] ?? {
       requirementId,
       preferredDays: [],
       preferredStartPeriods: [],
@@ -276,6 +276,7 @@ function applyRequirementTimePreferenceState(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   preference: ManagementWorkspaceRequirementTimePreferenceStateV1,
 ) {
+  workingCopy.requirementTimePreferencesById ??= {};
   workingCopy.requirementTimePreferencesById[preference.requirementId] =
     cloneManagementWorkspaceRequirementTimePreferenceV1(preference);
 }
@@ -380,14 +381,6 @@ export function cloneManagementWorkspaceOperationV1(
       before: cloneManagementWorkspaceRequirementResourceV1(operation.before),
       after: cloneManagementWorkspaceRequirementResourceV1(operation.after),
     };
-  }
-
-  if (operation.kind === 'SET_REQUIREMENT_TIME_PREFERENCE') {
-    applyRequirementTimePreferenceState(
-      workingCopy,
-      value as ManagementWorkspaceRequirementTimePreferenceStateV1,
-    );
-    return;
   }
 
   if (operation.kind === 'SET_INVENTORY_RESOURCE') {

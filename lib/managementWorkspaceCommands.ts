@@ -170,7 +170,7 @@ function cloneWorkingCopy(
       ),
     ),
     requirementTimePreferencesById: Object.fromEntries(
-      Object.entries(source.requirementTimePreferencesById).map(
+      Object.entries(source.requirementTimePreferencesById ?? {}).map(
         ([requirementId, preference]) => [
           requirementId,
           {
@@ -569,7 +569,7 @@ export function resetManagementWorkspaceWorkingCopyV1(
   target.requirementCatalogById = clean.requirementCatalogById;
   target.requirementResourcesById = clean.requirementResourcesById;
   target.requirementTimePreferencesById =
-    clean.requirementTimePreferencesById;
+    clean.requirementTimePreferencesById ?? {};
   target.teacherInventoryById = clean.teacherInventoryById;
   target.roomInventoryById = clean.roomInventoryById;
   target.teacherPlanningById = clean.teacherPlanningById;

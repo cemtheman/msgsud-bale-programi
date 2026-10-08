@@ -155,7 +155,7 @@ export interface ManagementWorkspaceWorkingCopyV1 {
     Record<string, ManagementWorkspaceRequirementCatalogStateV1>;
   requirementResourcesById:
     Record<string, ManagementWorkspaceRequirementResourceStateV1>;
-  requirementTimePreferencesById:
+  requirementTimePreferencesById?:
     Record<string, ManagementWorkspaceRequirementTimePreferenceStateV1>;
   teacherInventoryById:
     Record<string, ManagementWorkspaceTeacherInventoryStateV1>;
@@ -851,8 +851,8 @@ export function hydrateManagementWorkspaceRequirementCatalogV1(
     resourceMode: string;
     roomIds: string[];
     requiredCapability: string | null;
-    preferredDays: number[];
-    preferredStartPeriods: number[];
+    preferredDays?: number[];
+    preferredStartPeriods?: number[];
   }>,
 ) {
   rows.forEach((row) => {
@@ -903,10 +903,11 @@ export function hydrateManagementWorkspaceRequirementCatalogV1(
       };
     }
 
+    workingCopy.requirementTimePreferencesById ??= {};
     workingCopy.requirementTimePreferencesById[row.requirementId] = {
       requirementId: row.requirementId,
-      preferredDays: [...row.preferredDays].sort((a, b) => a - b),
-      preferredStartPeriods: [...row.preferredStartPeriods]
+      preferredDays: [...(row.preferredDays ?? [])].sort((a, b) => a - b),
+      preferredStartPeriods: [...(row.preferredStartPeriods ?? [])]
         .sort((a, b) => a - b),
     };
 
