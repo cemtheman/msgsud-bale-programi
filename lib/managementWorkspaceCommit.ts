@@ -183,6 +183,7 @@ export interface ManagementWorkspaceCommitResultV1 {
   changedStructureCount?: number;
   changedStructuralCardCount?: number;
   changedTimePreferenceCount?: number;
+  changedPinCount?: number;
   removeCount: number;
   moveCount: number;
   placeCount: number;
@@ -411,6 +412,19 @@ export function prepareManagementWorkspaceCommitV1(
           operational_status: change.after.operationalStatus,
         },
       })),
+      pinChanges: diff.cardPinChanges.map((change) => ({
+        card_id: change.cardId,
+        before: {
+          time_pinned: change.before.timePinned,
+          teacher_pinned: change.before.teacherPinned,
+          room_pinned: change.before.roomPinned,
+        },
+        after: {
+          time_pinned: change.after.timePinned,
+          teacher_pinned: change.after.teacherPinned,
+          room_pinned: change.after.roomPinned,
+        },
+      })),
       timePreferenceChanges: diff.requirementTimePreferenceChanges.map(
         (change) => ({
           requirement_id: change.requirementId,
@@ -457,7 +471,7 @@ export async function commitManagementWorkspaceV1(
   const token = await getFreshManagementAccessToken(accessToken);
 
   const response = await fetch(
-    `${url}/rest/v1/rpc/management_commit_workspace_v12`,
+    `${url}/rest/v1/rpc/management_commit_workspace_v13`,
     {
       method: 'POST',
       headers: {
