@@ -2913,3 +2913,26 @@ Validation status:
 - new focused objective-search test: PENDING
 - adapter focused test: PENDING
 - full suite/build: PENDING
+
+
+### 8 Oct 2026 — Objective projection + search code gate PASS
+
+Validation received from Codespaces:
+- Test Files: **39 passed (39)**
+- Tests: **278 passed (278)**
+- production build: PASS
+- TypeScript: PASS
+- static generation: 9/9
+- `/yonetim`: build PASS
+
+This closes the code gate for:
+- local projection of unsaved teacher load targets into solver workspace
+- local projection of unsaved subject day/start-period preferences into solver workspace
+- server fallback before local hydration
+- explicit local clearing semantics
+- deterministic optimizer acceptance for teacher-load balance
+- deterministic optimizer acceptance for subject-time preference
+
+Status:
+- **OBJECTIVE PROJECTION + SEARCH CODE GATE CLOSED / PASS**
+- next: real-data/browser acceptance + objective tuning
