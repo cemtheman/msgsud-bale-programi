@@ -205,4 +205,53 @@ describe('management objective search acceptance', () => {
       teacherId: 't2',
     })]);
   });
+
+  it('does not improve teacher load by dropping an existing optional teacher assignment', () => {
+    const snapshot = baseSnapshot();
+    snapshot.requirements[0] = {
+      ...snapshot.requirements[0],
+      teacherRequirement: 'OPTIONAL',
+      teacherMode: 'ELIGIBLE_POOL',
+      teacherAssignmentScope: 'BLOCK',
+    };
+    snapshot.teachers = [{
+      id: 't1',
+      name: 'Öğretmen 1',
+      operationalStatus: 'ACTIVE',
+    }];
+    snapshot.teacherPools = [
+      { requirementId: 'r1', teacherId: 't1' },
+    ];
+    snapshot.teacherLoadTargets = [{
+      teacherId: 't1',
+      minimumLoad: null,
+      targetLoad: 0,
+      maximumLoad: null,
+    }];
+    snapshot.baselinePlacements[0] = {
+      ...snapshot.baselinePlacements[0],
+      teacherId: 't1',
+    };
+
+    const result = runManagementObjectiveOptimization(
+      snapshot,
+      {
+        ...ZERO_WEIGHTS,
+        teacherLoadBalance: 1000,
+      },
+      {
+        maxIterations: 4,
+        maxNeighborsPerCard: 32,
+      },
+    );
+
+    expect(result.baselineMetrics.teacherLoadDeviationPeriods).toBe(1);
+    expect(result.proposedMetrics.teacherLoadDeviationPeriods).toBe(1);
+    expect(result.placements).toEqual([expect.objectContaining({
+      cardId: 'c1',
+      teacherId: 't1',
+    })]);
+    expect(result.status).toBe('UNCHANGED');
+  });
+
 });
