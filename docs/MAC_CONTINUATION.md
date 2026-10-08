@@ -2831,3 +2831,23 @@ Implementation:
 Status:
 - **WORKSPACE V12 TIME PREFERENCES + SAVE COUNT UI CLOSED / PASS**
 - next active phase: objective model expansion continuation
+
+
+### 8 Oct 2026 — Blocking overlay reserved for startup only
+
+UX simplification:
+- startup loading keeps the full blocking `ManagementBusyOverlay`
+- ordinary in-app operations no longer render a second full-screen blocking overlay
+- ongoing Save/Undo/Redo/calculation activity continues through the existing top activity band
+- `commandBusy` still protects action buttons and write concurrency
+- completion/error feedback continues through toast/notice
+
+Implementation:
+- `0d4375bb16e1ac7da72b46f0b18ba77046a043d8` — ux: reserve blocking overlay for startup only
+
+Resulting feedback hierarchy:
+- startup -> blocking overlay
+- normal ongoing operation -> top activity band
+- result -> toast/notice
+
+Status: implementation complete; normal test/build gate remains.
