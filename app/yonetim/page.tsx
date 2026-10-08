@@ -2090,10 +2090,39 @@ export default function ManagementPage() {
       setDragStartOffsetsByCardId({});
       setDragCandidateDetails({});
       setDragLoading(false);
-      setCommandNotice({
-        kind: 'error',
-        text: 'Yerel aday bilgisi hazırlanamadı. Programı yenileyip tekrar deneyin.',
-      });
+
+      const localSnapshot = workspaceSnapshotRef.current;
+      const localWorkingCopy = workspaceWorkingCopyRef.current;
+      const baseIds = Array.from(new Set(
+        sourceCardIds?.length ? sourceCardIds : [cardId],
+      ));
+      const parallelBundle = localSnapshot
+        ? findManagementWorkspaceParallelBundleV1(localSnapshot, cardId)
+        : null;
+      const blockedIds = Array.from(new Set(
+        parallelBundle
+          ? [...baseIds, ...parallelBundle.cardIds]
+          : baseIds,
+      ));
+      const timeBlocked = Boolean(
+        localWorkingCopy
+        && blockedIds.some((id) => {
+          const localCard = localWorkingCopy.cardsById[id];
+          return localCard?.locked === true || localCard?.timePinned === true;
+        }),
+      );
+
+      setCommandNotice(
+        timeBlocked
+          ? {
+              kind: 'info',
+              text: 'Bu dersin gün / saati sabit. Taşımak için önce Gün / saat sabitlemesini kaldırın.',
+            }
+          : {
+              kind: 'error',
+              text: 'Taşıma seçenekleri hazırlanamadı. Programı yenileyip tekrar deneyin.',
+            },
+      );
       return;
     }
 
@@ -3842,25 +3871,32 @@ export default function ManagementPage() {
       dragCardIdsRef.current = [];
       setDragCardIds([]);
 
+      const savedChangeLabels = [
+        result.changedCardCount > 0
+          ? `${result.changedCardCount} program değişikliği`
+          : null,
+        result.changedRequirementCount > 0
+          ? `${result.changedRequirementCount} ders planı değişikliği`
+          : null,
+        result.changedResourceCount > 0
+          ? `${result.changedResourceCount} kaynak değişikliği`
+          : null,
+        (result.changedStructureCount ?? 0) > 0
+          ? `${result.changedStructureCount} ders yapısı değişikliği`
+          : null,
+        (result.changedTimePreferenceCount ?? 0) > 0
+          ? `${result.changedTimePreferenceCount} zaman tercihi değişikliği`
+          : null,
+        (result.changedPinCount ?? 0) > 0
+          ? `${result.changedPinCount} sabitleme değişikliği`
+          : null,
+      ].filter((label): label is string => Boolean(label));
+
       setCommandNotice({
         kind: 'success',
-        text: [
-          result.changedCardCount > 0
-            ? `${result.changedCardCount} program değişikliği`
-            : null,
-          result.changedRequirementCount > 0
-            ? `${result.changedRequirementCount} ders planı değişikliği`
-            : null,
-          result.changedResourceCount > 0
-            ? `${result.changedResourceCount} kaynak değişikliği`
-            : null,
-          (result.changedStructureCount ?? 0) > 0
-            ? `${result.changedStructureCount} ders yapısı değişikliği`
-            : null,
-          (result.changedTimePreferenceCount ?? 0) > 0
-            ? `${result.changedTimePreferenceCount} zaman tercihi değişikliği`
-            : null,
-        ].filter(Boolean).join(' + ') + ' kaydedildi.',
+        text: savedChangeLabels.length > 0
+          ? `${savedChangeLabels.join(' + ')} kaydedildi.`
+          : `${pendingWorkspaceChangeCount} değişiklik kaydedildi.`,
       });
 
       // Refresh the secondary management panels after the fresh Program
