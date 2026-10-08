@@ -609,7 +609,7 @@ describe('management workspace history v1', () => {
       {
         type: 'SET_CARD_PINS',
         pins: {
-          cardId: 'card-a',
+          cardId: 'card-1',
           timePinned: true,
           teacherPinned: true,
           roomPinned: false,
@@ -618,21 +618,21 @@ describe('management workspace history v1', () => {
     );
 
     expect(result.applied).toBe(true);
-    expect(copy.cardsById['card-a']).toMatchObject({
+    expect(copy.cardsById['card-1']).toMatchObject({
       timePinned: true,
       teacherPinned: true,
       roomPinned: false,
     });
 
     undoManagementWorkspaceOperationV1(copy, history);
-    expect(copy.cardsById['card-a']).toMatchObject({
+    expect(copy.cardsById['card-1']).toMatchObject({
       timePinned: false,
       teacherPinned: false,
       roomPinned: false,
     });
 
     redoManagementWorkspaceOperationV1(copy, history);
-    expect(copy.cardsById['card-a']).toMatchObject({
+    expect(copy.cardsById['card-1']).toMatchObject({
       timePinned: true,
       teacherPinned: true,
       roomPinned: false,
