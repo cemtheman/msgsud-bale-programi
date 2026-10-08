@@ -2970,3 +2970,31 @@ Conclusion:
 - deterministic search acceptance: PASS
 - real-data/browser acceptance: PASS
 - next work is objective tuning/diagnostics, especially explaining the large absolute teacher-load deviation (301) across 53 configured teachers
+
+
+### 8 Oct 2026 — Teacher-load real-data acceptance corrected: assigned-teacher drop bug found
+
+Correction to the earlier browser interpretation:
+- teacher-load proposal showed `301 -> 299`
+- however the affected rows did not rebalance to another teacher
+- the proposal silently removed existing teacher assignments from OPTIONAL-teacher rows, leaving the room unchanged
+- this is not an acceptable teacher-load optimization outcome
+
+Root cause:
+- OPTIONAL teacher requirements include `null` in their candidate domain
+- with teacher-load objective dominant, local search could reduce load deviation by choosing `teacherId = null`
+- the score improved numerically while the schedule lost teacher assignments
+
+Fix:
+- objective search now preserves existing teacher evidence
+- if a baseline card has an assigned teacher, optimization may switch to another eligible teacher but may not drop the assignment to null
+- explicit teacher removal remains a Management Workspace edit, not an optimizer side effect
+
+Implementation:
+- `5dc13dd3b36c38432dcae7d1b772bc6a64ea8ca7` — fix: prevent objective search from dropping assigned teachers
+- `a47a295c31a9d4e93033983dd12322319547e413` — test: prevent load objective from clearing optional teachers
+
+Acceptance status correction:
+- subject-time real-data acceptance remains **PASS**
+- teacher-load real-data acceptance is **REOPENED / RETEST REQUIRED**
+- deterministic teacher-load reassignment test remains valid, but browser acceptance must be repeated after this guard
