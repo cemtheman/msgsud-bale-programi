@@ -20,28 +20,37 @@ function descriptor(
 }
 
 describe('management server history policy', () => {
-  it('blocks committed structure undo once workspace owns structure history', () => {
+  it('blocks all server undo while workspace owns history', () => {
     expect(
       canUseServerManagementHistoryDescriptor(
         descriptor('STRUCTURE'),
         true,
       ),
     ).toBe(false);
-  });
-
-  it('keeps non-structure server history available for remaining legacy flows', () => {
     expect(
       canUseServerManagementHistoryDescriptor(
         descriptor('MOVE'),
         true,
       ),
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      canUseServerManagementHistoryDescriptor(
+        descriptor('RESOURCE'),
+        true,
+      ),
+    ).toBe(false);
   });
 
-  it('allows structure history before workspace history is available', () => {
+  it('allows server history only before workspace history is available', () => {
     expect(
       canUseServerManagementHistoryDescriptor(
         descriptor('STRUCTURE'),
+        false,
+      ),
+    ).toBe(true);
+    expect(
+      canUseServerManagementHistoryDescriptor(
+        descriptor('MOVE'),
         false,
       ),
     ).toBe(true);
