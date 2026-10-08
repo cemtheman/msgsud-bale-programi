@@ -742,7 +742,7 @@ export function ManagementInspector({
             Yerleşimi düzenle
           </p>
           <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">
-            Gün veya saati değiştirmek için kartı çizelgede sürükleyin. Öğretmen veya salonu değiştirmek için kaynağı seçin; sistem mevcut slot üzerindeki etkisini ve çakışmaları önce hesaplar.
+            Sabitlenmemiş gün veya saati değiştirmek için kartı çizelgede sürükleyin. Öğretmen veya salon sabitse önce ilgili sabitlemeyi kaldırın; diğer değişikliklerde sistem mevcut slot üzerindeki etkisini ve çakışmaları önce hesaplar.
           </p>
           {((
             card.teacherRequirement === 'REQUIRED'
@@ -804,7 +804,12 @@ export function ManagementInspector({
                 setPlacementResourcePreview(null);
                 setPlacementResourceError(null);
               }}
-              disabled={roomOptions.length <= (placement.roomId ? 1 : 0) || commandBusy || card.locked}
+              disabled={
+                roomOptions.length <= (placement.roomId ? 1 : 0)
+                || commandBusy
+                || card.locked
+                || pinState?.roomPinned === true
+              }
               className={`rounded-xl border px-3 py-2.5 text-[10px] font-bold transition ${
                 placementEditMode === 'ROOM'
                   ? 'border-emerald-700 bg-emerald-700 text-white'
