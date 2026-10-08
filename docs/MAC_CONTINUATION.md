@@ -2851,3 +2851,35 @@ Resulting feedback hierarchy:
 - result -> toast/notice
 
 Status: implementation complete; normal test/build gate remains.
+
+
+### 8 Oct 2026 — Objective inputs projected into local solver workspace — GATE PENDING
+
+Finding:
+- solver scoring/search already supports `teacherLoadBalance` and `subjectTimePreference`
+- however the local solver adapter projected only placements
+- unsaved teacher load targets and subject time preferences therefore did not affect solver proposals until after the main Save
+
+Implemented:
+- local teacher planning targets project into `preview.teacherLoadTargets`
+- local requirement day/start-period preferences project into `preview.subjectTimePreferences`
+- local solver fingerprint/hash now includes placements + teacher load targets + time preferences
+- solver proposals can therefore react to unsaved objective inputs in the current Management Workspace session
+- server objective inputs are preserved until matching local inputs are hydrated
+- explicit local empty values correctly clear server objective inputs
+
+Implementation commits:
+- `cc18544640fb25608065efa89c69ee5bafd9fdd6` — feat: project local objective inputs into solver snapshot
+- `5a99ee1b6ac28855fb1ba0836f116a7d0e23d67a` — test: cover local objective input projection
+- `6f93d2811e0303f77e4aa706308bd6e6603435fd` — fix: preserve server objective inputs until local hydration
+- `3228e69f3e322019048796ea2460dba6317c1ba1` — test: cover objective input hydration fallback
+
+Validation status:
+- focused adapter tests: PENDING
+- full suite: PENDING
+- production build: PENDING
+
+Next gate:
+- `tests/managementSolverWorkspaceAdapter.test.ts`
+- full test suite
+- production build
