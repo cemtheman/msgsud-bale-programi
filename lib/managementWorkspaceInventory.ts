@@ -63,6 +63,54 @@ export function projectManagementResourcesFromWorkspaceV1(
           }).length
         : teacher.unavailablePlacedBlockCount;
 
+      const localPlanningConfigured = Boolean(
+        planning
+        && (
+          planning.minimumLoad !== null
+          || planning.targetLoad !== null
+          || planning.maximumLoad !== null
+        ),
+      );
+      const baselineWasExplicit =
+        teacher.loadTargetSource === 'EXPLICIT';
+
+      const projectedMinimumLoad = planning
+        ? (
+            localPlanningConfigured
+              ? planning.minimumLoad
+              : baselineWasExplicit
+                ? null
+                : teacher.minimumLoad
+          )
+        : teacher.minimumLoad;
+      const projectedTargetLoad = planning
+        ? (
+            localPlanningConfigured
+              ? planning.targetLoad
+              : baselineWasExplicit
+                ? null
+                : teacher.targetLoad
+          )
+        : teacher.targetLoad;
+      const projectedMaximumLoad = planning
+        ? (
+            localPlanningConfigured
+              ? planning.maximumLoad
+              : baselineWasExplicit
+                ? null
+                : teacher.maximumLoad
+          )
+        : teacher.maximumLoad;
+      const projectedLoadTargetSource = planning
+        ? (
+            localPlanningConfigured
+              ? 'EXPLICIT' as const
+              : baselineWasExplicit
+                ? null
+                : teacher.loadTargetSource
+          )
+        : teacher.loadTargetSource;
+
       return {
         ...teacher,
         name: local && local.displayName !== local.baselineDisplayName
@@ -75,16 +123,11 @@ export function projectManagementResourcesFromWorkspaceV1(
         ) !== teacher.baseName,
         operationalStatus:
           local?.operationalStatus ?? teacher.operationalStatus,
-        minimumLoad: planning?.minimumLoad ?? teacher.minimumLoad,
-        targetLoad: planning?.targetLoad ?? teacher.targetLoad,
-        maximumLoad: planning?.maximumLoad ?? teacher.maximumLoad,
-        loadConfigured: planning
-          ? (
-              planning.minimumLoad !== null
-              || planning.targetLoad !== null
-              || planning.maximumLoad !== null
-            )
-          : teacher.loadConfigured,
+        minimumLoad: projectedMinimumLoad,
+        targetLoad: projectedTargetLoad,
+        maximumLoad: projectedMaximumLoad,
+        loadTargetSource: projectedLoadTargetSource,
+        loadConfigured: projectedLoadTargetSource === 'EXPLICIT',
         unavailablePeriods: availability
           ? availability.unavailablePeriods.map((slot) => ({ ...slot }))
           : teacher.unavailablePeriods,
@@ -151,6 +194,14 @@ export function projectManagementResourcesFromWorkspaceV1(
         minimumLoad: planning?.minimumLoad ?? null,
         targetLoad: planning?.targetLoad ?? null,
         maximumLoad: planning?.maximumLoad ?? null,
+        loadTargetSource: (
+          planning
+          && (
+            planning.minimumLoad !== null
+            || planning.targetLoad !== null
+            || planning.maximumLoad !== null
+          )
+        ) ? 'EXPLICIT' as const : null,
         loadConfigured: Boolean(
           planning
           && (
