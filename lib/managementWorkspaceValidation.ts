@@ -11,6 +11,9 @@ export type ManagementWorkspaceValidationCodeV1 =
   | 'TIME_OUTSIDE_DAY'
   | 'LUNCH_BREAK_CROSSING'
   | 'LOCKED_CARD_MOVED'
+  | 'TIME_PINNED_CHANGED'
+  | 'TEACHER_PINNED_CHANGED'
+  | 'ROOM_PINNED_CHANGED'
   | 'TEACHER_REQUIRED'
   | 'TEACHER_INACTIVE'
   | 'TEACHER_NOT_ELIGIBLE'
@@ -571,8 +574,9 @@ export function validateManagementWorkspaceV1(
     const requirement = requirements.get(card.requirementId);
     if (!placement || !requirement) return;
 
+    const original = baseline.get(card.id);
+
     if (card.locked) {
-      const original = baseline.get(card.id);
       const moved = (
         !original
         || placement.dayOfWeek !== original.dayOfWeek
@@ -584,6 +588,45 @@ export function validateManagementWorkspaceV1(
       if (moved) {
         pushIssue(issues, {
           code: 'LOCKED_CARD_MOVED',
+          cardIds: [card.id],
+          requirementId: requirement.id,
+          dayOfWeek: placement.dayOfWeek,
+        });
+      }
+    } else if (original) {
+      if (
+        card.timePinned === true
+        && (
+          placement.dayOfWeek !== original.dayOfWeek
+          || placement.startPeriod !== original.startPeriod
+        )
+      ) {
+        pushIssue(issues, {
+          code: 'TIME_PINNED_CHANGED',
+          cardIds: [card.id],
+          requirementId: requirement.id,
+          dayOfWeek: placement.dayOfWeek,
+        });
+      }
+
+      if (
+        card.teacherPinned === true
+        && placement.teacherId !== original.teacherId
+      ) {
+        pushIssue(issues, {
+          code: 'TEACHER_PINNED_CHANGED',
+          cardIds: [card.id],
+          requirementId: requirement.id,
+          dayOfWeek: placement.dayOfWeek,
+        });
+      }
+
+      if (
+        card.roomPinned === true
+        && placement.roomId !== original.roomId
+      ) {
+        pushIssue(issues, {
+          code: 'ROOM_PINNED_CHANGED',
           cardIds: [card.id],
           requirementId: requirement.id,
           dayOfWeek: placement.dayOfWeek,
