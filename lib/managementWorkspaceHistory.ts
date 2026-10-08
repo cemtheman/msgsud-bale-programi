@@ -198,9 +198,9 @@ function currentCardPins(
   }
   return {
     cardId,
-    timePinned: card.timePinned,
-    teacherPinned: card.teacherPinned,
-    roomPinned: card.roomPinned,
+    timePinned: card.timePinned === true,
+    teacherPinned: card.teacherPinned === true,
+    roomPinned: card.roomPinned === true,
   };
 }
 
