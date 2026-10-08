@@ -542,6 +542,46 @@ function rawCandidatesForCard(
     );
   }
 
+  if (
+    !card.locked
+    && baselinePlacementIsMaterialized(baseline)
+  ) {
+    // Preserve high-value resource-only alternatives before the generic
+    // day/time/resource Cartesian scan reaches the candidate cap. This is
+    // especially important for wide teacher pools: teacher-load balancing
+    // should be able to try "same slot + same room + different teacher"
+    // without first moving the lesson in time or changing its room.
+    for (const teacherId of teachers) {
+      addCandidate(
+        baseline.dayOfWeek,
+        baseline.startPeriod,
+        teacherId,
+        baseline.roomId,
+        false,
+      );
+
+      if (candidates.length >= context.maxCandidatesPerCard) {
+        return candidates;
+      }
+    }
+
+    // Symmetric room-only alternatives are also useful to other objectives,
+    // but keep the current teacher fixed so these remain minimal edits.
+    for (const roomId of rooms) {
+      addCandidate(
+        baseline.dayOfWeek,
+        baseline.startPeriod,
+        baseline.teacherId,
+        roomId,
+        false,
+      );
+
+      if (candidates.length >= context.maxCandidatesPerCard) {
+        return candidates;
+      }
+    }
+  }
+
   if (!card.locked) {
     for (const dayOfWeek of days) {
       for (const startPeriod of periods) {
