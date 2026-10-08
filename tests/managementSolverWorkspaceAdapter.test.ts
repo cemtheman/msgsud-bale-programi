@@ -308,4 +308,75 @@ describe('local solver placement projection', () => {
     expect(second.preview.snapshotHash).not.toBe(first.preview.snapshotHash);
   });
 
+
+  it('preserves server objective inputs until matching local inputs are hydrated', () => {
+    const source = workspace();
+    source.preview.teacherLoadTargets = [{
+      teacherId: 't1',
+      minimumLoad: 1,
+      targetLoad: 3,
+      maximumLoad: 5,
+    }];
+    source.preview.subjectTimePreferences = [{
+      requirementId: 'r1',
+      preferredDays: [5],
+      preferredStartPeriods: [8],
+    }];
+
+    const projected = projectManagementSolverWorkspacePlacementsV1(
+      source,
+      workingCopy(),
+      9,
+    );
+
+    expect(projected.preview.teacherLoadTargets).toEqual([{
+      teacherId: 't1',
+      minimumLoad: 1,
+      targetLoad: 3,
+      maximumLoad: 5,
+    }]);
+    expect(projected.preview.subjectTimePreferences).toEqual([{
+      requirementId: 'r1',
+      preferredDays: [5],
+      preferredStartPeriods: [8],
+    }]);
+  });
+
+  it('lets explicit local empty inputs clear server objective inputs', () => {
+    const source = workspace();
+    source.preview.teacherLoadTargets = [{
+      teacherId: 't1',
+      minimumLoad: 1,
+      targetLoad: 3,
+      maximumLoad: 5,
+    }];
+    source.preview.subjectTimePreferences = [{
+      requirementId: 'r1',
+      preferredDays: [5],
+      preferredStartPeriods: [8],
+    }];
+
+    const copy = workingCopy();
+    copy.teacherPlanningById.t1 = {
+      teacherId: 't1',
+      minimumLoad: null,
+      targetLoad: null,
+      maximumLoad: null,
+    };
+    copy.requirementTimePreferencesById.r1 = {
+      requirementId: 'r1',
+      preferredDays: [],
+      preferredStartPeriods: [],
+    };
+
+    const projected = projectManagementSolverWorkspacePlacementsV1(
+      source,
+      copy,
+      10,
+    );
+
+    expect(projected.preview.teacherLoadTargets).toEqual([]);
+    expect(projected.preview.subjectTimePreferences).toEqual([]);
+  });
+
 });
