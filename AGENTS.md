@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `3228e69f3e322019048796ea2460dba6317c1ba1` — local objective inputs projected into solver workspace; gate pending |
+| Aktif implementation checkpoint | `8965362445fdf02727022cd3aee0c05fc86f0585` — solver search acceptance tests for teacher load + subject time added; gate pending |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **Workspace v12 time preferences + save count UI CLOSED / PASS** |
-| Sıradaki iş paketi | **Objective projection gate, then solver search acceptance for teacher load + subject time preferences** |
+| Sıradaki iş paketi | **Objective search gate, then real-data/browser acceptance and tuning** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9104,3 +9104,33 @@ Next gate:
 - `tests/managementSolverWorkspaceAdapter.test.ts`
 - full test suite
 - production build
+
+
+### 8 Oct 2026 — Teacher-load + subject-time solver search acceptance tests added — GATE PENDING
+
+Acceptance objective:
+- prove the solver does not merely expose metrics/weights but actually changes proposals in the intended direction
+
+Deterministic search scenarios added:
+1. `subjectTimePreference` only:
+   - baseline card starts outside preferred day
+   - optimizer must move it to the preferred day/start period
+   - penalty must improve from 1 -> 0
+2. `teacherLoadBalance` only:
+   - flexible card baseline is assigned to teacher t1
+   - configured load targets prefer t2
+   - optimizer must reassign the card to t2
+   - teacher load deviation must improve from 2 -> 0
+
+Implementation:
+- `8965362445fdf02727022cd3aee0c05fc86f0585` — test: accept teacher load and time preference search
+
+UI integration check:
+- dirty Management Workspace uses `solverWorkspaceForView`
+- `solverWorkspaceForView` is built through the local solver adapter
+- the projected teacher load targets and subject time preferences therefore feed the real Tercihler / proposal-generation path before Save
+
+Validation status:
+- new focused objective-search test: PENDING
+- adapter focused test: PENDING
+- full suite/build: PENDING
