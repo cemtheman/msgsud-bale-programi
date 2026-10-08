@@ -883,4 +883,43 @@ describe('management workspace commit v1', () => {
     }]);
   });
 
+
+  it('includes fine-grained card pins in the atomic v13 payload', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    expect(executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      {
+        type: 'SET_CARD_PINS',
+        pins: {
+          cardId: 'card-a',
+          timePinned: true,
+          teacherPinned: false,
+          roomPinned: true,
+        },
+      },
+    ).applied).toBe(true);
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(true);
+    expect(prepared.payload?.pinChanges).toEqual([{
+      card_id: 'card-a',
+      before: {
+        time_pinned: false,
+        teacher_pinned: false,
+        room_pinned: false,
+      },
+      after: {
+        time_pinned: true,
+        teacher_pinned: false,
+        room_pinned: true,
+      },
+    }]);
+  });
+
 });
