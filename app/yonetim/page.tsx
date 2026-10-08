@@ -89,7 +89,6 @@ import {
 import {
   fetchManagementCoursePlan,
   updateManagementRequirementRoomStrategy,
-  updateManagementRequirementTimePreferences,
   type ManagementCoursePlanData,
   type ManagementPlanStage,
   type ManagementRoomStrategy,
@@ -3185,35 +3184,8 @@ export default function ManagementPage() {
         localHistory,
       );
 
-      if (
-        localOperation?.kind === 'SET_REQUIREMENT_TIME_PREFERENCE'
-        && session
-        && coursePlan
-      ) {
-        setCommandBusy(true);
-        setCommandActivity('Ders zaman tercihi geri alınıyor…');
-        try {
-          await updateManagementRequirementTimePreferences(
-            session.accessToken,
-            coursePlan.revisionId,
-            localOperation.requirementId,
-            localOperation.before.preferredDays,
-            localOperation.before.preferredStartPeriods,
-          );
-          reflectTimePreferenceState(localOperation.before);
-        } catch (reason: unknown) {
-          redoManagementWorkspaceOperationV1(localWorkingCopy, localHistory);
-          setCommandNotice({
-            kind: 'error',
-            text: reason instanceof Error
-              ? reason.message
-              : 'Zaman tercihi geri alınamadı.',
-          });
-          return;
-        } finally {
-          setCommandBusy(false);
-          setCommandActivity(null);
-        }
+      if (localOperation?.kind === 'SET_REQUIREMENT_TIME_PREFERENCE') {
+        reflectTimePreferenceState(localOperation.before);
       }
 
       setBoard(
@@ -3324,35 +3296,8 @@ export default function ManagementPage() {
         localHistory,
       );
 
-      if (
-        localOperation?.kind === 'SET_REQUIREMENT_TIME_PREFERENCE'
-        && session
-        && coursePlan
-      ) {
-        setCommandBusy(true);
-        setCommandActivity('Ders zaman tercihi yeniden uygulanıyor…');
-        try {
-          await updateManagementRequirementTimePreferences(
-            session.accessToken,
-            coursePlan.revisionId,
-            localOperation.requirementId,
-            localOperation.after.preferredDays,
-            localOperation.after.preferredStartPeriods,
-          );
-          reflectTimePreferenceState(localOperation.after);
-        } catch (reason: unknown) {
-          undoManagementWorkspaceOperationV1(localWorkingCopy, localHistory);
-          setCommandNotice({
-            kind: 'error',
-            text: reason instanceof Error
-              ? reason.message
-              : 'Zaman tercihi yeniden uygulanamadı.',
-          });
-          return;
-        } finally {
-          setCommandBusy(false);
-          setCommandActivity(null);
-        }
+      if (localOperation?.kind === 'SET_REQUIREMENT_TIME_PREFERENCE') {
+        reflectTimePreferenceState(localOperation.after);
       }
 
       setBoard(
@@ -5302,43 +5247,34 @@ export default function ManagementPage() {
                   .sort((a, b) => a - b),
             };
 
-            setCommandBusy(true);
-            setCommandActivity('Ders zaman tercihleri veritabanına yazılıyor…');
-            try {
-              await updateManagementRequirementTimePreferences(
-                session.accessToken,
-                coursePlan.revisionId,
-                requirementId,
-                preference.preferredDays,
-                preference.preferredStartPeriods,
-              );
+            const result = executeManagementWorkspaceCommandV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              {
+                type: 'SET_REQUIREMENT_TIME_PREFERENCE',
+                preference,
+              },
+            );
 
-              const result = executeManagementWorkspaceCommandV1(
+            if (!result.applied) {
+              throw new Error('Zaman tercihi yerel çalışma alanına uygulanamadı.');
+            }
+
+            reflectTimePreferenceState(preference);
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
                 localSnapshot,
                 localWorkingCopy,
-                localHistory,
-                {
-                  type: 'SET_REQUIREMENT_TIME_PREFERENCE',
-                  preference,
-                },
-              );
-
-              if (!result.applied) {
-                throw new Error('Zaman tercihi geri al zincirine eklenemedi.');
-              }
-
-              reflectTimePreferenceState(preference);
-              setCommandNotice({
-                kind: 'success',
-                text: preference.preferredDays.length > 0
-                  || preference.preferredStartPeriods.length > 0
-                  ? 'Dersin zaman tercihleri kaydedildi; Geri Al ile geri alınabilir.'
-                  : 'Dersin zaman tercihi kaldırıldı; Geri Al ile geri alınabilir.',
-              });
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+              ).hasChanges,
+            );
+            setCommandNotice({
+              kind: 'success',
+              text: preference.preferredDays.length > 0
+                || preference.preferredStartPeriods.length > 0
+                ? 'Dersin zaman tercihleri yerel çalışma alanında güncellendi. Ana Kaydet ile veritabanına yazılacak.'
+                : 'Dersin zaman tercihi yerel çalışma alanında kaldırıldı. Ana Kaydet ile veritabanına yazılacak.',
+            });
           }}
           onPreviewStructure={async (input) => {
             const localSnapshot = workspaceSnapshotRef.current;
