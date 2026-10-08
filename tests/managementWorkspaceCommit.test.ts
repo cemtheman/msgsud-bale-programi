@@ -24,7 +24,10 @@ import {
   executeManagementWorkspaceCommandV1,
 } from '@/lib/managementWorkspaceCommands';
 import {
+  applyManagementWorkspacePlacementOperationV1,
   createManagementWorkspaceHistoryV1,
+  redoManagementWorkspaceOperationV1,
+  undoManagementWorkspaceOperationV1,
 } from '@/lib/managementWorkspaceHistory';
 
 function snapshot(): ManagementWorkspaceSnapshotV1 {
@@ -734,6 +737,99 @@ describe('management workspace commit v1', () => {
     expect(lifecycle?.final_cards.every(
       (card) => !card.baseline_exists,
     )).toBe(true);
+  });
+
+
+  it('keeps mixed workspace edits local through undo redo before one atomic commit payload', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    applyManagementWorkspacePlacementOperationV1(
+      copy,
+      history,
+      {
+        cardId: 'card-b',
+        dayOfWeek: 2,
+        startPeriod: 3,
+        teacherId: 'teacher-1',
+        roomId: 'room-1',
+      },
+    );
+
+    expect(executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      {
+        type: 'SET_TEACHER_AVAILABILITY',
+        availability: {
+          teacherId: 'teacher-1',
+          unavailablePeriods: [{ dayOfWeek: 5, period: 12 }],
+        },
+      },
+    ).applied).toBe(true);
+
+    expect(executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      {
+        type: 'SET_ROOM_PROFILE',
+        profile: {
+          roomId: 'room-1',
+          capabilities: ['STUDIO_SMALL_GROUP'],
+          knowledgeStatus: 'OBSERVED',
+        },
+      },
+    ).applied).toBe(true);
+
+    expect(history.undoStack.map((operation) => operation.kind)).toEqual([
+      'SET_PLACEMENT',
+      'SET_TEACHER_AVAILABILITY',
+      'SET_ROOM_PROFILE',
+    ]);
+
+    expect(undoManagementWorkspaceOperationV1(copy, history)?.kind)
+      .toBe('SET_ROOM_PROFILE');
+    expect(undoManagementWorkspaceOperationV1(copy, history)?.kind)
+      .toBe('SET_TEACHER_AVAILABILITY');
+    expect(undoManagementWorkspaceOperationV1(copy, history)?.kind)
+      .toBe('SET_PLACEMENT');
+
+    const reverted = prepareManagementWorkspaceCommitV1(source, copy);
+    expect(reverted.ready).toBe(false);
+    expect(reverted.payload).toBeNull();
+
+    expect(redoManagementWorkspaceOperationV1(copy, history)?.kind)
+      .toBe('SET_PLACEMENT');
+    expect(redoManagementWorkspaceOperationV1(copy, history)?.kind)
+      .toBe('SET_TEACHER_AVAILABILITY');
+    expect(redoManagementWorkspaceOperationV1(copy, history)?.kind)
+      .toBe('SET_ROOM_PROFILE');
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(true);
+    expect(prepared.issues).toEqual([]);
+    expect(prepared.payload?.changes.map((change) => change.card_id))
+      .toEqual(['card-b']);
+    expect(prepared.payload?.teacherAvailabilityChanges).toEqual([{
+      teacher_id: 'teacher-1',
+      before: [],
+      after: [{ day_of_week: 5, period: 12 }],
+    }]);
+    expect(prepared.payload?.roomProfileChanges).toEqual([{
+      room_id: 'room-1',
+      before: {
+        capabilities: [],
+        knowledge_status: 'CONFIRMED',
+      },
+      after: {
+        capabilities: ['STUDIO_SMALL_GROUP'],
+        knowledge_status: 'OBSERVED',
+      },
+    }]);
   });
 
 });
