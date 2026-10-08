@@ -169,6 +169,7 @@ export interface ManagementWorkspaceCommitResultV1 {
   changedResourceCount: number;
   changedStructureCount?: number;
   changedStructuralCardCount?: number;
+  changedTimePreferenceCount?: number;
   removeCount: number;
   moveCount: number;
   placeCount: number;
