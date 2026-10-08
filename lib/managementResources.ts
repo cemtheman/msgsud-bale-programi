@@ -115,12 +115,13 @@ export interface ManagementTeacherLoadTargetsResult
   extends ManagementTeacherLoadTargetsInput {
   teacherId: string;
   teacherName?: string;
+  loadTargetSource: ManagementTeacherLoadTargetSource | null;
   configured: boolean;
   actualLoadPeriods: number;
   placedBlockCount: number;
   activeRequirementCount: number;
   publishedChanged?: false;
-  solverBehaviorChanged?: false;
+  solverBehaviorChanged?: boolean;
 }
 
 export interface ManagementTeacherAvailabilityResult {
