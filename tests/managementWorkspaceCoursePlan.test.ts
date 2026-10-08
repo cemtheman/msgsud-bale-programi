@@ -108,6 +108,8 @@ function workingCopy(): ManagementWorkspaceWorkingCopyV1 {
         baselineResourceMode: 'FIXED',
         baselineRoomIds: ['room-1'],
         baselineRequiredCapability: null,
+        baselinePreferredDays: [],
+        baselinePreferredStartPeriods: [],
       },
     },
     requirementTimePreferencesById: {},
