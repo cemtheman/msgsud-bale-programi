@@ -2754,6 +2754,18 @@ function preserveUnknownRoomEvidence(
   return candidate.roomId === baseline.roomId;
 }
 
+function preserveBaselineTeacherEvidence(
+  candidate: Candidate,
+  context: SolverContext,
+) {
+  const baseline = context.baseline.get(candidate.cardId);
+
+  // Objective optimization may rebalance an existing assignment to another
+  // eligible teacher, but it must not improve a score by silently removing
+  // an already assigned teacher. Explicit removal is a workspace edit.
+  return baseline?.teacherId == null || candidate.teacherId != null;
+}
+
 function moveIsHardFeasible(
   candidate: Candidate,
   assignments: Candidate[],
@@ -2918,6 +2930,7 @@ function sameTimeBundleCandidates(
         candidate.dayOfWeek === dayOfWeek
         && candidate.startPeriod === startPeriod
         && preserveUnknownRoomEvidence(candidate, context)
+        && preserveBaselineTeacherEvidence(candidate, context)
       ))
       .sort((left, right) => (
         candidateDistance(left, current)
@@ -3044,7 +3057,10 @@ function runLocalObjectiveSearch(
       );
 
       for (const candidate of neighborhood) {
-        if (!preserveUnknownRoomEvidence(candidate, context)) {
+        if (
+          !preserveUnknownRoomEvidence(candidate, context)
+          || !preserveBaselineTeacherEvidence(candidate, context)
+        ) {
           continue;
         }
 
