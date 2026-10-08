@@ -6262,11 +6262,6 @@ export default function ManagementPage() {
         />
       )}
 
-      {commandBusy && (
-        <ManagementBusyOverlay
-          detail={commandActivity ?? 'Program güncelleniyor.'}
-        />
-      )}
     </main>
   );
 }
