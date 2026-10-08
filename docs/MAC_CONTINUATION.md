@@ -2816,3 +2816,18 @@ Fix:
 Status:
 - **WORKSPACE V12 TIME PREFERENCES BROWSER ACCEPTANCE CLOSED / PASS**
 - remaining action: normal test/build gate for the UI-only notice patch
+
+
+### 8 Oct 2026 — Workspace v12 save progress count UI acceptance PASS
+
+Browser acceptance confirmed:
+- save progress overlay now counts all workspace delta categories, including time preferences
+- time-preference-only save correctly shows `1 değişiklik kontrol edilip kaydediliyor.`
+- success notice count and progress overlay are now consistent with workspace v12 persistence
+
+Implementation:
+- `4d77abaf3898bfdaff3e2f41eac07d8cd0104362` — ux: count all workspace deltas in save progress
+
+Status:
+- **WORKSPACE V12 TIME PREFERENCES + SAVE COUNT UI CLOSED / PASS**
+- next active phase: objective model expansion continuation
