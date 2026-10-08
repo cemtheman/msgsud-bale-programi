@@ -2794,3 +2794,25 @@ Repo alignment commits:
 Next gate:
 - `supabase migration list` must show 7 Oct parity
 - `supabase db push --dry-run` must show only `20261008135000_management_workspace_time_preferences.sql`
+
+
+### 8 Oct 2026 — Workspace v12 time preferences browser acceptance PASS
+
+Browser acceptance:
+- requirement day/start-period preference edit stays local before Save
+- local Undo restores the previous preference
+- local Redo reapplies it
+- Save persists the preference through the workspace v12 atomic boundary
+- reload after Save preserves the preference
+
+Observed UI-only defect during acceptance:
+- Save success notice did not include `changedTimePreferenceCount`
+- time-preference-only saves therefore displayed an incorrect zero/empty change summary even though persistence succeeded
+
+Fix:
+- `884b17a6bb92ea497f2bf2fdc2c8b7161c6d763f` — ux: count time preferences in save notice
+- Save notice now reports e.g. `1 zaman tercihi değişikliği kaydedildi.`
+
+Status:
+- **WORKSPACE V12 TIME PREFERENCES BROWSER ACCEPTANCE CLOSED / PASS**
+- remaining action: normal test/build gate for the UI-only notice patch
