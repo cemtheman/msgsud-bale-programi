@@ -5012,9 +5012,9 @@ export default function ManagementPage() {
                       workspaceWorkingCopyRef.current?.cardsById[selectedCardId];
                     return localCard
                       ? {
-                          timePinned: localCard.timePinned,
-                          teacherPinned: localCard.teacherPinned,
-                          roomPinned: localCard.roomPinned,
+                          timePinned: localCard.timePinned === true,
+                          teacherPinned: localCard.teacherPinned === true,
+                          roomPinned: localCard.roomPinned === true,
                         }
                       : null;
                   })()
