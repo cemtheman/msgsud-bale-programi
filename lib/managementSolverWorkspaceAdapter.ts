@@ -14,6 +14,12 @@ function localWorkspaceSolverFingerprint(
   placements: ManagementSolverBaselinePlacement[],
   teacherLoadTargets: ManagementSolverTeacherLoadTarget[],
   subjectTimePreferences: ManagementSolverSubjectTimePreference[],
+  cardPins: Array<{
+    cardId: string;
+    timePinned: boolean;
+    teacherPinned: boolean;
+    roomPinned: boolean;
+  }>,
 ) {
   let hash = 2166136261;
 
@@ -40,6 +46,14 @@ function localWorkspaceSolverFingerprint(
         preference.requirementId,
         preference.preferredDays.join(','),
         preference.preferredStartPeriods.join(','),
+      ].join('|'))
+      .join(';'),
+    cardPins
+      .map((pin) => [
+        pin.cardId,
+        pin.timePinned ? '1' : '0',
+        pin.teacherPinned ? '1' : '0',
+        pin.roomPinned ? '1' : '0',
       ].join('|'))
       .join(';'),
   ].join('||');
@@ -262,10 +276,31 @@ export function projectManagementSolverWorkspacePlacementsV1(
       left.requirementId.localeCompare(right.requirementId),
     );
 
+  const cards = workspace.preview.cards.map((card) => {
+    const local = workingCopy.cardsById[card.id];
+    return local
+      ? {
+          ...card,
+          timePinned: local.timePinned,
+          teacherPinned: local.teacherPinned,
+          roomPinned: local.roomPinned,
+        }
+      : card;
+  });
+  const cardPins = cards
+    .map((card) => ({
+      cardId: card.id,
+      timePinned: card.timePinned === true,
+      teacherPinned: card.teacherPinned === true,
+      roomPinned: card.roomPinned === true,
+    }))
+    .sort((left, right) => left.cardId.localeCompare(right.cardId));
+
   const fingerprint = localWorkspaceSolverFingerprint(
     baselinePlacements,
     teacherLoadTargets,
     subjectTimePreferences,
+    cardPins,
   );
   const localBaselineHash =
     `local-${workspace.revisionId}-${localVersion}-${fingerprint}`;
@@ -278,6 +313,7 @@ export function projectManagementSolverWorkspacePlacementsV1(
       snapshotHash:
         `${workspace.preview.snapshotHash}:${localBaselineHash}`,
       baselineHash: localBaselineHash,
+      cards,
       baselinePlacements,
       teacherLoadTargets,
       subjectTimePreferences,
