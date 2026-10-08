@@ -19,11 +19,11 @@ export const SUPPORTED_MANAGEMENT_OBJECTIVE_KEYS = [
   'teacherIdleGaps',
   'roomStability',
   'teacherLoadBalance',
-] as const satisfies readonly ManagementSolverObjectiveKey[];
-
-export const UNSUPPORTED_MANAGEMENT_OBJECTIVE_KEYS = [
   'subjectTimePreference',
 ] as const satisfies readonly ManagementSolverObjectiveKey[];
+
+export const UNSUPPORTED_MANAGEMENT_OBJECTIVE_KEYS =
+  [] as const satisfies readonly ManagementSolverObjectiveKey[];
 
 export type ManagementSolverObjectiveWeights = Record<
   ManagementSolverObjectiveKey,
@@ -39,7 +39,7 @@ export function sanitizeManagementSolverObjectiveWeights(
     teacherIdleGaps: weights?.teacherIdleGaps ?? 0,
     roomStability: weights?.roomStability ?? 0,
     teacherLoadBalance: weights?.teacherLoadBalance ?? 0,
-    subjectTimePreference: 0,
+    subjectTimePreference: weights?.subjectTimePreference ?? 0,
   };
 }
 
@@ -202,6 +202,12 @@ export interface ManagementSolverTeacherLoadTarget {
   maximumLoad: number | null;
 }
 
+export interface ManagementSolverSubjectTimePreference {
+  requirementId: string;
+  preferredDays: number[];
+  preferredStartPeriods: number[];
+}
+
 export interface ManagementSolverSnapshotPreview {
   snapshotVersion: string;
   solverEngineStatus: 'SNAPSHOT_ONLY' | string;
@@ -224,6 +230,7 @@ export interface ManagementSolverSnapshotPreview {
   teachers: ManagementSolverTeacher[];
   teacherUnavailablePeriods?: ManagementSolverTeacherUnavailablePeriod[];
   teacherLoadTargets?: ManagementSolverTeacherLoadTarget[];
+  subjectTimePreferences?: ManagementSolverSubjectTimePreference[];
   rooms: ManagementSolverRoom[];
   baselinePlacements: ManagementSolverBaselinePlacement[];
   baselineMetrics: ManagementSolverBaselineMetrics;

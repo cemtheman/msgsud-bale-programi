@@ -589,3 +589,42 @@ describe('teacher load balance objective', () => {
     )).toEqual(new Set(['t1', 't2']));
   });
 });
+
+
+describe('subject time preference objective', () => {
+  it('moves a lesson toward its configured preferred day and start period', () => {
+    const data = baseSnapshot();
+    data.subjectTimePreferences = [
+      {
+        requirementId: 'r2',
+        preferredDays: [3],
+        preferredStartPeriods: [4],
+      },
+    ];
+
+    const result = runManagementObjectiveOptimization(
+      data,
+      {
+        ...ZERO_WEIGHTS,
+        subjectTimePreference: 1000,
+      },
+      {
+        maxIterations: 4,
+        maxNeighborsPerCard: 120,
+      },
+    );
+
+    expect(result.status).toBe('IMPROVED');
+    expect(result.baselineMetrics.subjectTimePreferencePenalty)
+      .toBeGreaterThan(0);
+    expect(result.proposedMetrics.subjectTimePreferencePenalty)
+      .toBeLessThan(result.baselineMetrics.subjectTimePreferencePenalty);
+
+    const moved = result.placements.find(
+      (placement) => placement.cardId === 'c2',
+    );
+    expect(moved).toBeDefined();
+    expect(moved?.dayOfWeek).toBe(3);
+    expect(moved?.startPeriod).toBe(4);
+  });
+});

@@ -7,6 +7,7 @@ import type {
   ManagementSolverSnapshotPreview,
   ManagementSolverTeacher,
   ManagementSolverTeacherLoadTarget,
+  ManagementSolverSubjectTimePreference,
   ManagementSolverObjectiveWeights,
 } from '@/lib/managementSolver';
 
@@ -103,6 +104,7 @@ interface SolverContext {
   teachers: Map<string, ManagementSolverTeacher>;
   teacherUnavailableKeys: Set<string>;
   teacherLoadTargets: Map<string, ManagementSolverTeacherLoadTarget>;
+  subjectTimePreferences: Map<string, ManagementSolverSubjectTimePreference>;
   rooms: Map<string, ManagementSolverRoom>;
   activeRoomIds: Set<string>;
   teacherPools: Map<string, string[]>;
@@ -839,6 +841,12 @@ function createContext(
       target,
     ]),
   );
+  const subjectTimePreferences = new Map(
+    (snapshot.subjectTimePreferences ?? []).map((preference) => [
+      preference.requirementId,
+      preference,
+    ]),
+  );
   const rooms = new Map(
     snapshot.rooms.map((room) => [room.id, room]),
   );
@@ -868,6 +876,7 @@ function createContext(
     teachers,
     teacherUnavailableKeys,
     teacherLoadTargets,
+    subjectTimePreferences,
     rooms,
     activeRoomIds,
     teacherPools,
@@ -2272,6 +2281,7 @@ export interface ManagementOptimizationMetricVector {
   teacherIdleGapPeriods: number;
   roomStabilityBreaks: number;
   teacherLoadDeviationPeriods: number;
+  subjectTimePreferencePenalty: number;
 }
 
 export interface ManagementOptimizationScoreComponent {
@@ -2289,6 +2299,7 @@ export interface ManagementOptimizationScore {
     teacherIdleGaps: ManagementOptimizationScoreComponent;
     roomStability: ManagementOptimizationScoreComponent;
     teacherLoadBalance: ManagementOptimizationScoreComponent;
+    subjectTimePreference: ManagementOptimizationScoreComponent;
   };
 }
 
@@ -2453,12 +2464,37 @@ function objectiveMetricVector(
     }
   }
 
+  let subjectTimePreferencePenalty = 0;
+
+  for (const assignment of assignments) {
+    const preference = context.subjectTimePreferences.get(
+      assignment.requirementId,
+    );
+    if (!preference) continue;
+
+    if (
+      preference.preferredDays.length > 0
+      && !preference.preferredDays.includes(assignment.dayOfWeek)
+    ) {
+      subjectTimePreferencePenalty += 1;
+    }
+
+    if (preference.preferredStartPeriods.length > 0) {
+      subjectTimePreferencePenalty += Math.min(
+        ...preference.preferredStartPeriods.map((period) => (
+          Math.abs(period - assignment.startPeriod)
+        )),
+      );
+    }
+  }
+
   return {
     changeCost,
     preferredTeacherContinuityBreaks,
     teacherIdleGapPeriods,
     roomStabilityBreaks,
     teacherLoadDeviationPeriods,
+    subjectTimePreferencePenalty,
   };
 }
 
@@ -2506,6 +2542,11 @@ function objectiveScore(
     weights.teacherLoadBalance,
     cardCount,
   );
+  const subjectTimePreference = optimizationScoreComponent(
+    metrics.subjectTimePreferencePenalty,
+    weights.subjectTimePreference,
+    cardCount,
+  );
 
   return {
     total:
@@ -2513,13 +2554,15 @@ function objectiveScore(
       + preferredTeacherContinuity.contribution
       + teacherIdleGaps.contribution
       + roomStability.contribution
-      + teacherLoadBalance.contribution,
+      + teacherLoadBalance.contribution
+      + subjectTimePreference.contribution,
     components: {
       changeCost,
       preferredTeacherContinuity,
       teacherIdleGaps,
       roomStability,
       teacherLoadBalance,
+      subjectTimePreference,
     },
   };
 }
@@ -2533,6 +2576,7 @@ function supportedPositiveWeightCount(
     weights.teacherIdleGaps,
     weights.roomStability,
     weights.teacherLoadBalance,
+    weights.subjectTimePreference,
   ].filter((weight) => weight > 0).length;
 }
 
@@ -2645,6 +2689,9 @@ function metricDelta(
     teacherLoadDeviationPeriods:
       proposed.teacherLoadDeviationPeriods
       - baseline.teacherLoadDeviationPeriods,
+    subjectTimePreferencePenalty:
+      proposed.subjectTimePreferencePenalty
+      - baseline.subjectTimePreferencePenalty,
   };
 }
 
@@ -2782,7 +2829,8 @@ function singleObjectiveSeedWeights(
       | 'preferredTeacherContinuity'
       | 'teacherIdleGaps'
       | 'roomStability'
-      | 'teacherLoadBalance',
+      | 'teacherLoadBalance'
+      | 'subjectTimePreference',
   ) => {
     if (weights[key] <= 0) return;
     seeds.push({
@@ -2800,6 +2848,7 @@ function singleObjectiveSeedWeights(
   add('teacherIdleGaps');
   add('roomStability');
   add('teacherLoadBalance');
+  add('subjectTimePreference');
 
   return seeds;
 }
@@ -2915,6 +2964,7 @@ export function runManagementObjectiveOptimization(
     teacherIdleGapPeriods: 0,
     roomStabilityBreaks: 0,
     teacherLoadDeviationPeriods: 0,
+    subjectTimePreferencePenalty: 0,
   };
   const emptyScore = objectiveScore(
     emptyMetrics,
@@ -3054,6 +3104,8 @@ export function runManagementObjectiveOptimization(
       - right.metrics.roomStabilityBreaks
     || left.metrics.teacherLoadDeviationPeriods
       - right.metrics.teacherLoadDeviationPeriods
+    || left.metrics.subjectTimePreferencePenalty
+      - right.metrics.subjectTimePreferencePenalty
     || left.sourceKey.localeCompare(right.sourceKey)
   ));
 
