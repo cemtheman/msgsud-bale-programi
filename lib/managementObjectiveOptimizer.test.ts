@@ -628,3 +628,98 @@ describe('subject time preference objective', () => {
     expect(moved?.startPeriod).toBe(4);
   });
 });
+
+
+describe('subject time preference coordinated reroute', () => {
+  it('can free a preferred slot by rerouting the single blocking lesson', () => {
+    const data = baseSnapshot();
+
+    data.requirements = [
+      {
+        ...data.requirements[0],
+        id: 'r1',
+        groupId: 'g1',
+        groupName: '5A',
+      },
+      {
+        ...data.requirements[1],
+        id: 'r2',
+        groupId: 'g1',
+        groupName: '5A',
+      },
+    ];
+    data.cards = [
+      {
+        id: 'c1',
+        requirementId: 'r1',
+        blockIndex: 1,
+        durationPeriods: 1,
+        locked: false,
+      },
+      {
+        id: 'c2',
+        requirementId: 'r2',
+        blockIndex: 1,
+        durationPeriods: 1,
+        locked: false,
+      },
+    ];
+    data.instructionalGroups = [data.instructionalGroups[0]];
+    data.teacherPools = [
+      { requirementId: 'r1', teacherId: 't1' },
+      { requirementId: 'r2', teacherId: 't1' },
+    ];
+    data.roomPools = [
+      { requirementId: 'r1', roomId: 'room1' },
+      { requirementId: 'r2', roomId: 'room2' },
+    ];
+    data.baselinePlacements = [
+      {
+        cardId: 'c1',
+        dayOfWeek: 1,
+        startPeriod: 1,
+        teacherId: 't1',
+        roomId: 'room1',
+      },
+      {
+        cardId: 'c2',
+        dayOfWeek: 1,
+        startPeriod: 3,
+        teacherId: 't1',
+        roomId: 'room2',
+      },
+    ];
+    data.subjectTimePreferences = [
+      {
+        requirementId: 'r2',
+        preferredDays: [1],
+        preferredStartPeriods: [1],
+      },
+    ];
+
+    const result = runManagementObjectiveOptimization(
+      data,
+      {
+        ...ZERO_WEIGHTS,
+        subjectTimePreference: 1000,
+      },
+      {
+        maxIterations: 2,
+        maxNeighborsPerCard: 40,
+      },
+    );
+
+    expect(result.status).toBe('IMPROVED');
+    expect(result.baselineMetrics.subjectTimePreferencePenalty).toBe(2);
+    expect(result.proposedMetrics.subjectTimePreferencePenalty).toBe(0);
+
+    const c1 = result.placements.find((placement) => placement.cardId === 'c1');
+    const c2 = result.placements.find((placement) => placement.cardId === 'c2');
+
+    expect(c2?.dayOfWeek).toBe(1);
+    expect(c2?.startPeriod).toBe(1);
+    expect(c1?.dayOfWeek).toBe(1);
+    expect(c1?.startPeriod).not.toBe(1);
+    expect(result.changedCards).toHaveLength(2);
+  });
+});

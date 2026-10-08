@@ -2671,6 +2671,143 @@ function moveIsHardFeasible(
   );
 }
 
+
+function candidateTimePreferencePenalty(
+  candidate: Candidate,
+  context: SolverContext,
+) {
+  const preference = context.subjectTimePreferences.get(
+    candidate.requirementId,
+  );
+  if (!preference) return 0;
+
+  let penalty = 0;
+
+  if (
+    preference.preferredDays.length > 0
+    && !preference.preferredDays.includes(candidate.dayOfWeek)
+  ) {
+    penalty += 1;
+  }
+
+  if (preference.preferredStartPeriods.length > 0) {
+    penalty += Math.min(
+      ...preference.preferredStartPeriods.map((period) => (
+        Math.abs(period - candidate.startPeriod)
+      )),
+    );
+  }
+
+  return penalty;
+}
+
+function candidatesConflict(
+  left: Candidate,
+  right: Candidate,
+  context: SolverContext,
+) {
+  if (left.dayOfWeek !== right.dayOfWeek) return false;
+  if (!overlaps(
+    left.startPeriod,
+    left.endPeriod,
+    right.startPeriod,
+    right.endPeriod,
+  )) {
+    return false;
+  }
+
+  if (
+    left.teacherId != null
+    && left.teacherId === right.teacherId
+  ) {
+    return true;
+  }
+
+  if (
+    left.roomConflictKey != null
+    && left.roomConflictKey === right.roomConflictKey
+  ) {
+    return true;
+  }
+
+  return groupsConflict(left.groupId, right.groupId, context);
+}
+
+function replacementBundleIsHardFeasible(
+  replacements: Candidate[],
+  untouchedAssignments: Candidate[],
+  context: SolverContext,
+) {
+  const tryOrder = (ordered: Candidate[]) => {
+    const staged = [...untouchedAssignments];
+    const remainingByRequirement = new Map<string, number>();
+
+    for (const candidate of ordered) {
+      remainingByRequirement.set(
+        candidate.requirementId,
+        (remainingByRequirement.get(candidate.requirementId) ?? 0) + 1,
+      );
+    }
+
+    for (const candidate of ordered) {
+      remainingByRequirement.set(
+        candidate.requirementId,
+        Math.max(
+          (remainingByRequirement.get(candidate.requirementId) ?? 1) - 1,
+          0,
+        ),
+      );
+
+      if (!canAssign(
+        candidate,
+        staged,
+        remainingByRequirement,
+        context,
+      )) {
+        return false;
+      }
+
+      staged.push(candidate);
+    }
+
+    return finalRequirementRulesHold(staged, context);
+  };
+
+  if (tryOrder(replacements)) return true;
+
+  return replacements.length === 2
+    ? tryOrder([replacements[1], replacements[0]])
+    : false;
+}
+
+function pairRerouteNeighborhood(
+  domain: Candidate[],
+  current: Candidate,
+  vacatedBy: Candidate,
+  maxNeighbors: number,
+) {
+  return domain
+    .filter((candidate) => !samePlacement(candidate, current))
+    .sort((left, right) => {
+      const leftVacated = (
+        left.dayOfWeek === vacatedBy.dayOfWeek
+        && left.startPeriod === vacatedBy.startPeriod
+      ) ? 0 : 1;
+      const rightVacated = (
+        right.dayOfWeek === vacatedBy.dayOfWeek
+        && right.startPeriod === vacatedBy.startPeriod
+      ) ? 0 : 1;
+
+      return (
+        leftVacated - rightVacated
+        || candidateDistance(left, current)
+          - candidateDistance(right, current)
+        || candidateKey(left).localeCompare(candidateKey(right))
+      );
+    })
+    .slice(0, maxNeighbors);
+}
+
 function metricDelta(
   baseline: ManagementOptimizationMetricVector,
   proposed: ManagementOptimizationMetricVector,
@@ -2732,6 +2869,7 @@ function runLocalObjectiveSearch(
           metrics: ManagementOptimizationMetricVector;
           score: ManagementOptimizationScore;
           key: string;
+          acceptedMoveIncrement: number;
         }
       | null = null;
 
@@ -2797,7 +2935,150 @@ function runLocalObjectiveSearch(
             metrics: proposedMetrics,
             score: proposedScore,
             key,
+            acceptedMoveIncrement: 1,
           };
+        }
+      }
+    }
+
+    if (weights.subjectTimePreference > 0) {
+      const pairPrimaryLimit = Math.max(
+        8,
+        Math.min(maxNeighborsPerCard, 20),
+      );
+      const pairRerouteLimit = Math.max(
+        8,
+        Math.min(maxNeighborsPerCard, 16),
+      );
+
+      for (const card of cards) {
+        if (card.locked) continue;
+
+        const current = currentAssignments.find(
+          (assignment) => assignment.cardId === card.id,
+        );
+        if (!current) continue;
+
+        const preference = context.subjectTimePreferences.get(
+          card.requirementId,
+        );
+        if (!preference) continue;
+
+        const currentPreferencePenalty = candidateTimePreferencePenalty(
+          current,
+          context,
+        );
+        if (currentPreferencePenalty <= 0) continue;
+
+        const primaryCandidates = (domains.get(card.id) ?? [])
+          .filter((candidate) => (
+            !samePlacement(candidate, current)
+            && candidateTimePreferencePenalty(candidate, context)
+              < currentPreferencePenalty
+          ))
+          .sort((left, right) => (
+            candidateTimePreferencePenalty(left, context)
+              - candidateTimePreferencePenalty(right, context)
+            || candidateDistance(left, current)
+              - candidateDistance(right, current)
+            || candidateKey(left).localeCompare(candidateKey(right))
+          ))
+          .slice(0, pairPrimaryLimit);
+
+        for (const primaryCandidate of primaryCandidates) {
+          if (!preserveUnknownRoomEvidence(primaryCandidate, context)) {
+            continue;
+          }
+
+          const blockers = currentAssignments.filter((assignment) => (
+            assignment.cardId !== card.id
+            && candidatesConflict(
+              primaryCandidate,
+              assignment,
+              context,
+            )
+          ));
+
+          if (blockers.length !== 1) continue;
+
+          const blocker = blockers[0];
+          const blockerCard = context.cards.get(blocker.cardId);
+          if (!blockerCard || blockerCard.locked) continue;
+
+          const untouched = currentAssignments.filter((assignment) => (
+            assignment.cardId !== card.id
+            && assignment.cardId !== blocker.cardId
+          ));
+          const rerouteCandidates = pairRerouteNeighborhood(
+            domains.get(blocker.cardId) ?? [],
+            blocker,
+            current,
+            pairRerouteLimit,
+          );
+
+          for (const rerouteCandidate of rerouteCandidates) {
+            if (!preserveUnknownRoomEvidence(rerouteCandidate, context)) {
+              continue;
+            }
+
+            evaluatedMoveCount += 1;
+
+            if (!replacementBundleIsHardFeasible(
+              [primaryCandidate, rerouteCandidate],
+              untouched,
+              context,
+            )) {
+              continue;
+            }
+
+            const proposedAssignments = [
+              ...untouched,
+              primaryCandidate,
+              rerouteCandidate,
+            ];
+            const proposedMetrics = objectiveMetricVector(
+              proposedAssignments,
+              context,
+            );
+            const proposedScore = objectiveScore(
+              proposedMetrics,
+              weights,
+              cards.length,
+            );
+
+            if (
+              proposedScore.total
+              >= currentScore.total - SCORE_EPSILON
+            ) {
+              continue;
+            }
+
+            const key = [
+              'pair',
+              card.id,
+              candidateKey(primaryCandidate),
+              blocker.cardId,
+              candidateKey(rerouteCandidate),
+            ].join('|');
+
+            if (
+              best == null
+              || proposedScore.total < best.score.total - SCORE_EPSILON
+              || (
+                Math.abs(proposedScore.total - best.score.total)
+                  <= SCORE_EPSILON
+                && key.localeCompare(best.key) < 0
+              )
+            ) {
+              best = {
+                assignments: proposedAssignments,
+                metrics: proposedMetrics,
+                score: proposedScore,
+                key,
+                acceptedMoveIncrement: 2,
+              };
+            }
+          }
         }
       }
     }
@@ -2807,7 +3088,7 @@ function runLocalObjectiveSearch(
     currentAssignments = best.assignments;
     currentMetrics = best.metrics;
     currentScore = best.score;
-    acceptedMoveCount += 1;
+    acceptedMoveCount += best.acceptedMoveIncrement;
   }
 
   return {
