@@ -379,4 +379,33 @@ describe('local solver placement projection', () => {
     expect(projected.preview.subjectTimePreferences).toEqual([]);
   });
 
+
+  it('projects unsaved card pins into the local solver snapshot', () => {
+    const copy = workingCopy();
+    copy.cardsById.c1 = {
+      id: 'c1',
+      requirementId: 'r1',
+      blockIndex: 1,
+      durationPeriods: 1,
+      locked: false,
+      timePinned: true,
+      teacherPinned: false,
+      roomPinned: true,
+      baselineExists: true,
+    };
+
+    const projected = projectManagementSolverWorkspacePlacementsV1(
+      workspace(),
+      copy,
+      11,
+    );
+
+    expect(projected.preview.cards.find((card) => card.id === 'c1'))
+      .toMatchObject({
+        timePinned: true,
+        teacherPinned: false,
+        roomPinned: true,
+      });
+  });
+
 });
