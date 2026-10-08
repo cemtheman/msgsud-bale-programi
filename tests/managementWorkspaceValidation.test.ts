@@ -843,4 +843,66 @@ describe('management workspace local validation v1', () => {
     expect(prepared.preview.conflicts.length).toBeGreaterThan(0);
   });
 
+
+  it('blocks manual day/time changes when the card time is pinned', () => {
+    const source = baseSnapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    copy.cardsById['card-1'].timePinned = true;
+    setManagementWorkspacePlacementV1(copy, {
+      ...copy.placementsByCardId['card-1'],
+      dayOfWeek: 3,
+      startPeriod: 2,
+    });
+
+    const validation = validateManagementWorkspaceV1(
+      source,
+      copy,
+      'EDIT',
+    );
+
+    expect(validation.issues.map((issue) => issue.code))
+      .toContain('TIME_PINNED_CHANGED');
+  });
+
+  it('blocks direct teacher changes when the card teacher is pinned', () => {
+    const source = baseSnapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    copy.cardsById['card-1'].teacherPinned = true;
+    setManagementWorkspacePlacementV1(copy, {
+      ...copy.placementsByCardId['card-1'],
+      teacherId: 'teacher-2',
+    });
+
+    const validation = validateManagementWorkspaceV1(
+      source,
+      copy,
+      'EDIT',
+    );
+
+    expect(validation.issues.map((issue) => issue.code))
+      .toContain('TEACHER_PINNED_CHANGED');
+  });
+
+  it('blocks direct room changes when the card room is pinned', () => {
+    const source = baseSnapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    copy.cardsById['card-1'].roomPinned = true;
+    setManagementWorkspacePlacementV1(copy, {
+      ...copy.placementsByCardId['card-1'],
+      roomId: 'room-2',
+    });
+
+    const validation = validateManagementWorkspaceV1(
+      source,
+      copy,
+      'EDIT',
+    );
+
+    expect(validation.issues.map((issue) => issue.code))
+      .toContain('ROOM_PINNED_CHANGED');
+  });
+
 });
