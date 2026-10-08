@@ -3083,3 +3083,26 @@ This closes the UI patch that separates solver preference loading from actual lo
 Status:
 - **SOLVER LOADING-STATE UI CLOSED / PASS**
 - next: teacher-load diagnostics/tuning and objective UX refinement
+
+
+### 8 Oct 2026 — Teacher-load diagnostics UI v1 — GATE PENDING
+
+Goal:
+- make the aggregate teacher-load deviation explainable before changing scoring semantics
+- avoid new DB reads; reuse existing Management Resources teacher rows
+
+Implemented in Resources > Teachers:
+- per-teacher load deviation indicator computed from existing row data
+- target semantics match solver scoring:
+  - if targetLoad exists: abs(actual - target)
+  - otherwise: outside min/max band only
+- configured teachers display `Hedef sapması N`
+- optional `Sapmaya göre sırala` toggle sorts largest deviation contributors first
+- default teacher ordering remains unchanged until the toggle is enabled
+
+Implementation:
+- `83347b38dec442c60d22c98bb92bb076490e4956` — ux: expose teacher load deviation contributors
+
+Validation:
+- tests/build: PENDING
+- browser UX acceptance: PENDING
