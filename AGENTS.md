@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `ffa5bc1737c9fd0d41caa0d61c4794f2f51c673a` — M42 fine-grained pin foundation; gate pending |
+| Aktif implementation checkpoint | `967b1e887b76a52cb2539a469b8f016107e76071` — M42 local pin UI/Undo/Redo/v13 Save implementation ready; gate pending |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **M42 foundation CLOSED / PASS** — 39/39, 285/285, build PASS, migration parity PASS |
-| Sıradaki iş paketi | **M42 local pin editing + shared Undo/Redo + atomic Save + UI controls** |
+| Sıradaki iş paketi | **M42 code gate + v13 dry-run/apply + browser acceptance** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9515,3 +9515,58 @@ Validation received from Codespaces:
 Status:
 - **M42 FOUNDATION CLOSED / PASS**
 - next sub-phase: local card-pin editing + shared Undo/Redo + atomic main Save + Program/Inspector UI controls
+
+
+### 8 Oct 2026 — M42 local pin editing + Undo/Redo + atomic Save + UI — IMPLEMENTATION READY / GATE PENDING
+
+Implemented local workspace contract:
+- card pin state is part of Management Workspace working copy
+- pin diff is independent from placement diff
+- pin edits mark the card/workspace dirty without moving the lesson
+- shared history operation: `SET_CARD_PINS`
+- Undo/Redo restores all three pin dimensions
+- local solver projection includes unsaved pin state immediately
+- local solver fingerprint/hash includes pin dimensions
+
+Atomic Save:
+- commit payload adds deterministic `pinChanges`
+- client now targets `management_commit_workspace_v13`
+- migration `20261008173000_management_workspace_card_pins.sql`
+- v13 validates original snapshot/baseline, stale-checks current pin state, writes pins, then delegates v12 in the same DB transaction
+- result exposes `changedPinCount`
+
+Inspector UI:
+- new `Solver sabitlemeleri` panel on placed cards
+- independent controls:
+  - Gün / saat
+  - Öğretmen
+  - Salon
+- active dimensions display `Sabit`
+- legacy full `locked` card displays `Tam kilit` and disables fine-grained toggles
+- helper copy states that unpinned dimensions may still change in proposals
+
+Regression coverage added:
+- fine-grained pin workspace diff
+- shared Undo/Redo
+- atomic v13 pin payload
+- unsaved local pin solver projection
+- existing solver time/teacher/full-lock pin semantics
+
+Key commits:
+- `cf415636fce90bff6eca936825c614c014c4da67` workspace pin diff
+- `0c824df9d70a48809142939a09b558648d70408e` history
+- `d5e1677718719fb4bbc4485121850a76fee7ea1c` commands
+- `d6f2f4847843a7f708f84f0c936cd982266e42f9` local solver projection
+- `caf912cde460a8fa9f438c88b5125ef41d45f1c1` workspace v13 migration
+- `60da5f6eef0078f6daace17b1c111af22945110b` Inspector controls
+- `eb133330674945131fa9977ca9dd9c5a99b7e513` page wiring
+- `60ebe46ae047a1b45b19f38ce6d25aff327859a1` v13 client/payload fix
+- tests through `e9e9e8104fb743748426b55d964622951fd34fbb` + fixture-id correction `967b1e887b76a52cb2539a469b8f016107e76071`
+
+Validation status:
+- focused tests: PENDING
+- full suite: PENDING
+- production build: PENDING
+- v13 migration dry-run: PENDING
+- DB push: NOT DONE
+- browser acceptance: PENDING
