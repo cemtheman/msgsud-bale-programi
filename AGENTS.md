@@ -14,7 +14,7 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `4d77abaf3898bfdaff3e2f41eac07d8cd0104362` — save progress count UI accepted |
+| Aktif implementation checkpoint | `0d4375bb16e1ac7da72b46f0b18ba77046a043d8` — blocking overlay reserved for startup only |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **Workspace v12 time preferences + save count UI CLOSED / PASS** |
@@ -9052,3 +9052,23 @@ Implementation:
 Status:
 - **WORKSPACE V12 TIME PREFERENCES + SAVE COUNT UI CLOSED / PASS**
 - next active phase: objective model expansion continuation
+
+
+### 8 Oct 2026 — Blocking overlay reserved for startup only
+
+UX simplification:
+- startup loading keeps the full blocking `ManagementBusyOverlay`
+- ordinary in-app operations no longer render a second full-screen blocking overlay
+- ongoing Save/Undo/Redo/calculation activity continues through the existing top activity band
+- `commandBusy` still protects action buttons and write concurrency
+- completion/error feedback continues through toast/notice
+
+Implementation:
+- `0d4375bb16e1ac7da72b46f0b18ba77046a043d8` — ux: reserve blocking overlay for startup only
+
+Resulting feedback hierarchy:
+- startup -> blocking overlay
+- normal ongoing operation -> top activity band
+- result -> toast/notice
+
+Status: implementation complete; normal test/build gate remains.
