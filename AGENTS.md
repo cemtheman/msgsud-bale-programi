@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `884b17a6bb92ea497f2bf2fdc2c8b7161c6d763f` — time preference save notice count fix |
+| Aktif implementation checkpoint | `4d77abaf3898bfdaff3e2f41eac07d8cd0104362` — save progress count UI accepted |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
-| Son kullanıcı/QA kabulü | **Workspace v12 time preferences browser acceptance CLOSED / PASS** — local edit/Undo/Redo/Save/reload verified; save-notice count patch pending code gate |
-| Sıradaki iş paketi | **Final v12 UI patch gate, then objective expansion continuation** |
+| Son kullanıcı/QA kabulü | **Workspace v12 time preferences + save count UI CLOSED / PASS** |
+| Sıradaki iş paketi | **Objective model expansion continuation — teacher load balance + preferred day/time objectives** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9037,3 +9037,18 @@ Fix:
 Status:
 - **WORKSPACE V12 TIME PREFERENCES BROWSER ACCEPTANCE CLOSED / PASS**
 - remaining action: normal test/build gate for the UI-only notice patch
+
+
+### 8 Oct 2026 — Workspace v12 save progress count UI acceptance PASS
+
+Browser acceptance confirmed:
+- save progress overlay now counts all workspace delta categories, including time preferences
+- time-preference-only save correctly shows `1 değişiklik kontrol edilip kaydediliyor.`
+- success notice count and progress overlay are now consistent with workspace v12 persistence
+
+Implementation:
+- `4d77abaf3898bfdaff3e2f41eac07d8cd0104362` — ux: count all workspace deltas in save progress
+
+Status:
+- **WORKSPACE V12 TIME PREFERENCES + SAVE COUNT UI CLOSED / PASS**
+- next active phase: objective model expansion continuation
