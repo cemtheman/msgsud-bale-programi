@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `876c889d7dceb708e45f63a675736aafa3392cf1` — teacher load provenance package prepared; DB not pushed |
+| Aktif implementation checkpoint | `ffa5bc1737c9fd0d41caa0d61c4794f2f51c673a` — M42 fine-grained pin foundation; gate pending |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **Teacher-load objective leg CLOSED / PASS** — 8 explicit targets, 45 defaults excluded from solver, real-data reassignment validated |
-| Sıradaki iş paketi | **Return to remaining objective/UX roadmap after teacher-load leg closure** |
+| Sıradaki iş paketi | **M42 foundation gate + migration dry-run; then local Undo/Redo/atomic Save pin controls and UI** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9459,3 +9459,44 @@ This closes the teacher-load objective leg for the current milestone:
 - validated real teacher reassignment behavior
 - exposed per-teacher deviation diagnostics
 - separated default suggestions from explicit solver targets
+
+
+### 8 Oct 2026 — M42 fine-grained card pin foundation — GATE PENDING
+
+Roadmap return after teacher-load objective closure.
+
+M42 contract:
+- legacy `locked=true` remains a full card pin
+- new independent solver pin dimensions:
+  - `timePinned` => preserve baseline day/start period
+  - `teacherPinned` => preserve baseline teacher
+  - `roomPinned` => preserve baseline room
+- unpinned dimensions remain optimizable
+- no hidden inference: pins are explicit card-level state
+
+DB/snapshot foundation:
+- migration `20261008170000_m42_fine_grained_card_pin_foundation.sql`
+- adds `schedule_cards.time_pinned / teacher_pinned / room_pinned`
+- wraps current solver snapshot as M42-v1 and injects pin fields into cards
+- adds `FINE_GRAINED_CARD_PIN` to hard constraint contract
+- pin state participates in snapshotHash
+- no existing card is pinned by migration; defaults are false
+
+Solver semantics:
+- time pin restricts domain to baseline day/start while teacher/room may vary
+- teacher pin restricts teacher domain to baseline teacher
+- room pin restricts room domain to baseline room
+- legacy locked card still pins all dimensions
+
+Implementation commits:
+- `77115fa78788e4de1dc5c0d371fa3b5d5fccf72b` — card pin typing
+- `dbf23e7f8bb80a9131edafe77f410bf59f7e015e` — solver domain enforcement
+- `ab7740ea5c19019d525a913f5f89990ad6b598d8` — M42 DB/snapshot foundation
+- `ffa5bc1737c9fd0d41caa0d61c4794f2f51c673a` — fine-grained pin regression tests
+
+Validation status:
+- focused solver tests: PENDING
+- full suite/build: PENDING
+- migration dry-run: PENDING
+- DB push: NOT DONE
+- UI/local Undo/Redo/atomic Save controls: intentionally next sub-phase after foundation gate
