@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `ed21ddc3c93fab8f26e406b050cec76547a72417` — M42 local pin code gate PASS (39/39, 289/289, build PASS) |
+| Aktif implementation checkpoint | `d1c34a4b9bcf7d8d8591e655e2d00c21a4624d7f` — M42 notice semantics fixed; re-test pending |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **M42 REOPENED** — browser found technical wording + manual move bypass; semantic patch ready, re-test pending |
-| Sıradaki iş paketi | **Run M42 semantic patch tests/build; browser re-test real pin behavior; close only if manual + solver paths both respect pins** |
+| Sıradaki iş paketi | **Run tests/build, then browser re-test pin block notice + pin-only Save notice + manual pin behavior** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9659,4 +9659,25 @@ DB status:
 Status:
 - M42 browser acceptance: **REOPENED**
 - focused/full tests + build after semantic patch: PENDING
+- browser re-test: PENDING
+
+
+### 8 Oct 2026 — M42 notice copy/runtime reason fix — RE-TEST PENDING
+
+Browser feedback:
+- time-pinned drag surfaced the generic error `Yerel aday bilgisi hazırlanamadı. Programı yenileyip tekrar deneyin.` instead of the real pin reason.
+- successful pin-only Save surfaced an empty summary ending as just `kaydedildi.` because `changedPinCount` was omitted from the success-label aggregation.
+
+Fix:
+- beginDrag now re-checks full/time pin state (including linked/parallel bundle members) before emitting the generic preparation failure; blocked drag keeps the explanatory info message: `Bu dersin gün / saati sabit. Taşımak için önce Gün / saat sabitlemesini kaldırın.`
+- generic drag failure copy changed from technical `Yerel aday bilgisi` wording to `Taşıma seçenekleri hazırlanamadı...`
+- Save success aggregation now includes `changedPinCount` as `N sabitleme değişikliği`
+- success notice has a fallback `N değişiklik kaydedildi.`, so an empty `kaydedildi.` message cannot occur
+
+Commit:
+- `d1c34a4b9bcf7d8d8591e655e2d00c21a4624d7f` — meaningful pin-block and save notices
+
+Status:
+- M42 acceptance still REOPENED
+- tests/build after notice patch: PENDING
 - browser re-test: PENDING
