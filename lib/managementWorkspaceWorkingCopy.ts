@@ -1684,6 +1684,42 @@ export function diffManagementWorkspaceV1(
     )
     .sort((left, right) => left.cardId.localeCompare(right.cardId));
 
+  const cardPinChanges = placementCardIds
+    .map((cardId) => {
+      const beforeCard = baselineCards[cardId];
+      const afterCard = workingCopy.cardsById[cardId];
+
+      if (!beforeCard || !afterCard) return null;
+
+      const before: ManagementWorkspaceCardPinStateV1 = {
+        cardId,
+        timePinned: beforeCard.timePinned === true,
+        teacherPinned: beforeCard.teacherPinned === true,
+        roomPinned: beforeCard.roomPinned === true,
+      };
+      const after: ManagementWorkspaceCardPinStateV1 = {
+        cardId,
+        timePinned: afterCard.timePinned === true,
+        teacherPinned: afterCard.teacherPinned === true,
+        roomPinned: afterCard.roomPinned === true,
+      };
+
+      if (
+        before.timePinned === after.timePinned
+        && before.teacherPinned === after.teacherPinned
+        && before.roomPinned === after.roomPinned
+      ) {
+        return null;
+      }
+
+      return { cardId, before, after };
+    })
+    .filter(
+      (change): change is ManagementWorkspaceCardPinChangeV1 =>
+        change !== null,
+    )
+    .sort((left, right) => left.cardId.localeCompare(right.cardId));
+
   const requirementStructureChanges = Object.values(
     workingCopy.requirementCatalogById,
   )
