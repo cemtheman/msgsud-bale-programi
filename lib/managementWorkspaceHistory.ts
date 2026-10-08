@@ -12,6 +12,8 @@ import {
   cloneManagementWorkspaceTeacherPlanningV1,
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
+  setManagementWorkspaceCardPinsV1,
+  type ManagementWorkspaceCardPinStateV1,
   type ManagementWorkspaceInventoryStateV1,
   type ManagementWorkspaceRoomInventoryStateV1,
   type ManagementWorkspaceRoomProfileStateV1,
@@ -29,6 +31,7 @@ import {
 export type ManagementWorkspaceOperationKindV1 =
   | 'SET_PLACEMENT'
   | 'REMOVE_PLACEMENT'
+  | 'SET_CARD_PINS'
   | 'SET_REQUIREMENT_RESOURCES'
   | 'SET_REQUIREMENT_TIME_PREFERENCE'
   | 'SET_INVENTORY_RESOURCE'
@@ -47,6 +50,18 @@ export interface ManagementWorkspacePlacementOperationV1 {
   resourceId: null;
   before: ManagementWorkspacePlacementStateV1;
   after: ManagementWorkspacePlacementStateV1;
+}
+
+
+export interface ManagementWorkspaceCardPinOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_CARD_PINS';
+  cardId: string;
+  requirementId: null;
+  resourceId: null;
+  before: ManagementWorkspaceCardPinStateV1;
+  after: ManagementWorkspaceCardPinStateV1;
 }
 
 export interface ManagementWorkspaceRequirementStructureOperationV1 {
@@ -140,6 +155,7 @@ export interface ManagementWorkspaceResourceBundleOperationV1 {
 
 export type ManagementWorkspaceOperationV1 =
   | ManagementWorkspacePlacementOperationV1
+  | ManagementWorkspaceCardPinOperationV1
   | ManagementWorkspaceRequirementStructureOperationV1
   | ManagementWorkspaceRequirementResourceOperationV1
   | ManagementWorkspaceRequirementTimePreferenceOperationV1
@@ -167,6 +183,25 @@ function currentPlacement(
     );
   }
   return cloneManagementWorkspacePlacementV1(value);
+}
+
+
+function currentCardPins(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  cardId: string,
+): ManagementWorkspaceCardPinStateV1 {
+  const card = workingCopy.cardsById[cardId];
+  if (!card) {
+    throw new Error(
+      `Workspace geçmiş işlemi için kart bulunamadı (${cardId}).`,
+    );
+  }
+  return {
+    cardId,
+    timePinned: card.timePinned,
+    teacherPinned: card.teacherPinned,
+    roomPinned: card.roomPinned,
+  };
 }
 
 function currentInventory(
@@ -363,6 +398,14 @@ function applyInventoryState(
 export function cloneManagementWorkspaceOperationV1(
   operation: ManagementWorkspaceOperationV1,
 ): ManagementWorkspaceOperationV1 {
+  if (operation.kind === 'SET_CARD_PINS') {
+    return {
+      ...operation,
+      before: { ...operation.before },
+      after: { ...operation.after },
+    };
+  }
+
   if (operation.kind === 'SET_REQUIREMENT_STRUCTURE') {
     return {
       ...operation,
@@ -450,6 +493,7 @@ function recordOperation(
   history: ManagementWorkspaceHistoryV1,
   operation:
     | Omit<ManagementWorkspacePlacementOperationV1, 'sequence' | 'batchId'>
+    | Omit<ManagementWorkspaceCardPinOperationV1, 'sequence' | 'batchId'>
     | Omit<
         ManagementWorkspaceRequirementStructureOperationV1,
         'sequence' | 'batchId'
@@ -501,6 +545,27 @@ export function createManagementWorkspaceHistoryV1():
     undoStack: [],
     redoStack: [],
   };
+}
+
+
+export function applyManagementWorkspaceCardPinOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  pins: ManagementWorkspaceCardPinStateV1,
+) {
+  const before = currentCardPins(workingCopy, pins.cardId);
+  const after = { ...pins };
+
+  setManagementWorkspaceCardPinsV1(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_CARD_PINS',
+    cardId: pins.cardId,
+    requirementId: null,
+    resourceId: null,
+    before,
+    after,
+  });
 }
 
 export function applyManagementWorkspacePlacementOperationV1(
@@ -790,6 +855,14 @@ function applyOperationState(
   const value = direction === 'BEFORE'
     ? operation.before
     : operation.after;
+
+  if (operation.kind === 'SET_CARD_PINS') {
+    setManagementWorkspaceCardPinsV1(
+      workingCopy,
+      value as ManagementWorkspaceCardPinStateV1,
+    );
+    return;
+  }
 
   if (operation.kind === 'SET_REQUIREMENT_STRUCTURE') {
     applyManagementWorkspaceRequirementStructureBundleV1(
