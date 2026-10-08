@@ -131,6 +131,8 @@ function copy(): ManagementWorkspaceWorkingCopyV1 {
         baselineResourceMode: 'FIXED',
         baselineRoomIds: ['room-1'],
         baselineRequiredCapability: null,
+        baselinePreferredDays: [],
+        baselinePreferredStartPeriods: [],
       },
     },
     requirementTimePreferencesById: {},
@@ -328,6 +330,8 @@ describe('management workspace board adapter v1', () => {
       baselineResourceMode: 'UNKNOWN',
       baselineRoomIds: [],
       baselineRequiredCapability: null,
+      baselinePreferredDays: [],
+      baselinePreferredStartPeriods: [],
     };
     workingCopy.requirementStructureById['requirement-inactive'] = {
       requirementId: 'requirement-inactive',
