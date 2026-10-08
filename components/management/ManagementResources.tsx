@@ -1039,6 +1039,9 @@ export function ManagementResources({
   const configuredTeacherLoadCount = visibleTeachers.filter(
     (row) => row.loadConfigured,
   ).length;
+  const seededTeacherLoadCount = visibleTeachers.filter(
+    (row) => row.loadTargetSource === 'DEFAULT_SEED',
+  ).length;
 
   const configuredTeacherAvailabilityCount = visibleTeachers.filter(
     (row) => row.availabilityConfigured,
@@ -1212,7 +1215,15 @@ export function ManagementResources({
                       {configuredTeacherLoadCount}
                     </p>
                     <p className="text-[10px] font-bold text-slate-400">
-                      yük hedefi
+                      onaylı hedef
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-black text-slate-900">
+                      {seededTeacherLoadCount}
+                    </p>
+                    <p className="text-[10px] font-bold text-slate-400">
+                      varsayılan
                     </p>
                   </div>
                   <div>
@@ -1279,7 +1290,11 @@ export function ManagementResources({
                         </div>
 
                         <div className="text-right">
-                          {row.loadConfigured ? (
+                          {(
+                            row.minimumLoad !== null
+                            || row.targetLoad !== null
+                            || row.maximumLoad !== null
+                          ) ? (
                             <div className="flex justify-end gap-1">
                               {([
                                 ['Min', row.minimumLoad],
@@ -1288,12 +1303,24 @@ export function ManagementResources({
                               ] as const).map(([label, value]) => (
                                 <span
                                   key={label}
-                                  className="inline-flex min-w-[50px] flex-col rounded-lg bg-violet-50 px-1.5 py-1 text-center"
+                                  className={`inline-flex min-w-[50px] flex-col rounded-lg px-1.5 py-1 text-center ${
+                                    row.loadTargetSource === 'DEFAULT_SEED'
+                                      ? 'bg-slate-100'
+                                      : 'bg-violet-50'
+                                  }`}
                                 >
-                                  <span className="text-[8px] font-black uppercase tracking-wide text-violet-400">
+                                  <span className={`text-[8px] font-black uppercase tracking-wide ${
+                                    row.loadTargetSource === 'DEFAULT_SEED'
+                                      ? 'text-slate-400'
+                                      : 'text-violet-400'
+                                  }`}>
                                     {label}
                                   </span>
-                                  <span className="text-[11px] font-black tabular-nums text-violet-800">
+                                  <span className={`text-[11px] font-black tabular-nums ${
+                                    row.loadTargetSource === 'DEFAULT_SEED'
+                                      ? 'text-slate-600'
+                                      : 'text-violet-800'
+                                  }`}>
                                     {value ?? '–'}
                                   </span>
                                 </span>
@@ -1304,7 +1331,11 @@ export function ManagementResources({
                               Yük hedefi tanımsız
                             </span>
                           )}
-                          {row.loadConfigured && (
+                          {row.loadTargetSource === 'DEFAULT_SEED' ? (
+                            <p className="mt-1 text-[9px] font-black text-slate-500">
+                              Varsayılan öneri · solver kullanmıyor
+                            </p>
+                          ) : row.loadConfigured ? (
                             <p className={`mt-1 text-[9px] font-black ${
                               (teacherLoadDeviation(row) ?? 0) > 0
                                 ? 'text-amber-700'
@@ -1312,7 +1343,7 @@ export function ManagementResources({
                             }`}>
                               Hedef sapması {teacherLoadDeviation(row) ?? 0}
                             </p>
-                          )}
+                          ) : null}
                           <p className={`mt-1 text-[9px] font-semibold ${
                             row.availabilityConfigured
                               ? 'text-rose-600'
@@ -2367,8 +2398,9 @@ export function ManagementResources({
                   {teacherLoadTarget.name}
                 </h3>
                 <p className="mt-1 max-w-[620px] text-[11px] font-medium leading-5 text-slate-500">
-                  Ders yükü hedefleri planlama amaçlıdır. Öğretmenin uygun olmadığı saatleri
-                  işaretleyerek bu saatlere yeni ders atanmasını engelleyebilirsiniz.
+                  Ders yükü hedefleri planlama amaçlıdır. Varsayılan öneriler solver tarafından
+                  kullanılmaz; bu ekranda kaydettiğiniz değerler onaylı hedefe dönüşür. Öğretmenin
+                  uygun olmadığı saatleri işaretleyerek bu saatlere yeni ders atanmasını engelleyebilirsiniz.
                 </p>
               </div>
               <button
