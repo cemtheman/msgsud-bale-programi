@@ -3063,3 +3063,23 @@ Implementation:
 - `965fdffc7d5fa579f3ad500609aead68f966b7f7` — ux: show solver loading state before load errors
 
 Validation status for UI-only loading-state patch: PENDING
+
+
+### 8 Oct 2026 — Solver loading-state UI gate PASS
+
+Codespaces validation:
+- Test Files: **39 passed (39)**
+- Tests: **280 passed (280)**
+- production build: PASS
+- TypeScript: PASS
+- static generation: 9/9
+- `/yonetim`: build PASS
+
+This closes the UI patch that separates solver preference loading from actual load failure:
+- loading -> `Program tercihleri yükleniyor…`
+- failure -> `Program tercihleri alınamadı.`
+- neutral empty -> `Program tercihleri henüz hazır değil.`
+
+Status:
+- **SOLVER LOADING-STATE UI CLOSED / PASS**
+- next: teacher-load diagnostics/tuning and objective UX refinement
