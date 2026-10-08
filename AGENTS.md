@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `8965362445fdf02727022cd3aee0c05fc86f0585` — solver search acceptance tests for teacher load + subject time added; gate pending |
+| Aktif implementation checkpoint | `8965362445fdf02727022cd3aee0c05fc86f0585` — objective projection + search code gate PASS (39/39, 278/278, build PASS) |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **Workspace v12 time preferences + save count UI CLOSED / PASS** |
-| Sıradaki iş paketi | **Objective search gate, then real-data/browser acceptance and tuning** |
+| Sıradaki iş paketi | **Real-data/browser acceptance + objective tuning for teacher load balance and subject time preference** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9134,3 +9134,26 @@ Validation status:
 - new focused objective-search test: PENDING
 - adapter focused test: PENDING
 - full suite/build: PENDING
+
+
+### 8 Oct 2026 — Objective projection + search code gate PASS
+
+Validation received from Codespaces:
+- Test Files: **39 passed (39)**
+- Tests: **278 passed (278)**
+- production build: PASS
+- TypeScript: PASS
+- static generation: 9/9
+- `/yonetim`: build PASS
+
+This closes the code gate for:
+- local projection of unsaved teacher load targets into solver workspace
+- local projection of unsaved subject day/start-period preferences into solver workspace
+- server fallback before local hydration
+- explicit local clearing semantics
+- deterministic optimizer acceptance for teacher-load balance
+- deterministic optimizer acceptance for subject-time preference
+
+Status:
+- **OBJECTIVE PROJECTION + SEARCH CODE GATE CLOSED / PASS**
+- next: real-data/browser acceptance + objective tuning
