@@ -254,4 +254,87 @@ describe('management objective search acceptance', () => {
     expect(result.status).toBe('UNCHANGED');
   });
 
+
+  it('keeps same-slot teacher swaps reachable when wide candidate domains hit the cap', () => {
+    const snapshot = baseSnapshot();
+    snapshot.hardConstraintContract.days = [1, 2, 3, 4, 5];
+    snapshot.hardConstraintContract.periods = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    snapshot.requirements[0] = {
+      ...snapshot.requirements[0],
+      teacherRequirement: 'REQUIRED',
+      teacherMode: 'ELIGIBLE_POOL',
+      teacherAssignmentScope: 'BLOCK',
+      resourceMode: 'ELIGIBLE_POOL',
+    };
+    snapshot.rooms = [
+      {
+        id: 'room1',
+        name: 'Salon 1',
+        canonicalRoomId: null,
+        capabilities: [],
+        knowledgeStatus: 'CONFIRMED',
+        operationalStatus: 'ACTIVE',
+      },
+      {
+        id: 'room2',
+        name: 'Salon 2',
+        canonicalRoomId: null,
+        capabilities: [],
+        knowledgeStatus: 'CONFIRMED',
+        operationalStatus: 'ACTIVE',
+      },
+    ];
+    snapshot.roomPools = [
+      { requirementId: 'r1', roomId: 'room1' },
+      { requirementId: 'r1', roomId: 'room2' },
+    ];
+
+    snapshot.teachers = Array.from({ length: 22 }, (_, index) => ({
+      id: `t${index + 1}`,
+      name: `Öğretmen ${index + 1}`,
+      operationalStatus: 'ACTIVE',
+    }));
+    snapshot.teacherPools = snapshot.teachers.map((teacher) => ({
+      requirementId: 'r1',
+      teacherId: teacher.id,
+    }));
+    snapshot.teacherLoadTargets = snapshot.teachers.map((teacher, index) => ({
+      teacherId: teacher.id,
+      minimumLoad: null,
+      targetLoad: index === 21 ? 1 : 0,
+      maximumLoad: null,
+    }));
+    snapshot.baselinePlacements[0] = {
+      cardId: 'c1',
+      dayOfWeek: 5,
+      startPeriod: 12,
+      teacherId: 't1',
+      roomId: 'room1',
+    };
+
+    const result = runManagementObjectiveOptimization(
+      snapshot,
+      {
+        ...ZERO_WEIGHTS,
+        teacherLoadBalance: 1000,
+      },
+      {
+        maxIterations: 4,
+        maxNeighborsPerCard: 32,
+        maxCandidatesPerCard: 40,
+      },
+    );
+
+    expect(result.status).toBe('IMPROVED');
+    expect(result.baselineMetrics.teacherLoadDeviationPeriods).toBe(2);
+    expect(result.proposedMetrics.teacherLoadDeviationPeriods).toBe(0);
+    expect(result.placements).toEqual([expect.objectContaining({
+      cardId: 'c1',
+      dayOfWeek: 5,
+      startPeriod: 12,
+      teacherId: 't22',
+      roomId: 'room1',
+    })]);
+  });
+
 });
