@@ -2627,3 +2627,21 @@ Next active acceptance:
 3. confirm no DB persistence before Save
 4. Save once and verify atomic persistence after reload
 5. only then open the next objective-model expansion package (teacher-load balance / preferred day-time) from the stable workspace baseline
+
+
+### 8 Oct 2026 — Mixed workspace persistence-boundary regression added — GATE PENDING
+
+Implementation commit:
+- `7232b9f0a2122d4be86b22f44a4ca43780586ea8` — test: cover mixed workspace persistence boundary
+
+Coverage added:
+- placement move + teacher availability + room profile share one local history
+- three-step Undo restores the baseline so commit preparation returns no payload
+- three-step Redo restores the same mixed local state
+- commit preparation then produces one atomic workspace payload containing placement, teacher availability and room profile deltas
+- no production logic or DB migration changed
+
+Validation status:
+- implementation committed
+- focused/full tests and production build: **PENDING user/Codespaces gate**
+- last verified checkpoint remains `523ac21b9e5e5f0838fc7524747def6f9e7b0018`
