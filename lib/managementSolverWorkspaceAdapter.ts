@@ -201,35 +201,63 @@ export function projectManagementSolverWorkspacePlacementsV1(
     })
     .sort((left, right) => left.cardId.localeCompare(right.cardId));
 
-  const teacherLoadTargets = Object.values(
-    workingCopy.teacherPlanningById,
-  )
-    .filter((planning) => (
-      planning.minimumLoad != null
-      || planning.targetLoad != null
-      || planning.maximumLoad != null
-    ))
-    .map((planning): ManagementSolverTeacherLoadTarget => ({
+  const teacherLoadTargetById = new Map(
+    (workspace.preview.teacherLoadTargets ?? []).map((target) => [
+      target.teacherId,
+      { ...target },
+    ]),
+  );
+  for (const planning of Object.values(workingCopy.teacherPlanningById)) {
+    if (
+      planning.minimumLoad == null
+      && planning.targetLoad == null
+      && planning.maximumLoad == null
+    ) {
+      teacherLoadTargetById.delete(planning.teacherId);
+      continue;
+    }
+
+    teacherLoadTargetById.set(planning.teacherId, {
       teacherId: planning.teacherId,
       minimumLoad: planning.minimumLoad,
       targetLoad: planning.targetLoad,
       maximumLoad: planning.maximumLoad,
-    }))
+    });
+  }
+  const teacherLoadTargets = [...teacherLoadTargetById.values()]
     .sort((left, right) => left.teacherId.localeCompare(right.teacherId));
 
-  const subjectTimePreferences = Object.values(
-    workingCopy.requirementTimePreferencesById,
-  )
-    .filter((preference) => (
-      preference.preferredDays.length > 0
-      || preference.preferredStartPeriods.length > 0
-    ))
-    .map((preference): ManagementSolverSubjectTimePreference => ({
+  const subjectTimePreferenceById = new Map(
+    (workspace.preview.subjectTimePreferences ?? []).map((preference) => [
+      preference.requirementId,
+      {
+        requirementId: preference.requirementId,
+        preferredDays: [...preference.preferredDays].sort((a, b) => a - b),
+        preferredStartPeriods: [...preference.preferredStartPeriods]
+          .sort((a, b) => a - b),
+      },
+    ]),
+  );
+  for (
+    const preference
+    of Object.values(workingCopy.requirementTimePreferencesById)
+  ) {
+    if (
+      preference.preferredDays.length === 0
+      && preference.preferredStartPeriods.length === 0
+    ) {
+      subjectTimePreferenceById.delete(preference.requirementId);
+      continue;
+    }
+
+    subjectTimePreferenceById.set(preference.requirementId, {
       requirementId: preference.requirementId,
       preferredDays: [...preference.preferredDays].sort((a, b) => a - b),
       preferredStartPeriods: [...preference.preferredStartPeriods]
         .sort((a, b) => a - b),
-    }))
+    });
+  }
+  const subjectTimePreferences = [...subjectTimePreferenceById.values()]
     .sort((left, right) =>
       left.requirementId.localeCompare(right.requirementId),
     );
