@@ -459,16 +459,20 @@ function rawCandidatesForCard(
   const days = context.snapshot.hardConstraintContract.days;
   const periods = context.snapshot.hardConstraintContract.periods;
 
+  const teacherPinned = card.locked || card.teacherPinned === true;
+  const roomPinned = card.locked || card.roomPinned === true;
+  const timePinned = card.locked || card.timePinned === true;
+
   const teachers = teacherChoices(
     requirement,
     baseline,
-    card.locked,
+    teacherPinned,
     context,
   );
   const rooms = roomChoices(
     requirement,
     baseline,
-    card.locked,
+    roomPinned,
     context,
   );
 
@@ -544,6 +548,7 @@ function rawCandidatesForCard(
 
   if (
     !card.locked
+    && !timePinned
     && baselinePlacementIsMaterialized(baseline)
   ) {
     // Preserve high-value resource-only alternatives before the generic
@@ -582,7 +587,26 @@ function rawCandidatesForCard(
     }
   }
 
-  if (!card.locked) {
+  if (
+    timePinned
+    && baselinePlacementIsMaterialized(baseline)
+  ) {
+    for (const teacherId of teachers) {
+      for (const roomId of rooms) {
+        addCandidate(
+          baseline.dayOfWeek,
+          baseline.startPeriod,
+          teacherId,
+          roomId,
+          true,
+        );
+      }
+    }
+
+    return candidates;
+  }
+
+  if (!card.locked && !timePinned) {
     for (const dayOfWeek of days) {
       for (const startPeriod of periods) {
         if (!validTimeStart(startPeriod, card.durationPeriods, periods)) {
