@@ -8900,3 +8900,28 @@ Next acceptance boundary:
 7. repeat the mixed edits, Save once, reload and verify all persisted together
 
 No DB migration was introduced by this package.
+
+
+### 8 Oct 2026 — Undo/Redo history authority isolation fix — GATE PENDING
+
+Observed browser defect:
+- after local Management Workspace operations, global Undo/Redo could fall through to stale server history when the local stack became empty
+- this exposed and could apply unrelated persisted MOVE/RESOURCE/STRUCTURE operations from earlier work instead of representing the current workspace session
+
+Root cause:
+- `canUseServerManagementHistoryDescriptor()` only suppressed server STRUCTURE history while workspace history existed
+- non-STRUCTURE server descriptors remained eligible as a fallback
+
+Fix:
+- Management Workspace is now the single global history authority whenever a workspace is active
+- all server Undo/Redo descriptors are suppressed while workspace history is available
+- server history is eligible only before/without an active workspace
+- when the local stack is empty, global Undo/Redo now correctly reports no local operation instead of falling through to unrelated server history
+
+Implementation:
+- `b37be8286b8c8b4bba905d234f99172d73b31f7c` — fix: keep workspace undo isolated from server history
+- `2d6e5d2600c260e03c22de29bd52e4dfd8948a82` — test: enforce single workspace history authority
+
+Validation status:
+- focused/full tests and production build: **PENDING Codespaces gate**
+- previous verified baseline remains `7232b9f0a2122d4be86b22f44a4ca43780586ea8`
