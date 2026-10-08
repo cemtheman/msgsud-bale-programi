@@ -17,8 +17,8 @@
 | Aktif implementation checkpoint | `8965362445fdf02727022cd3aee0c05fc86f0585` — objective projection + search code gate PASS (39/39, 278/278, build PASS) |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
-| Son kullanıcı/QA kabulü | **Workspace v12 time preferences + save count UI CLOSED / PASS** |
-| Sıradaki iş paketi | **Real-data/browser acceptance + objective tuning for teacher load balance and subject time preference** |
+| Son kullanıcı/QA kabulü | **Objective real-data/browser acceptance CLOSED / PASS** — teacher load 301→299, time preference 1→0 on 299-card schedule |
+| Sıradaki iş paketi | **Teacher-load objective diagnostics + tuning; expose per-teacher deviation contributors before changing scoring semantics** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9157,3 +9157,37 @@ This closes the code gate for:
 Status:
 - **OBJECTIVE PROJECTION + SEARCH CODE GATE CLOSED / PASS**
 - next: real-data/browser acceptance + objective tuning
+
+
+### 8 Oct 2026 — Real-data objective browser acceptance PASS
+
+Browser evidence on the live 299-card draft schedule confirms both new objective paths affect real solver proposals as intended.
+
+Subject time preference acceptance:
+- active profile: Gün Saat
+- affected cards: 1
+- current-program distance: 0 -> 1
+- teacher continuity breaks: 0 -> 0
+- teacher idle gaps: 94 -> 95
+- room stability breaks: 40 -> 40
+- teacher load deviation: 301 -> 301
+- subject time preference penalty: **1 -> 0**
+- observed move: 11A BALE + 12A BALE / Pas de Deux / block 1 moved from Monday period 10 to Tuesday period 10
+- result: **PASS** — selected objective improved to zero with isolated, explainable schedule movement
+
+Teacher load balance acceptance:
+- active profile: Öğretmen Yükleri
+- affected cards: 2
+- current-program distance: 0 -> 2
+- teacher continuity breaks: 0 -> 0
+- teacher idle gaps: 94 -> 95
+- room stability breaks: 40 -> 40
+- teacher load deviation: **301 -> 299**
+- subject time preference penalty: 1 -> 1
+- result: **PASS** — selected objective improves on real schedule and search changes only the required placements
+
+Conclusion:
+- local objective projection: PASS
+- deterministic search acceptance: PASS
+- real-data/browser acceptance: PASS
+- next work is objective tuning/diagnostics, especially explaining the large absolute teacher-load deviation (301) across 53 configured teachers
