@@ -109,6 +109,8 @@ export function ManagementInspector({
   onApplyPlacementResource,
   onUpdatePlanTeachers,
   onUpdatePlanRoomStrategy,
+  pinState,
+  onUpdatePins,
   onRemove,
   onClose,
 }: {
@@ -156,6 +158,16 @@ export function ManagementInspector({
     roomIds: string[],
     requiredCapability: string | null,
   ) => Promise<void>;
+  pinState: {
+    timePinned: boolean;
+    teacherPinned: boolean;
+    roomPinned: boolean;
+  } | null;
+  onUpdatePins: (pins: {
+    timePinned: boolean;
+    teacherPinned: boolean;
+    roomPinned: boolean;
+  }) => void;
   onRemove: () => void;
   onClose: () => void;
 }) {
@@ -667,6 +679,55 @@ export function ManagementInspector({
         </div>
       )}
 
+
+
+      {placement && pinState && (
+        <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                Solver sabitlemeleri
+              </p>
+              <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">
+                Yalnız seçtiğiniz boyut sabit kalır; diğer boyutlar önerilerde değişebilir.
+              </p>
+            </div>
+            {card.locked && (
+              <span className="rounded-full bg-slate-900 px-2 py-1 text-[9px] font-black text-white">
+                Tam kilit
+              </span>
+            )}
+          </div>
+
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {([
+              ['timePinned', 'Gün / saat'],
+              ['teacherPinned', 'Öğretmen'],
+              ['roomPinned', 'Salon'],
+            ] as const).map(([key, label]) => {
+              const active = card.locked || pinState[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={!canEdit || commandBusy || card.locked}
+                  onClick={() => onUpdatePins({
+                    ...pinState,
+                    [key]: !pinState[key],
+                  })}
+                  className={`rounded-xl border px-2 py-2 text-[10px] font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    active
+                      ? 'border-violet-300 bg-violet-50 text-violet-800'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {active ? 'Sabit · ' : ''}{label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {placement && !candidateFocus && canEdit && (
         <div
