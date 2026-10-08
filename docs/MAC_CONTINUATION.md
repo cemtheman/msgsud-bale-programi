@@ -2645,3 +2645,37 @@ Validation status:
 - implementation committed
 - focused/full tests and production build: **PENDING user/Codespaces gate**
 - last verified checkpoint remains `523ac21b9e5e5f0838fc7524747def6f9e7b0018`
+
+
+### 8 Oct 2026 — Mixed workspace persistence-boundary code gate CLOSED / PASS
+
+Verified implementation checkpoint:
+- `7232b9f0a2122d4be86b22f44a4ca43780586ea8` — test: cover mixed workspace persistence boundary
+
+Codespaces validation:
+- full suite: **38/38 files, 271/271 tests PASS**
+- production build: **PASS**
+- Next.js 16.3.4 / webpack: PASS
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: build route PASS
+
+Accepted regression contract:
+- mixed local edits across placement + teacher availability + room profile share one local history chain
+- multi-step Undo can restore baseline so commit preparation has no persistence payload
+- multi-step Redo restores the mixed local state deterministically
+- one Save boundary can serialize the resulting mixed deltas atomically
+
+Status: **CODE GATE CLOSED / PASS**
+
+Next acceptance boundary:
+**real browser mixed-edit persistence test**
+1. make one placement change
+2. make one teacher availability change
+3. make one room profile change
+4. Undo all three and confirm UI returns to baseline
+5. Redo all three and confirm UI restores the local state
+6. before Save, reload/new session must not persist those local edits
+7. repeat the mixed edits, Save once, reload and verify all persisted together
+
+No DB migration was introduced by this package.
