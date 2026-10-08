@@ -17,8 +17,8 @@
 | Aktif implementation checkpoint | `ffa5bc1737c9fd0d41caa0d61c4794f2f51c673a` — M42 fine-grained pin foundation; gate pending |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
-| Son kullanıcı/QA kabulü | **Teacher-load objective leg CLOSED / PASS** — 8 explicit targets, 45 defaults excluded from solver, real-data reassignment validated |
-| Sıradaki iş paketi | **M42 foundation gate + migration dry-run; then local Undo/Redo/atomic Save pin controls and UI** |
+| Son kullanıcı/QA kabulü | **M42 foundation CLOSED / PASS** — 39/39, 285/285, build PASS, migration parity PASS |
+| Sıradaki iş paketi | **M42 local pin editing + shared Undo/Redo + atomic Save + UI controls** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9500,3 +9500,18 @@ Validation status:
 - migration dry-run: PENDING
 - DB push: NOT DONE
 - UI/local Undo/Redo/atomic Save controls: intentionally next sub-phase after foundation gate
+
+
+### 8 Oct 2026 — M42 fine-grained pin foundation gate PASS
+
+Validation received from Codespaces:
+- Test Files: **39 passed (39)**
+- Tests: **285 passed (285)**
+- production build: PASS
+- TypeScript: PASS
+- static generation: 9/9
+- migration parity: `20261008170000 | 20261008170000`
+
+Status:
+- **M42 FOUNDATION CLOSED / PASS**
+- next sub-phase: local card-pin editing + shared Undo/Redo + atomic main Save + Program/Inspector UI controls
