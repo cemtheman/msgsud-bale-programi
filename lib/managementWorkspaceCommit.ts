@@ -127,6 +127,17 @@ export interface ManagementWorkspaceCommitPayloadV1 {
       maximum_load: number | null;
     };
   }>;
+  timePreferenceChanges: Array<{
+    requirement_id: string;
+    before: {
+      preferred_days: number[];
+      preferred_start_periods: number[];
+    };
+    after: {
+      preferred_days: number[];
+      preferred_start_periods: number[];
+    };
+  }>;
   requirementChanges: Array<{
     requirement_id: string;
     before: {
@@ -386,6 +397,19 @@ export function prepareManagementWorkspaceCommitV1(
           operational_status: change.after.operationalStatus,
         },
       })),
+      timePreferenceChanges: diff.requirementTimePreferenceChanges.map(
+        (change) => ({
+          requirement_id: change.requirementId,
+          before: {
+            preferred_days: [...change.before.preferredDays],
+            preferred_start_periods: [...change.before.preferredStartPeriods],
+          },
+          after: {
+            preferred_days: [...change.after.preferredDays],
+            preferred_start_periods: [...change.after.preferredStartPeriods],
+          },
+        }),
+      ),
       requirementChanges: diff.requirementResourceChanges.map((change) => ({
         requirement_id: change.requirementId,
         before: {
@@ -419,7 +443,7 @@ export async function commitManagementWorkspaceV1(
   const token = await getFreshManagementAccessToken(accessToken);
 
   const response = await fetch(
-    `${url}/rest/v1/rpc/management_commit_workspace_v11`,
+    `${url}/rest/v1/rpc/management_commit_workspace_v12`,
     {
       method: 'POST',
       headers: {
@@ -442,6 +466,7 @@ export async function commitManagementWorkspaceV1(
         p_resource_creates: payload.resourceCreates,
         p_resource_deletes: payload.resourceDeletes,
         p_structure_changes: payload.structureChanges,
+        p_time_preference_changes: payload.timePreferenceChanges,
       }),
     },
   );
