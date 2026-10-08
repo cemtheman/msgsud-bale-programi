@@ -139,6 +139,7 @@ import {
   redoManagementWorkspaceOperationV1,
   undoManagementWorkspaceOperationV1,
   type ManagementWorkspaceHistoryV1,
+  type ManagementWorkspaceOperationV1,
 } from '@/lib/managementWorkspaceHistory';
 import {
   executeManagementWorkspaceCommandV1,
@@ -378,6 +379,38 @@ async function retryManagementRead<T>(
 
     await new Promise((resolve) => window.setTimeout(resolve, 350));
     return load();
+  }
+}
+
+
+function localWorkspaceOperationLabel(
+  operation: ManagementWorkspaceOperationV1 | null | undefined,
+) {
+  if (!operation) return 'Yerel değişiklik';
+
+  switch (operation.kind) {
+    case 'SET_PLACEMENT':
+      return 'Program yerleşimi';
+    case 'REMOVE_PLACEMENT':
+      return 'Programdan kaldırma';
+    case 'SET_REQUIREMENT_RESOURCES':
+      return 'Ders Planı kaynak değişikliği';
+    case 'SET_REQUIREMENT_TIME_PREFERENCE':
+      return 'Ders zaman tercihi';
+    case 'SET_INVENTORY_RESOURCE':
+      return 'Kaynak kaydı değişikliği';
+    case 'SET_TEACHER_PLANNING':
+      return 'Öğretmen yük planlaması';
+    case 'SET_TEACHER_AVAILABILITY':
+      return 'Öğretmen uygunluk kısıtı';
+    case 'SET_ROOM_PROFILE':
+      return 'Salon özellikleri değişikliği';
+    case 'SET_RESOURCE_BUNDLE':
+      return operation.resourceType === 'TEACHER'
+        ? 'Öğretmen kaydı değişikliği'
+        : 'Salon kaydı değişikliği';
+    case 'SET_REQUIREMENT_STRUCTURE':
+      return 'Ders yapısı değişikliği';
   }
 }
 
@@ -3202,13 +3235,7 @@ export default function ManagementPage() {
       setCoursePlan((current) => current ? { ...current } : current);
       setCommandNotice({
         kind: 'success',
-        text: localOperation?.kind === 'SET_REQUIREMENT_TIME_PREFERENCE'
-          ? 'Ders zaman tercihi geri alındı.'
-          : localOperation?.kind === 'SET_REQUIREMENT_RESOURCES'
-            ? 'Ders Planı kaynak değişikliği geri alındı.'
-            : localOperation?.kind === 'SET_INVENTORY_RESOURCE'
-              ? 'Kaynaklar değişikliği geri alındı.'
-              : 'Program değişikliği geri alındı.',
+        text: `${localWorkspaceOperationLabel(localOperation)} geri alındı.`,
       });
       return;
     }
@@ -3347,13 +3374,7 @@ export default function ManagementPage() {
       setCoursePlan((current) => current ? { ...current } : current);
       setCommandNotice({
         kind: 'success',
-        text: localOperation?.kind === 'SET_REQUIREMENT_TIME_PREFERENCE'
-          ? 'Ders zaman tercihi yeniden uygulandı.'
-          : localOperation?.kind === 'SET_REQUIREMENT_RESOURCES'
-            ? 'Ders Planı kaynak değişikliği yeniden uygulandı.'
-            : localOperation?.kind === 'SET_INVENTORY_RESOURCE'
-              ? 'Kaynaklar değişikliği yeniden uygulandı.'
-              : 'Program değişikliği yeniden uygulandı.',
+        text: `${localWorkspaceOperationLabel(localOperation)} yeniden uygulandı.`,
       });
       return;
     }
@@ -4121,12 +4142,16 @@ export default function ManagementPage() {
                 redoAvailable={(localRedoAvailable || serverRedoAvailable) && !dataLoading}
                 busy={commandBusy || dataLoading}
                 undoTitle={localUndoAvailable
-                  ? 'Yerel program değişikliğini geri al'
+                  ? `${localWorkspaceOperationLabel(
+                      workspaceHistoryRef.current?.undoStack.at(-1),
+                    )} geri al`
                   : serverUndoAvailable && commandState.undo
                     ? `${commandContextLabel(commandState.undo, board)}${commandState.undo.bundleSize > 1 ? ` · ${commandState.undo.bundleSize} kayıt` : ''}${commandState.undo.autoCount > 0 ? ` + ${commandState.undo.autoCount} otomatik` : ''} geri al`
                     : 'Geri alınabilecek işlem yok'}
                 redoTitle={localRedoAvailable
-                  ? 'Yerel program değişikliğini yeniden uygula'
+                  ? `${localWorkspaceOperationLabel(
+                      workspaceHistoryRef.current?.redoStack.at(-1),
+                    )} yeniden uygula`
                   : serverRedoAvailable && commandState.redo
                     ? `${commandContextLabel(commandState.redo, board)}${commandState.redo.bundleSize > 1 ? ` · ${commandState.redo.bundleSize} kayıt` : ''}${commandState.redo.autoCount > 0 ? ` + ${commandState.redo.autoCount} otomatik` : ''} yeniden uygula`
                     : 'Yinelenecek işlem yok'}
