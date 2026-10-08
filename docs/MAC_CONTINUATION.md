@@ -2998,3 +2998,30 @@ Acceptance status correction:
 - subject-time real-data acceptance remains **PASS**
 - teacher-load real-data acceptance is **REOPENED / RETEST REQUIRED**
 - deterministic teacher-load reassignment test remains valid, but browser acceptance must be repeated after this guard
+
+
+### 8 Oct 2026 — Teacher-load real-data no-op diagnosed: candidate-cap starvation
+
+Observed after preventing teacher-null optimization:
+- teacher-load profile became a real-data no-op (301 -> 301)
+- A. Küçüküçerler is at 17 periods vs target 10 / max 12
+- E. Gemalmaz is at 10 vs target 10, so A -> E alone does not improve total absolute deviation
+- however A.'s ELIGIBLE_POOL requirements include many under-target teachers, so genuine improving reassignment paths exist
+
+Root cause:
+- raw candidate generation scanned day -> period -> teacher -> room and stopped at maxCandidatesPerCard
+- wide teacher/room pools could exhaust the cap before reaching the baseline slot with alternative teachers
+- therefore the optimizer often could not see minimal teacher-only swaps even though eligibility allowed them
+
+Fix:
+- before generic Cartesian enumeration, generate high-value resource-only alternatives at the current baseline slot
+- first: same day/time + same room + alternative eligible teachers
+- second: same day/time + same teacher + alternative rooms
+- existing teacher-preservation guard remains: assigned teachers cannot be dropped to null by objective search
+
+Implementation:
+- `0f85253b801a5095781a2ce2e1108f901797cacd` — fix: prioritize same-slot teacher swaps before candidate cap
+- `e97c9fbf55a712837a42e9adf61d146aa702f911` — test: keep teacher swaps reachable under candidate cap
+
+Validation: PENDING
+Browser teacher-load acceptance remains REOPENED until a real teacher A -> teacher B reassignment is observed.
