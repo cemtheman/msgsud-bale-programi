@@ -155,7 +155,7 @@ export interface ManagementWorkspaceWorkingCopyV1 {
     Record<string, ManagementWorkspaceRequirementCatalogStateV1>;
   requirementResourcesById:
     Record<string, ManagementWorkspaceRequirementResourceStateV1>;
-  requirementTimePreferencesById?:
+  requirementTimePreferencesById:
     Record<string, ManagementWorkspaceRequirementTimePreferenceStateV1>;
   teacherInventoryById:
     Record<string, ManagementWorkspaceTeacherInventoryStateV1>;

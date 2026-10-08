@@ -133,6 +133,7 @@ function copy(): ManagementWorkspaceWorkingCopyV1 {
         baselineRequiredCapability: null,
       },
     },
+    requirementTimePreferencesById: {},
     requirementResourcesById: {
       'requirement-1': {
         requirementId: 'requirement-1',

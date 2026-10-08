@@ -63,6 +63,7 @@ function workingCopy(): ManagementWorkspaceWorkingCopyV1 {
     cardsById: {},
     requirementStructureById: {},
     requirementCatalogById: {},
+    requirementTimePreferencesById: {},
     requirementResourcesById: {},
     teacherInventoryById: {
       'teacher-1': {
