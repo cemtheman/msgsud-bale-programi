@@ -633,6 +633,8 @@ export default function ManagementPage() {
     useState<ManagementPublicationGateData | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
+  const [sectionActivity, setSectionActivity] = useState<string | null>(null);
+  const [solverActivity, setSolverActivity] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [startupStep, setStartupStep] = useState(0);
   const [startupComplete, setStartupComplete] = useState(false);
@@ -922,6 +924,7 @@ export default function ManagementPage() {
     }
 
     let active = true;
+    setSectionActivity('Ders tanımları veritabanından okunuyor…');
 
     void fetchManagementCoursePlan(session.accessToken)
       .then((nextCoursePlan) => {
@@ -953,10 +956,14 @@ export default function ManagementPage() {
             ? `Ders planı şu anda alınamadı: ${reason.message}`
             : 'Ders planı şu anda alınamadı. Biraz sonra yeniden deneyin.',
         });
+      })
+      .finally(() => {
+        if (active) setSectionActivity(null);
       });
 
     return () => {
       active = false;
+      setSectionActivity(null);
     };
   }, [activeSection, refreshToken, session, startupComplete, status]);
 
@@ -971,6 +978,7 @@ export default function ManagementPage() {
     }
 
     let active = true;
+    setSectionActivity('Kaynaklar veritabanından okunuyor…');
 
     void fetchManagementResources(session.accessToken)
       .then((nextResources) => {
@@ -994,10 +1002,14 @@ export default function ManagementPage() {
             ? `Kaynak bilgileri şu anda alınamadı: ${reason.message}`
             : 'Kaynak bilgileri şu anda alınamadı. Biraz sonra yeniden deneyin.',
         });
+      })
+      .finally(() => {
+        if (active) setSectionActivity(null);
       });
 
     return () => {
       active = false;
+      setSectionActivity(null);
     };
   }, [activeSection, refreshToken, session, startupComplete, status]);
 
@@ -1012,6 +1024,7 @@ export default function ManagementPage() {
     }
 
     let active = true;
+    setSectionActivity('Tercih verileri veritabanından okunuyor…');
 
     void fetchLatestManagementSolverWorkspace(session.accessToken)
       .then((nextSolverWorkspace) => {
@@ -1025,10 +1038,14 @@ export default function ManagementPage() {
             ? `Tercih ayarları şu anda alınamadı: ${reason.message}`
             : 'Tercih ayarları şu anda alınamadı. Biraz sonra yeniden deneyin.',
         });
+      })
+      .finally(() => {
+        if (active) setSectionActivity(null);
       });
 
     return () => {
       active = false;
+      setSectionActivity(null);
     };
   }, [activeSection, refreshToken, session, startupComplete, status]);
 
@@ -1043,6 +1060,7 @@ export default function ManagementPage() {
     }
 
     let active = true;
+    setSectionActivity('Kontrol ve yayın verileri veritabanından okunuyor…');
 
     void (async () => {
       const [previewResult, gateResult] = await Promise.allSettled([
@@ -1069,10 +1087,12 @@ export default function ManagementPage() {
           text: 'Program durumu kontrollerinin bir bölümü şu anda alınamadı. Ana program etkilenmedi; biraz sonra yeniden deneyebilirsiniz.',
         });
       }
+      if (active) setSectionActivity(null);
     })();
 
     return () => {
       active = false;
+      setSectionActivity(null);
     };
   }, [activeSection, refreshToken, session, startupComplete, status]);
 
@@ -3839,11 +3859,40 @@ export default function ManagementPage() {
     .filter(Boolean)
     .join(' ');
 
+  const activityStatus = commandBusy
+    ? (commandActivity ?? 'Değişiklik uygulanıyor…')
+    : dragLoading
+      ? 'Hedef hücreler hesaplanıyor…'
+      : placementAssistantImpactChecking
+        ? 'Yerleşim etkisi hesaplanıyor…'
+        : placementAssistantWaitingForRefresh
+          ? 'Program veritabanından yeniden okunuyor…'
+          : placementAssistantLoading
+            ? 'Yerleşim seçenekleri hesaplanıyor…'
+            : solverActivity
+              ? solverActivity
+              : candidateLoading
+                ? 'Aday yerleşimler hesaplanıyor…'
+                : sectionActivity
+                  ? sectionActivity
+                  : dataLoading
+                    ? (startupComplete
+                      ? 'Program verileri veritabanından okunuyor…'
+                      : 'Partisyon hazırlanıyor…')
+                    : null;
+
   return (
     <main className="management-workbench-root flex h-[100dvh] min-w-[1180px] flex-col overflow-hidden bg-[#F4F2ED] text-slate-900">
       <div className="management-portrait-note">
         Yönetim çalışma alanı yatay ekran için tasarlandı.
       </div>
+      <style jsx global>{`
+        @keyframes managementStatusSweep {
+          0% { transform: translateX(-120%); }
+          50% { transform: translateX(140%); }
+          100% { transform: translateX(320%); }
+        }
+      `}</style>
 
       <header className="shrink-0 border-b border-slate-200 bg-white">
         <div className="flex h-[60px] items-center gap-3 px-4">
@@ -4003,6 +4052,29 @@ export default function ManagementPage() {
               Çıkış
             </button>
           </div>
+        </div>
+
+        <div
+          className={`relative h-[22px] overflow-hidden border-t border-slate-100 bg-slate-50/90 transition-opacity ${activityStatus ? 'opacity-100' : 'opacity-60'}`}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <div className="flex h-full items-center px-4 text-[10px] font-semibold text-slate-500">
+            {activityStatus ? (
+              <>
+                <span className="mr-2 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#A63D48]" />
+                <span className="truncate">{activityStatus}</span>
+              </>
+            ) : (
+              <span className="text-slate-400">Hazır</span>
+            )}
+          </div>
+          {activityStatus && (
+            <div className="absolute inset-x-0 bottom-0 h-[2px] overflow-hidden bg-slate-200">
+              <div className="h-full w-1/3 animate-[managementStatusSweep_1.2s_ease-in-out_infinite] bg-[#A63D48]" />
+            </div>
+          )}
         </div>
 
         {activeSection === 'PROGRAM' && (
@@ -5686,6 +5758,7 @@ export default function ManagementPage() {
           data={solverWorkspaceForView}
           canEdit={access?.canEdit === true && !workspaceLocalSessionActive}
           busy={commandBusy}
+          onActivityChange={setSolverActivity}
           onSave={async (input) => {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');

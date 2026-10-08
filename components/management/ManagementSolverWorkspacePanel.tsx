@@ -216,12 +216,14 @@ export function ManagementSolverWorkspacePanel({
   busy,
   onSave,
   onApplyProposal,
+  onActivityChange,
 }: {
   data: ManagementSolverWorkspace | null;
   canEdit: boolean;
   busy: boolean;
   onSave: (input: ManagementSolverProfileInput) => Promise<void>;
   onApplyProposal?: (result: ManagementOptimizationResult) => Promise<void>;
+  onActivityChange?: (activity: string | null) => void;
 }) {
   const initialProfile = data?.profiles.find((profile) => profile.status === 'ACTIVE')
     ?? data?.profiles.find((profile) => profile.status === 'DRAFT')
@@ -245,6 +247,21 @@ export function ManagementSolverWorkspacePanel({
   const [proposalApplyPending, setProposalApplyPending] = useState(false);
   const [proposalApplyError, setProposalApplyError] = useState<string | null>(null);
   const [feasibilityDetailsOpen, setFeasibilityDetailsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!onActivityChange) return;
+    if (optimizationBusy) {
+      onActivityChange('Daha uygun program seçeneği hesaplanıyor…');
+      return;
+    }
+    if (feasibilityBusy) {
+      onActivityChange('Program kuralları kontrol ediliyor…');
+      return;
+    }
+    onActivityChange(null);
+
+    return () => onActivityChange(null);
+  }, [feasibilityBusy, onActivityChange, optimizationBusy]);
 
   const selectedProfile = useMemo(
     () => data?.profiles.find((profile) => profile.id === selectedProfileId) ?? null,
@@ -451,11 +468,17 @@ export function ManagementSolverWorkspacePanel({
     setPendingSelectionId(null);
   };
 
-  const runFeasibility = () => {
+  const runFeasibility = async () => {
     if (!hardReady || feasibilityBusy) return;
 
     setFeasibilityBusy(true);
     setLocalError(null);
+
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve());
+      });
+    });
 
     try {
       setFeasibilityDetailsOpen(false);
@@ -879,7 +902,7 @@ export function ManagementSolverWorkspacePanel({
 
               <button
                 type="button"
-                onClick={runFeasibility}
+                onClick={() => void runFeasibility()}
                 disabled={!hardReady || feasibilityBusy}
                 className="shrink-0 rounded-xl bg-slate-950 px-4 py-2.5 text-[12px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
               >
