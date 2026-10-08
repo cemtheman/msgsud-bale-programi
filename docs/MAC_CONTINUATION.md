@@ -2936,3 +2936,37 @@ This closes the code gate for:
 Status:
 - **OBJECTIVE PROJECTION + SEARCH CODE GATE CLOSED / PASS**
 - next: real-data/browser acceptance + objective tuning
+
+
+### 8 Oct 2026 — Real-data objective browser acceptance PASS
+
+Browser evidence on the live 299-card draft schedule confirms both new objective paths affect real solver proposals as intended.
+
+Subject time preference acceptance:
+- active profile: Gün Saat
+- affected cards: 1
+- current-program distance: 0 -> 1
+- teacher continuity breaks: 0 -> 0
+- teacher idle gaps: 94 -> 95
+- room stability breaks: 40 -> 40
+- teacher load deviation: 301 -> 301
+- subject time preference penalty: **1 -> 0**
+- observed move: 11A BALE + 12A BALE / Pas de Deux / block 1 moved from Monday period 10 to Tuesday period 10
+- result: **PASS** — selected objective improved to zero with isolated, explainable schedule movement
+
+Teacher load balance acceptance:
+- active profile: Öğretmen Yükleri
+- affected cards: 2
+- current-program distance: 0 -> 2
+- teacher continuity breaks: 0 -> 0
+- teacher idle gaps: 94 -> 95
+- room stability breaks: 40 -> 40
+- teacher load deviation: **301 -> 299**
+- subject time preference penalty: 1 -> 1
+- result: **PASS** — selected objective improves on real schedule and search changes only the required placements
+
+Conclusion:
+- local objective projection: PASS
+- deterministic search acceptance: PASS
+- real-data/browser acceptance: PASS
+- next work is objective tuning/diagnostics, especially explaining the large absolute teacher-load deviation (301) across 53 configured teachers
