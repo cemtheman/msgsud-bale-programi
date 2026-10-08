@@ -37,6 +37,8 @@ function coursePlan(): ManagementCoursePlanData {
       roomNames: ['Salon 1'],
       placedBlockCount: 0,
       requiredCapability: null,
+      preferredDays: [],
+      preferredStartPeriods: [],
     }],
     teacherOptions: [
       { id: 'teacher-1', name: 'Öğretmen 1' },
