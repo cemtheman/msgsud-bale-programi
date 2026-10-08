@@ -3439,3 +3439,24 @@ Status:
 - M42 browser acceptance: **REOPENED**
 - focused/full tests + build after semantic patch: PENDING
 - browser re-test: PENDING
+
+
+### 8 Oct 2026 — M42 notice copy/runtime reason fix — RE-TEST PENDING
+
+Browser feedback:
+- time-pinned drag surfaced the generic error `Yerel aday bilgisi hazırlanamadı. Programı yenileyip tekrar deneyin.` instead of the real pin reason.
+- successful pin-only Save surfaced an empty summary ending as just `kaydedildi.` because `changedPinCount` was omitted from the success-label aggregation.
+
+Fix:
+- beginDrag now re-checks full/time pin state (including linked/parallel bundle members) before emitting the generic preparation failure; blocked drag keeps the explanatory info message: `Bu dersin gün / saati sabit. Taşımak için önce Gün / saat sabitlemesini kaldırın.`
+- generic drag failure copy changed from technical `Yerel aday bilgisi` wording to `Taşıma seçenekleri hazırlanamadı...`
+- Save success aggregation now includes `changedPinCount` as `N sabitleme değişikliği`
+- success notice has a fallback `N değişiklik kaydedildi.`, so an empty `kaydedildi.` message cannot occur
+
+Commit:
+- `d1c34a4b9bcf7d8d8591e655e2d00c21a4624d7f` — meaningful pin-block and save notices
+
+Status:
+- M42 acceptance still REOPENED
+- tests/build after notice patch: PENDING
+- browser re-test: PENDING
