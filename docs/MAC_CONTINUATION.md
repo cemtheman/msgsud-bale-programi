@@ -3210,3 +3210,31 @@ Status:
 - production build: PENDING
 - migration dry-run: PENDING
 - browser acceptance: PENDING
+
+
+### 8 Oct 2026 — Teacher load target provenance runtime acceptance PASS
+
+Browser acceptance:
+- Resources summary shows **8 onaylı hedef / 45 varsayılan / 0 uygunluk**
+- explicit targets retain normal deviation display
+- seeded suggestions are separated from approved planning targets
+
+DB/snapshot verification:
+- EXPLICIT rows: **8**
+- DEFAULT_SEED rows: **45**
+- solver snapshot teacherLoadTargets: **8**
+- missingOptionalModelInputs: **[]**
+
+Conclusion:
+- 45 historical bootstrap suggestions no longer participate in teacherLoadBalance
+- only the 8 human-approved targets are solver objective inputs
+- user edits/saves continue to promote targets to EXPLICIT
+- **TEACHER LOAD TARGET PROVENANCE CLOSED / PASS**
+
+This closes the teacher-load objective leg for the current milestone:
+- recovered deterministic fixed teacher assignments
+- prevented teacher-null optimization
+- protected same-slot teacher swaps from candidate-cap starvation
+- validated real teacher reassignment behavior
+- exposed per-teacher deviation diagnostics
+- separated default suggestions from explicit solver targets
