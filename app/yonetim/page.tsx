@@ -660,6 +660,9 @@ export default function ManagementPage() {
   const [resources, setResources] = useState<ManagementResourceInventoryData | null>(null);
   const [solverWorkspace, setSolverWorkspace] =
     useState<ManagementSolverWorkspace | null>(null);
+  const [solverWorkspaceLoading, setSolverWorkspaceLoading] = useState(false);
+  const [solverWorkspaceLoadError, setSolverWorkspaceLoadError] =
+    useState<string | null>(null);
   const [publicationPreview, setPublicationPreview] =
     useState<ManagementPublicationPreviewData | null>(null);
   const [publicationGate, setPublicationGate] =
@@ -1057,14 +1060,22 @@ export default function ManagementPage() {
     }
 
     let active = true;
+    setSolverWorkspaceLoading(true);
+    setSolverWorkspaceLoadError(null);
     setSectionActivity('Tercih verileri veritabanından okunuyor…');
 
     void fetchLatestManagementSolverWorkspace(session.accessToken)
       .then((nextSolverWorkspace) => {
-        if (active) setSolverWorkspace(nextSolverWorkspace);
+        if (!active) return;
+        setSolverWorkspace(nextSolverWorkspace);
+        setSolverWorkspaceLoadError(null);
       })
       .catch((reason: unknown) => {
         if (!active) return;
+        const message = reason instanceof Error
+          ? reason.message
+          : 'Tercih ayarları şu anda alınamadı.';
+        setSolverWorkspaceLoadError(message);
         setCommandNotice({
           kind: 'info',
           text: reason instanceof Error
@@ -1073,7 +1084,9 @@ export default function ManagementPage() {
         });
       })
       .finally(() => {
-        if (active) setSectionActivity(null);
+        if (!active) return;
+        setSolverWorkspaceLoading(false);
+        setSectionActivity(null);
       });
 
     return () => {
@@ -5924,6 +5937,8 @@ export default function ManagementPage() {
         <ManagementSolverWorkspacePanel
           key={`solver-${refreshToken}-${solverWorkspaceForView?.preview.snapshotHash ?? 'empty'}`}
           data={solverWorkspaceForView}
+          loading={solverWorkspaceLoading}
+          loadError={solverWorkspaceLoadError}
           canEdit={access?.canEdit === true && !workspaceLocalSessionActive}
           busy={commandBusy}
           onActivityChange={setSolverActivity}
