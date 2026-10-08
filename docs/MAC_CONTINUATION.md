@@ -2883,3 +2883,33 @@ Next gate:
 - `tests/managementSolverWorkspaceAdapter.test.ts`
 - full test suite
 - production build
+
+
+### 8 Oct 2026 — Teacher-load + subject-time solver search acceptance tests added — GATE PENDING
+
+Acceptance objective:
+- prove the solver does not merely expose metrics/weights but actually changes proposals in the intended direction
+
+Deterministic search scenarios added:
+1. `subjectTimePreference` only:
+   - baseline card starts outside preferred day
+   - optimizer must move it to the preferred day/start period
+   - penalty must improve from 1 -> 0
+2. `teacherLoadBalance` only:
+   - flexible card baseline is assigned to teacher t1
+   - configured load targets prefer t2
+   - optimizer must reassign the card to t2
+   - teacher load deviation must improve from 2 -> 0
+
+Implementation:
+- `8965362445fdf02727022cd3aee0c05fc86f0585` — test: accept teacher load and time preference search
+
+UI integration check:
+- dirty Management Workspace uses `solverWorkspaceForView`
+- `solverWorkspaceForView` is built through the local solver adapter
+- the projected teacher load targets and subject time preferences therefore feed the real Tercihler / proposal-generation path before Save
+
+Validation status:
+- new focused objective-search test: PENDING
+- adapter focused test: PENDING
+- full suite/build: PENDING
