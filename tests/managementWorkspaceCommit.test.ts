@@ -832,4 +832,55 @@ describe('management workspace commit v1', () => {
     }]);
   });
 
+
+  it('keeps requirement time preferences local and serializes them in the atomic save payload', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    copy.requirementCatalogById['requirement-1'].baselinePreferredDays = [1];
+    copy.requirementCatalogById['requirement-1'].baselinePreferredStartPeriods = [2];
+    copy.requirementTimePreferencesById['requirement-1'] = {
+      requirementId: 'requirement-1',
+      preferredDays: [1],
+      preferredStartPeriods: [2],
+    };
+
+    const result = executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      {
+        type: 'SET_REQUIREMENT_TIME_PREFERENCE',
+        preference: {
+          requirementId: 'requirement-1',
+          preferredDays: [4, 2],
+          preferredStartPeriods: [6, 3],
+        },
+      },
+    );
+
+    expect(result.applied).toBe(true);
+    expect(copy.requirementTimePreferencesById['requirement-1']).toEqual({
+      requirementId: 'requirement-1',
+      preferredDays: [2, 4],
+      preferredStartPeriods: [3, 6],
+    });
+
+    const prepared = prepareManagementWorkspaceCommitV1(source, copy);
+
+    expect(prepared.ready).toBe(true);
+    expect(prepared.payload?.timePreferenceChanges).toEqual([{
+      requirement_id: 'requirement-1',
+      before: {
+        preferred_days: [1],
+        preferred_start_periods: [2],
+      },
+      after: {
+        preferred_days: [2, 4],
+        preferred_start_periods: [3, 6],
+      },
+    }]);
+  });
+
 });
