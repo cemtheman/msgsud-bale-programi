@@ -48,6 +48,8 @@ export interface ManagementWorkspaceRequirementCatalogStateV1 {
   baselineResourceMode: string;
   baselineRoomIds: string[];
   baselineRequiredCapability: string | null;
+  baselinePreferredDays: number[];
+  baselinePreferredStartPeriods: number[];
 }
 
 export interface ManagementWorkspaceRequirementStructureStateV1 {
@@ -189,6 +191,12 @@ export interface ManagementWorkspaceRequirementResourceChangeV1 {
   after: ManagementWorkspaceRequirementResourceStateV1;
 }
 
+export interface ManagementWorkspaceRequirementTimePreferenceChangeV1 {
+  requirementId: string;
+  before: ManagementWorkspaceRequirementTimePreferenceStateV1;
+  after: ManagementWorkspaceRequirementTimePreferenceStateV1;
+}
+
 export interface ManagementWorkspaceInventoryChangeV1 {
   resourceType: 'TEACHER' | 'ROOM';
   resourceId: string;
@@ -235,6 +243,8 @@ export interface ManagementWorkspaceDiffV1 {
     ManagementWorkspaceRequirementStructureChangeV1[];
   requirementResourceChanges:
     ManagementWorkspaceRequirementResourceChangeV1[];
+  requirementTimePreferenceChanges:
+    ManagementWorkspaceRequirementTimePreferenceChangeV1[];
   inventoryChanges: ManagementWorkspaceInventoryChangeV1[];
   teacherPlanningChanges: ManagementWorkspaceTeacherPlanningChangeV1[];
   teacherAvailabilityChanges: ManagementWorkspaceTeacherAvailabilityChangeV1[];
@@ -606,6 +616,8 @@ export function baselineRequirementCatalogById(
           .map((entry) => entry.roomId)
           .sort((a, b) => a.localeCompare(b)),
         baselineRequiredCapability: requirement.requiredCapability,
+        baselinePreferredDays: [],
+        baselinePreferredStartPeriods: [],
       },
     ]),
   );
@@ -889,6 +901,10 @@ export function hydrateManagementWorkspaceRequirementCatalogV1(
         (a, b) => a.localeCompare(b),
       ),
       baselineRequiredCapability: row.requiredCapability,
+      baselinePreferredDays: [...(row.preferredDays ?? [])]
+        .sort((a, b) => a - b),
+      baselinePreferredStartPeriods: [...(row.preferredStartPeriods ?? [])]
+        .sort((a, b) => a - b),
     };
 
     if (!workingCopy.requirementStructureById[row.requirementId]) {
@@ -1552,6 +1568,51 @@ export function diffManagementWorkspaceV1(
     }
   });
 
+  const requirementTimePreferenceChanges = Object.values(
+    workingCopy.requirementCatalogById,
+  )
+    .map((catalog) => {
+      const before =
+        cloneManagementWorkspaceRequirementTimePreferenceV1({
+          requirementId: catalog.requirementId,
+          preferredDays: catalog.baselinePreferredDays,
+          preferredStartPeriods: catalog.baselinePreferredStartPeriods,
+        });
+      const after =
+        cloneManagementWorkspaceRequirementTimePreferenceV1(
+          workingCopy.requirementTimePreferencesById[catalog.requirementId]
+            ?? {
+              requirementId: catalog.requirementId,
+              preferredDays: [],
+              preferredStartPeriods: [],
+            },
+        );
+
+      if (
+        JSON.stringify(before.preferredDays)
+          === JSON.stringify(after.preferredDays)
+        && JSON.stringify(before.preferredStartPeriods)
+          === JSON.stringify(after.preferredStartPeriods)
+      ) {
+        return null;
+      }
+
+      return {
+        requirementId: catalog.requirementId,
+        before,
+        after,
+      };
+    })
+    .filter(
+      (
+        change,
+      ): change is ManagementWorkspaceRequirementTimePreferenceChangeV1 =>
+        change !== null,
+    )
+    .sort((left, right) =>
+      left.requirementId.localeCompare(right.requirementId),
+    );
+
   const placementCardIds = Array.from(new Set([
     ...Object.keys(baselineCards),
     ...Object.keys(workingCopy.cardsById),
@@ -1823,6 +1884,7 @@ export function diffManagementWorkspaceV1(
 
   const dirtyRequirementIds = Array.from(new Set([
     ...requirementResourceChanges.map((change) => change.requirementId),
+    ...requirementTimePreferenceChanges.map((change) => change.requirementId),
     ...requirementStructureChanges.map((change) => change.requirementId),
   ])).sort((left, right) => left.localeCompare(right));
 
@@ -1841,6 +1903,7 @@ export function diffManagementWorkspaceV1(
       placementChanges.length > 0
       || requirementStructureChanges.length > 0
       || requirementResourceChanges.length > 0
+      || requirementTimePreferenceChanges.length > 0
       || inventoryChanges.length > 0
       || teacherPlanningChanges.length > 0
       || teacherAvailabilityChanges.length > 0
@@ -1853,6 +1916,7 @@ export function diffManagementWorkspaceV1(
     placementChanges,
     requirementStructureChanges,
     requirementResourceChanges,
+    requirementTimePreferenceChanges,
     inventoryChanges,
     teacherPlanningChanges,
     teacherAvailabilityChanges,
