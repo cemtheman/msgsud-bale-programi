@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `965fdffc7d5fa579f3ad500609aead68f966b7f7` — solver loading-state UI gate PASS (39/39, 280/280, build PASS) |
+| Aktif implementation checkpoint | `83347b38dec442c60d22c98bb92bb076490e4956` — teacher-load deviation diagnostics UI v1; gate pending |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **Teacher-load + subject-time real-data/browser acceptance CLOSED / PASS** — teacher load 301→289 with 3 real teacher reassignments |
-| Sıradaki iş paketi | **Teacher-load diagnostics/tuning — expose per-teacher actual/target/deviation contributors before scoring changes** |
+| Sıradaki iş paketi | **Teacher-load diagnostics UI gate + browser review; then tune target semantics only if diagnostics justify it** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9304,3 +9304,26 @@ This closes the UI patch that separates solver preference loading from actual lo
 Status:
 - **SOLVER LOADING-STATE UI CLOSED / PASS**
 - next: teacher-load diagnostics/tuning and objective UX refinement
+
+
+### 8 Oct 2026 — Teacher-load diagnostics UI v1 — GATE PENDING
+
+Goal:
+- make the aggregate teacher-load deviation explainable before changing scoring semantics
+- avoid new DB reads; reuse existing Management Resources teacher rows
+
+Implemented in Resources > Teachers:
+- per-teacher load deviation indicator computed from existing row data
+- target semantics match solver scoring:
+  - if targetLoad exists: abs(actual - target)
+  - otherwise: outside min/max band only
+- configured teachers display `Hedef sapması N`
+- optional `Sapmaya göre sırala` toggle sorts largest deviation contributors first
+- default teacher ordering remains unchanged until the toggle is enabled
+
+Implementation:
+- `83347b38dec442c60d22c98bb92bb076490e4956` — ux: expose teacher load deviation contributors
+
+Validation:
+- tests/build: PENDING
+- browser UX acceptance: PENDING
