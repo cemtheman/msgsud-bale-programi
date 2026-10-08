@@ -253,6 +253,9 @@ function workspaceIssueLabel(code: string) {
     TIME_OUTSIDE_DAY: 'Ders saati gün sınırlarının dışında',
     LUNCH_BREAK_CROSSING: 'Ders öğle arasını bölüyor',
     LOCKED_CARD_MOVED: 'Kilitli bir ders değiştirilmiş',
+    TIME_PINNED_CHANGED: 'Gün / saat sabit; değiştirmek için önce sabitlemeyi kaldırın',
+    TEACHER_PINNED_CHANGED: 'Öğretmen sabit; değiştirmek için önce sabitlemeyi kaldırın',
+    ROOM_PINNED_CHANGED: 'Salon sabit; değiştirmek için önce sabitlemeyi kaldırın',
     TEACHER_REQUIRED: 'Ders için öğretmen seçilmemiş',
     TEACHER_INACTIVE: 'Seçilen öğretmen kullanılamıyor',
     TEACHER_NOT_ELIGIBLE: 'Seçilen öğretmen bu ders için uygun değil',
@@ -1997,6 +2000,20 @@ export default function ManagementPage() {
         ? [...baseIds, ...parallelBundle.cardIds]
         : baseIds,
     ));
+
+    const fixedTimeCard = ids.find((id) => {
+      const localCard = localWorkingCopy.cardsById[id];
+      return localCard?.locked === true || localCard?.timePinned === true;
+    });
+    if (fixedTimeCard) {
+      dragPreparedRef.current = null;
+      setCommandNotice({
+        kind: 'info',
+        text: 'Bu dersin gün / saati sabit. Taşımak için önce Gün / saat sabitlemesini kaldırın.',
+      });
+      return;
+    }
+
     const anchorOffset = parallelBundle?.offsetsByCardId[cardId] ?? 0;
     const startOffsetsByCardId = parallelBundle
       ? Object.fromEntries(ids.map((id) => [
