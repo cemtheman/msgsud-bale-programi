@@ -8800,3 +8800,51 @@ Status: **SOLVER PROPOSAL APPLY/SAVE RUNTIME ACCEPTANCE CLOSED / PASS**
 
 Next active sub-phase:
 **objective model expansion — teacher load balance and preferred day/time objectives**
+
+
+### 8 Oct 2026 — Management Workspace local history gate CLOSED / PASS
+
+Branch:
+- `feat/management-workspace-v1`
+
+Accepted implementation checkpoint:
+- `523ac21b9e5e5f0838fc7524747def6f9e7b0018`
+
+Scope verified:
+- local operations use monotonic sequence numbers
+- multi-step local Undo/Redo remains DB-history-independent
+- new local edit clears redo history
+- placement remove restores complete placement state
+- requirement resource edits share the same local history
+- resource inventory edits share the global local history
+- teacher availability edits are local-history-native
+- room profile edits are local-history-native
+- locally created resources Undo/Redo as one operation
+- structural bundles remain on the structural path and do not fall through to placement dispatch
+- requirement time preferences participate in the same Undo/Redo chain
+
+Validation gate:
+- focused `tests/managementWorkspaceHistory.test.ts`: **12/12 PASS**
+- full suite: **38/38 files, 270/270 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: build route PASS
+- `git diff --check`: PASS
+- working tree after gate: **CLEAN**
+
+Status: **LOCAL HISTORY GATE CLOSED / PASS**
+
+Contract reinforced:
+- unsaved Management Workspace edits are owned by the local workspace history
+- placement, resource, availability, room-profile, structure and time-preference edits must remain in one coherent local Undo/Redo chain
+- DB persistence remains an explicit Save boundary
+- legacy server history must not re-own workspace-native structural changes
+
+Next active acceptance:
+**browser end-to-end local workspace persistence boundary**
+1. make several mixed local edits (placement + resource/input)
+2. exercise multi-step Undo/Redo in the UI
+3. confirm no DB persistence before Save
+4. Save once and verify atomic persistence after reload
+5. only then open the next objective-model expansion package (teacher-load balance / preferred day-time) from the stable workspace baseline
