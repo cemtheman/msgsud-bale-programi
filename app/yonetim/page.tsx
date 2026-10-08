@@ -3732,8 +3732,21 @@ export default function ManagementPage() {
     }
 
     setCommandBusy(true);
+    const pendingWorkspaceChangeCount = [
+      prepared.payload.changes.length,
+      prepared.payload.requirementChanges.length,
+      prepared.payload.resourceChanges.length,
+      prepared.payload.teacherPlanningChanges.length,
+      prepared.payload.teacherAvailabilityChanges.length,
+      prepared.payload.roomProfileChanges.length,
+      prepared.payload.resourceCreates.length,
+      prepared.payload.resourceDeletes.length,
+      prepared.payload.structureChanges.length,
+      prepared.payload.timePreferenceChanges.length,
+    ].reduce((total, count) => total + count, 0);
+
     setCommandActivity(
-      `${prepared.payload.changes.length} değişiklik kontrol edilip kaydediliyor.`,
+      `${pendingWorkspaceChangeCount} değişiklik kontrol edilip kaydediliyor.`,
     );
     setCommandNotice(null);
 
