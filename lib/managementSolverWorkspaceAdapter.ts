@@ -2,26 +2,47 @@ import type {
   ManagementSolverBaselineMetrics,
   ManagementSolverBaselinePlacement,
   ManagementSolverRequirement,
+  ManagementSolverSubjectTimePreference,
+  ManagementSolverTeacherLoadTarget,
   ManagementSolverWorkspace,
 } from '@/lib/managementSolver';
 import type {
   ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 
-function localPlacementFingerprint(
+function localWorkspaceSolverFingerprint(
   placements: ManagementSolverBaselinePlacement[],
+  teacherLoadTargets: ManagementSolverTeacherLoadTarget[],
+  subjectTimePreferences: ManagementSolverSubjectTimePreference[],
 ) {
   let hash = 2166136261;
 
-  const text = placements
-    .map((placement) => [
-      placement.cardId,
-      placement.dayOfWeek ?? '',
-      placement.startPeriod ?? '',
-      placement.teacherId ?? '',
-      placement.roomId ?? '',
-    ].join('|'))
-    .join(';');
+  const text = [
+    placements
+      .map((placement) => [
+        placement.cardId,
+        placement.dayOfWeek ?? '',
+        placement.startPeriod ?? '',
+        placement.teacherId ?? '',
+        placement.roomId ?? '',
+      ].join('|'))
+      .join(';'),
+    teacherLoadTargets
+      .map((target) => [
+        target.teacherId,
+        target.minimumLoad ?? '',
+        target.targetLoad ?? '',
+        target.maximumLoad ?? '',
+      ].join('|'))
+      .join(';'),
+    subjectTimePreferences
+      .map((preference) => [
+        preference.requirementId,
+        preference.preferredDays.join(','),
+        preference.preferredStartPeriods.join(','),
+      ].join('|'))
+      .join(';'),
+  ].join('||');
 
   for (let index = 0; index < text.length; index += 1) {
     hash ^= text.charCodeAt(index);
@@ -147,11 +168,11 @@ function projectedBaselineMetrics(
 }
 
 /**
- * Projects placement-only local workspace edits into the solver snapshot.
+ * Projects local solver-relevant workspace edits into the solver snapshot.
  *
- * This intentionally does not project requirement lifecycle/structure or
- * resource-policy edits yet. Its contract is the solver proposal flow:
- * proposal placements become the local source of truth before the main Save.
+ * Placement, teacher load targets and subject time preferences become the
+ * local source of truth before the main Save. Requirement lifecycle/structure
+ * and broader resource-policy projection remain outside this adapter for now.
  */
 export function projectManagementSolverWorkspacePlacementsV1(
   workspace: ManagementSolverWorkspace,
@@ -180,7 +201,44 @@ export function projectManagementSolverWorkspacePlacementsV1(
     })
     .sort((left, right) => left.cardId.localeCompare(right.cardId));
 
-  const fingerprint = localPlacementFingerprint(baselinePlacements);
+  const teacherLoadTargets = Object.values(
+    workingCopy.teacherPlanningById,
+  )
+    .filter((planning) => (
+      planning.minimumLoad != null
+      || planning.targetLoad != null
+      || planning.maximumLoad != null
+    ))
+    .map((planning): ManagementSolverTeacherLoadTarget => ({
+      teacherId: planning.teacherId,
+      minimumLoad: planning.minimumLoad,
+      targetLoad: planning.targetLoad,
+      maximumLoad: planning.maximumLoad,
+    }))
+    .sort((left, right) => left.teacherId.localeCompare(right.teacherId));
+
+  const subjectTimePreferences = Object.values(
+    workingCopy.requirementTimePreferencesById,
+  )
+    .filter((preference) => (
+      preference.preferredDays.length > 0
+      || preference.preferredStartPeriods.length > 0
+    ))
+    .map((preference): ManagementSolverSubjectTimePreference => ({
+      requirementId: preference.requirementId,
+      preferredDays: [...preference.preferredDays].sort((a, b) => a - b),
+      preferredStartPeriods: [...preference.preferredStartPeriods]
+        .sort((a, b) => a - b),
+    }))
+    .sort((left, right) =>
+      left.requirementId.localeCompare(right.requirementId),
+    );
+
+  const fingerprint = localWorkspaceSolverFingerprint(
+    baselinePlacements,
+    teacherLoadTargets,
+    subjectTimePreferences,
+  );
   const localBaselineHash =
     `local-${workspace.revisionId}-${localVersion}-${fingerprint}`;
 
@@ -193,6 +251,8 @@ export function projectManagementSolverWorkspacePlacementsV1(
         `${workspace.preview.snapshotHash}:${localBaselineHash}`,
       baselineHash: localBaselineHash,
       baselinePlacements,
+      teacherLoadTargets,
+      subjectTimePreferences,
       baselineMetrics: projectedBaselineMetrics(
         workspace,
         baselinePlacements,
