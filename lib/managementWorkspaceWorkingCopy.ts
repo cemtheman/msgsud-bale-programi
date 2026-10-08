@@ -20,9 +20,9 @@ export interface ManagementWorkspaceCardStateV1 {
   blockIndex: number;
   durationPeriods: number;
   locked: boolean;
-  timePinned: boolean;
-  teacherPinned: boolean;
-  roomPinned: boolean;
+  timePinned?: boolean;
+  teacherPinned?: boolean;
+  roomPinned?: boolean;
   baselineExists: boolean;
 }
 
