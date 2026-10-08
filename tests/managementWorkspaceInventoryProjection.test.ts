@@ -23,6 +23,7 @@ function resources(): ManagementResourceInventoryData {
       minimumLoad: null,
       targetLoad: null,
       maximumLoad: null,
+      loadTargetSource: null,
       loadConfigured: false,
       unavailablePeriods: [],
       unavailablePeriodCount: 0,
@@ -259,6 +260,64 @@ describe('management workspace Resources projection', () => {
     expect(projected.rooms.some(
       (room) => room.id === '22222222-2222-4222-8222-222222222222',
     )).toBe(true);
+  });
+
+
+  it('keeps default-seed load suggestions visible but not solver-configured', () => {
+    const seeded = resources();
+    seeded.teachers[0] = {
+      ...seeded.teachers[0],
+      minimumLoad: 1,
+      targetLoad: 10,
+      maximumLoad: 20,
+      loadTargetSource: 'DEFAULT_SEED',
+      loadConfigured: false,
+    };
+
+    const projected = projectManagementResourcesFromWorkspaceV1(
+      seeded,
+      workingCopy(),
+    );
+
+    expect(projected.teachers[0]).toMatchObject({
+      minimumLoad: 1,
+      targetLoad: 10,
+      maximumLoad: 20,
+      loadTargetSource: 'DEFAULT_SEED',
+      loadConfigured: false,
+    });
+  });
+
+  it('promotes a locally edited seed suggestion to an explicit target', () => {
+    const seeded = resources();
+    seeded.teachers[0] = {
+      ...seeded.teachers[0],
+      minimumLoad: 1,
+      targetLoad: 10,
+      maximumLoad: 20,
+      loadTargetSource: 'DEFAULT_SEED',
+      loadConfigured: false,
+    };
+    const copy = workingCopy();
+    copy.teacherPlanningById['teacher-1'] = {
+      teacherId: 'teacher-1',
+      minimumLoad: 1,
+      targetLoad: 10,
+      maximumLoad: 20,
+    };
+
+    const projected = projectManagementResourcesFromWorkspaceV1(
+      seeded,
+      copy,
+    );
+
+    expect(projected.teachers[0]).toMatchObject({
+      minimumLoad: 1,
+      targetLoad: 10,
+      maximumLoad: 20,
+      loadTargetSource: 'EXPLICIT',
+      loadConfigured: true,
+    });
   });
 
 });
