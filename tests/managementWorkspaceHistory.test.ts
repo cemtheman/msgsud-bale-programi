@@ -596,4 +596,47 @@ describe('management workspace history v1', () => {
       });
   });
 
+
+  it('undoes and redoes fine-grained card pins through shared history', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+
+    const result = executeManagementWorkspaceCommandV1(
+      source,
+      copy,
+      history,
+      {
+        type: 'SET_CARD_PINS',
+        pins: {
+          cardId: 'card-a',
+          timePinned: true,
+          teacherPinned: true,
+          roomPinned: false,
+        },
+      },
+    );
+
+    expect(result.applied).toBe(true);
+    expect(copy.cardsById['card-a']).toMatchObject({
+      timePinned: true,
+      teacherPinned: true,
+      roomPinned: false,
+    });
+
+    undoManagementWorkspaceOperationV1(copy, history);
+    expect(copy.cardsById['card-a']).toMatchObject({
+      timePinned: false,
+      teacherPinned: false,
+      roomPinned: false,
+    });
+
+    redoManagementWorkspaceOperationV1(copy, history);
+    expect(copy.cardsById['card-a']).toMatchObject({
+      timePinned: true,
+      teacherPinned: true,
+      roomPinned: false,
+    });
+  });
+
 });
