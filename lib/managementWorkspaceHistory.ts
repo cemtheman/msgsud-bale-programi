@@ -383,14 +383,6 @@ export function cloneManagementWorkspaceOperationV1(
     };
   }
 
-  if (operation.kind === 'SET_REQUIREMENT_TIME_PREFERENCE') {
-    applyRequirementTimePreferenceState(
-      workingCopy,
-      value as ManagementWorkspaceRequirementTimePreferenceStateV1,
-    );
-    return;
-  }
-
   if (operation.kind === 'SET_INVENTORY_RESOURCE') {
     return {
       ...operation,
@@ -812,6 +804,14 @@ function applyOperationState(
     applyRequirementResourceState(
       workingCopy,
       value as ManagementWorkspaceRequirementResourceStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_REQUIREMENT_TIME_PREFERENCE') {
+    applyRequirementTimePreferenceState(
+      workingCopy,
+      value as ManagementWorkspaceRequirementTimePreferenceStateV1,
     );
     return;
   }
