@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `e97c9fbf55a712837a42e9adf61d146aa702f911` — same-slot teacher swaps protected from candidate-cap starvation |
+| Aktif implementation checkpoint | `965fdffc7d5fa579f3ad500609aead68f966b7f7` — solver loading/error UI state split; gate pending |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
-| Son kullanıcı/QA kabulü | **Subject-time PASS; teacher-load REOPENED / RETEST REQUIRED** — optimizer was dropping OPTIONAL baseline teachers to null |
-| Sıradaki iş paketi | **Teacher-load candidate-cap fix gate + real-data browser retest; PASS requires actual eligible teacher reassignment** |
+| Son kullanıcı/QA kabulü | **Teacher-load + subject-time real-data/browser acceptance CLOSED / PASS** — teacher load 301→289 with 3 real teacher reassignments |
+| Sıradaki iş paketi | **Solver loading-state UI gate, then teacher-load diagnostics/tuning and next objective UX refinement** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9246,3 +9246,41 @@ Implementation:
 
 Validation: PENDING
 Browser teacher-load acceptance remains REOPENED until a real teacher A -> teacher B reassignment is observed.
+
+
+### 8 Oct 2026 — Teacher-load real-data browser acceptance PASS + solver loading UI fix
+
+Teacher-load browser retest after candidate-cap fix:
+- current-program distance: 0 -> 3
+- teacher continuity breaks: 0 -> 0
+- teacher idle gaps: 94 -> 96
+- room stability breaks: 40 -> 40
+- teacher load deviation: **301 -> 289**
+- subject time preference penalty: 1 -> 1
+- affected cards: 3
+- all three visible changes are genuine teacher reassignments while day/time remains fixed:
+  - 10A BALLET / Doğaçlama / block 2: A. Küçüküçerler -> V. Kondisyon Öğretmeni
+  - 9A BALLET / Doğaçlama / block 1: A. Küçüküçerler -> Müzik Öğretmeni 2
+  - ORKESTRA 11B+11A / block 2: A. Küçüküçerler -> H. S. Pekel
+
+Conclusion:
+- teacher-null escape bug: CLOSED
+- candidate-cap starvation bug: CLOSED
+- **TEACHER-LOAD REAL-DATA/BROWSER ACCEPTANCE CLOSED / PASS**
+
+UI issue observed:
+- while solver preferences are still loading, panel displayed `Program tercihleri alınamadı.`
+- loading and failure states were conflated because `data === null` rendered the failure message immediately
+
+UI fix:
+- explicit `solverWorkspaceLoading` and `solverWorkspaceLoadError` states added in page
+- panel now renders:
+  - loading -> `Program tercihleri yükleniyor…`
+  - actual failure -> `Program tercihleri alınamadı.`
+  - neutral empty -> `Program tercihleri henüz hazır değil.`
+
+Implementation:
+- `895c57f041af5b107572a5ca857d8bc4c1eeaf1c` — ux: distinguish solver loading from load failure
+- `965fdffc7d5fa579f3ad500609aead68f966b7f7` — ux: show solver loading state before load errors
+
+Validation status for UI-only loading-state patch: PENDING
