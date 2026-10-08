@@ -77,6 +77,30 @@ function isRetiredSpecialTeacherPlaceholder(
   ));
 }
 
+function teacherLoadDeviation(row: ManagementTeacherResourceRow) {
+  if (!row.loadConfigured) return null;
+
+  if (row.targetLoad != null) {
+    return Math.abs(row.actualLoadPeriods - row.targetLoad);
+  }
+
+  let deviation = 0;
+  if (
+    row.minimumLoad != null
+    && row.actualLoadPeriods < row.minimumLoad
+  ) {
+    deviation += row.minimumLoad - row.actualLoadPeriods;
+  }
+  if (
+    row.maximumLoad != null
+    && row.actualLoadPeriods > row.maximumLoad
+  ) {
+    deviation += row.actualLoadPeriods - row.maximumLoad;
+  }
+
+  return deviation;
+}
+
 function teacherState(row: ManagementTeacherResourceRow) {
   if (row.operationalStatus === 'INACTIVE') {
     return {
@@ -216,6 +240,8 @@ export function ManagementResources({
   const [tab, setTab] = useState<ResourceTab>('TEACHERS');
   const [query, setQuery] = useState('');
   const [showInactiveTeachers, setShowInactiveTeachers] = useState(false);
+  const [sortTeachersByLoadDeviation, setSortTeachersByLoadDeviation] =
+    useState(false);
   const [createKind, setCreateKind] = useState<'TEACHER' | 'ROOM' | null>(null);
   const [createName, setCreateName] = useState('');
   const [resourceActionError, setResourceActionError] = useState<string | null>(null);
@@ -926,14 +952,31 @@ export function ManagementResources({
   );
 
   const filteredTeachers = useMemo(
-    () => (
-      visibleTeachers.filter((row) => (
+    () => {
+      const rows = visibleTeachers.filter((row) => (
         normalizedQuery.length === 0
         || row.name.toLocaleLowerCase('tr-TR').includes(normalizedQuery)
         || row.baseName.toLocaleLowerCase('tr-TR').includes(normalizedQuery)
-      ))
-    ),
-    [normalizedQuery, visibleTeachers],
+      ));
+
+      return sortTeachersByLoadDeviation
+        ? rows.sort((left, right) => (
+            (teacherLoadDeviation(right) ?? -1)
+            - (teacherLoadDeviation(left) ?? -1)
+            || right.actualLoadPeriods - left.actualLoadPeriods
+            || left.name.localeCompare(
+              right.name,
+              'tr',
+              { numeric: true },
+            )
+          ))
+        : rows;
+    },
+    [
+      normalizedQuery,
+      sortTeachersByLoadDeviation,
+      visibleTeachers,
+    ],
   );
 
   const filteredRooms = useMemo(
@@ -1081,13 +1124,28 @@ export function ManagementResources({
 
           <div className="ml-auto flex items-center gap-2">
             {tab === 'TEACHERS' && (
-              <button
-                type="button"
-                onClick={() => setShowInactiveTeachers((value) => !value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50"
-              >
-                {showInactiveTeachers ? 'Atamaya kapalıları gizle' : 'Atamaya kapalıları göster'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSortTeachersByLoadDeviation((value) => !value)}
+                  className={`rounded-xl border px-3 py-2.5 text-[11px] font-bold transition ${
+                    sortTeachersByLoadDeviation
+                      ? 'border-violet-200 bg-violet-50 text-violet-700'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {sortTeachersByLoadDeviation
+                    ? 'Sapma sırası açık'
+                    : 'Sapmaya göre sırala'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowInactiveTeachers((value) => !value)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  {showInactiveTeachers ? 'Atamaya kapalıları gizle' : 'Atamaya kapalıları göster'}
+                </button>
+              </>
             )}
             <button
               type="button"
@@ -1245,6 +1303,15 @@ export function ManagementResources({
                             <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">
                               Yük hedefi tanımsız
                             </span>
+                          )}
+                          {row.loadConfigured && (
+                            <p className={`mt-1 text-[9px] font-black ${
+                              (teacherLoadDeviation(row) ?? 0) > 0
+                                ? 'text-amber-700'
+                                : 'text-emerald-700'
+                            }`}>
+                              Hedef sapması {teacherLoadDeviation(row) ?? 0}
+                            </p>
                           )}
                           <p className={`mt-1 text-[9px] font-semibold ${
                             row.availabilityConfigured
