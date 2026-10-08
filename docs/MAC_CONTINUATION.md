@@ -3279,3 +3279,18 @@ Validation status:
 - migration dry-run: PENDING
 - DB push: NOT DONE
 - UI/local Undo/Redo/atomic Save controls: intentionally next sub-phase after foundation gate
+
+
+### 8 Oct 2026 — M42 fine-grained pin foundation gate PASS
+
+Validation received from Codespaces:
+- Test Files: **39 passed (39)**
+- Tests: **285 passed (285)**
+- production build: PASS
+- TypeScript: PASS
+- static generation: 9/9
+- migration parity: `20261008170000 | 20261008170000`
+
+Status:
+- **M42 FOUNDATION CLOSED / PASS**
+- next sub-phase: local card-pin editing + shared Undo/Redo + atomic main Save + Program/Inspector UI controls
