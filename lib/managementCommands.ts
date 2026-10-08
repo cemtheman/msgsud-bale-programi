@@ -41,15 +41,13 @@ export interface ManagementCommandState {
 
 export function canUseServerManagementHistoryDescriptor(
   descriptor: ManagementCommandDescriptor | null,
-  workspaceOwnsStructureHistory: boolean,
+  workspaceOwnsHistory: boolean,
 ) {
-  return Boolean(
-    descriptor
-    && (
-      !workspaceOwnsStructureHistory
-      || descriptor.action !== 'STRUCTURE'
-    ),
-  );
+  // Management Workspace is the single history authority while it is active.
+  // Falling back to an older server descriptor when the local stack becomes
+  // empty makes the global Undo/Redo controls target unrelated persisted
+  // operations from an earlier session.
+  return Boolean(descriptor && !workspaceOwnsHistory);
 }
 
 export interface ManagementBundleCandidateInput {
