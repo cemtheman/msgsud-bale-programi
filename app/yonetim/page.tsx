@@ -89,6 +89,7 @@ import {
 import {
   fetchManagementCoursePlan,
   updateManagementRequirementRoomStrategy,
+  updateManagementRequirementTimePreferences,
   type ManagementCoursePlanData,
   type ManagementPlanStage,
   type ManagementRoomStrategy,
@@ -5123,6 +5124,37 @@ export default function ManagementPage() {
               roomIds,
               requiredCapability,
             );
+          }}
+          onUpdateTimePreferences={async (
+            requirementId,
+            preferredDays,
+            preferredStartPeriods,
+          ) => {
+            if (!session || !access?.canEdit || !coursePlan) {
+              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            }
+
+            setCommandBusy(true);
+            setCommandActivity('Ders zaman tercihleri veritabanına yazılıyor…');
+            try {
+              await updateManagementRequirementTimePreferences(
+                session.accessToken,
+                coursePlan.revisionId,
+                requirementId,
+                preferredDays,
+                preferredStartPeriods,
+              );
+              setCommandNotice({
+                kind: 'success',
+                text: preferredDays.length > 0 || preferredStartPeriods.length > 0
+                  ? 'Dersin zaman tercihleri kaydedildi.'
+                  : 'Dersin zaman tercihi kaldırıldı.',
+              });
+              setRefreshToken((value) => value + 1);
+            } finally {
+              setCommandBusy(false);
+              setCommandActivity(null);
+            }
           }}
           onPreviewStructure={async (input) => {
             const localSnapshot = workspaceSnapshotRef.current;

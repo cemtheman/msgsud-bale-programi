@@ -167,6 +167,14 @@ const OBJECTIVES: Array<{
     baseline: (workspace) =>
       `${workspace.preview.teacherLoadTargets?.length ?? 0} öğretmen için yük hedefi tanımlı`,
   },
+  {
+    key: 'subjectTimePreference',
+    title: 'Derslerin tercih edilen gün ve saatlerine yaklaş',
+    summary:
+      'Dersler için Dersler ekranında tanımlanan tercih edilen günleri ve başlangıç ders saatlerini mümkün olduğunca karşılar.',
+    baseline: (workspace) =>
+      `${workspace.preview.subjectTimePreferences?.length ?? 0} ders için zaman tercihi tanımlı`,
+  },
 ];
 
 function statusMeta(status: ManagementSolverProfileStatus) {
@@ -779,26 +787,6 @@ export function ManagementSolverWorkspacePanel({
                   </label>
                 );
               })}
-            </div>
-            <div className="border-t border-slate-100 bg-slate-50/70">
-              <div className="grid grid-cols-[minmax(0,1fr)_150px] items-center gap-4 px-4 py-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-[12px] font-black text-slate-500">
-                      Derslerin tercih edilen gün ve saatleri
-                    </p>
-                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-500">
-                      Yakında
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-[12px] font-medium text-slate-400">
-                    Ders bazlı zaman tercihleri veri modeli tamamlandığında kullanıma açılacak.
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-[11px] font-black text-slate-400">
-                  Kullanılamıyor
-                </div>
-              </div>
             </div>
           </section>
 
@@ -1446,7 +1434,7 @@ export function ManagementSolverWorkspacePanel({
 
                 {optimizationResult.status !== 'BLOCKED' && (
                   <>
-                    <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-5">
+                    <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                         <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
                           Mevcut programa uzaklık
@@ -1499,6 +1487,17 @@ export function ManagementSolverWorkspacePanel({
                           {optimizationResult.baselineMetrics.teacherLoadDeviationPeriods}
                           {' → '}
                           {optimizationResult.proposedMetrics.teacherLoadDeviationPeriods}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
+                          Zaman tercihi sapması
+                        </p>
+                        <p className="mt-1 text-[11px] font-black text-slate-900">
+                          {optimizationResult.baselineMetrics.subjectTimePreferencePenalty}
+                          {' → '}
+                          {optimizationResult.proposedMetrics.subjectTimePreferencePenalty}
                         </p>
                       </div>
                     </div>

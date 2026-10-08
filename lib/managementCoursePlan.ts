@@ -57,6 +57,8 @@ export interface ManagementCoursePlanRow {
   roomNames: string[];
   placedBlockCount: number;
   requiredCapability: string | null;
+  preferredDays: number[];
+  preferredStartPeriods: number[];
 }
 
 export interface ManagementCoursePlanOption {
@@ -231,6 +233,12 @@ interface CardRow {
 
 interface PlacementRow {
   card_id: string;
+}
+
+interface RequirementTimePreferenceRow {
+  requirementId: string;
+  preferredDays: number[];
+  preferredStartPeriods: number[];
 }
 
 interface TeacherPolicyAuditResult {
@@ -516,6 +524,12 @@ export async function fetchManagementCoursePlan(
     ),
   ]);
 
+  const timePreferences = await authedRpc<RequirementTimePreferenceRow[]>(
+    'management_list_requirement_time_preferences',
+    accessToken,
+    { p_schedule_revision_id: revision.id },
+  );
+
   const [classGroups, subjects] = await Promise.all([
     authedGet<ClassGroupRow[]>(
       'class_groups?select=id,grade,section&academic_year=eq.2026-2027&order=grade.asc,section.asc',
@@ -647,6 +661,13 @@ export async function fetchManagementCoursePlan(
     teacherIdsByRequirement.set(row.requirement_id, values);
   });
 
+  const timePreferenceByRequirement = new Map(
+    timePreferences.map((preference) => [
+      preference.requirementId,
+      preference,
+    ]),
+  );
+
   const roomIdsByRequirement = new Map<string, string[]>();
   requirementRooms.forEach((row) => {
     const values = roomIdsByRequirement.get(row.requirement_id) ?? [];
@@ -704,6 +725,10 @@ export async function fetchManagementCoursePlan(
       roomNames: roomIds.map((id) => roomById.get(id) ?? 'Bilinmeyen salon'),
       placedBlockCount: placedBlocksByRequirement.get(requirement.id) ?? 0,
       requiredCapability: requirement.required_capability,
+      preferredDays:
+        timePreferenceByRequirement.get(requirement.id)?.preferredDays ?? [],
+      preferredStartPeriods:
+        timePreferenceByRequirement.get(requirement.id)?.preferredStartPeriods ?? [],
     }];
   });
 
@@ -792,6 +817,34 @@ export function applyManagementRequirementStructure(
       p_allowed_partitions: input.allowedPartitions,
       p_term_status: input.termStatus,
       p_expected_structure_token: expectedStructureToken,
+    },
+  );
+}
+
+export interface ManagementRequirementTimePreferenceResult {
+  requirementId: string;
+  preferredDays: number[];
+  preferredStartPeriods: number[];
+  configured: boolean;
+  publishedChanged: false;
+  solverBehaviorChanged: true;
+}
+
+export function updateManagementRequirementTimePreferences(
+  accessToken: string,
+  scheduleRevisionId: string,
+  requirementId: string,
+  preferredDays: number[],
+  preferredStartPeriods: number[],
+) {
+  return authedRpc<ManagementRequirementTimePreferenceResult>(
+    'management_set_requirement_time_preferences',
+    accessToken,
+    {
+      p_schedule_revision_id: scheduleRevisionId,
+      p_requirement_id: requirementId,
+      p_preferred_days: preferredDays,
+      p_preferred_start_periods: preferredStartPeriods,
     },
   );
 }
