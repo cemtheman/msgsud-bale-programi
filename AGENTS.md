@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — requirement ACTIVE/INACTIVE lifecycle v11 accepted end-to-end in browser and live DB |
+| Aktif implementation checkpoint | `97df7d1c21e48820173bcff64d715012905210a8` — workspace-native subject time preferences v12 implementation ready; test/build/migration gate pending |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **v11 browser acceptance CLOSED / PASS** — INACTIVE→ACTIVE and ACTIVE→INACTIVE preview/apply/local Undo/Redo/atomic Save verified; reload persistence verified; live DB confirms 5A B. Uygulama INACTIVE, weekly_load=0, no draft cards. |
-| Sıradaki iş paketi | **Post-v11 cleanup / next Management Workspace v1 sub-phase** — preserve local-only editing contract and keep legacy server history isolated from workspace-owned structure changes |
+| Sıradaki iş paketi | **v12 code + migration gate** — time preferences must remain local until one atomic Save |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -8925,3 +8925,57 @@ Implementation:
 Validation status:
 - focused/full tests and production build: **PENDING Codespaces gate**
 - previous verified baseline remains `7232b9f0a2122d4be86b22f44a4ca43780586ea8`
+
+
+### 8 Oct 2026 — Workspace-native subject time preferences v12 — IMPLEMENTATION READY / GATE PENDING
+
+Goal:
+- remove the last direct-DB exception from the Management Workspace editing model
+- requirement preferred day/start-period edits must stay local until the main Save
+- include those edits in the same atomic persistence boundary as placement/resource/structure changes
+
+Observed architecture gap:
+- `SET_REQUIREMENT_TIME_PREFERENCE` already participated in local Undo/Redo
+- however the UI still called `management_set_requirement_time_preferences` immediately on edit, Undo and Redo
+- therefore time preferences violated the workspace rule that Save is the persistence boundary
+
+Implemented:
+- requirement catalog now retains baseline preferred days/start periods after Course Plan hydration
+- workspace diff now emits deterministic `requirementTimePreferenceChanges`
+- time preference changes contribute to `hasChanges` and dirty requirement IDs
+- atomic commit payload now includes `timePreferenceChanges`
+- client commit target advanced from `management_commit_workspace_v11` to `management_commit_workspace_v12`
+- Course Plan time preference edit is now local-only
+- local Undo/Redo no longer writes time preferences directly to the database
+- UI still projects the local preference state immediately to Course Plan / solver view
+
+Migration prepared:
+- `20261008135000_management_workspace_time_preferences.sql`
+- new `management_commit_workspace_v12`
+- validates original snapshot/baseline freshness
+- stale-checks each preference change against its recorded before-state
+- applies preference changes and delegates the existing v11 workspace commit in the same PostgreSQL transaction
+- recomputes final snapshot hash after the complete transaction
+- authenticated execute only; anon/public revoked
+
+Implementation commits:
+- `0f6d603d360fe8c28c71fc6ab4b2f1241f6d2bde` — feat: diff local time preferences in workspace
+- `c5f67c3b32bafd8604c51ef31e16ddf23cab9c3b` — feat: include time preferences in workspace commit
+- `e8de449cdd6e3fa8e8981c86fb215f9fbc459e1e` — fix: keep time preferences local until workspace save
+- `4afe3892c50372db6ae89c529dc2ec14196d1a66` — feat: persist time preferences in workspace save
+- `198efa52f0622147729b1847bd5afb0eb7061995` — test: cover atomic time preference save
+- `97df7d1c21e48820173bcff64d715012905210a8` — chore: expose workspace time preference commit count
+
+Validation status:
+- focused/full tests: PENDING
+- production build: PENDING
+- migration list/dry-run: PENDING
+- DB push: NOT DONE
+- browser acceptance: PENDING
+
+Required gate:
+1. pull branch and run focused workspace history/commit/history-policy tests
+2. run full suite + production build + diff check
+3. inspect migration parity
+4. dry-run must show only the expected new v12 migration before any DB push
+5. after DB push, verify: edit time preference -> Undo/Redo local -> reload before Save loses edit -> edit again -> one Save -> reload persists it
