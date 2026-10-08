@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `a47a295c31a9d4e93033983dd12322319547e413` — assigned-teacher preservation regression test added |
+| Aktif implementation checkpoint | `e97c9fbf55a712837a42e9adf61d146aa702f911` — same-slot teacher swaps protected from candidate-cap starvation |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **Subject-time PASS; teacher-load REOPENED / RETEST REQUIRED** — optimizer was dropping OPTIONAL baseline teachers to null |
-| Sıradaki iş paketi | **Teacher-load fix gate + repeat real-data browser acceptance; only real teacher reassignment counts as PASS** |
+| Sıradaki iş paketi | **Teacher-load candidate-cap fix gate + real-data browser retest; PASS requires actual eligible teacher reassignment** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9219,3 +9219,30 @@ Acceptance status correction:
 - subject-time real-data acceptance remains **PASS**
 - teacher-load real-data acceptance is **REOPENED / RETEST REQUIRED**
 - deterministic teacher-load reassignment test remains valid, but browser acceptance must be repeated after this guard
+
+
+### 8 Oct 2026 — Teacher-load real-data no-op diagnosed: candidate-cap starvation
+
+Observed after preventing teacher-null optimization:
+- teacher-load profile became a real-data no-op (301 -> 301)
+- A. Küçüküçerler is at 17 periods vs target 10 / max 12
+- E. Gemalmaz is at 10 vs target 10, so A -> E alone does not improve total absolute deviation
+- however A.'s ELIGIBLE_POOL requirements include many under-target teachers, so genuine improving reassignment paths exist
+
+Root cause:
+- raw candidate generation scanned day -> period -> teacher -> room and stopped at maxCandidatesPerCard
+- wide teacher/room pools could exhaust the cap before reaching the baseline slot with alternative teachers
+- therefore the optimizer often could not see minimal teacher-only swaps even though eligibility allowed them
+
+Fix:
+- before generic Cartesian enumeration, generate high-value resource-only alternatives at the current baseline slot
+- first: same day/time + same room + alternative eligible teachers
+- second: same day/time + same teacher + alternative rooms
+- existing teacher-preservation guard remains: assigned teachers cannot be dropped to null by objective search
+
+Implementation:
+- `0f85253b801a5095781a2ce2e1108f901797cacd` — fix: prioritize same-slot teacher swaps before candidate cap
+- `e97c9fbf55a712837a42e9adf61d146aa702f911` — test: keep teacher swaps reachable under candidate cap
+
+Validation: PENDING
+Browser teacher-load acceptance remains REOPENED until a real teacher A -> teacher B reassignment is observed.
