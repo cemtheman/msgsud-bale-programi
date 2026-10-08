@@ -181,4 +181,4 @@ comment on function public.management_commit_workspace_v13(
   uuid, uuid, integer, text, text,
   jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb
 ) is
-  'Workspace v13 atomic commit. Persists M42 fine-grained card pins before delegating existing v12 workspace semantics in the same transaction.';
+  'Workspace v13 atomic commit. Delegates existing v12 workspace semantics first, then persists M42 fine-grained card pins in the same transaction so newly created structural cards can also be pinned.';
