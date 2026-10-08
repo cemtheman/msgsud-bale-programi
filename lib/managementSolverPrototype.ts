@@ -111,6 +111,7 @@ interface SolverContext {
   roomPools: Map<string, string[]>;
   groupRelations: ManagementSolverInstructionalGroupRelation[];
   groupDescendants: Map<string, Set<string>>;
+  synchronizedCardBundles: Map<string, string[]>;
   maxCandidatesPerCard: number;
 }
 
@@ -743,10 +744,109 @@ function canAssign(
   );
 }
 
+function sectionGradeKey(
+  requirement: ManagementSolverRequirement,
+) {
+  if (requirement.groupType !== 'SECTION') return null;
+  const match = requirement.groupName
+    .trim()
+    .match(/^(\d+)[A-Z]\s+SECTION$/i);
+  return match?.[1] ?? null;
+}
+
+function buildSynchronizedSectionBundles(
+  requirements: Map<string, ManagementSolverRequirement>,
+  cards: Map<string, ManagementSolverCard>,
+  baseline: Map<string, ManagementSolverBaselinePlacement>,
+) {
+  const grouped = new Map<string, string[]>();
+
+  for (const card of cards.values()) {
+    const requirement = requirements.get(card.requirementId);
+    const placement = baseline.get(card.id);
+    if (!requirement || !baselinePlacementIsMaterialized(placement)) {
+      continue;
+    }
+
+    const grade = sectionGradeKey(requirement);
+    if (!grade) continue;
+
+    const key = [
+      grade,
+      requirement.subjectId,
+      card.blockIndex,
+      card.durationPeriods,
+    ].join('|');
+    const ids = grouped.get(key) ?? [];
+    ids.push(card.id);
+    grouped.set(key, ids);
+  }
+
+  const result = new Map<string, string[]>();
+
+  for (const ids of grouped.values()) {
+    if (ids.length < 2) continue;
+
+    const placements = ids
+      .map((cardId) => baseline.get(cardId))
+      .filter(baselinePlacementIsMaterialized);
+    if (placements.length !== ids.length) continue;
+
+    const first = placements[0];
+    const synchronized = placements.every((placement) => (
+      placement.dayOfWeek === first.dayOfWeek
+      && placement.startPeriod === first.startPeriod
+    ));
+    if (!synchronized) continue;
+
+    const sortedIds = [...ids].sort();
+    for (const cardId of sortedIds) {
+      result.set(cardId, sortedIds);
+    }
+  }
+
+  return result;
+}
+
+function synchronizedBundlesHold(
+  assignments: Candidate[],
+  context: SolverContext,
+) {
+  const byCardId = new Map(
+    assignments.map((assignment) => [assignment.cardId, assignment]),
+  );
+  const visited = new Set<string>();
+
+  for (const [cardId, bundleIds] of context.synchronizedCardBundles) {
+    if (visited.has(cardId)) continue;
+    bundleIds.forEach((id) => visited.add(id));
+
+    const bundle = bundleIds
+      .map((id) => byCardId.get(id))
+      .filter((item): item is Candidate => Boolean(item));
+
+    if (bundle.length !== bundleIds.length) continue;
+
+    const anchor = bundle[0];
+    if (!bundle.every((candidate) => (
+      candidate.dayOfWeek === anchor.dayOfWeek
+      && candidate.startPeriod === anchor.startPeriod
+    ))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function finalRequirementRulesHold(
   assignments: Candidate[],
   context: SolverContext,
 ) {
+  if (!synchronizedBundlesHold(assignments, context)) {
+    return false;
+  }
+
   const requirementIdsWithCards = new Set(
     [...context.cards.values()].map((card) => card.requirementId),
   );
@@ -862,6 +962,11 @@ function createContext(
   const groupTree = buildGroupDescendants(
     snapshot.instructionalGroupRelations,
   );
+  const synchronizedCardBundles = buildSynchronizedSectionBundles(
+    requirements,
+    cards,
+    baseline,
+  );
 
   for (const group of snapshot.instructionalGroups) {
     groupTree.visit(group.id);
@@ -883,6 +988,7 @@ function createContext(
     roomPools,
     groupRelations: snapshot.instructionalGroupRelations,
     groupDescendants: groupTree.memo,
+    synchronizedCardBundles,
     maxCandidatesPerCard,
   };
 }
@@ -2780,6 +2886,53 @@ function replacementBundleIsHardFeasible(
     : false;
 }
 
+function synchronizedBundleIds(
+  cardId: string,
+  context: SolverContext,
+) {
+  return context.synchronizedCardBundles.get(cardId) ?? [cardId];
+}
+
+function sameTimeBundleCandidates(
+  cardIds: string[],
+  dayOfWeek: number,
+  startPeriod: number,
+  domains: Map<string, Candidate[]>,
+  currentAssignments: Candidate[],
+  context: SolverContext,
+) {
+  const currentByCardId = new Map(
+    currentAssignments.map((assignment) => [
+      assignment.cardId,
+      assignment,
+    ]),
+  );
+  const result: Candidate[] = [];
+
+  for (const cardId of cardIds) {
+    const current = currentByCardId.get(cardId);
+    if (!current) return null;
+
+    const candidates = (domains.get(cardId) ?? [])
+      .filter((candidate) => (
+        candidate.dayOfWeek === dayOfWeek
+        && candidate.startPeriod === startPeriod
+        && preserveUnknownRoomEvidence(candidate, context)
+      ))
+      .sort((left, right) => (
+        candidateDistance(left, current)
+        - candidateDistance(right, current)
+        || candidateKey(left).localeCompare(candidateKey(right))
+      ));
+
+    const selected = candidates[0];
+    if (!selected) return null;
+    result.push(selected);
+  }
+
+  return result;
+}
+
 function pairRerouteNeighborhood(
   domain: Candidate[],
   current: Candidate,
@@ -2946,10 +3099,6 @@ function runLocalObjectiveSearch(
         8,
         Math.min(maxNeighborsPerCard, 20),
       );
-      const pairRerouteLimit = Math.max(
-        8,
-        Math.min(maxNeighborsPerCard, 16),
-      );
 
       for (const card of cards) {
         if (card.locked) continue;
@@ -2970,6 +3119,14 @@ function runLocalObjectiveSearch(
         );
         if (currentPreferencePenalty <= 0) continue;
 
+        const primaryBundleIds = synchronizedBundleIds(
+          card.id,
+          context,
+        );
+        if (primaryBundleIds.some((id) => context.cards.get(id)?.locked)) {
+          continue;
+        }
+
         const primaryCandidates = (domains.get(card.id) ?? [])
           .filter((candidate) => (
             !samePlacement(candidate, current)
@@ -2986,98 +3143,122 @@ function runLocalObjectiveSearch(
           .slice(0, pairPrimaryLimit);
 
         for (const primaryCandidate of primaryCandidates) {
-          if (!preserveUnknownRoomEvidence(primaryCandidate, context)) {
+          const primaryBundle = sameTimeBundleCandidates(
+            primaryBundleIds,
+            primaryCandidate.dayOfWeek,
+            primaryCandidate.startPeriod,
+            domains,
+            currentAssignments,
+            context,
+          );
+          if (!primaryBundle) continue;
+
+          const primaryIds = new Set(primaryBundleIds);
+          const blockers = currentAssignments.filter((assignment) => (
+            !primaryIds.has(assignment.cardId)
+            && primaryBundle.some((candidate) => (
+              candidatesConflict(candidate, assignment, context)
+            ))
+          ));
+          if (blockers.length === 0) continue;
+
+          const blockerIds = new Set<string>();
+          for (const blocker of blockers) {
+            synchronizedBundleIds(blocker.cardId, context)
+              .forEach((id) => blockerIds.add(id));
+          }
+
+          const blockersAreCompleteBundles = [...blockerIds].every((id) => (
+            currentAssignments.some((assignment) => assignment.cardId === id)
+          ));
+          if (!blockersAreCompleteBundles) continue;
+
+          if ([...blockerIds].some((id) => context.cards.get(id)?.locked)) {
             continue;
           }
 
-          const blockers = currentAssignments.filter((assignment) => (
-            assignment.cardId !== card.id
-            && candidatesConflict(
-              primaryCandidate,
-              assignment,
-              context,
-            )
-          ));
+          const primaryAnchorCurrent = currentAssignments.find(
+            (assignment) => assignment.cardId === card.id,
+          );
+          if (!primaryAnchorCurrent) continue;
 
-          if (blockers.length !== 1) continue;
+          const blockerBundle = sameTimeBundleCandidates(
+            [...blockerIds],
+            primaryAnchorCurrent.dayOfWeek,
+            primaryAnchorCurrent.startPeriod,
+            domains,
+            currentAssignments,
+            context,
+          );
+          if (!blockerBundle) continue;
 
-          const blocker = blockers[0];
-          const blockerCard = context.cards.get(blocker.cardId);
-          if (!blockerCard || blockerCard.locked) continue;
+          const replacedIds = new Set([
+            ...primaryBundleIds,
+            ...blockerIds,
+          ]);
+          const untouched = currentAssignments.filter(
+            (assignment) => !replacedIds.has(assignment.cardId),
+          );
+          const replacements = [
+            ...primaryBundle,
+            ...blockerBundle,
+          ];
 
-          const untouched = currentAssignments.filter((assignment) => (
-            assignment.cardId !== card.id
-            && assignment.cardId !== blocker.cardId
-          ));
-          const rerouteCandidates = pairRerouteNeighborhood(
-            domains.get(blocker.cardId) ?? [],
-            blocker,
-            current,
-            pairRerouteLimit,
+          evaluatedMoveCount += 1;
+
+          if (!replacementBundleIsHardFeasible(
+            replacements,
+            untouched,
+            context,
+          )) {
+            continue;
+          }
+
+          const proposedAssignments = [
+            ...untouched,
+            ...replacements,
+          ];
+          const proposedMetrics = objectiveMetricVector(
+            proposedAssignments,
+            context,
+          );
+          const proposedScore = objectiveScore(
+            proposedMetrics,
+            weights,
+            cards.length,
           );
 
-          for (const rerouteCandidate of rerouteCandidates) {
-            if (!preserveUnknownRoomEvidence(rerouteCandidate, context)) {
-              continue;
-            }
+          if (
+            proposedScore.total
+            >= currentScore.total - SCORE_EPSILON
+          ) {
+            continue;
+          }
 
-            evaluatedMoveCount += 1;
+          const key = [
+            'bundle-swap',
+            ...primaryBundleIds,
+            primaryCandidate.dayOfWeek,
+            primaryCandidate.startPeriod,
+            ...[...blockerIds].sort(),
+          ].join('|');
 
-            if (!replacementBundleIsHardFeasible(
-              [primaryCandidate, rerouteCandidate],
-              untouched,
-              context,
-            )) {
-              continue;
-            }
-
-            const proposedAssignments = [
-              ...untouched,
-              primaryCandidate,
-              rerouteCandidate,
-            ];
-            const proposedMetrics = objectiveMetricVector(
-              proposedAssignments,
-              context,
-            );
-            const proposedScore = objectiveScore(
-              proposedMetrics,
-              weights,
-              cards.length,
-            );
-
-            if (
-              proposedScore.total
-              >= currentScore.total - SCORE_EPSILON
-            ) {
-              continue;
-            }
-
-            const key = [
-              'pair',
-              card.id,
-              candidateKey(primaryCandidate),
-              blocker.cardId,
-              candidateKey(rerouteCandidate),
-            ].join('|');
-
-            if (
-              best == null
-              || proposedScore.total < best.score.total - SCORE_EPSILON
-              || (
-                Math.abs(proposedScore.total - best.score.total)
-                  <= SCORE_EPSILON
-                && key.localeCompare(best.key) < 0
-              )
-            ) {
-              best = {
-                assignments: proposedAssignments,
-                metrics: proposedMetrics,
-                score: proposedScore,
-                key,
-                acceptedMoveIncrement: 2,
-              };
-            }
+          if (
+            best == null
+            || proposedScore.total < best.score.total - SCORE_EPSILON
+            || (
+              Math.abs(proposedScore.total - best.score.total)
+                <= SCORE_EPSILON
+              && key.localeCompare(best.key) < 0
+            )
+          ) {
+            best = {
+              assignments: proposedAssignments,
+              metrics: proposedMetrics,
+              score: proposedScore,
+              key,
+              acceptedMoveIncrement: replacements.length,
+            };
           }
         }
       }
