@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `ed21ddc3c93fab8f26e406b050cec76547a72417` — M42 v13 gate failure patched; rerun pending |
+| Aktif implementation checkpoint | `ed21ddc3c93fab8f26e406b050cec76547a72417` — M42 local pin code gate PASS (39/39, 289/289, build PASS) |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **M42 foundation CLOSED / PASS** — 39/39, 285/285, build PASS, migration parity PASS |
-| Sıradaki iş paketi | **Re-run M42 focused/full tests + build + v13 dry-run; DB push only after all green** |
+| Sıradaki iş paketi | **Push v13 migration + browser acceptance for time/teacher/room pin + Undo/Redo + reload persistence** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9600,3 +9600,19 @@ Status:
 - build: RE-RUN PENDING
 - migration dry-run: must be repeated after migration edit
 - DB push: NOT DONE
+
+
+### 8 Oct 2026 — M42 local pin workspace code gate PASS
+
+Codespaces validation:
+- Test Files: **39 passed (39)**
+- Tests: **289 passed (289)**
+- production build: PASS
+- TypeScript: PASS
+- static generation: 9/9
+- v13 migration dry-run: clean; only `20261008173000_management_workspace_card_pins.sql`
+
+Status:
+- **M42 LOCAL PIN WORKSPACE CODE GATE CLOSED / PASS**
+- DB push: pending
+- browser acceptance: pending
