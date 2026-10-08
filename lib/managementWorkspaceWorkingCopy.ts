@@ -20,7 +20,17 @@ export interface ManagementWorkspaceCardStateV1 {
   blockIndex: number;
   durationPeriods: number;
   locked: boolean;
+  timePinned: boolean;
+  teacherPinned: boolean;
+  roomPinned: boolean;
   baselineExists: boolean;
+}
+
+export interface ManagementWorkspaceCardPinStateV1 {
+  cardId: string;
+  timePinned: boolean;
+  teacherPinned: boolean;
+  roomPinned: boolean;
 }
 
 export interface ManagementWorkspaceRequirementCatalogStateV1 {
@@ -179,6 +189,12 @@ export interface ManagementWorkspacePlacementChangeV1 {
   after: ManagementWorkspacePlacementStateV1;
 }
 
+export interface ManagementWorkspaceCardPinChangeV1 {
+  cardId: string;
+  before: ManagementWorkspaceCardPinStateV1;
+  after: ManagementWorkspaceCardPinStateV1;
+}
+
 export interface ManagementWorkspaceRequirementStructureChangeV1 {
   requirementId: string;
   before: ManagementWorkspaceRequirementStructureStateV1;
@@ -239,6 +255,7 @@ export interface ManagementWorkspaceDiffV1 {
   dirtyRequirementIds: string[];
   dirtyResourceIds: string[];
   placementChanges: ManagementWorkspacePlacementChangeV1[];
+  cardPinChanges: ManagementWorkspaceCardPinChangeV1[];
   requirementStructureChanges:
     ManagementWorkspaceRequirementStructureChangeV1[];
   requirementResourceChanges:
@@ -568,6 +585,9 @@ export function baselineCardsById(
         blockIndex: card.blockIndex,
         durationPeriods: card.durationPeriods,
         locked: card.locked,
+        timePinned: card.timePinned === true,
+        teacherPinned: card.teacherPinned === true,
+        roomPinned: card.roomPinned === true,
         baselineExists: true,
       },
     ]),
@@ -1251,6 +1271,25 @@ export function applyManagementWorkspaceRequirementStructureBundleV1(
   });
 }
 
+export function setManagementWorkspaceCardPinsV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  pins: ManagementWorkspaceCardPinStateV1,
+) {
+  const current = workingCopy.cardsById[pins.cardId];
+  if (!current) {
+    throw new Error(
+      `Workspace working copy kartı bulunamadı (${pins.cardId}).`,
+    );
+  }
+
+  workingCopy.cardsById[pins.cardId] = {
+    ...current,
+    timePinned: pins.timePinned,
+    teacherPinned: pins.teacherPinned,
+    roomPinned: pins.roomPinned,
+  };
+}
+
 export function setManagementWorkspacePlacementV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   placement: ManagementWorkspacePlacementStateV1,
@@ -1879,6 +1918,7 @@ export function diffManagementWorkspaceV1(
   );
   const dirtyCardIds = Array.from(new Set([
     ...placementChanges.map((change) => change.cardId),
+    ...cardPinChanges.map((change) => change.cardId),
     ...structurallyDirtyCardIds,
   ])).sort((left, right) => left.localeCompare(right));
 
@@ -1901,6 +1941,7 @@ export function diffManagementWorkspaceV1(
     baseline: cloneIdentity(snapshot.identity),
     hasChanges:
       placementChanges.length > 0
+      || cardPinChanges.length > 0
       || requirementStructureChanges.length > 0
       || requirementResourceChanges.length > 0
       || requirementTimePreferenceChanges.length > 0
@@ -1914,6 +1955,7 @@ export function diffManagementWorkspaceV1(
     dirtyRequirementIds,
     dirtyResourceIds,
     placementChanges,
+    cardPinChanges,
     requirementStructureChanges,
     requirementResourceChanges,
     requirementTimePreferenceChanges,
