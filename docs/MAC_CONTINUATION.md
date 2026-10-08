@@ -3164,3 +3164,49 @@ Largest current contributors include:
 Status:
 - **FIXED-TEACHER DATA REPAIR CLOSED / PASS**
 - next: distinguish default-seeded teacher load suggestions from explicit human-approved targets; solver should optimize only against explicit targets
+
+
+### 8 Oct 2026 — Teacher load target provenance package prepared — DB NOT PUSHED
+
+Goal:
+- separate historical auto-seeded load suggestions from human-approved teacher planning targets
+- prevent teacherLoadBalance from optimizing against bootstrap defaults as if they were explicit goals
+
+DB preflight on current data:
+- 53 teacher planning rows total
+- 45 untouched 1/10/20 bootstrap rows qualify as DEFAULT_SEED
+- 8 rows have been subsequently edited and remain EXPLICIT
+- explicit set includes A. Küçüküçerler, S. Jaferov, Matematik 1/2, Türkçe 1/2, İngilizce 1, Din Kültürü 1
+
+Prepared migration:
+- `20261008161500_teacher_load_target_provenance.sql`
+- adds `input_source = DEFAULT_SEED | EXPLICIT`
+- backfills only untouched historical bootstrap rows to DEFAULT_SEED
+- direct/user saves always promote a row to EXPLICIT
+- `management_list_teacher_load_targets.configured` is true only for EXPLICIT targets
+- existing numeric seed values remain visible for UI/reference
+- solver snapshot already consumes only rows where `configured=true`, therefore teacherLoadBalance becomes explicit-only without a second snapshot wrapper
+- workspace v5 stale/no-op logic treats DEFAULT_SEED as logically absent, allowing a user to confirm the same suggested values as an explicit target
+
+UI/client behavior:
+- Resources teacher rows expose provenance
+- DEFAULT_SEED values remain visible in neutral styling with `Varsayılan öneri · solver kullanmıyor`
+- EXPLICIT targets show normal target deviation
+- summary separates `onaylı hedef` from `varsayılan`
+- editing/saving a seed suggestion promotes it locally to EXPLICIT before main Save
+- local explicit clear remains distinguishable from a seed fallback
+
+Implementation commits:
+- `2efe4ad3c47b9e1354f54a971dd622b4f5ee955b` — provenance migration
+- `c2ee6785a97e08c3fcb36a0cd2ad6830fc669a97` — expose target provenance in Resources model
+- `b5ab6bbbf8342860dd4937f2af8c0ca3a7d7183c` — project seed vs explicit targets correctly
+- `fb2caa1a43dd8fce3435eee965443ce3deb8a115` — Resources provenance UX
+- `8fb8e620391989fe3df5a86172f12b1344ade24c` — result/type semantics
+- `876c889d7dceb708e45f63a675736aafa3392cf1` — seed/explicit projection tests
+
+Status:
+- DB push: **NOT DONE**
+- focused/full tests: PENDING
+- production build: PENDING
+- migration dry-run: PENDING
+- browser acceptance: PENDING
