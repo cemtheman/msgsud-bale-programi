@@ -220,6 +220,8 @@ function weightsEqual(
 
 export function ManagementSolverWorkspacePanel({
   data,
+  loading = false,
+  loadError = null,
   canEdit,
   busy,
   onSave,
@@ -227,6 +229,8 @@ export function ManagementSolverWorkspacePanel({
   onActivityChange,
 }: {
   data: ManagementSolverWorkspace | null;
+  loading?: boolean;
+  loadError?: string | null;
   canEdit: boolean;
   busy: boolean;
   onSave: (input: ManagementSolverProfileInput) => Promise<void>;
@@ -309,10 +313,16 @@ export function ManagementSolverWorkspacePanel({
   ]);
 
   if (!data) {
+    const statusText = loading
+      ? 'Program tercihleri yükleniyor…'
+      : loadError
+        ? 'Program tercihleri alınamadı.'
+        : 'Program tercihleri henüz hazır değil.';
+
     return (
       <section className="flex min-h-0 flex-1 items-center justify-center p-6">
         <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-500">
-          Program tercihleri alınamadı.
+          {statusText}
         </div>
       </section>
     );
