@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `97df7d1c21e48820173bcff64d715012905210a8` — workspace-native subject time preferences v12 implementation ready; test/build/migration gate pending |
+| Aktif implementation checkpoint | `884b17a6bb92ea497f2bf2fdc2c8b7161c6d763f` — time preference save notice count fix |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
-| Son kullanıcı/QA kabulü | **v11 browser acceptance CLOSED / PASS** — INACTIVE→ACTIVE and ACTIVE→INACTIVE preview/apply/local Undo/Redo/atomic Save verified; reload persistence verified; live DB confirms 5A B. Uygulama INACTIVE, weekly_load=0, no draft cards. |
-| Sıradaki iş paketi | **Migration parity re-check + v12 dry-run** — only 20261008135000 may remain pending |
+| Son kullanıcı/QA kabulü | **Workspace v12 time preferences browser acceptance CLOSED / PASS** — local edit/Undo/Redo/Save/reload verified; save-notice count patch pending code gate |
+| Sıradaki iş paketi | **Final v12 UI patch gate, then objective expansion continuation** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9015,3 +9015,25 @@ Repo alignment commits:
 Next gate:
 - `supabase migration list` must show 7 Oct parity
 - `supabase db push --dry-run` must show only `20261008135000_management_workspace_time_preferences.sql`
+
+
+### 8 Oct 2026 — Workspace v12 time preferences browser acceptance PASS
+
+Browser acceptance:
+- requirement day/start-period preference edit stays local before Save
+- local Undo restores the previous preference
+- local Redo reapplies it
+- Save persists the preference through the workspace v12 atomic boundary
+- reload after Save preserves the preference
+
+Observed UI-only defect during acceptance:
+- Save success notice did not include `changedTimePreferenceCount`
+- time-preference-only saves therefore displayed an incorrect zero/empty change summary even though persistence succeeded
+
+Fix:
+- `884b17a6bb92ea497f2bf2fdc2c8b7161c6d763f` — ux: count time preferences in save notice
+- Save notice now reports e.g. `1 zaman tercihi değişikliği kaydedildi.`
+
+Status:
+- **WORKSPACE V12 TIME PREFERENCES BROWSER ACCEPTANCE CLOSED / PASS**
+- remaining action: normal test/build gate for the UI-only notice patch
