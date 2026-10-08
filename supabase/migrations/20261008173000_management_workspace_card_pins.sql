@@ -25,7 +25,6 @@ set search_path to 'pg_catalog', 'public'
 as $function$
 declare
   v_current_snapshot jsonb;
-  v_intermediate_snapshot jsonb;
   v_final_snapshot jsonb;
   v_workspace_result jsonb;
   v_change jsonb;
@@ -67,6 +66,27 @@ begin
     raise exception 'WORKSPACE_V1_BASELINE_STALE';
   end if;
 
+  -- Delegate the pre-existing workspace changes first using the caller's
+  -- original snapshot. This allows structure changes to create cards before
+  -- pin updates are applied, while preserving one PostgreSQL transaction.
+  v_workspace_result := public.management_commit_workspace_v12(
+    p_schedule_revision_id,
+    p_requirement_set_id,
+    p_expected_revision_version,
+    p_expected_snapshot_hash,
+    p_expected_baseline_hash,
+    coalesce(p_changes, '[]'::jsonb),
+    coalesce(p_requirement_changes, '[]'::jsonb),
+    coalesce(p_resource_changes, '[]'::jsonb),
+    coalesce(p_teacher_planning_changes, '[]'::jsonb),
+    coalesce(p_teacher_availability_changes, '[]'::jsonb),
+    coalesce(p_room_profile_changes, '[]'::jsonb),
+    coalesce(p_resource_creates, '[]'::jsonb),
+    coalesce(p_resource_deletes, '[]'::jsonb),
+    coalesce(p_structure_changes, '[]'::jsonb),
+    coalesce(p_time_preference_changes, '[]'::jsonb)
+  );
+
   for v_change in
     select item.value
     from jsonb_array_elements(p_pin_changes) item(value)
@@ -91,9 +111,18 @@ begin
       raise exception 'WORKSPACE_V13_CARD_INVALID: %', v_card_id;
     end if;
 
-    v_before_time := coalesce((v_change #>> '{before,time_pinned}')::boolean, false);
-    v_before_teacher := coalesce((v_change #>> '{before,teacher_pinned}')::boolean, false);
-    v_before_room := coalesce((v_change #>> '{before,room_pinned}')::boolean, false);
+    v_before_time := coalesce(
+      (v_change #>> '{before,time_pinned}')::boolean,
+      false
+    );
+    v_before_teacher := coalesce(
+      (v_change #>> '{before,teacher_pinned}')::boolean,
+      false
+    );
+    v_before_room := coalesce(
+      (v_change #>> '{before,room_pinned}')::boolean,
+      false
+    );
 
     if v_current_time is distinct from v_before_time
        or v_current_teacher is distinct from v_before_teacher
@@ -101,9 +130,18 @@ begin
       raise exception 'WORKSPACE_V13_PIN_STALE: %', v_card_id;
     end if;
 
-    v_after_time := coalesce((v_change #>> '{after,time_pinned}')::boolean, false);
-    v_after_teacher := coalesce((v_change #>> '{after,teacher_pinned}')::boolean, false);
-    v_after_room := coalesce((v_change #>> '{after,room_pinned}')::boolean, false);
+    v_after_time := coalesce(
+      (v_change #>> '{after,time_pinned}')::boolean,
+      false
+    );
+    v_after_teacher := coalesce(
+      (v_change #>> '{after,teacher_pinned}')::boolean,
+      false
+    );
+    v_after_room := coalesce(
+      (v_change #>> '{after,room_pinned}')::boolean,
+      false
+    );
 
     update public.schedule_cards card
     set
@@ -114,29 +152,6 @@ begin
 
     v_pin_count := v_pin_count + 1;
   end loop;
-
-  v_intermediate_snapshot := public.management_preview_solver_snapshot(
-    p_schedule_revision_id,
-    null
-  );
-
-  v_workspace_result := public.management_commit_workspace_v12(
-    p_schedule_revision_id,
-    p_requirement_set_id,
-    p_expected_revision_version,
-    v_intermediate_snapshot ->> 'snapshotHash',
-    v_intermediate_snapshot ->> 'baselineHash',
-    coalesce(p_changes, '[]'::jsonb),
-    coalesce(p_requirement_changes, '[]'::jsonb),
-    coalesce(p_resource_changes, '[]'::jsonb),
-    coalesce(p_teacher_planning_changes, '[]'::jsonb),
-    coalesce(p_teacher_availability_changes, '[]'::jsonb),
-    coalesce(p_room_profile_changes, '[]'::jsonb),
-    coalesce(p_resource_creates, '[]'::jsonb),
-    coalesce(p_resource_deletes, '[]'::jsonb),
-    coalesce(p_structure_changes, '[]'::jsonb),
-    coalesce(p_time_preference_changes, '[]'::jsonb)
-  );
 
   v_final_snapshot := public.management_preview_solver_snapshot(
     p_schedule_revision_id,
