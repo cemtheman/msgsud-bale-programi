@@ -11,6 +11,7 @@ import {
   hydrateManagementWorkspaceInventoryDisplayNamesV1,
   removeManagementWorkspacePlacementV1,
   setManagementWorkspacePlacementV1,
+  setManagementWorkspaceCardPinsV1,
   setManagementWorkspaceRequirementRoomsV1,
   setManagementWorkspaceRoomInventoryV1,
   setManagementWorkspaceTeacherInventoryV1,
@@ -190,6 +191,7 @@ describe('management workspace working copy v1', () => {
       dirtyRequirementIds: [],
       dirtyResourceIds: [],
       placementChanges: [],
+      cardPinChanges: [],
       requirementStructureChanges: [],
       requirementResourceChanges: [],
       requirementTimePreferenceChanges: [],
@@ -660,6 +662,40 @@ describe('management workspace working copy v1', () => {
     expect(diff.resourceCreates).toEqual([]);
     expect(diff.resourceDeletes).toEqual([]);
     expect(diff.hasChanges).toBe(false);
+  });
+
+
+  it('tracks fine-grained card pin changes without moving the placement', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    setManagementWorkspaceCardPinsV1(copy, {
+      cardId: 'card-1',
+      timePinned: true,
+      teacherPinned: false,
+      roomPinned: true,
+    });
+
+    const diff = diffManagementWorkspaceV1(source, copy);
+
+    expect(diff.hasChanges).toBe(true);
+    expect(diff.dirtyCardIds).toContain('card-1');
+    expect(diff.placementChanges).toEqual([]);
+    expect(diff.cardPinChanges).toEqual([{
+      cardId: 'card-1',
+      before: {
+        cardId: 'card-1',
+        timePinned: false,
+        teacherPinned: false,
+        roomPinned: false,
+      },
+      after: {
+        cardId: 'card-1',
+        timePinned: true,
+        teacherPinned: false,
+        roomPinned: true,
+      },
+    }]);
   });
 
 });
