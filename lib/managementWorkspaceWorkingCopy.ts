@@ -1689,13 +1689,15 @@ export function diffManagementWorkspaceV1(
       const beforeCard = baselineCards[cardId];
       const afterCard = workingCopy.cardsById[cardId];
 
-      if (!beforeCard || !afterCard) return null;
+      // Removed structural cards need no separate pin write. Newly created
+      // cards have a false/false/false DB default once v12 creates them.
+      if (!afterCard) return null;
 
       const before: ManagementWorkspaceCardPinStateV1 = {
         cardId,
-        timePinned: beforeCard.timePinned === true,
-        teacherPinned: beforeCard.teacherPinned === true,
-        roomPinned: beforeCard.roomPinned === true,
+        timePinned: beforeCard?.timePinned === true,
+        teacherPinned: beforeCard?.teacherPinned === true,
+        roomPinned: beforeCard?.roomPinned === true,
       };
       const after: ManagementWorkspaceCardPinStateV1 = {
         cardId,
