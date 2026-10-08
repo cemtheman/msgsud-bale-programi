@@ -17,8 +17,8 @@
 | Aktif implementation checkpoint | `ed21ddc3c93fab8f26e406b050cec76547a72417` — M42 local pin code gate PASS (39/39, 289/289, build PASS) |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
-| Son kullanıcı/QA kabulü | **M42 foundation CLOSED / PASS** — 39/39, 285/285, build PASS, migration parity PASS |
-| Sıradaki iş paketi | **Push v13 migration + browser acceptance for time/teacher/room pin + Undo/Redo + reload persistence** |
+| Son kullanıcı/QA kabulü | **M42 REOPENED** — browser found technical wording + manual move bypass; semantic patch ready, re-test pending |
+| Sıradaki iş paketi | **Run M42 semantic patch tests/build; browser re-test real pin behavior; close only if manual + solver paths both respect pins** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9616,3 +9616,47 @@ Status:
 - **M42 LOCAL PIN WORKSPACE CODE GATE CLOSED / PASS**
 - DB push: pending
 - browser acceptance: pending
+
+
+### 8 Oct 2026 — M42 browser acceptance found semantic/UX defects — PATCHED / RE-TEST PENDING
+
+Browser evidence:
+- Inspector exposed the technical heading `Solver sabitlemeleri`; rejected as implementation jargon in user-facing UI.
+- A card with Gün / saat pin could still be moved manually; linked/parallel move path reported `Türkçe birlikte taşındı`.
+- Therefore M42 was NOT accepted despite prior code gate.
+
+Corrected product semantics:
+- heading is now simply `Sabitlemeler`
+- a pin is a real edit lock, not merely an optimizer hint
+- Gün / saat pin blocks manual drag, candidate move, linked/parallel move and any workspace placement edit that changes day/start
+- Öğretmen pin blocks direct/manual teacher changes
+- Salon pin blocks direct/manual room changes
+- user must remove the corresponding pin before changing that dimension
+- optimizer semantics remain unchanged and honor the same pins
+
+Implementation hardening:
+- central workspace validation codes added:
+  - TIME_PINNED_CHANGED
+  - TEACHER_PINNED_CHANGED
+  - ROOM_PINNED_CHANGED
+- validation compares current placement to baseline for each pinned dimension, so all command paths are covered
+- drag preparation rejects a linked/parallel bundle if any participating card has full lock or time pin
+- Inspector disables teacher/room editors when corresponding pin is active
+- plain-language helper text replaces optimizer-specific wording
+- regression tests added for all three manual pin dimensions
+
+Patch commits:
+- `eec17be54202baa5ceb9ca754fe4e907b94096b4` — central pin validation
+- `fd7e73c6f43489f0428a4f2f74a203b19696d869` — block pinned manual/parallel drag + labels
+- `20d01fb2c5c4787eb99d07ff0abd2b75f57dc9b3` — plain-language pin UI and teacher guard
+- `b057f7b23f9227abc0548392601facea0d1e944a` — room editor guard + helper copy
+- `42790e59a02d2149e8e802313f7171ce24c42d56` — manual pin regression tests
+
+DB status:
+- `20261008173000 management_workspace_card_pins` is confirmed APPLIED remotely.
+- no new migration is required for this semantic hardening; patch is application/workspace validation only.
+
+Status:
+- M42 browser acceptance: **REOPENED**
+- focused/full tests + build after semantic patch: PENDING
+- browser re-test: PENDING
