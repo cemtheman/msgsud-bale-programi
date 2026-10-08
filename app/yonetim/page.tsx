@@ -1103,13 +1103,11 @@ export default function ManagementPage() {
   const localRedoAvailable = Boolean(
     workspaceHistoryRef.current?.redoStack.length,
   );
-  const workspaceLocalSessionActive = Boolean(
-    workspaceHistoryRef.current
-    && (
-      workspaceHistoryRef.current.nextSequence > 1
-      || workspaceHistoryRef.current.redoStack.length > 0
-    )
-  );
+  // A redo-only history after undo does not mean the local program differs
+  // from the server. Use the actual working-copy diff as the source of truth
+  // for solver projection/edit locking; otherwise a clean undo leaves
+  // Tercihler disabled and hides "Öneriyi uygula".
+  const workspaceLocalSessionActive = workspaceDirty;
   const solverWorkspaceForView = (
     workspaceLocalSessionActive
     && solverWorkspace
