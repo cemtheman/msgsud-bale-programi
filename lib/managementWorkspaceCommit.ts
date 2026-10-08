@@ -127,6 +127,19 @@ export interface ManagementWorkspaceCommitPayloadV1 {
       maximum_load: number | null;
     };
   }>;
+  pinChanges: Array<{
+    card_id: string;
+    before: {
+      time_pinned: boolean;
+      teacher_pinned: boolean;
+      room_pinned: boolean;
+    };
+    after: {
+      time_pinned: boolean;
+      teacher_pinned: boolean;
+      room_pinned: boolean;
+    };
+  }>;
   timePreferenceChanges: Array<{
     requirement_id: string;
     before: {
@@ -468,6 +481,7 @@ export async function commitManagementWorkspaceV1(
         p_resource_deletes: payload.resourceDeletes,
         p_structure_changes: payload.structureChanges,
         p_time_preference_changes: payload.timePreferenceChanges,
+        p_pin_changes: payload.pinChanges,
       }),
     },
   );
