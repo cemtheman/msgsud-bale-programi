@@ -83,6 +83,8 @@ export function projectManagementCoursePlanFromWorkspaceV1(
       workingCopy.requirementResourcesById[row.requirementId] ?? null;
     const structure =
       workingCopy.requirementStructureById[row.requirementId] ?? null;
+    const timePreference =
+      workingCopy.requirementTimePreferencesById[row.requirementId] ?? null;
     const localCards = Object.values(workingCopy.cardsById)
       .filter((card) => card.requirementId === row.requirementId);
     const placedBlockCount = localCards.filter((card) => {
@@ -94,7 +96,7 @@ export function projectManagementCoursePlanFromWorkspaceV1(
       );
     }).length;
 
-    if (!resource && !structure) return row;
+    if (!resource && !structure && !timePreference) return row;
 
     return {
       ...row,
@@ -126,6 +128,12 @@ export function projectManagementCoursePlanFromWorkspaceV1(
         : row.roomNames,
       requiredCapability:
         resource?.requiredCapability ?? row.requiredCapability,
+      preferredDays:
+        timePreference ? [...timePreference.preferredDays] : row.preferredDays,
+      preferredStartPeriods:
+        timePreference
+          ? [...timePreference.preferredStartPeriods]
+          : row.preferredStartPeriods,
     };
   });
 

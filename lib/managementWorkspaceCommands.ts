@@ -6,6 +6,7 @@ import {
   type ManagementWorkspaceInventoryStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
+  type ManagementWorkspaceRequirementTimePreferenceStateV1,
   type ManagementWorkspaceRequirementStructureBundleV1,
   type ManagementWorkspaceResourceBundleV1,
   type ManagementWorkspaceRoomProfileStateV1,
@@ -18,6 +19,7 @@ import {
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
   applyManagementWorkspaceRequirementResourceOperationV1,
+  applyManagementWorkspaceRequirementTimePreferenceOperationV1,
   applyManagementWorkspaceRequirementStructureOperationV1,
   applyManagementWorkspaceResourceBundleOperationV1,
   applyManagementWorkspaceRoomProfileOperationV1,
@@ -50,6 +52,10 @@ export type ManagementWorkspaceCommandV1 =
   | {
       type: 'SET_REQUIREMENT_RESOURCES';
       resource: ManagementWorkspaceRequirementResourceStateV1;
+    }
+  | {
+      type: 'SET_REQUIREMENT_TIME_PREFERENCE';
+      preference: ManagementWorkspaceRequirementTimePreferenceStateV1;
     }
   | {
       type: 'SET_INVENTORY_RESOURCE';
@@ -163,6 +169,18 @@ function cloneWorkingCopy(
         ],
       ),
     ),
+    requirementTimePreferencesById: Object.fromEntries(
+      Object.entries(source.requirementTimePreferencesById).map(
+        ([requirementId, preference]) => [
+          requirementId,
+          {
+            requirementId: preference.requirementId,
+            preferredDays: [...preference.preferredDays],
+            preferredStartPeriods: [...preference.preferredStartPeriods],
+          },
+        ],
+      ),
+    ),
     teacherInventoryById: Object.fromEntries(
       Object.entries(source.teacherInventoryById).map(([id, resource]) => [
         id,
@@ -251,6 +269,14 @@ function applyCommand(
       workingCopy,
       history,
       command.resource,
+    );
+  }
+
+  if (command.type === 'SET_REQUIREMENT_TIME_PREFERENCE') {
+    return applyManagementWorkspaceRequirementTimePreferenceOperationV1(
+      workingCopy,
+      history,
+      command.preference,
     );
   }
 
@@ -542,6 +568,8 @@ export function resetManagementWorkspaceWorkingCopyV1(
   target.requirementStructureById = clean.requirementStructureById;
   target.requirementCatalogById = clean.requirementCatalogById;
   target.requirementResourcesById = clean.requirementResourcesById;
+  target.requirementTimePreferencesById =
+    clean.requirementTimePreferencesById;
   target.teacherInventoryById = clean.teacherInventoryById;
   target.roomInventoryById = clean.roomInventoryById;
   target.teacherPlanningById = clean.teacherPlanningById;

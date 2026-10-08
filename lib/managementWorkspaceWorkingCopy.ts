@@ -127,6 +127,12 @@ export type ManagementWorkspaceInventoryStateV1 =
   | ManagementWorkspaceTeacherInventoryStateV1
   | ManagementWorkspaceRoomInventoryStateV1;
 
+export interface ManagementWorkspaceRequirementTimePreferenceStateV1 {
+  requirementId: string;
+  preferredDays: number[];
+  preferredStartPeriods: number[];
+}
+
 export interface ManagementWorkspaceRequirementResourceStateV1 {
   requirementId: string;
   teacherIds: string[];
@@ -149,6 +155,8 @@ export interface ManagementWorkspaceWorkingCopyV1 {
     Record<string, ManagementWorkspaceRequirementCatalogStateV1>;
   requirementResourcesById:
     Record<string, ManagementWorkspaceRequirementResourceStateV1>;
+  requirementTimePreferencesById:
+    Record<string, ManagementWorkspaceRequirementTimePreferenceStateV1>;
   teacherInventoryById:
     Record<string, ManagementWorkspaceTeacherInventoryStateV1>;
   roomInventoryById:
@@ -440,6 +448,17 @@ function equalInventory(
     && left.displayName === right.displayName
     && left.operationalStatus === right.operationalStatus
   );
+}
+
+export function cloneManagementWorkspaceRequirementTimePreferenceV1(
+  value: ManagementWorkspaceRequirementTimePreferenceStateV1,
+): ManagementWorkspaceRequirementTimePreferenceStateV1 {
+  return {
+    requirementId: value.requirementId,
+    preferredDays: [...value.preferredDays].sort((a, b) => a - b),
+    preferredStartPeriods: [...value.preferredStartPeriods]
+      .sort((a, b) => a - b),
+  };
 }
 
 export function cloneManagementWorkspaceRequirementResourceV1(
@@ -832,6 +851,8 @@ export function hydrateManagementWorkspaceRequirementCatalogV1(
     resourceMode: string;
     roomIds: string[];
     requiredCapability: string | null;
+    preferredDays: number[];
+    preferredStartPeriods: number[];
   }>,
 ) {
   rows.forEach((row) => {
@@ -881,6 +902,13 @@ export function hydrateManagementWorkspaceRequirementCatalogV1(
         termStatus: row.termStatus,
       };
     }
+
+    workingCopy.requirementTimePreferencesById[row.requirementId] = {
+      requirementId: row.requirementId,
+      preferredDays: [...row.preferredDays].sort((a, b) => a - b),
+      preferredStartPeriods: [...row.preferredStartPeriods]
+        .sort((a, b) => a - b),
+    };
 
     if (!workingCopy.requirementResourcesById[row.requirementId]) {
       workingCopy.requirementResourcesById[row.requirementId] = {
@@ -956,6 +984,7 @@ export function createManagementWorkspaceWorkingCopyV1(
     requirementStructureById: baselineRequirementStructureById(snapshot),
     requirementCatalogById: baselineRequirementCatalogById(snapshot),
     requirementResourcesById: baselineRequirementResourcesById(snapshot),
+    requirementTimePreferencesById: {},
     teacherInventoryById: baselineTeacherInventoryById(snapshot),
     roomInventoryById: baselineRoomInventoryById(snapshot),
     teacherPlanningById: baselineTeacherPlanningById(snapshot),

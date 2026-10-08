@@ -5,6 +5,7 @@ import {
   cloneManagementWorkspaceRequirementStructureBundleV1,
   applyManagementWorkspaceResourceBundleV1,
   cloneManagementWorkspaceRequirementResourceV1,
+  cloneManagementWorkspaceRequirementTimePreferenceV1,
   cloneManagementWorkspaceResourceBundleV1,
   cloneManagementWorkspaceRoomProfileV1,
   cloneManagementWorkspaceTeacherAvailabilityV1,
@@ -19,6 +20,7 @@ import {
   type ManagementWorkspaceTeacherPlanningStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
+  type ManagementWorkspaceRequirementTimePreferenceStateV1,
   type ManagementWorkspaceRequirementStructureBundleV1,
   type ManagementWorkspaceResourceBundleV1,
   type ManagementWorkspaceWorkingCopyV1,
@@ -28,6 +30,7 @@ export type ManagementWorkspaceOperationKindV1 =
   | 'SET_PLACEMENT'
   | 'REMOVE_PLACEMENT'
   | 'SET_REQUIREMENT_RESOURCES'
+  | 'SET_REQUIREMENT_TIME_PREFERENCE'
   | 'SET_INVENTORY_RESOURCE'
   | 'SET_TEACHER_PLANNING'
   | 'SET_TEACHER_AVAILABILITY'
@@ -66,6 +69,17 @@ export interface ManagementWorkspaceRequirementResourceOperationV1 {
   resourceId: null;
   before: ManagementWorkspaceRequirementResourceStateV1;
   after: ManagementWorkspaceRequirementResourceStateV1;
+}
+
+export interface ManagementWorkspaceRequirementTimePreferenceOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_REQUIREMENT_TIME_PREFERENCE';
+  cardId: null;
+  requirementId: string;
+  resourceId: null;
+  before: ManagementWorkspaceRequirementTimePreferenceStateV1;
+  after: ManagementWorkspaceRequirementTimePreferenceStateV1;
 }
 
 export interface ManagementWorkspaceInventoryOperationV1 {
@@ -128,6 +142,7 @@ export type ManagementWorkspaceOperationV1 =
   | ManagementWorkspacePlacementOperationV1
   | ManagementWorkspaceRequirementStructureOperationV1
   | ManagementWorkspaceRequirementResourceOperationV1
+  | ManagementWorkspaceRequirementTimePreferenceOperationV1
   | ManagementWorkspaceInventoryOperationV1
   | ManagementWorkspaceTeacherPlanningOperationV1
   | ManagementWorkspaceTeacherAvailabilityOperationV1
@@ -244,6 +259,27 @@ function applyPlacementState(
   );
 }
 
+function currentRequirementTimePreference(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  requirementId: string,
+) {
+  return cloneManagementWorkspaceRequirementTimePreferenceV1(
+    workingCopy.requirementTimePreferencesById[requirementId] ?? {
+      requirementId,
+      preferredDays: [],
+      preferredStartPeriods: [],
+    },
+  );
+}
+
+function applyRequirementTimePreferenceState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  preference: ManagementWorkspaceRequirementTimePreferenceStateV1,
+) {
+  workingCopy.requirementTimePreferencesById[preference.requirementId] =
+    cloneManagementWorkspaceRequirementTimePreferenceV1(preference);
+}
+
 function applyRequirementResourceState(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   resource: ManagementWorkspaceRequirementResourceStateV1,
@@ -346,6 +382,14 @@ export function cloneManagementWorkspaceOperationV1(
     };
   }
 
+  if (operation.kind === 'SET_REQUIREMENT_TIME_PREFERENCE') {
+    applyRequirementTimePreferenceState(
+      workingCopy,
+      value as ManagementWorkspaceRequirementTimePreferenceStateV1,
+    );
+    return;
+  }
+
   if (operation.kind === 'SET_INVENTORY_RESOURCE') {
     return {
       ...operation,
@@ -390,6 +434,18 @@ export function cloneManagementWorkspaceOperationV1(
     };
   }
 
+  if (operation.kind === 'SET_REQUIREMENT_TIME_PREFERENCE') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceRequirementTimePreferenceV1(
+        operation.before,
+      ),
+      after: cloneManagementWorkspaceRequirementTimePreferenceV1(
+        operation.after,
+      ),
+    };
+  }
+
   return {
     ...operation,
     before: cloneManagementWorkspacePlacementV1(operation.before),
@@ -407,6 +463,10 @@ function recordOperation(
       >
     | Omit<
         ManagementWorkspaceRequirementResourceOperationV1,
+        'sequence' | 'batchId'
+      >
+    | Omit<
+        ManagementWorkspaceRequirementTimePreferenceOperationV1,
         'sequence' | 'batchId'
       >
     | Omit<ManagementWorkspaceInventoryOperationV1, 'sequence' | 'batchId'>
@@ -568,6 +628,30 @@ export function applyManagementWorkspaceRequirementResourceOperationV1(
     kind: 'SET_REQUIREMENT_RESOURCES',
     cardId: null,
     requirementId: resource.requirementId,
+    resourceId: null,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspaceRequirementTimePreferenceOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  preference: ManagementWorkspaceRequirementTimePreferenceStateV1,
+) {
+  const before = currentRequirementTimePreference(
+    workingCopy,
+    preference.requirementId,
+  );
+  const after =
+    cloneManagementWorkspaceRequirementTimePreferenceV1(preference);
+
+  applyRequirementTimePreferenceState(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_REQUIREMENT_TIME_PREFERENCE',
+    cardId: null,
+    requirementId: preference.requirementId,
     resourceId: null,
     before,
     after,

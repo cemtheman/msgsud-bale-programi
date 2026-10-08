@@ -14,6 +14,7 @@ import {
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
   applyManagementWorkspaceRequirementResourceOperationV1,
+  applyManagementWorkspaceRequirementTimePreferenceOperationV1,
   applyManagementWorkspaceRequirementStructureOperationV1,
   canRedoManagementWorkspaceV1,
   canUndoManagementWorkspaceV1,
@@ -547,6 +548,52 @@ describe('management workspace history v1', () => {
     expect(redoManagementWorkspaceOperationV1(copy, history)?.kind)
       .toBe('SET_REQUIREMENT_STRUCTURE');
     expect(Object.keys(copy.cardsById)).toHaveLength(3);
+  });
+
+  it('records requirement time preferences in the same undo/redo chain', () => {
+    const copy = createManagementWorkspaceWorkingCopyV1(snapshot());
+    const history = createManagementWorkspaceHistoryV1();
+
+    copy.requirementTimePreferencesById['requirement-1'] = {
+      requirementId: 'requirement-1',
+      preferredDays: [],
+      preferredStartPeriods: [],
+    };
+
+    const operation =
+      applyManagementWorkspaceRequirementTimePreferenceOperationV1(
+        copy,
+        history,
+        {
+          requirementId: 'requirement-1',
+          preferredDays: [1, 3],
+          preferredStartPeriods: [2, 4],
+        },
+      );
+
+    expect(operation.kind).toBe('SET_REQUIREMENT_TIME_PREFERENCE');
+    expect(copy.requirementTimePreferencesById['requirement-1'])
+      .toEqual({
+        requirementId: 'requirement-1',
+        preferredDays: [1, 3],
+        preferredStartPeriods: [2, 4],
+      });
+
+    undoManagementWorkspaceOperationV1(copy, history);
+    expect(copy.requirementTimePreferencesById['requirement-1'])
+      .toEqual({
+        requirementId: 'requirement-1',
+        preferredDays: [],
+        preferredStartPeriods: [],
+      });
+
+    redoManagementWorkspaceOperationV1(copy, history);
+    expect(copy.requirementTimePreferencesById['requirement-1'])
+      .toEqual({
+        requirementId: 'requirement-1',
+        preferredDays: [1, 3],
+        preferredStartPeriods: [2, 4],
+      });
   });
 
 });

@@ -3079,6 +3079,61 @@ export default function ManagementPage() {
     void removeCardsNow(cardIds);
   };
 
+  const reflectTimePreferenceState = (
+    preference: {
+      requirementId: string;
+      preferredDays: number[];
+      preferredStartPeriods: number[];
+    },
+  ) => {
+    setCoursePlan((current) => current
+      ? {
+          ...current,
+          rows: current.rows.map((row) => (
+            row.requirementId === preference.requirementId
+              ? {
+                  ...row,
+                  preferredDays: [...preference.preferredDays],
+                  preferredStartPeriods: [
+                    ...preference.preferredStartPeriods,
+                  ],
+                }
+              : row
+          )),
+        }
+      : current);
+
+    setSolverWorkspace((current) => {
+      if (!current) return current;
+
+      const others = (current.preview.subjectTimePreferences ?? [])
+        .filter((item) => item.requirementId !== preference.requirementId);
+      const configured = (
+        preference.preferredDays.length > 0
+        || preference.preferredStartPeriods.length > 0
+      );
+
+      return {
+        ...current,
+        preview: {
+          ...current.preview,
+          subjectTimePreferences: configured
+            ? [
+                ...others,
+                {
+                  requirementId: preference.requirementId,
+                  preferredDays: [...preference.preferredDays],
+                  preferredStartPeriods: [
+                    ...preference.preferredStartPeriods,
+                  ],
+                },
+              ]
+            : others,
+        },
+      };
+    });
+  };
+
   const runUndo = async () => {
     const localSnapshot = workspaceSnapshotRef.current;
     const localWorkingCopy = workspaceWorkingCopyRef.current;
@@ -3096,6 +3151,38 @@ export default function ManagementPage() {
         localWorkingCopy,
         localHistory,
       );
+
+      if (
+        localOperation?.kind === 'SET_REQUIREMENT_TIME_PREFERENCE'
+        && session
+        && coursePlan
+      ) {
+        setCommandBusy(true);
+        setCommandActivity('Ders zaman tercihi geri alınıyor…');
+        try {
+          await updateManagementRequirementTimePreferences(
+            session.accessToken,
+            coursePlan.revisionId,
+            localOperation.requirementId,
+            localOperation.before.preferredDays,
+            localOperation.before.preferredStartPeriods,
+          );
+          reflectTimePreferenceState(localOperation.before);
+        } catch (reason: unknown) {
+          redoManagementWorkspaceOperationV1(localWorkingCopy, localHistory);
+          setCommandNotice({
+            kind: 'error',
+            text: reason instanceof Error
+              ? reason.message
+              : 'Zaman tercihi geri alınamadı.',
+          });
+          return;
+        } finally {
+          setCommandBusy(false);
+          setCommandActivity(null);
+        }
+      }
+
       setBoard(
         projectManagementBoardFromWorkspaceV1(
           serverBoard,
@@ -3112,13 +3199,16 @@ export default function ManagementPage() {
       if (localOperation?.kind === 'SET_INVENTORY_RESOURCE') {
         setResources((current) => current ? { ...current } : current);
       }
+      setCoursePlan((current) => current ? { ...current } : current);
       setCommandNotice({
         kind: 'success',
-        text: localOperation?.kind === 'SET_REQUIREMENT_RESOURCES'
-          ? 'Ders Planı kaynak değişikliği geri alındı.'
-          : localOperation?.kind === 'SET_INVENTORY_RESOURCE'
-            ? 'Kaynaklar değişikliği geri alındı.'
-            : 'Program değişikliği geri alındı.',
+        text: localOperation?.kind === 'SET_REQUIREMENT_TIME_PREFERENCE'
+          ? 'Ders zaman tercihi geri alındı.'
+          : localOperation?.kind === 'SET_REQUIREMENT_RESOURCES'
+            ? 'Ders Planı kaynak değişikliği geri alındı.'
+            : localOperation?.kind === 'SET_INVENTORY_RESOURCE'
+              ? 'Kaynaklar değişikliği geri alındı.'
+              : 'Program değişikliği geri alındı.',
       });
       return;
     }
@@ -3206,6 +3296,38 @@ export default function ManagementPage() {
         localWorkingCopy,
         localHistory,
       );
+
+      if (
+        localOperation?.kind === 'SET_REQUIREMENT_TIME_PREFERENCE'
+        && session
+        && coursePlan
+      ) {
+        setCommandBusy(true);
+        setCommandActivity('Ders zaman tercihi yeniden uygulanıyor…');
+        try {
+          await updateManagementRequirementTimePreferences(
+            session.accessToken,
+            coursePlan.revisionId,
+            localOperation.requirementId,
+            localOperation.after.preferredDays,
+            localOperation.after.preferredStartPeriods,
+          );
+          reflectTimePreferenceState(localOperation.after);
+        } catch (reason: unknown) {
+          undoManagementWorkspaceOperationV1(localWorkingCopy, localHistory);
+          setCommandNotice({
+            kind: 'error',
+            text: reason instanceof Error
+              ? reason.message
+              : 'Zaman tercihi yeniden uygulanamadı.',
+          });
+          return;
+        } finally {
+          setCommandBusy(false);
+          setCommandActivity(null);
+        }
+      }
+
       setBoard(
         projectManagementBoardFromWorkspaceV1(
           serverBoard,
@@ -3222,13 +3344,16 @@ export default function ManagementPage() {
       if (localOperation?.kind === 'SET_INVENTORY_RESOURCE') {
         setResources((current) => current ? { ...current } : current);
       }
+      setCoursePlan((current) => current ? { ...current } : current);
       setCommandNotice({
         kind: 'success',
-        text: localOperation?.kind === 'SET_REQUIREMENT_RESOURCES'
-          ? 'Ders Planı kaynak değişikliği yeniden uygulandı.'
-          : localOperation?.kind === 'SET_INVENTORY_RESOURCE'
-            ? 'Kaynaklar değişikliği yeniden uygulandı.'
-            : 'Program değişikliği yeniden uygulandı.',
+        text: localOperation?.kind === 'SET_REQUIREMENT_TIME_PREFERENCE'
+          ? 'Ders zaman tercihi yeniden uygulandı.'
+          : localOperation?.kind === 'SET_REQUIREMENT_RESOURCES'
+            ? 'Ders Planı kaynak değişikliği yeniden uygulandı.'
+            : localOperation?.kind === 'SET_INVENTORY_RESOURCE'
+              ? 'Kaynaklar değişikliği yeniden uygulandı.'
+              : 'Program değişikliği yeniden uygulandı.',
       });
       return;
     }
@@ -5128,9 +5253,29 @@ export default function ManagementPage() {
             preferredDays,
             preferredStartPeriods,
           ) => {
-            if (!session || !access?.canEdit || !coursePlan) {
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+
+            if (
+              !session
+              || !access?.canEdit
+              || !coursePlan
+              || !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+            ) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
+
+            const preference = {
+              requirementId,
+              preferredDays: Array.from(new Set(preferredDays))
+                .sort((a, b) => a - b),
+              preferredStartPeriods:
+                Array.from(new Set(preferredStartPeriods))
+                  .sort((a, b) => a - b),
+            };
 
             setCommandBusy(true);
             setCommandActivity('Ders zaman tercihleri veritabanına yazılıyor…');
@@ -5139,16 +5284,32 @@ export default function ManagementPage() {
                 session.accessToken,
                 coursePlan.revisionId,
                 requirementId,
-                preferredDays,
-                preferredStartPeriods,
+                preference.preferredDays,
+                preference.preferredStartPeriods,
               );
+
+              const result = executeManagementWorkspaceCommandV1(
+                localSnapshot,
+                localWorkingCopy,
+                localHistory,
+                {
+                  type: 'SET_REQUIREMENT_TIME_PREFERENCE',
+                  preference,
+                },
+              );
+
+              if (!result.applied) {
+                throw new Error('Zaman tercihi geri al zincirine eklenemedi.');
+              }
+
+              reflectTimePreferenceState(preference);
               setCommandNotice({
                 kind: 'success',
-                text: preferredDays.length > 0 || preferredStartPeriods.length > 0
-                  ? 'Dersin zaman tercihleri kaydedildi.'
-                  : 'Dersin zaman tercihi kaldırıldı.',
+                text: preference.preferredDays.length > 0
+                  || preference.preferredStartPeriods.length > 0
+                  ? 'Dersin zaman tercihleri kaydedildi; Geri Al ile geri alınabilir.'
+                  : 'Dersin zaman tercihi kaldırıldı; Geri Al ile geri alınabilir.',
               });
-              setRefreshToken((value) => value + 1);
             } finally {
               setCommandBusy(false);
               setCommandActivity(null);
