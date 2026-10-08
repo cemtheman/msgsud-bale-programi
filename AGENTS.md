@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `965fdffc7d5fa579f3ad500609aead68f966b7f7` — solver loading/error UI state split; gate pending |
+| Aktif implementation checkpoint | `965fdffc7d5fa579f3ad500609aead68f966b7f7` — solver loading-state UI gate PASS (39/39, 280/280, build PASS) |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **Teacher-load + subject-time real-data/browser acceptance CLOSED / PASS** — teacher load 301→289 with 3 real teacher reassignments |
-| Sıradaki iş paketi | **Solver loading-state UI gate, then teacher-load diagnostics/tuning and next objective UX refinement** |
+| Sıradaki iş paketi | **Teacher-load diagnostics/tuning — expose per-teacher actual/target/deviation contributors before scoring changes** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9284,3 +9284,23 @@ Implementation:
 - `965fdffc7d5fa579f3ad500609aead68f966b7f7` — ux: show solver loading state before load errors
 
 Validation status for UI-only loading-state patch: PENDING
+
+
+### 8 Oct 2026 — Solver loading-state UI gate PASS
+
+Codespaces validation:
+- Test Files: **39 passed (39)**
+- Tests: **280 passed (280)**
+- production build: PASS
+- TypeScript: PASS
+- static generation: 9/9
+- `/yonetim`: build PASS
+
+This closes the UI patch that separates solver preference loading from actual load failure:
+- loading -> `Program tercihleri yükleniyor…`
+- failure -> `Program tercihleri alınamadı.`
+- neutral empty -> `Program tercihleri henüz hazır değil.`
+
+Status:
+- **SOLVER LOADING-STATE UI CLOSED / PASS**
+- next: teacher-load diagnostics/tuning and objective UX refinement
