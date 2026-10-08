@@ -3,6 +3,7 @@ import type {
 } from '@/lib/managementWorkspace';
 import {
   createManagementWorkspaceWorkingCopyV1,
+  type ManagementWorkspaceCardPinStateV1,
   type ManagementWorkspaceInventoryStateV1,
   type ManagementWorkspacePlacementStateV1,
   type ManagementWorkspaceRequirementResourceStateV1,
@@ -15,6 +16,7 @@ import {
   type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
+  applyManagementWorkspaceCardPinOperationV1,
   applyManagementWorkspaceInventoryOperationV1,
   applyManagementWorkspacePlacementOperationV1,
   applyManagementWorkspaceRemoveOperationV1,
@@ -43,6 +45,10 @@ export type ManagementWorkspaceCommandV1 =
   | {
       type: 'REMOVE_PLACEMENT';
       cardId: string;
+    }
+  | {
+      type: 'SET_CARD_PINS';
+      pins: ManagementWorkspaceCardPinStateV1;
     }
   | {
       type: 'SET_REQUIREMENT_STRUCTURE';
@@ -252,6 +258,14 @@ function applyCommand(
       workingCopy,
       history,
       command.placement,
+    );
+  }
+
+  if (command.type === 'SET_CARD_PINS') {
+    return applyManagementWorkspaceCardPinOperationV1(
+      workingCopy,
+      history,
+      command.pins,
     );
   }
 
