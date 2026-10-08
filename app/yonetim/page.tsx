@@ -706,6 +706,7 @@ export default function ManagementPage() {
     ids: string[];
     startOffsetsByCardId: Record<string, number>;
     details: Record<string, ManagementCandidateDetail>;
+    needsPrevalidation: boolean;
   } | null>(null);
 
   const [commandState, setCommandState] = useState<ManagementCommandState>({
@@ -1947,25 +1948,23 @@ export default function ManagementPage() {
       );
     });
 
-    const prevalidatedMoveDetails = allPlaced
-      ? buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
-        localSnapshot,
-        localWorkingCopy,
-        ids,
-        startOffsetsByCardId,
-      )
-      : null;
-
-    const entries = prevalidatedMoveDetails
-      ? ids.map((id) => [id, prevalidatedMoveDetails[id]] as const)
-      : ids.map((id) => [
-        id,
-        buildManagementWorkspacePlacementCandidateDetailV1(
+    // Pointer-down preparation must stay cheap. The card must attach to the
+    // pointer immediately; authoritative per-slot prevalidation starts only
+    // after the native drag has begun.
+    const entries = ids.map((id) => [
+      id,
+      allPlaced
+        ? buildManagementWorkspaceMoveCandidateDetailV1(
+          localSnapshot,
+          localWorkingCopy,
+          id,
+        )
+        : buildManagementWorkspacePlacementCandidateDetailV1(
           localSnapshot,
           localWorkingCopy,
           id,
         ),
-      ] as const);
+    ] as const);
 
     if (entries.some(([, detail]) => detail === null)) {
       dragPreparedRef.current = null;
@@ -1980,6 +1979,7 @@ export default function ManagementPage() {
         string,
         ManagementCandidateDetail
       >,
+      needsPrevalidation: allPlaced,
     };
   };
 
@@ -2018,9 +2018,63 @@ export default function ManagementPage() {
     setDragCardIds(ready.ids);
     setDragStartOffsetsByCardId(ready.startOffsetsByCardId);
     setDragCandidateDetails(ready.details);
-    setDragLoading(false);
+    setDragLoading(ready.needsPrevalidation);
     setCandidateFocus(null);
     setCommandNotice(null);
+
+    if (!ready.needsPrevalidation) return;
+
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    if (!localSnapshot || !localWorkingCopy) {
+      setDragLoading(false);
+      return;
+    }
+
+    const validationSequence = sequence;
+    const validationIds = [...ready.ids];
+    const validationOffsets = { ...ready.startOffsetsByCardId };
+
+    // Give the browser a frame to establish the native drag/ghost first.
+    // Until this finishes every target remains LOADING, so an early release
+    // is rejected and the card naturally returns to its original cell.
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        if (
+          dragSequenceRef.current !== validationSequence
+          || dragCardIdsRef.current.length === 0
+        ) {
+          return;
+        }
+
+        const validated =
+          buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
+            localSnapshot,
+            localWorkingCopy,
+            validationIds,
+            validationOffsets,
+          );
+
+        if (
+          dragSequenceRef.current !== validationSequence
+          || dragCardIdsRef.current.length === 0
+        ) {
+          return;
+        }
+
+        if (!validated) {
+          setDragLoading(false);
+          setCommandNotice({
+            kind: 'error',
+            text: 'Hedef hücreleri doğrulanamadı. Kart eski yerinde bırakıldı.',
+          });
+          return;
+        }
+
+        setDragCandidateDetails(validated);
+        setDragLoading(false);
+      }, 40);
+    });
   };
 
   const endDrag = () => {
