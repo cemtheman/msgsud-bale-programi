@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `83347b38dec442c60d22c98bb92bb076490e4956` — teacher-load deviation diagnostics UI v1; gate pending |
+| Aktif implementation checkpoint | `42c458b2012302fb2e4c7edcfb6479a72aadca88` — deterministic fixed-teacher repair prepared; DB not pushed |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **Teacher-load + subject-time real-data/browser acceptance CLOSED / PASS** — teacher load 301→289 with 3 real teacher reassignments |
-| Sıradaki iş paketi | **Teacher-load diagnostics UI gate + browser review; then tune target semantics only if diagnostics justify it** |
+| Sıradaki iş paketi | **Migration dry-run + apply fixed-teacher repair, then re-measure teacher loads/objective diagnostics** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9327,3 +9327,34 @@ Implementation:
 Validation:
 - tests/build: PENDING
 - browser UX acceptance: PENDING
+
+
+### 8 Oct 2026 — Deterministic fixed-teacher assignment repair prepared — DB NOT PUSHED
+
+Finding:
+- many placeholder teachers (e.g. subject Teacher 1/2 records) remain attached to ACTIVE requirements but carry 0 draft load
+- affected requirements are commonly `FIXED + REQUIRED + REQUIREMENT`
+- DRAFT placements for these requirements have `teacher_id = NULL`
+- 172 such placements currently exist across 38 teachers
+- preflight found **0 teacher-time conflicts** against existing assigned placements
+- 167 rows carry only `TEACHER_ASSIGNMENT_INCONSISTENT`
+- 5 rows also carry `ROOM_IDENTITY_PROVISIONAL`
+
+Prepared repair semantics:
+- only ACTIVE requirements with `teacher_mode=FIXED` and `teacher_requirement=REQUIRED`
+- exactly one requirement teacher
+- only placements whose teacher_id is currently NULL
+- preserve day/time/room
+- do not touch ELIGIBLE_POOL assignments
+- set teacher_resolution_status = RESOLVED
+- remove only `TEACHER_ASSIGNMENT_INCONSISTENT`
+- preserve unrelated room/resource warnings
+
+Migration:
+- `20261008155800_restore_fixed_teacher_assignments.sql`
+- commit `42c458b2012302fb2e4c7edcfb6479a72aadca88`
+
+Status:
+- migration prepared in repo
+- DB push: **NOT DONE**
+- dry-run / apply / post-repair validation: PENDING
