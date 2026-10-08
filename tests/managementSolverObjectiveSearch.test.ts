@@ -337,4 +337,139 @@ describe('management objective search acceptance', () => {
     })]);
   });
 
+
+  it('keeps time fixed when a card has a time pin while allowing other dimensions', () => {
+    const snapshot = baseSnapshot();
+    snapshot.cards[0] = {
+      ...snapshot.cards[0],
+      timePinned: true,
+    };
+    snapshot.subjectTimePreferences = [{
+      requirementId: 'r1',
+      preferredDays: [2],
+      preferredStartPeriods: [1],
+    }];
+
+    const result = runManagementObjectiveOptimization(
+      snapshot,
+      {
+        ...ZERO_WEIGHTS,
+        subjectTimePreference: 1000,
+      },
+      {
+        maxIterations: 4,
+        maxNeighborsPerCard: 16,
+      },
+    );
+
+    expect(result.baselineMetrics.subjectTimePreferencePenalty).toBe(1);
+    expect(result.proposedMetrics.subjectTimePreferencePenalty).toBe(1);
+    expect(result.placements).toEqual([expect.objectContaining({
+      cardId: 'c1',
+      dayOfWeek: 1,
+      startPeriod: 1,
+    })]);
+  });
+
+  it('keeps teacher fixed when a card has a teacher pin', () => {
+    const snapshot = baseSnapshot();
+    snapshot.cards[0] = {
+      ...snapshot.cards[0],
+      teacherPinned: true,
+    };
+    snapshot.requirements[0] = {
+      ...snapshot.requirements[0],
+      teacherRequirement: 'REQUIRED',
+      teacherMode: 'ELIGIBLE_POOL',
+      teacherAssignmentScope: 'BLOCK',
+    };
+    snapshot.teachers = [
+      {
+        id: 't1',
+        name: 'Öğretmen 1',
+        operationalStatus: 'ACTIVE',
+      },
+      {
+        id: 't2',
+        name: 'Öğretmen 2',
+        operationalStatus: 'ACTIVE',
+      },
+    ];
+    snapshot.teacherPools = [
+      { requirementId: 'r1', teacherId: 't1' },
+      { requirementId: 'r1', teacherId: 't2' },
+    ];
+    snapshot.teacherLoadTargets = [
+      {
+        teacherId: 't1',
+        minimumLoad: null,
+        targetLoad: 0,
+        maximumLoad: null,
+      },
+      {
+        teacherId: 't2',
+        minimumLoad: null,
+        targetLoad: 1,
+        maximumLoad: null,
+      },
+    ];
+    snapshot.baselinePlacements[0] = {
+      ...snapshot.baselinePlacements[0],
+      teacherId: 't1',
+    };
+
+    const result = runManagementObjectiveOptimization(
+      snapshot,
+      {
+        ...ZERO_WEIGHTS,
+        teacherLoadBalance: 1000,
+      },
+      {
+        maxIterations: 4,
+        maxNeighborsPerCard: 32,
+      },
+    );
+
+    expect(result.baselineMetrics.teacherLoadDeviationPeriods).toBe(2);
+    expect(result.proposedMetrics.teacherLoadDeviationPeriods).toBe(2);
+    expect(result.placements).toEqual([expect.objectContaining({
+      cardId: 'c1',
+      teacherId: 't1',
+    })]);
+  });
+
+  it('treats legacy locked cards as full pins even when fine-grained flags are false', () => {
+    const snapshot = baseSnapshot();
+    snapshot.cards[0] = {
+      ...snapshot.cards[0],
+      locked: true,
+      timePinned: false,
+      teacherPinned: false,
+      roomPinned: false,
+    };
+    snapshot.subjectTimePreferences = [{
+      requirementId: 'r1',
+      preferredDays: [2],
+      preferredStartPeriods: [1],
+    }];
+
+    const result = runManagementObjectiveOptimization(
+      snapshot,
+      {
+        ...ZERO_WEIGHTS,
+        subjectTimePreference: 1000,
+      },
+      {
+        maxIterations: 4,
+        maxNeighborsPerCard: 16,
+      },
+    );
+
+    expect(result.placements).toEqual([expect.objectContaining({
+      cardId: 'c1',
+      dayOfWeek: 1,
+      startPeriod: 1,
+    })]);
+  });
+
 });
