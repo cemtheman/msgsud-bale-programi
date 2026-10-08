@@ -18,7 +18,7 @@
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
 | Son kullanıcı/QA kabulü | **v11 browser acceptance CLOSED / PASS** — INACTIVE→ACTIVE and ACTIVE→INACTIVE preview/apply/local Undo/Redo/atomic Save verified; reload persistence verified; live DB confirms 5A B. Uygulama INACTIVE, weekly_load=0, no draft cards. |
-| Sıradaki iş paketi | **v12 code + migration gate** — time preferences must remain local until one atomic Save |
+| Sıradaki iş paketi | **Migration parity re-check + v12 dry-run** — only 20261008135000 may remain pending |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -8979,3 +8979,39 @@ Required gate:
 3. inspect migration parity
 4. dry-run must show only the expected new v12 migration before any DB push
 5. after DB push, verify: edit time preference -> Undo/Redo local -> reload before Save loses edit -> edit again -> one Save -> reload persists it
+
+
+### 8 Oct 2026 — Migration history parity repaired in repo — DB UNTOUCHED
+
+Observed during v12 dry-run:
+- remote DB contained four applied 7 Oct migration versions missing from the branch
+- branch contained the same four migration names/content under later timestamps, so Supabase CLI refused dry-run
+
+Remote applied versions/names:
+- `20261007114637 management_workspace_bundle_limit_72`
+- `20261007115654 management_workspace_fast_move_bundle`
+- `20261007120302 management_workspace_fast_validator_provisional_resources`
+- `20261007122918 management_solver_teacher_load_objective`
+
+Incorrect branch timestamps that were not applied remotely:
+- `20261007145500`
+- `20261007150500`
+- `20261007151000`
+- `20261007153000`
+
+Resolution:
+- preserved migration SQL content
+- renamed the four repo migrations to the exact remote-applied version numbers
+- did **not** run `supabase migration repair`
+- did **not** run `supabase db push`
+- remote database remains unchanged
+
+Repo alignment commits:
+- `540d64ca2bd57cf4e7d6af51bc76dea886d57b55` / `93b3783ef56d1775173e151b1b4a5ddc6d9f8414`
+- `e4f0b5f33f17439ad800d88787c91047daa08520` / `a4a39edf307ab1230ae303d14be93e4b3824d324`
+- `c6711157e3678bc8ff24bae4542f065904542986` / `736a812a5e53d427f14bfaf2b6b3b0400c0397e3`
+- `457098b7c66a11d422e5e9b7d7941521aa3cf71c` / `332ff8ef089d0afbade3c3aaa92143b1c273604e`
+
+Next gate:
+- `supabase migration list` must show 7 Oct parity
+- `supabase db push --dry-run` must show only `20261008135000_management_workspace_time_preferences.sql`
