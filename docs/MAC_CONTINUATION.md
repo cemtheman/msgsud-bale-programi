@@ -3137,3 +3137,30 @@ Status:
 - migration prepared in repo
 - DB push: **NOT DONE**
 - dry-run / apply / post-repair validation: PENDING
+
+
+### 8 Oct 2026 — Fixed-teacher repair runtime acceptance PASS
+
+Post-push browser verification:
+- teacher inventory now shows recovered FIXED/REQUIRED assignments as real weekly load
+- summary now shows 53 teacher records / 52 assigned to active lessons / 51 used in the draft program
+- previously empty subject teacher placeholders now carry their expected schedule load (examples: Fen Bilimleri 1/2 = 12 periods each, Biyoloji 1/2 = 3 each, Coğrafya 1/2 = 3 each, Matematik 1/2 = 24 each, Türkçe 1/2 = 21 each)
+
+Post-repair DB diagnostics:
+- aggregate teacher-load deviation remains 301
+- zero-load configured teachers dropped to 2
+- zero-load contribution dropped to 20 total
+- therefore the dominant remaining problem is no longer missing teacher assignments; it is unrealistic/default load targets being treated as explicit planning goals
+
+Largest current contributors include:
+- S. Jaferov: 28 vs target 10 => 18
+- Matematik Öğretmeni 1: 24 vs 10 => 14
+- Matematik Öğretmeni 2: 24 vs 10 => 14
+- İngilizce Öğretmeni 1: 22 vs 10 => 12
+- Türkçe Öğretmeni 1: 21 vs 10 => 11
+- Türkçe Öğretmeni 2: 21 vs 10 => 11
+- Din Kültürü Öğretmeni 1: 20 vs 10 => 10
+
+Status:
+- **FIXED-TEACHER DATA REPAIR CLOSED / PASS**
+- next: distinguish default-seeded teacher load suggestions from explicit human-approved targets; solver should optimize only against explicit targets
