@@ -10,15 +10,15 @@
 | Alan | Değer |
 |---|---|
 | Repository | `cemtheman/msgsud-bale-programi` |
-| Aktif çalışma ortamı | `GitHub Codespaces` |
-| Aktif çalışma dizini | `/workspaces/msgsud-bale-programi` |
+| Aktif çalışma ortamı | `AWS EC2 / Ubuntu 26.04 / code-server` |
+| Aktif çalışma dizini | `/home/ubuntu/msgsud-bale-programi` |
 | Aktif branch | `feat/management-workspace-v1` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
 | Aktif implementation checkpoint | `d1c34a4b9bcf7d8d8591e655e2d00c21a4624d7f` — M42 notice semantics fixed; re-test pending |
 | Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
 | Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
-| Son kullanıcı/QA kabulü | **M42 REOPENED** — browser found technical wording + manual move bypass; semantic patch ready, re-test pending |
-| Sıradaki iş paketi | **Run tests/build, then browser re-test pin block notice + pin-only Save notice + manual pin behavior** |
+| Son kullanıcı/QA kabulü | **AWS code gate PASS** — 39/39 files, 292/292 tests, production build PASS; M42 targeted browser acceptance remains REOPENED |
+| Sıradaki iş paketi | **AWS browser re-test pin block notice + pin-only Save notice + manual pin behavior** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -35,16 +35,16 @@ Veritabanı davranışı değişmiyorsa migration yazılmaz. Migration gerekiyor
 
 Sorun teşhisinde ekran görüntüsü/video ve gerçek runtime davranışı kaynak koddaki varsayımlardan önce gelir. Görselde bir şeyi “browser ghost”, “cache”, “gerçek conflict” vb. diye ilan etmeden önce kanıt aranır. Spekülatif SQL migration eklemekten kaçınılır; reason code veya gerçek blocker gerekirse önce read-only diagnostic eklenir.
 
-Yanıt dili Türkçedir. **Aktif ortam GitHub Codespaces'tir. Kullanıcı ortam değişikliğini açıkça bildirene kadar bütün terminal komutları Codespaces/Linux biçiminde verilir.** Kullanıcı ortam değiştirdiğinde bunu asistanla paylaşacak; asistan da aynı oturumda AGENTS.md ve continuation handoff içindeki aktif ortam bilgisini güncelleyecek. Kullanıcı teknik olarak yetkindir; gereksiz temel anlatım yapılmaz.
+Yanıt dili Türkçedir. **Aktif ortam AWS EC2 / Ubuntu / code-server'dır. Proje komutları code-server terminalinde Linux/bash biçiminde verilir. Windows PowerShell yalnız SSH/tünel bağlantısı için kullanılır.** Kullanıcı ortam değiştirdiğinde bunu asistanla paylaşacak; asistan da aynı oturumda AGENTS.md ve continuation handoff içindeki aktif ortam bilgisini güncelleyecek. Kullanıcı teknik olarak yetkindir; gereksiz temel anlatım yapılmaz.
 
 ## 3. Yeni oturum başlangıç protokolü
 
-Yeni oturumda ilk iş bu dosya okunur. Aktif ortam burada `GitHub Codespaces` olarak kayıtlıysa ve kullanıcı ortam değişikliği bildirmediyse aşağıdaki akış kullanılır:
+Yeni oturumda ilk iş bu dosya okunur. 9 Ekim 2026 itibarıyla aktif ortam AWS EC2'dır; aşağıdaki akış code-server terminalinde kullanılır:
 
 ```bash
-cd /workspaces/msgsud-bale-programi
+cd /home/ubuntu/msgsud-bale-programi
 git fetch origin
-git switch main
+git switch feat/management-workspace-v1
 git pull --ff-only
 git rev-parse HEAD
 git status --short
@@ -9681,3 +9681,25 @@ Status:
 - M42 acceptance still REOPENED
 - tests/build after notice patch: PENDING
 - browser re-test: PENDING
+
+
+### 9 Oct 2026 — AWS EC2 development environment migration — CODE/STARTUP PASS
+
+- User moved development from Codespaces to AWS EC2 in eu-north-1 (Stockholm).
+- Ubuntu 26.04 x86_64; t3.small (2 vCPU / 2 GiB RAM), 30 GiB gp3; 4 GiB persistent swap verified.
+- Working directory: `/home/ubuntu/msgsud-bale-programi`; branch: `feat/management-workspace-v1`.
+- Validated source checkpoint: `7f7e249d0ac301f2946a42b9f5a7e188559a8cab` (implementation `d1c34a4b9bcf7d8d8591e655e2d00c21a4624d7f`).
+- Node.js 24.21.0 / npm 11.19.0 / nvm 0.40.8.
+- `npm ci`: PASS; dependency audit reported 17 vulnerabilities; dependencies were not changed for remediation.
+- `npm test`: 39 files / 292 tests PASS.
+- `npm run build`: PASS; TypeScript PASS; 9/9 static pages.
+- Tracked `.env.production` provides public application configuration; no secret transfer was needed, and no Supabase access token was copied.
+- Application: `msgsud-dev` systemd service, built Next.js preview on 127.0.0.1:3000; HTTP 200 and management login/data rendering verified.
+- Editor: code-server 4.141.0, `code-server@ubuntu` systemd service on localhost:8080, password authentication.
+- Windows SSH tunnel forwards localhost ports 3000/8080; SSH ingress restricted to user's IP. No public app/editor port was opened.
+- System update/reboot workflow completed by user; user confirmed both surfaces ready after reboot.
+- Source changes require rebuild and `sudo systemctl restart msgsud-dev`; current service serves built output, not hot reload.
+- Codespaces remains a fallback; do not delete it as part of this migration.
+- No product source edits, DB writes, migration execution, merge to main, or public deployment occurred in this migration.
+- AWS Agent Toolkit: Windows default skills installed earlier; MCP integration with browser ChatGPT Work is NOT verified/completed. EC2 migration does not close that separate setup task.
+- Next: M42 pin-block notice / pin-only Save summary / manual pin behavior targeted browser retest. Environment smoke does not close M42 acceptance.
