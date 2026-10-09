@@ -3482,3 +3482,16 @@ Status:
 - No product source edits, DB writes, migration execution, merge to main, or public deployment occurred in this migration.
 - AWS Agent Toolkit: Windows default skills installed earlier; MCP integration with browser ChatGPT Work is NOT verified/completed. EC2 migration does not close that separate setup task.
 - Next: M42 pin-block notice / pin-only Save summary / manual pin behavior targeted browser retest. Environment smoke does not close M42 acceptance.
+
+
+### 9 Oct 2026 — M42 targeted notice browser acceptance PASS on AWS
+
+User supplied two browser screenshots at 15:12 local time:
+- time-pinned drag info notice: `Bu dersin gün / saati sabit. Taşımak için önce Gün / saat sabitlemesini kaldırın.`
+- pin-only Save success: `1 sabitleme değişikliği kaydedildi.`
+
+Both previously rejected notice defects are CLOSED / PASS on the AWS built preview. The code gate already passed 39 files / 292 tests and production build on validated source 7f7e249 (implementation d1c34a4).
+
+Scope: screenshots verify correct blocked-drag reason and successful pin-only Save count. They do not independently prove all teacher/room pin paths, linked-card behavior, persistence after refresh, or baseline restoration. Full M42 acceptance remains pending those checks; do not infer overall closure from the two notice screenshots.
+
+Next: remove the test time pin, Save, refresh, and verify baseline restoration; then targeted teacher/room pin and Undo/Redo checks. No new source or migration change is required by these screenshots.
