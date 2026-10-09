@@ -959,7 +959,6 @@ export default function ManagementPage() {
       status !== 'ready'
       || !session
       || !startupComplete
-      || (activeSection !== 'PLAN' && activeSection !== 'PROGRAM')
     ) {
       return;
     }
@@ -1006,7 +1005,7 @@ export default function ManagementPage() {
       active = false;
       setSectionActivity(null);
     };
-  }, [activeSection, refreshToken, session, startupComplete, status]);
+  }, [refreshToken, session, startupComplete, status]);
 
   useEffect(() => {
     if (
