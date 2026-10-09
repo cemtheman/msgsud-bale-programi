@@ -959,7 +959,7 @@ export default function ManagementPage() {
       status !== 'ready'
       || !session
       || !startupComplete
-      || activeSection !== 'PLAN'
+      || (activeSection !== 'PLAN' && activeSection !== 'PROGRAM')
     ) {
       return;
     }
