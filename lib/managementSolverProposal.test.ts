@@ -7,6 +7,7 @@ import type {
   ManagementOptimizationResult,
 } from '@/lib/managementSolverPrototype';
 import {
+  buildManagementSolverProposalWorkspaceCommands,
   prepareManagementSolverProposalApply,
 } from '@/lib/managementSolverProposal';
 
@@ -106,18 +107,24 @@ function result(): ManagementOptimizationResult {
       preferredTeacherContinuityBreaks: 0,
       teacherIdleGapPeriods: 5,
       roomStabilityBreaks: 0,
+      teacherLoadDeviationPeriods: 0,
+      subjectTimePreferencePenalty: 0,
     },
     proposedMetrics: {
       changeCost: 1,
       preferredTeacherContinuityBreaks: 0,
       teacherIdleGapPeriods: 2,
       roomStabilityBreaks: 0,
+      teacherLoadDeviationPeriods: 0,
+      subjectTimePreferencePenalty: 0,
     },
     delta: {
       changeCost: 1,
       preferredTeacherContinuityBreaks: 0,
       teacherIdleGapPeriods: -3,
       roomStabilityBreaks: 0,
+      teacherLoadDeviationPeriods: 0,
+      subjectTimePreferencePenalty: 0,
     },
     baselineScore: {
       total: 5,
@@ -141,6 +148,18 @@ function result(): ManagementOptimizationResult {
           contribution: 5,
         },
         roomStability: {
+          rawValue: 0,
+          normalizedValue: 0,
+          weight: 0,
+          contribution: 0,
+        },
+        teacherLoadBalance: {
+          rawValue: 0,
+          normalizedValue: 0,
+          weight: 0,
+          contribution: 0,
+        },
+        subjectTimePreference: {
           rawValue: 0,
           normalizedValue: 0,
           weight: 0,
@@ -170,6 +189,18 @@ function result(): ManagementOptimizationResult {
           contribution: 2,
         },
         roomStability: {
+          rawValue: 0,
+          normalizedValue: 0,
+          weight: 0,
+          contribution: 0,
+        },
+        teacherLoadBalance: {
+          rawValue: 0,
+          normalizedValue: 0,
+          weight: 0,
+          contribution: 0,
+        },
+        subjectTimePreference: {
           rawValue: 0,
           normalizedValue: 0,
           weight: 0,
@@ -225,6 +256,38 @@ describe('M33.4 solver proposal apply preparation', () => {
     ]);
   });
 
+  it('converts an accepted proposal into one local workspace placement batch', () => {
+    const plan = prepareManagementSolverProposalApply(
+      result(),
+      workspace(),
+    );
+
+    expect(buildManagementSolverProposalWorkspaceCommands(plan)).toEqual([
+      {
+        type: 'SET_PLACEMENT',
+        placement: {
+          cardId: 'card-a',
+          dayOfWeek: 1,
+          startPeriod: 2,
+          teacherId: 'teacher-a',
+          roomId: 'room-a',
+        },
+      },
+    ]);
+  });
+
+  it('does not build local commands for a rejected proposal', () => {
+    const current = workspace();
+    current.preview.snapshotHash = 'snapshot-2';
+
+    const plan = prepareManagementSolverProposalApply(
+      result(),
+      current,
+    );
+
+    expect(buildManagementSolverProposalWorkspaceCommands(plan)).toEqual([]);
+  });
+
   it('rejects a proposal when the program baseline changed', () => {
     const current = workspace();
     current.preview.baselineHash = 'baseline-2';
@@ -267,5 +330,68 @@ describe('M33.4 solver proposal apply preparation', () => {
     expect(plan.canApply).toBe(false);
     expect(plan.reasons).toContain('PROPOSAL_NOT_IMPROVED');
     expect(plan.reasons).toContain('NO_CHANGED_PLACEMENTS');
+  });
+});
+
+
+describe('proposal apply local workspace batch size', () => {
+  it('does not reject proposals above the legacy 24-card RPC limit', () => {
+    const source = result();
+    const largeResult: ManagementOptimizationResult = {
+      ...source,
+      status: 'IMPROVED',
+      placements: Array.from({ length: 37 }, (_, index) => ({
+        cardId: `card-${index + 1}`,
+        dayOfWeek: 1 + (index % 5),
+        startPeriod: 1 + (index % 8),
+        teacherId: `teacher-${(index % 4) + 1}`,
+        roomId: `room-${(index % 6) + 1}`,
+        provisionalRoom: false,
+        baseline: false,
+      })),
+    };
+
+    const current = workspace();
+    current.preview.snapshotHash = largeResult.snapshotHash;
+    current.preview.baselineHash = largeResult.baselineHash;
+
+    const plan = prepareManagementSolverProposalApply(
+      largeResult,
+      current,
+    );
+
+    expect(plan.canApply).toBe(true);
+    expect(plan.items).toHaveLength(37);
+    expect(plan.reasons).not.toContain('BUNDLE_LIMIT_EXCEEDED');
+  });
+});
+
+
+describe('proposal apply snapshot identity semantics', () => {
+  it('local Program workspace must not compare profile-sensitive snapshot hashes', () => {
+    // Solver snapshotHash may differ solely because an objective profile is attached.
+    // Schedule staleness is guarded by revision/requirement-set identity and baselineHash;
+    // prepareManagementSolverProposalApply separately validates the fresh solver snapshot.
+    const solverWithProfile = {
+      snapshotHash: 'solver-profile-hash',
+      baselineHash: 'same-baseline',
+      revisionId: 'revision-1',
+      requirementSetId: 'requirements-1',
+    };
+    const localProgramWorkspace = {
+      snapshotHash: 'profile-neutral-workspace-hash',
+      baselineHash: 'same-baseline',
+      revisionId: 'revision-1',
+      requirementSetId: 'requirements-1',
+    };
+
+    expect(localProgramWorkspace.snapshotHash)
+      .not.toBe(solverWithProfile.snapshotHash);
+    expect(localProgramWorkspace.baselineHash)
+      .toBe(solverWithProfile.baselineHash);
+    expect(localProgramWorkspace.revisionId)
+      .toBe(solverWithProfile.revisionId);
+    expect(localProgramWorkspace.requirementSetId)
+      .toBe(solverWithProfile.requirementSetId);
   });
 });

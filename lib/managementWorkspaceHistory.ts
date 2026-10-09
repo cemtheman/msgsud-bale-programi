@@ -1,0 +1,1008 @@
+import {
+  cloneManagementWorkspaceInventoryV1,
+  cloneManagementWorkspacePlacementV1,
+  applyManagementWorkspaceRequirementStructureBundleV1,
+  cloneManagementWorkspaceRequirementStructureBundleV1,
+  applyManagementWorkspaceResourceBundleV1,
+  cloneManagementWorkspaceRequirementResourceV1,
+  cloneManagementWorkspaceRequirementTimePreferenceV1,
+  cloneManagementWorkspaceResourceBundleV1,
+  cloneManagementWorkspaceRoomProfileV1,
+  cloneManagementWorkspaceTeacherAvailabilityV1,
+  cloneManagementWorkspaceTeacherPlanningV1,
+  removeManagementWorkspacePlacementV1,
+  setManagementWorkspacePlacementV1,
+  setManagementWorkspaceCardPinsV1,
+  type ManagementWorkspaceCardPinStateV1,
+  type ManagementWorkspaceInventoryStateV1,
+  type ManagementWorkspaceRoomInventoryStateV1,
+  type ManagementWorkspaceRoomProfileStateV1,
+  type ManagementWorkspaceTeacherInventoryStateV1,
+  type ManagementWorkspaceTeacherAvailabilityStateV1,
+  type ManagementWorkspaceTeacherPlanningStateV1,
+  type ManagementWorkspacePlacementStateV1,
+  type ManagementWorkspaceRequirementResourceStateV1,
+  type ManagementWorkspaceRequirementTimePreferenceStateV1,
+  type ManagementWorkspaceRequirementStructureBundleV1,
+  type ManagementWorkspaceResourceBundleV1,
+  type ManagementWorkspaceWorkingCopyV1,
+} from '@/lib/managementWorkspaceWorkingCopy';
+
+export type ManagementWorkspaceOperationKindV1 =
+  | 'SET_PLACEMENT'
+  | 'REMOVE_PLACEMENT'
+  | 'SET_CARD_PINS'
+  | 'SET_REQUIREMENT_RESOURCES'
+  | 'SET_REQUIREMENT_TIME_PREFERENCE'
+  | 'SET_INVENTORY_RESOURCE'
+  | 'SET_TEACHER_PLANNING'
+  | 'SET_TEACHER_AVAILABILITY'
+  | 'SET_ROOM_PROFILE'
+  | 'SET_RESOURCE_BUNDLE'
+  | 'SET_REQUIREMENT_STRUCTURE';
+
+export interface ManagementWorkspacePlacementOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_PLACEMENT' | 'REMOVE_PLACEMENT';
+  cardId: string;
+  requirementId: null;
+  resourceId: null;
+  before: ManagementWorkspacePlacementStateV1;
+  after: ManagementWorkspacePlacementStateV1;
+}
+
+
+export interface ManagementWorkspaceCardPinOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_CARD_PINS';
+  cardId: string;
+  requirementId: null;
+  resourceId: null;
+  before: ManagementWorkspaceCardPinStateV1;
+  after: ManagementWorkspaceCardPinStateV1;
+}
+
+export interface ManagementWorkspaceRequirementStructureOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_REQUIREMENT_STRUCTURE';
+  cardId: null;
+  requirementId: string;
+  resourceId: null;
+  before: ManagementWorkspaceRequirementStructureBundleV1;
+  after: ManagementWorkspaceRequirementStructureBundleV1;
+}
+
+export interface ManagementWorkspaceRequirementResourceOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_REQUIREMENT_RESOURCES';
+  cardId: null;
+  requirementId: string;
+  resourceId: null;
+  before: ManagementWorkspaceRequirementResourceStateV1;
+  after: ManagementWorkspaceRequirementResourceStateV1;
+}
+
+export interface ManagementWorkspaceRequirementTimePreferenceOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_REQUIREMENT_TIME_PREFERENCE';
+  cardId: null;
+  requirementId: string;
+  resourceId: null;
+  before: ManagementWorkspaceRequirementTimePreferenceStateV1;
+  after: ManagementWorkspaceRequirementTimePreferenceStateV1;
+}
+
+export interface ManagementWorkspaceInventoryOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_INVENTORY_RESOURCE';
+  cardId: null;
+  requirementId: null;
+  resourceId: string;
+  before: ManagementWorkspaceInventoryStateV1;
+  after: ManagementWorkspaceInventoryStateV1;
+}
+
+export interface ManagementWorkspaceTeacherPlanningOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_TEACHER_PLANNING';
+  cardId: null;
+  requirementId: null;
+  resourceId: string;
+  before: ManagementWorkspaceTeacherPlanningStateV1;
+  after: ManagementWorkspaceTeacherPlanningStateV1;
+}
+
+export interface ManagementWorkspaceTeacherAvailabilityOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_TEACHER_AVAILABILITY';
+  cardId: null;
+  requirementId: null;
+  resourceId: string;
+  before: ManagementWorkspaceTeacherAvailabilityStateV1;
+  after: ManagementWorkspaceTeacherAvailabilityStateV1;
+}
+
+export interface ManagementWorkspaceRoomProfileOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_ROOM_PROFILE';
+  cardId: null;
+  requirementId: null;
+  resourceId: string;
+  before: ManagementWorkspaceRoomProfileStateV1;
+  after: ManagementWorkspaceRoomProfileStateV1;
+}
+
+export interface ManagementWorkspaceResourceBundleOperationV1 {
+  sequence: number;
+  batchId: number | null;
+  kind: 'SET_RESOURCE_BUNDLE';
+  cardId: null;
+  requirementId: null;
+  resourceId: string;
+  resourceType: 'TEACHER' | 'ROOM';
+  before: ManagementWorkspaceResourceBundleV1 | null;
+  after: ManagementWorkspaceResourceBundleV1 | null;
+}
+
+export type ManagementWorkspaceOperationV1 =
+  | ManagementWorkspacePlacementOperationV1
+  | ManagementWorkspaceCardPinOperationV1
+  | ManagementWorkspaceRequirementStructureOperationV1
+  | ManagementWorkspaceRequirementResourceOperationV1
+  | ManagementWorkspaceRequirementTimePreferenceOperationV1
+  | ManagementWorkspaceInventoryOperationV1
+  | ManagementWorkspaceTeacherPlanningOperationV1
+  | ManagementWorkspaceTeacherAvailabilityOperationV1
+  | ManagementWorkspaceRoomProfileOperationV1
+  | ManagementWorkspaceResourceBundleOperationV1;
+
+export interface ManagementWorkspaceHistoryV1 {
+  nextSequence: number;
+  nextBatchId: number;
+  undoStack: ManagementWorkspaceOperationV1[];
+  redoStack: ManagementWorkspaceOperationV1[];
+}
+
+function currentPlacement(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  cardId: string,
+) {
+  const value = workingCopy.placementsByCardId[cardId];
+  if (!value) {
+    throw new Error(
+      `Workspace geçmiş işlemi için kart bulunamadı (${cardId}).`,
+    );
+  }
+  return cloneManagementWorkspacePlacementV1(value);
+}
+
+
+function currentCardPins(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  cardId: string,
+): ManagementWorkspaceCardPinStateV1 {
+  const card = workingCopy.cardsById[cardId];
+  if (!card) {
+    throw new Error(
+      `Workspace geçmiş işlemi için kart bulunamadı (${cardId}).`,
+    );
+  }
+  return {
+    cardId,
+    timePinned: card.timePinned === true,
+    teacherPinned: card.teacherPinned === true,
+    roomPinned: card.roomPinned === true,
+  };
+}
+
+function currentInventory(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resource: ManagementWorkspaceInventoryStateV1,
+) {
+  const current = resource.resourceType === 'TEACHER'
+    ? workingCopy.teacherInventoryById[resource.resourceId]
+    : workingCopy.roomInventoryById[resource.resourceId];
+
+  if (!current) {
+    throw new Error(
+      `Workspace geçmiş işlemi için kaynak bulunamadı (${resource.resourceId}).`,
+    );
+  }
+
+  return cloneManagementWorkspaceInventoryV1(current);
+}
+
+function currentRoomProfile(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  roomId: string,
+) {
+  const value = workingCopy.roomProfileById[roomId];
+  if (!value) throw new Error(`Workspace geçmiş işlemi için salon profili bulunamadı (${roomId}).`);
+  return cloneManagementWorkspaceRoomProfileV1(value);
+}
+
+function currentTeacherAvailability(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  teacherId: string,
+) {
+  const value = workingCopy.teacherAvailabilityById[teacherId];
+  if (!value) {
+    throw new Error(
+      `Workspace geçmiş işlemi için öğretmen uygunluk girdisi bulunamadı (${teacherId}).`,
+    );
+  }
+  return cloneManagementWorkspaceTeacherAvailabilityV1(value);
+}
+
+function currentTeacherPlanning(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  teacherId: string,
+) {
+  const value = workingCopy.teacherPlanningById[teacherId];
+  if (!value) {
+    throw new Error(
+      `Workspace geçmiş işlemi için öğretmen planlama girdisi bulunamadı (${teacherId}).`,
+    );
+  }
+  return cloneManagementWorkspaceTeacherPlanningV1(value);
+}
+
+function currentRequirementResource(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  requirementId: string,
+) {
+  const value = workingCopy.requirementResourcesById[requirementId];
+  if (!value) {
+    throw new Error(
+      `Workspace geçmiş işlemi için requirement bulunamadı (${requirementId}).`,
+    );
+  }
+  return cloneManagementWorkspaceRequirementResourceV1(value);
+}
+
+function applyPlacementState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  placement: ManagementWorkspacePlacementStateV1,
+) {
+  const isRemoved = (
+    placement.dayOfWeek === null
+    && placement.startPeriod === null
+    && placement.teacherId === null
+    && placement.roomId === null
+  );
+
+  if (isRemoved) {
+    removeManagementWorkspacePlacementV1(
+      workingCopy,
+      placement.cardId,
+    );
+    return;
+  }
+
+  setManagementWorkspacePlacementV1(
+    workingCopy,
+    placement,
+  );
+}
+
+function currentRequirementTimePreference(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  requirementId: string,
+) {
+  return cloneManagementWorkspaceRequirementTimePreferenceV1(
+    workingCopy.requirementTimePreferencesById?.[requirementId] ?? {
+      requirementId,
+      preferredDays: [],
+      preferredStartPeriods: [],
+    },
+  );
+}
+
+function applyRequirementTimePreferenceState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  preference: ManagementWorkspaceRequirementTimePreferenceStateV1,
+) {
+  workingCopy.requirementTimePreferencesById ??= {};
+  workingCopy.requirementTimePreferencesById[preference.requirementId] =
+    cloneManagementWorkspaceRequirementTimePreferenceV1(preference);
+}
+
+function applyRequirementResourceState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resource: ManagementWorkspaceRequirementResourceStateV1,
+) {
+  if (!workingCopy.requirementResourcesById[resource.requirementId]) {
+    throw new Error(
+      `Workspace geçmiş işlemi için requirement bulunamadı (${resource.requirementId}).`,
+    );
+  }
+
+  workingCopy.requirementResourcesById[resource.requirementId] =
+    cloneManagementWorkspaceRequirementResourceV1(resource);
+}
+
+function applyRoomProfileState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  profile: ManagementWorkspaceRoomProfileStateV1,
+) {
+  if (!workingCopy.roomProfileById[profile.roomId]) {
+    throw new Error(`Workspace geçmiş işlemi için salon profili bulunamadı (${profile.roomId}).`);
+  }
+  workingCopy.roomProfileById[profile.roomId] =
+    cloneManagementWorkspaceRoomProfileV1(profile);
+}
+
+function applyTeacherAvailabilityState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  availability: ManagementWorkspaceTeacherAvailabilityStateV1,
+) {
+  if (!workingCopy.teacherAvailabilityById[availability.teacherId]) {
+    throw new Error(
+      `Workspace geçmiş işlemi için öğretmen uygunluk girdisi bulunamadı (${availability.teacherId}).`,
+    );
+  }
+  workingCopy.teacherAvailabilityById[availability.teacherId] =
+    cloneManagementWorkspaceTeacherAvailabilityV1(availability);
+}
+
+function applyTeacherPlanningState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  planning: ManagementWorkspaceTeacherPlanningStateV1,
+) {
+  if (!workingCopy.teacherPlanningById[planning.teacherId]) {
+    throw new Error(
+      `Workspace geçmiş işlemi için öğretmen planlama girdisi bulunamadı (${planning.teacherId}).`,
+    );
+  }
+  workingCopy.teacherPlanningById[planning.teacherId] =
+    cloneManagementWorkspaceTeacherPlanningV1(planning);
+}
+
+function applyInventoryState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  resource: ManagementWorkspaceInventoryStateV1,
+) {
+  if (resource.resourceType === 'TEACHER') {
+    if (!workingCopy.teacherInventoryById[resource.resourceId]) {
+      throw new Error(
+        `Workspace geçmiş işlemi için öğretmen bulunamadı (${resource.resourceId}).`,
+      );
+    }
+    workingCopy.teacherInventoryById[resource.resourceId] =
+      cloneManagementWorkspaceInventoryV1(
+        resource,
+      ) as ManagementWorkspaceTeacherInventoryStateV1;
+    return;
+  }
+
+  if (!workingCopy.roomInventoryById[resource.resourceId]) {
+    throw new Error(
+      `Workspace geçmiş işlemi için salon bulunamadı (${resource.resourceId}).`,
+    );
+  }
+  workingCopy.roomInventoryById[resource.resourceId] =
+    cloneManagementWorkspaceInventoryV1(
+      resource,
+    ) as ManagementWorkspaceRoomInventoryStateV1;
+}
+
+export function cloneManagementWorkspaceOperationV1(
+  operation: ManagementWorkspaceOperationV1,
+): ManagementWorkspaceOperationV1 {
+  if (operation.kind === 'SET_CARD_PINS') {
+    return {
+      ...operation,
+      before: { ...operation.before },
+      after: { ...operation.after },
+    };
+  }
+
+  if (operation.kind === 'SET_REQUIREMENT_STRUCTURE') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceRequirementStructureBundleV1(
+        operation.before,
+      ),
+      after: cloneManagementWorkspaceRequirementStructureBundleV1(
+        operation.after,
+      ),
+    };
+  }
+
+  if (operation.kind === 'SET_REQUIREMENT_RESOURCES') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceRequirementResourceV1(operation.before),
+      after: cloneManagementWorkspaceRequirementResourceV1(operation.after),
+    };
+  }
+
+  if (operation.kind === 'SET_INVENTORY_RESOURCE') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceInventoryV1(operation.before),
+      after: cloneManagementWorkspaceInventoryV1(operation.after),
+    };
+  }
+
+  if (operation.kind === 'SET_TEACHER_PLANNING') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceTeacherPlanningV1(operation.before),
+      after: cloneManagementWorkspaceTeacherPlanningV1(operation.after),
+    };
+  }
+
+  if (operation.kind === 'SET_TEACHER_AVAILABILITY') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceTeacherAvailabilityV1(operation.before),
+      after: cloneManagementWorkspaceTeacherAvailabilityV1(operation.after),
+    };
+  }
+
+  if (operation.kind === 'SET_ROOM_PROFILE') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceRoomProfileV1(operation.before),
+      after: cloneManagementWorkspaceRoomProfileV1(operation.after),
+    };
+  }
+
+  if (operation.kind === 'SET_RESOURCE_BUNDLE') {
+    return {
+      ...operation,
+      before: operation.before
+        ? cloneManagementWorkspaceResourceBundleV1(operation.before)
+        : null,
+      after: operation.after
+        ? cloneManagementWorkspaceResourceBundleV1(operation.after)
+        : null,
+    };
+  }
+
+  if (operation.kind === 'SET_REQUIREMENT_TIME_PREFERENCE') {
+    return {
+      ...operation,
+      before: cloneManagementWorkspaceRequirementTimePreferenceV1(
+        operation.before,
+      ),
+      after: cloneManagementWorkspaceRequirementTimePreferenceV1(
+        operation.after,
+      ),
+    };
+  }
+
+  return {
+    ...operation,
+    before: cloneManagementWorkspacePlacementV1(operation.before),
+    after: cloneManagementWorkspacePlacementV1(operation.after),
+  };
+}
+
+function recordOperation(
+  history: ManagementWorkspaceHistoryV1,
+  operation:
+    | Omit<ManagementWorkspacePlacementOperationV1, 'sequence' | 'batchId'>
+    | Omit<ManagementWorkspaceCardPinOperationV1, 'sequence' | 'batchId'>
+    | Omit<
+        ManagementWorkspaceRequirementStructureOperationV1,
+        'sequence' | 'batchId'
+      >
+    | Omit<
+        ManagementWorkspaceRequirementResourceOperationV1,
+        'sequence' | 'batchId'
+      >
+    | Omit<
+        ManagementWorkspaceRequirementTimePreferenceOperationV1,
+        'sequence' | 'batchId'
+      >
+    | Omit<ManagementWorkspaceInventoryOperationV1, 'sequence' | 'batchId'>
+    | Omit<
+        ManagementWorkspaceTeacherPlanningOperationV1,
+        'sequence' | 'batchId'
+      >
+    | Omit<
+        ManagementWorkspaceTeacherAvailabilityOperationV1,
+        'sequence' | 'batchId'
+      >
+    | Omit<
+        ManagementWorkspaceRoomProfileOperationV1,
+        'sequence' | 'batchId'
+      >
+    | Omit<
+        ManagementWorkspaceResourceBundleOperationV1,
+        'sequence' | 'batchId'
+      >,
+) {
+  const entry = {
+    ...operation,
+    sequence: history.nextSequence,
+    batchId: null,
+  } as ManagementWorkspaceOperationV1;
+
+  history.nextSequence += 1;
+  history.undoStack.push(cloneManagementWorkspaceOperationV1(entry));
+  history.redoStack = [];
+
+  return cloneManagementWorkspaceOperationV1(entry);
+}
+
+export function createManagementWorkspaceHistoryV1():
+  ManagementWorkspaceHistoryV1 {
+  return {
+    nextSequence: 1,
+    nextBatchId: 1,
+    undoStack: [],
+    redoStack: [],
+  };
+}
+
+
+export function applyManagementWorkspaceCardPinOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  pins: ManagementWorkspaceCardPinStateV1,
+) {
+  const before = currentCardPins(workingCopy, pins.cardId);
+  const after = { ...pins };
+
+  setManagementWorkspaceCardPinsV1(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_CARD_PINS',
+    cardId: pins.cardId,
+    requirementId: null,
+    resourceId: null,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspacePlacementOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  placement: ManagementWorkspacePlacementStateV1,
+) {
+  const before = currentPlacement(
+    workingCopy,
+    placement.cardId,
+  );
+  const after = cloneManagementWorkspacePlacementV1(placement);
+
+  applyPlacementState(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_PLACEMENT',
+    cardId: placement.cardId,
+    requirementId: null,
+    resourceId: null,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspaceRemoveOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  cardId: string,
+) {
+  const before = currentPlacement(
+    workingCopy,
+    cardId,
+  );
+  const after: ManagementWorkspacePlacementStateV1 = {
+    cardId,
+    dayOfWeek: null,
+    startPeriod: null,
+    teacherId: null,
+    roomId: null,
+  };
+
+  applyPlacementState(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'REMOVE_PLACEMENT',
+    cardId,
+    requirementId: null,
+    resourceId: null,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspaceRequirementStructureOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  requirementId: string,
+  bundle: ManagementWorkspaceRequirementStructureBundleV1,
+) {
+  const before = (() => {
+    const structure = workingCopy.requirementStructureById[requirementId];
+    if (!structure) {
+      throw new Error(
+        `Workspace requirement yapısı bulunamadı (${requirementId}).`,
+      );
+    }
+    const cards = Object.values(workingCopy.cardsById)
+      .filter((card) => card.requirementId === requirementId);
+    const placements = cards.map((card) => {
+      const placement = workingCopy.placementsByCardId[card.id];
+      if (!placement) {
+        throw new Error(
+          `Workspace kart yerleşimi bulunamadı (${card.id}).`,
+        );
+      }
+      return placement;
+    });
+    return cloneManagementWorkspaceRequirementStructureBundleV1({
+      structure,
+      cards,
+      placements,
+    });
+  })();
+  const after =
+    cloneManagementWorkspaceRequirementStructureBundleV1(bundle);
+
+  applyManagementWorkspaceRequirementStructureBundleV1(
+    workingCopy,
+    requirementId,
+    after,
+  );
+
+  return recordOperation(history, {
+    kind: 'SET_REQUIREMENT_STRUCTURE',
+    cardId: null,
+    requirementId,
+    resourceId: null,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspaceRequirementResourceOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  resource: ManagementWorkspaceRequirementResourceStateV1,
+) {
+  const before = currentRequirementResource(
+    workingCopy,
+    resource.requirementId,
+  );
+  const after = cloneManagementWorkspaceRequirementResourceV1(resource);
+
+  applyRequirementResourceState(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_REQUIREMENT_RESOURCES',
+    cardId: null,
+    requirementId: resource.requirementId,
+    resourceId: null,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspaceRequirementTimePreferenceOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  preference: ManagementWorkspaceRequirementTimePreferenceStateV1,
+) {
+  const before = currentRequirementTimePreference(
+    workingCopy,
+    preference.requirementId,
+  );
+  const after =
+    cloneManagementWorkspaceRequirementTimePreferenceV1(preference);
+
+  applyRequirementTimePreferenceState(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_REQUIREMENT_TIME_PREFERENCE',
+    cardId: null,
+    requirementId: preference.requirementId,
+    resourceId: null,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspaceInventoryOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  resource: ManagementWorkspaceInventoryStateV1,
+) {
+  const before = currentInventory(workingCopy, resource);
+  const after = cloneManagementWorkspaceInventoryV1(resource);
+
+  applyInventoryState(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_INVENTORY_RESOURCE',
+    cardId: null,
+    requirementId: null,
+    resourceId: resource.resourceId,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspaceTeacherPlanningOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  planning: ManagementWorkspaceTeacherPlanningStateV1,
+) {
+  const before = currentTeacherPlanning(workingCopy, planning.teacherId);
+  const after = cloneManagementWorkspaceTeacherPlanningV1(planning);
+
+  applyTeacherPlanningState(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_TEACHER_PLANNING',
+    cardId: null,
+    requirementId: null,
+    resourceId: planning.teacherId,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspaceTeacherAvailabilityOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  availability: ManagementWorkspaceTeacherAvailabilityStateV1,
+) {
+  const before = currentTeacherAvailability(
+    workingCopy,
+    availability.teacherId,
+  );
+  const after = cloneManagementWorkspaceTeacherAvailabilityV1(availability);
+
+  applyTeacherAvailabilityState(workingCopy, after);
+
+  return recordOperation(history, {
+    kind: 'SET_TEACHER_AVAILABILITY',
+    cardId: null,
+    requirementId: null,
+    resourceId: availability.teacherId,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspaceRoomProfileOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  profile: ManagementWorkspaceRoomProfileStateV1,
+) {
+  const before = currentRoomProfile(workingCopy, profile.roomId);
+  const after = cloneManagementWorkspaceRoomProfileV1(profile);
+  applyRoomProfileState(workingCopy, after);
+  return recordOperation(history, {
+    kind: 'SET_ROOM_PROFILE',
+    cardId: null,
+    requirementId: null,
+    resourceId: profile.roomId,
+    before,
+    after,
+  });
+}
+
+export function applyManagementWorkspaceResourceBundleOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+  resourceType: 'TEACHER' | 'ROOM',
+  resourceId: string,
+  bundle: ManagementWorkspaceResourceBundleV1 | null,
+) {
+  const before = (() => {
+    const lifecycle = workingCopy.resourceLifecycleById[resourceId];
+    if (!lifecycle) return null;
+    const inventory = resourceType === 'TEACHER'
+      ? workingCopy.teacherInventoryById[resourceId]
+      : workingCopy.roomInventoryById[resourceId];
+    if (!inventory) return null;
+    return cloneManagementWorkspaceResourceBundleV1({
+      lifecycle,
+      inventory,
+      teacherPlanning: resourceType === 'TEACHER'
+        ? workingCopy.teacherPlanningById[resourceId]
+        : undefined,
+      teacherAvailability: resourceType === 'TEACHER'
+        ? workingCopy.teacherAvailabilityById[resourceId]
+        : undefined,
+      roomProfile: resourceType === 'ROOM'
+        ? workingCopy.roomProfileById[resourceId]
+        : undefined,
+    });
+  })();
+  const after = bundle
+    ? cloneManagementWorkspaceResourceBundleV1(bundle)
+    : null;
+
+  applyManagementWorkspaceResourceBundleV1(
+    workingCopy,
+    resourceType,
+    resourceId,
+    after,
+  );
+
+  return recordOperation(history, {
+    kind: 'SET_RESOURCE_BUNDLE',
+    cardId: null,
+    requirementId: null,
+    resourceId,
+    resourceType,
+    before,
+    after,
+  });
+}
+
+function applyOperationState(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  operation: ManagementWorkspaceOperationV1,
+  direction: 'BEFORE' | 'AFTER',
+) {
+  const value = direction === 'BEFORE'
+    ? operation.before
+    : operation.after;
+
+  if (operation.kind === 'SET_CARD_PINS') {
+    setManagementWorkspaceCardPinsV1(
+      workingCopy,
+      value as ManagementWorkspaceCardPinStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_REQUIREMENT_STRUCTURE') {
+    applyManagementWorkspaceRequirementStructureBundleV1(
+      workingCopy,
+      operation.requirementId,
+      value as ManagementWorkspaceRequirementStructureBundleV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_REQUIREMENT_RESOURCES') {
+    applyRequirementResourceState(
+      workingCopy,
+      value as ManagementWorkspaceRequirementResourceStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_REQUIREMENT_TIME_PREFERENCE') {
+    applyRequirementTimePreferenceState(
+      workingCopy,
+      value as ManagementWorkspaceRequirementTimePreferenceStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_INVENTORY_RESOURCE') {
+    applyInventoryState(
+      workingCopy,
+      value as ManagementWorkspaceInventoryStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_TEACHER_PLANNING') {
+    applyTeacherPlanningState(
+      workingCopy,
+      value as ManagementWorkspaceTeacherPlanningStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_TEACHER_AVAILABILITY') {
+    applyTeacherAvailabilityState(
+      workingCopy,
+      value as ManagementWorkspaceTeacherAvailabilityStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_ROOM_PROFILE') {
+    applyRoomProfileState(
+      workingCopy,
+      value as ManagementWorkspaceRoomProfileStateV1,
+    );
+    return;
+  }
+
+  if (operation.kind === 'SET_RESOURCE_BUNDLE') {
+    applyManagementWorkspaceResourceBundleV1(
+      workingCopy,
+      operation.resourceType,
+      operation.resourceId,
+      value as ManagementWorkspaceResourceBundleV1 | null,
+    );
+    return;
+  }
+
+  applyPlacementState(
+    workingCopy,
+    value as ManagementWorkspacePlacementStateV1,
+  );
+}
+
+export function undoManagementWorkspaceOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+): ManagementWorkspaceOperationV1 | null {
+  const operation = history.undoStack.pop() ?? null;
+  if (!operation) return null;
+
+  const batch = [operation];
+  if (operation.batchId !== null) {
+    while (
+      history.undoStack.length > 0
+      && history.undoStack[history.undoStack.length - 1].batchId === operation.batchId
+    ) {
+      batch.push(history.undoStack.pop()!);
+    }
+  }
+
+  batch.forEach((entry) => {
+    applyOperationState(
+      workingCopy,
+      entry,
+      'BEFORE',
+    );
+    history.redoStack.push(cloneManagementWorkspaceOperationV1(entry));
+  });
+
+  return cloneManagementWorkspaceOperationV1(operation);
+}
+
+export function redoManagementWorkspaceOperationV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  history: ManagementWorkspaceHistoryV1,
+): ManagementWorkspaceOperationV1 | null {
+  const operation = history.redoStack.pop() ?? null;
+  if (!operation) return null;
+
+  const batch = [operation];
+  if (operation.batchId !== null) {
+    while (
+      history.redoStack.length > 0
+      && history.redoStack[history.redoStack.length - 1].batchId === operation.batchId
+    ) {
+      batch.push(history.redoStack.pop()!);
+    }
+  }
+
+  batch.forEach((entry) => {
+    applyOperationState(
+      workingCopy,
+      entry,
+      'AFTER',
+    );
+    history.undoStack.push(cloneManagementWorkspaceOperationV1(entry));
+  });
+
+  return cloneManagementWorkspaceOperationV1(operation);
+}
+
+export function canUndoManagementWorkspaceV1(
+  history: ManagementWorkspaceHistoryV1,
+) {
+  return history.undoStack.length > 0;
+}
+
+export function canRedoManagementWorkspaceV1(
+  history: ManagementWorkspaceHistoryV1,
+) {
+  return history.redoStack.length > 0;
+}

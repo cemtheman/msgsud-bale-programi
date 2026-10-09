@@ -298,6 +298,7 @@ function groupDropTargetForCell({
   view,
   activeDay,
   startPeriod,
+  startOffsetsByCardId,
   loading,
 }: {
   cards: ManagementBoardCard[];
@@ -306,6 +307,7 @@ function groupDropTargetForCell({
   view: ManagementResourceView;
   activeDay: number;
   startPeriod: number;
+  startOffsetsByCardId: Record<string, number>;
   loading: boolean;
 }): ManagementDropTarget & {
   groupCandidates: ManagementGroupDropCandidate[];
@@ -324,18 +326,36 @@ function groupDropTargetForCell({
     };
   }
 
-  const targets = cards.map((card) => ({
-    card,
-    target: dropTargetForCell({
+  const targets = cards.map((card) => {
+    const targetStartPeriod = startPeriod + (startOffsetsByCardId[card.id] ?? 0);
+
+    if (targetStartPeriod < 1 || targetStartPeriod > 12) {
+      return {
+        card,
+        target: {
+          cardId: card.id,
+          dayOfWeek: activeDay,
+          startPeriod: targetStartPeriod,
+          state: 'INVALID' as const,
+          validCandidates: [],
+          reasonCodes: ['TIME_OUTSIDE_DAY'],
+        },
+      };
+    }
+
+    return {
       card,
-      detail: detailsByCardId[card.id] ?? null,
-      row,
-      view,
-      activeDay,
-      startPeriod,
-      loading,
-    }),
-  }));
+      target: dropTargetForCell({
+        card,
+        detail: detailsByCardId[card.id] ?? null,
+        row,
+        view,
+        activeDay,
+        startPeriod: targetStartPeriod,
+        loading,
+      }),
+    };
+  });
 
   const reasonCodes = Array.from(new Set(
     targets.flatMap(({ target }) => target.reasonCodes),
@@ -411,36 +431,35 @@ function resolveFootprintTarget<
 >(
   targets: T[],
   period: number,
-  duration: number,
+  minOffset: number,
+  maxOffset: number,
 ) {
   const own = targets.find((target) => target.startPeriod === period) ?? null;
 
-  if (!own) {
-    return {
-      target: null,
-      continuation: false,
-    };
-  }
-
-  if (isFootprintAnchorState(own.state) || duration <= 1) {
+  if (own && isFootprintAnchorState(own.state)) {
     return {
       target: own,
       continuation: false,
     };
   }
 
-  const earliestStart = Math.max(1, period - duration + 1);
-
-  for (let start = period - 1; start >= earliestStart; start -= 1) {
-    const candidate = targets.find((target) => target.startPeriod === start);
+  for (
+    let anchorPeriod = period - maxOffset;
+    anchorPeriod <= period - minOffset;
+    anchorPeriod += 1
+  ) {
+    const candidate = targets.find(
+      (target) => target.startPeriod === anchorPeriod,
+    );
     if (
       candidate
       && isFootprintAnchorState(candidate.state)
-      && start + duration - 1 >= period
+      && anchorPeriod + minOffset <= period
+      && anchorPeriod + maxOffset >= period
     ) {
       return {
         target: candidate,
-        continuation: true,
+        continuation: anchorPeriod !== period,
       };
     }
   }
@@ -489,6 +508,7 @@ function invalidReasonLabel(reasonCodes: string[]) {
     LUNCH_BREAK_CROSSING: 'Öğle',
     TIME_OUTSIDE_DAY: 'Saat',
     ROOM_INACTIVE: 'Salon kapalı',
+    PARALLEL_BUNDLE_BROKEN: 'Paralel paket',
   };
 
   const mapped = Array.from(new Set(
@@ -549,12 +569,15 @@ export function ManagementBoardGrid({
   canEdit,
   dragCard,
   dragCardIds,
+  dragStartOffsetsByCardId,
   dragCandidateDetails,
   dragLoading,
+  onDragPrepare,
   onDragStart,
   onDragEnd,
   onDropCandidates,
   onDropNeedsAttention,
+  validateDropTarget,
   onCardContextMenu,
 }: {
   rows: ManagementBoardRow[];
@@ -566,12 +589,19 @@ export function ManagementBoardGrid({
   canEdit: boolean;
   dragCard: ManagementBoardCard | null;
   dragCardIds: string[];
+  dragStartOffsetsByCardId: Record<string, number>;
   dragCandidateDetails: Record<string, ManagementCandidateDetail>;
   dragLoading: boolean;
+  onDragPrepare: (cardId: string, sourceCardIds?: string[]) => void;
   onDragStart: (cardId: string, sourceCardIds?: string[]) => void;
   onDragEnd: () => void;
   onDropCandidates: (candidates: ManagementGroupDropCandidate[]) => void;
   onDropNeedsAttention: (target: ManagementDropTarget) => void;
+  validateDropTarget?: (target: ManagementDropTarget & {
+    groupCandidates?: ManagementGroupDropCandidate[];
+  }) => ManagementDropTarget & {
+    groupCandidates?: ManagementGroupDropCandidate[];
+  };
   onCardContextMenu: (
     cardId: string,
     sourceCardIds: string[],
@@ -595,7 +625,7 @@ export function ManagementBoardGrid({
       {dragCard && (
         <div className="pointer-events-none absolute left-3 top-3 z-40 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-slate-600 shadow-sm backdrop-blur">
           {dragLoading
-            ? `${dragCard.subjectName} için uygun yerler hazırlanıyor…`
+            ? `${dragCard.subjectName} sürükleniyor · uygun yerler hazırlanıyor; şimdi bırakırsanız eski yerine döner`
             : dragCardIds.length > 1
               ? `${dragCard.subjectName} · ${dragCardIds.length} kayıt birlikte taşınacak`
               : `${dragCard.subjectName} · başlangıç saatleri işaretlendi`}
@@ -745,6 +775,11 @@ export function ManagementBoardGrid({
                             key={displayCard.id}
                             type="button"
                             draggable={draggable}
+                            onPointerDown={() => {
+                              if (draggable) {
+                                onDragPrepare(card.id, displayCard.sourceCardIds);
+                              }
+                            }}
                             onDragStart={(event) => {
                               if (!draggable) {
                                 event.preventDefault();
@@ -813,21 +848,37 @@ export function ManagementBoardGrid({
                       })}
 
                       {dragCard && (() => {
-                        const duration = Math.max(
-                          1,
-                          ...dragCards.map((card) => card.durationPeriods),
+                        const minOffset = Math.min(
+                          0,
+                          ...dragCards.map(
+                            (card) => dragStartOffsetsByCardId[card.id] ?? 0,
+                          ),
                         );
-                        const targets = PERIODS.map((period) =>
-                          groupDropTargetForCell({
+                        const maxOffset = Math.max(
+                          0,
+                          ...dragCards.map((card) => (
+                            (dragStartOffsetsByCardId[card.id] ?? 0)
+                            + card.durationPeriods
+                            - 1
+                          )),
+                        );
+                        const duration = maxOffset - minOffset + 1;
+                        const targets = PERIODS.map((period) => {
+                          const candidateTarget = groupDropTargetForCell({
                             cards: dragCards,
                             detailsByCardId: dragCandidateDetails,
                             row,
                             view,
                             activeDay,
                             startPeriod: period.number,
+                            startOffsetsByCardId: dragStartOffsetsByCardId,
                             loading: dragLoading,
-                          }),
-                        );
+                          });
+
+                          return validateDropTarget
+                            ? validateDropTarget(candidateTarget)
+                            : candidateTarget;
+                        });
 
                         return (
                           <div className="absolute inset-0 z-30 grid grid-cols-12">
@@ -835,7 +886,8 @@ export function ManagementBoardGrid({
                               const footprint = resolveFootprintTarget(
                                 targets,
                                 period.number,
-                                duration,
+                                minOffset,
+                                maxOffset,
                               );
                               const target = footprint.target;
 
@@ -843,8 +895,13 @@ export function ManagementBoardGrid({
                                 return <div key={period.number} />;
                               }
 
+                              // While candidate calculation is still running, keep
+                              // the card visually draggable but do not accept a drop.
+                              // Releasing now ends the native drag and the card remains
+                              // at its original placement.
                               const droppable = target.state !== 'NONE'
-                                && target.state !== 'CURRENT';
+                                && target.state !== 'CURRENT'
+                                && target.state !== 'LOADING';
                               const anchorLabel = targetDisplayLabel(target);
                               const label = footprint.continuation
                                 ? ''
@@ -867,11 +924,14 @@ export function ManagementBoardGrid({
                                     if (!droppable) return;
                                     event.preventDefault();
 
+                                    const groupCandidates =
+                                      target.groupCandidates ?? [];
+
                                     if (
                                       target.state === 'VALID'
-                                      && target.groupCandidates.length === dragCards.length
+                                      && groupCandidates.length === dragCards.length
                                     ) {
-                                      onDropCandidates(target.groupCandidates);
+                                      onDropCandidates(groupCandidates);
                                       return;
                                     }
 
@@ -886,7 +946,7 @@ export function ManagementBoardGrid({
                                   }`}
                                   title={
                                     footprint.continuation
-                                      ? `${targetDisplayLabel(target)} · ${target.startPeriod}. derste başlayan ${duration} derslik blok`
+                                      ? `${targetDisplayLabel(target)} · bağlı paketin ${duration} derslik izi`
                                       : duration > 1
                                         ? `${targetDisplayTitle(target)} · ${duration} derslik blok`
                                         : targetDisplayTitle(target)

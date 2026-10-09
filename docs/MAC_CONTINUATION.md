@@ -1,24 +1,24 @@
 # MSGSÜ Ders Programı — Devam Handoff
 
-> Not: Dosya adı tarihsel olarak `MAC_CONTINUATION.md` kaldı. Aktif çalışma ortamı GitHub Codespaces'tir.
+> Not: Dosya adı tarihsel olarak `MAC_CONTINUATION.md` kaldı. Aktif çalışma ortamı AWS EC2 / Ubuntu / code-server'dır (9 Ekim 2026).
 
-Tarih: 30 Eylül 2026
+Güncel ortam tarihi: 9 Ekim 2026 (önceki ürün kayıtları tarihsel olarak korunur)
 
 ## 1. Aktif çalışma ortamı
 
-- Ortam: **GitHub Codespaces**
-- Çalışma dizini: `/workspaces/msgsud-bale-programi`
+- Ortam: **AWS EC2 / Ubuntu 26.04 / code-server**
+- Çalışma dizini: `/home/ubuntu/msgsud-bale-programi`
 - Shell: Linux/bash
-- Branch: `main`
+- Branch: `feat/management-workspace-v1`
 - Komut biçimi: `npm`, `npx`
-- Kullanıcı yeni ortam bildirmedikçe Codespaces geçerli kabul edilir
+- Kullanıcı yeni ortam bildirmedikçe AWS/code-server geçerli kabul edilir; Codespaces yalnız fallback'tir
 
 Başlangıç:
 
 ```bash
-cd /workspaces/msgsud-bale-programi
+cd /home/ubuntu/msgsud-bale-programi
 git fetch origin
-git switch main
+git switch feat/management-workspace-v1
 git pull --ff-only
 git rev-parse HEAD
 git status --short
@@ -2019,6 +2019,1482 @@ Rule:
 - every new optimization input must be explicit, auditable and explainable
 
 M38 branch checkpoint before this diary commit: 602dd62b36c3ca8d7a4bfc06b458bdd7e2f0091e
+## 31. M39.0 teacher load planning foundation — READY FOR CODE GATE
+
+Main-roadmap return started after M38 closure.
+
+Goal:
+- create explicit term-scoped teacher load planning inputs before enabling any teacher-load optimizer objective
+- audit real weekly teacher load from the current DRAFT without trial writes
+- keep solver behavior unchanged in M39.0
+
+### Data model
+
+New migration:
+`20261001133000_management_m39_0_teacher_load_foundation.sql`
+
+New table:
+`management_teacher_planning_inputs`
+
+Scope:
+- key: `(requirement_set_id, teacher_id)`
+- `minimum_load`
+- `target_load`
+- `maximum_load`
+- values are weekly timetable periods, not permanent teacher attributes
+- every field is optional
+- range: 0..60
+- ordering guards: minimum <= target <= maximum when values are present
+- all-null input deletes the planning row instead of storing fake zero defaults
+
+New RPCs:
+- `management_list_teacher_load_targets(revision_id)`
+  - read-only VIEWER audit
+  - actual load = sum of placed active card `duration_periods`
+  - also returns placed block count and active requirement count
+- `management_set_teacher_load_targets(...)`
+  - EDITOR + DRAFT only
+  - explicit validation
+  - does not mutate placements/candidates/publication
+  - returns `solverBehaviorChanged=false`
+
+### Resources UI
+
+Teacher inventory now shows:
+- weekly actual load in periods/hours
+- placed block count as secondary context
+- `Min / Hedef / Maks` values
+- count of teachers with load targets configured
+- `Yük` action opens a compact planning editor
+
+Editor semantics:
+- fields may remain blank
+- blank != zero
+- current actual load is shown for comparison
+- clearing all targets removes the planning input row
+- UI states explicitly that optimizer behavior does not change yet
+
+### Client contract
+
+`ManagementTeacherResourceRow` gains:
+- `actualLoadPeriods`
+- `minimumLoad`
+- `targetLoad`
+- `maximumLoad`
+- `loadConfigured`
+
+New pure validator:
+`validateManagementTeacherLoadTargets()`
+
+Regression coverage:
+- empty/partial targets accepted
+- invalid min/target/max ordering rejected
+- non-integer / outside 0..60 rejected
+
+Expected gate after implementation:
+```
+21 test files
+107 tests
+```
+
+Important architecture rule:
+- M39.0 does NOT enable `teacherLoadBalance`
+- M39.0 does NOT change solver snapshot/objective scoring
+- M39.0 only establishes explicit institutional input + audit
+- hard availability/unavailability is intentionally deferred to M39.1
+
+Implementation HEAD before journal commit: b689dab1c9a7366075e7f7055520d16237cb8eac
+Branch vs main: ahead 5, behind 0
+
+Required code gate before DB push:
+```bash
+git pull --ff-only
+npm test
+npm run build
+```
+
+Only after code gate PASS:
+```bash
+npx supabase migration list | tail -25
+npx supabase db push --dry-run
+```
+
+Dry-run expectation:
+- only `20261001133000_management_m39_0_teacher_load_foundation.sql` should be pending
+- do not push if any unexpected migration appears
+### M39.0 code gate + migration dry-run — PASS
+
+Codespaces verification:
+```
+21 test files PASS
+107 / 107 tests PASS
+Next.js production build PASS
+TypeScript PASS
+```
+
+Supabase migration verification:
+- migration list shows `20261001133000` local-only
+- all prior migrations through `20261001101500` match remote
+- `npx supabase db push --dry-run` reports exactly one pending migration:
+  - `20261001133000_management_m39_0_teacher_load_foundation.sql`
+- no unexpected migration detected
+
+Status:
+- code gate PASS
+- migration dry-run PASS
+- real DB push pending
+- browser acceptance pending
+
+Checkpoint before journal commit: aad72347a5c87d15cba7c840bf2cdfa8cc39556e
+### M39.0 migration applied — PASS
+
+Supabase verification:
+- `20261001133000_management_m39_0_teacher_load_foundation.sql` applied successfully
+- migration list now shows local/remote match for `20261001133000`
+- no unexpected pending migration reported
+
+Status:
+- code gate PASS
+- migration dry-run PASS
+- real DB push PASS
+- browser acceptance pending
+
+Checkpoint before journal commit: bd16e1a4b81c0aacd20d4b3b7f326a52bdaab3ac
+### M39.0 browser acceptance — PASS / CLOSED
+
+Browser acceptance confirmed on Resources → Teachers:
+- actual weekly load is shown as duration-period total, separate from block count
+- observed example: `12 saat · 5 blok`
+- unconfigured load targets show `Tanımsız`
+- invalid ordering `20 / 18 / 24` is blocked in UI with `Minimum yük hedef yükten büyük olamaz.`
+- clearing all three targets succeeds and returns row to `Tanımsız`
+- valid `1 / 12 / 20` target set saves successfully and is reflected in the teacher row
+- success message confirms program and publication are unchanged
+- actual weekly load remains unchanged after planning-target edits
+
+Final M39.0 status:
+- 21/21 test files PASS
+- 107/107 tests PASS
+- Next.js production build PASS
+- TypeScript PASS
+- migration dry-run PASS
+- `20261001133000` applied and local/remote match
+- browser validation/edit/clear flow PASS
+
+**M39.0 CLOSED / PASS**
+
+Next:
+- M39.1 hard teacher availability foundation
+- keep load objective disabled until subsequent readiness/objective integration package
+
+Checkpoint before journal commit: 85843c3d783b27aa40e6b387cee441e6f6763729
+### M39.1 UI polish scope — user requested
+
+Alongside hard teacher availability foundation, polish Resources → Teachers without redesign:
+- improve table column balance after weekly-load fields were added
+- make `Haftalık yük` and `Min / Hedef / Maks` hierarchy easier to scan
+- reduce crowding in the right-side action group
+- improve row spacing/alignment while preserving the normalized management UI system
+- make configured vs undefined load targets visually clearer
+- keep all existing functionality and accepted information architecture intact
+
+
+## 32. M39.1 hard teacher availability — CLOSED / PASS
+
+Date: 1 Oct 2026
+
+Branch:
+`feat/management-m39-teacher-planning-inputs`
+
+Implementation checkpoint before diary close:
+`8ac11517018e1047c50bef46fe558903c91198a9`
+
+Delivered:
+- term-scoped `management_teacher_unavailable_periods`
+- hard candidate blocker `TEACHER_UNAVAILABLE`
+- manual placement/resource preview block
+- placement write guard
+- solver snapshot `teacherUnavailablePeriods`
+- solver hard rule `TEACHER_HARD_UNAVAILABLE`
+- baseline audit for existing unavailable placements
+- existing placements are never auto-moved by an availability edit
+
+Applied migrations:
+- `20261001143000_management_m39_1_teacher_hard_availability.sql`
+- `20261001185000_management_m39_1_1_candidate_summary_ownership.sql`
+- `20261001190000_management_m39_1_2_fast_availability_refresh.sql`
+
+Regression 1 — solver baseline:
+- initial test showed unavailable baseline could still be accepted
+- root cause: `tryBaseline()` reached `canAssign()` without a final availability gate
+- fix: hard availability is enforced inside `canAssign()`
+- baseline, search and future assignment paths now share one last-line rule
+
+Regression 2 — duplicate domain summary:
+```
+duplicate key value violates unique constraint
+"schedule_card_domain_summaries_pkey"
+```
+
+Root cause:
+- M39.1 availability summary trigger created a missing summary row
+- this violated M32.5.1 ownership semantics
+
+M39.1.1 fix:
+- domain builders remain the only creators of missing summary rows
+- availability summary trigger only updates summaries that already exist
+
+Regression 3 — save timeout:
+```
+canceling statement due to statement timeout
+```
+
+Root cause:
+- availability save touched all candidate rows for the teacher
+- M32.5 expanded this into a same-requirement candidate refresh
+
+M39.1.2 fix:
+- refresh only candidates that:
+  - overlap the new unavailable slots, or
+  - already carry `TEACHER_UNAVAILABLE`
+- availability-only refresh skips the M32.5 requirement-wide fan-out
+- M39.1 and M22 row semantics remain active
+- normal M32.5 behavior is unchanged outside this RPC
+
+Remote migration parity confirmed through:
+- `20261001143000`
+- `20261001185000`
+- `20261001190000`
+
+Live browser acceptance:
+- save of three unavailable periods succeeds
+- UI shows `3 saat uygun değil`
+- UI reports `1 mevcut blok çakışıyor`
+- existing program remains unchanged
+- manual teacher-change preview blocks the unavailable teacher
+- visible reason: `Öğretmen bu ders saatinde uygun değil.`
+
+Final gate:
+```
+Test Files  21 passed (21)
+Tests       110 passed (110)
+```
+
+Build:
+- Next.js 16.3.4 PASS
+- TypeScript PASS
+- PWA PASS
+- static generation PASS
+- `/yonetim` build PASS
+
+**M39.1 CLOSED / PASS**
+
+## 33. Partisyon branding and header polish
+
+Official MSGSÜ logo kit is now the brand source.
+
+Asset:
+- `public/brand/msgsu-owl.svg`
+- official blue `#06038d`
+
+Accepted management header:
+- official MSGSÜ owl
+- vertical divider
+- upper label `MSGSÜ İDK`
+- product wordmark `P mark + artisyon`
+
+UI acceptance:
+- P and `artisyon` read as one wordmark
+- no overlap/blob effect
+- optical baseline alignment corrected
+- active nav underline moved close to the menu label after header height increased
+- audience filter icons `📚 / 🩰 / 🎶` enlarged without increasing the filter capsule height
+
+Teacher-planning language was simplified:
+- `Mevcut ders yükü`
+- `Uygunluk kısıtları`
+- `En az / Hedef / En fazla`
+- internal engineering terms were removed from user-facing copy
+
+Next roadmap:
+- M40 teacher load readiness / health
+- then objective metric integration
+- no hidden institutional defaults
+- M39.1 hard availability remains a structural constraint
+
+Working method:
+- assistant patches and commits through GitHub
+- user validates with pull, tests, build, migration gates and browser smoke
+- DB changes follow migration list → dry-run → exact pending check → real push → live smoke
+- record regressions and checkpoint SHAs after PASS
+
+
+## 34. M40 teacher load readiness/objective — IMPLEMENTATION READY
+
+Implementation checkpoint before this diary commit:
+`6c0899981dd92e00fa7da312576df073c0f9f13f`
+
+New migration:
+`20261001200000_management_m40_teacher_load_readiness_objective.sql`
+
+M40 rules:
+- no hidden teacher-load defaults
+- relevant = ACTIVE teacher in active requirement pool or active DRAFT placement
+- all relevant teachers need explicit `target_load` for load-balance readiness
+- min/max are optional soft bands, never hard constraints
+- unused/inactive teachers do not block readiness
+- M39.1 hard availability remains structural
+
+Objective:
+```
+target deviation = Σ abs(load - target)
+range violation = Σ under-min + over-max
+load metric = target deviation + range violation
+```
+
+Implemented:
+- contextual DB load health
+- load readiness in Resources
+- M40 snapshot targets/readiness/baseline metrics
+- generic objective validator supports `teacherLoadBalance`
+- ACTIVE load profile is DB-gated by readiness
+- in-memory weighted load metric
+- load-only seed search
+- result metric comparison
+- Öncelikler load objective UI
+- user-facing readiness guidance
+- load-target edits now intentionally change optimizer readiness/behavior, while program/publication stay unchanged
+
+Regression tests added:
+- incomplete target readiness blocks load optimization
+- complete targets allow load-only optimizer to rebalance a one-card eligible-pool fixture
+
+Expected final code gate:
+- 21 test files
+- 112 tests
+- production build PASS
+
+Status:
+**M40 implementation complete; test/build/DB validation pending.**
+
+Required next gate:
+```bash
+cd /workspaces/msgsud-bale-programi
+git pull --ff-only
+git rev-parse HEAD
+npm test
+npm run build
+npx supabase migration list | tail -25
+npx supabase db push --dry-run
+```
+
+Expected pending DB migration:
+`20261001200000_management_m40_teacher_load_readiness_objective.sql`
+
+Do not push any unexpected migration.
+
+After dry-run PASS:
+1. push M40
+2. confirm local/remote parity
+3. Resources → Teachers: verify ready/relevant counts and missing-target health
+4. define targets for relevant teachers
+5. Öncelikler: verify load-balance becomes selectable only when ready
+6. run load-weighted option generation; verify load metric is reported and no trial write occurs
+7. only explicit proposal confirmation may change placements
+8. mark M40 CLOSED/PASS and update checkpoints
+
+
+### M40 first validation gate result
+
+At `b6009c56337736674715671684da9b319fc478ab`:
+- tests: 21/21 files, 112/112 PASS
+- build: compile PASS, TypeScript failed in `managementSolverProposal.test.ts` due stale M33.3 fixture type
+- migration dry-run/push intentionally not reached
+
+Fixture was updated for M40 result contract:
+- engine `M40-v1`
+- teacher load target/range metrics
+- `teacherLoadBalance` score component
+
+Re-run test/build before any DB push.
+
+
+## 35. M40.1 teacher load defaults — implementation ready
+
+Approved starting values:
+- En az: 1
+- Hedef: 10
+- En fazla: 20
+
+This is an explicit product decision and supersedes the earlier M40 assumption that no institutional defaults existed.
+
+Implementation:
+- shared frontend constant: `MANAGEMENT_TEACHER_LOAD_DEFAULTS`
+- blank relevant teacher form starts at 1 / 10 / 20
+- existing custom values remain untouched
+- migration `20261001213000_management_m40_1_teacher_load_defaults.sql`
+- migration inserts defaults only for relevant ACTIVE teachers with no existing planning row
+- no UPDATE path; custom rows such as 3 / 10 / 20 are preserved
+
+Expected current effect:
+- the 51 missing teacher targets visible in M40 acceptance should be populated automatically if they are genuinely unconfigured rows
+- after migration, Öncelikler → teacher load balance should become selectable when readiness reaches full coverage
+
+Expected gate:
+- 21 test files
+- 113 tests
+- build PASS
+- dry-run shows only M40.1 migration
+- then DB push + browser readiness smoke
+
+
+### M40 acceptance diagnostic — hard readiness blocker visibility
+
+During browser acceptance, Program Kontrolü showed:
+- provisional rooms warning: 41 requirements, explicitly non-blocking
+- hard readiness false, therefore Programı kontrol et disabled
+- previous UI only showed a generic error and hid `readiness.hardBlockers`
+
+Wrapper audit:
+- M33.0.1 provisional-room correction is still in the wrapper chain
+- `RESOURCE_MODE_UNKNOWN` is filtered out of hard blockers before M39.1/M40 wrappers
+- therefore the 41 unknown rooms are not the cause of hard readiness false
+
+UI diagnostic added:
+- Program Kontrolü now renders each hard blocker with Turkish label + count
+- no DB semantics changed
+- next browser refresh should identify the actual blocker before any corrective migration is written
+
+
+### 3 Oct — management load isolation
+
+Observed browser failure:
+`Load failed` caused the entire Program workbench to render empty because all
+startup reads were coupled in one `Promise.all`.
+
+Fix checkpoint:
+`89c93c0b96b4deb221a87db5cf497dcfe0bebb98`
+
+New invariant:
+- startup reads are independent through `Promise.allSettled`
+- one optional module failure no longer erases Program board data
+- board failure itself clears board to avoid stale schedule display
+- error banner names the failing subsystem
+- Safari raw `Load failed` becomes a Turkish network/server connection message
+- no DB migration
+
+Next:
+pull, test/build, reload browser and use the labeled error to identify any
+remaining backend/network failure.
+
+
+### 3 Oct — bounded startup fan-out
+
+After subsystem isolation, Safari reported browser-level `Load failed` for
+Genel özet, Program, Ders Planı, Kaynaklar and Yayın önizleme at the same time.
+
+This pattern points to startup request saturation rather than one broken DB
+contract.
+
+Checkpoint:
+`f5e95125aabe5f2b809c227f8f821432f2ddbdb1`
+
+Startup order is now:
+1. Program board alone
+2. light group: overview + solver + publication gate
+3. Course Plan
+4. Resources
+5. Publication Preview
+6. Undo/Redo
+
+Transient fetch/network failures are retried once after 300 ms.
+HTTP/DB errors are not retried.
+
+No migration.
+
+
+## 36. Emergency rollback to M39.1 stable — 3 Oct 2026
+
+M40/M40.1 acceptance produced management load and drag/drop regressions.
+New feature work is stopped.
+
+Target stable checkpoint:
+`980b8487992c7a0ea1021143384eeb7e1b25a806`
+
+Application rollback:
+`b2670ace1705795e2c99f0a14e0a9e679cc64435`
+
+All application source files changed after the target checkpoint were restored
+from that exact tree. Compare now shows only docs + migration-history files
+different from M39.1 stable.
+
+DB rollback migration:
+`20261003150000_management_rollback_m40_to_m39_1.sql`
+
+Prepared commit:
+`5b3ab1d0b5665dd390164027b8e4eb0aaa8dd817`
+
+Important:
+- do not remove applied M40/M40.1 migration files
+- do not delete 1/10/20 teacher planning rows during emergency rollback
+- restored M39.1 semantics treat load targets as planning-only, so preserved
+  rows do not change solver/candidate/placement behavior
+
+Next gate only:
+```bash
+git pull --ff-only
+npm test
+npm run build
+npx supabase migration list | tail -25
+npx supabase db push --dry-run
+```
+
+Dry-run must show only:
+`20261003150000_management_rollback_m40_to_m39_1.sql`
+
+Then push it, verify migration parity, and smoke:
+Program load → drag/drop → undo → redo.
+
+Do not resume M40 until this baseline is accepted.
+
+
+## 37. Program interaction recovery — PASS
+
+Accepted browser smoke in Firefox:
+- drag/drop to another slot PASS
+- remove to pool PASS
+- undo PASS
+- redo PASS
+
+Accepted implementation checkpoint:
+`290debd16199b141d73ac811f5bfea0286025194`
+
+Network context:
+- Safari still shows browser-level `Load failed` against Supabase
+- Firefox works, but intermittent Supabase/Cloudflare 522 was observed
+- CORS console messages accompanying 522 are secondary symptoms
+- no write RPC receives automatic retry
+
+Separate remaining issue:
+`management_preview_candidate_forward_impacts` can return HTTP 500 in
+Yerleştirme Asistanı. Treat it as an isolated follow-up; preserve the now
+accepted Program interaction path.
+
+
+### 8 Oct 2026 — Management Workspace local history gate CLOSED / PASS
+
+Branch:
+- `feat/management-workspace-v1`
+
+Accepted implementation checkpoint:
+- `523ac21b9e5e5f0838fc7524747def6f9e7b0018`
+
+Scope verified:
+- local operations use monotonic sequence numbers
+- multi-step local Undo/Redo remains DB-history-independent
+- new local edit clears redo history
+- placement remove restores complete placement state
+- requirement resource edits share the same local history
+- resource inventory edits share the global local history
+- teacher availability edits are local-history-native
+- room profile edits are local-history-native
+- locally created resources Undo/Redo as one operation
+- structural bundles remain on the structural path and do not fall through to placement dispatch
+- requirement time preferences participate in the same Undo/Redo chain
+
+Validation gate:
+- focused `tests/managementWorkspaceHistory.test.ts`: **12/12 PASS**
+- full suite: **38/38 files, 270/270 tests PASS**
+- production build: **PASS**
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: build route PASS
+- `git diff --check`: PASS
+- working tree after gate: **CLEAN**
+
+Status: **LOCAL HISTORY GATE CLOSED / PASS**
+
+Contract reinforced:
+- unsaved Management Workspace edits are owned by the local workspace history
+- placement, resource, availability, room-profile, structure and time-preference edits must remain in one coherent local Undo/Redo chain
+- DB persistence remains an explicit Save boundary
+- legacy server history must not re-own workspace-native structural changes
+
+Next active acceptance:
+**browser end-to-end local workspace persistence boundary**
+1. make several mixed local edits (placement + resource/input)
+2. exercise multi-step Undo/Redo in the UI
+3. confirm no DB persistence before Save
+4. Save once and verify atomic persistence after reload
+5. only then open the next objective-model expansion package (teacher-load balance / preferred day-time) from the stable workspace baseline
+
+
+### 8 Oct 2026 — Mixed workspace persistence-boundary regression added — GATE PENDING
+
+Implementation commit:
+- `7232b9f0a2122d4be86b22f44a4ca43780586ea8` — test: cover mixed workspace persistence boundary
+
+Coverage added:
+- placement move + teacher availability + room profile share one local history
+- three-step Undo restores the baseline so commit preparation returns no payload
+- three-step Redo restores the same mixed local state
+- commit preparation then produces one atomic workspace payload containing placement, teacher availability and room profile deltas
+- no production logic or DB migration changed
+
+Validation status:
+- implementation committed
+- focused/full tests and production build: **PENDING user/Codespaces gate**
+- last verified checkpoint remains `523ac21b9e5e5f0838fc7524747def6f9e7b0018`
+
+
+### 8 Oct 2026 — Mixed workspace persistence-boundary code gate CLOSED / PASS
+
+Verified implementation checkpoint:
+- `7232b9f0a2122d4be86b22f44a4ca43780586ea8` — test: cover mixed workspace persistence boundary
+
+Codespaces validation:
+- full suite: **38/38 files, 271/271 tests PASS**
+- production build: **PASS**
+- Next.js 16.3.4 / webpack: PASS
+- TypeScript: **PASS**
+- static generation: **9/9 PASS**
+- `/yonetim`: build route PASS
+
+Accepted regression contract:
+- mixed local edits across placement + teacher availability + room profile share one local history chain
+- multi-step Undo can restore baseline so commit preparation has no persistence payload
+- multi-step Redo restores the mixed local state deterministically
+- one Save boundary can serialize the resulting mixed deltas atomically
+
+Status: **CODE GATE CLOSED / PASS**
+
+Next acceptance boundary:
+**real browser mixed-edit persistence test**
+1. make one placement change
+2. make one teacher availability change
+3. make one room profile change
+4. Undo all three and confirm UI returns to baseline
+5. Redo all three and confirm UI restores the local state
+6. before Save, reload/new session must not persist those local edits
+7. repeat the mixed edits, Save once, reload and verify all persisted together
+
+No DB migration was introduced by this package.
+
+
+### 8 Oct 2026 — Undo/Redo history authority isolation fix — GATE PENDING
+
+Observed browser defect:
+- after local Management Workspace operations, global Undo/Redo could fall through to stale server history when the local stack became empty
+- this exposed and could apply unrelated persisted MOVE/RESOURCE/STRUCTURE operations from earlier work instead of representing the current workspace session
+
+Root cause:
+- `canUseServerManagementHistoryDescriptor()` only suppressed server STRUCTURE history while workspace history existed
+- non-STRUCTURE server descriptors remained eligible as a fallback
+
+Fix:
+- Management Workspace is now the single global history authority whenever a workspace is active
+- all server Undo/Redo descriptors are suppressed while workspace history is available
+- server history is eligible only before/without an active workspace
+- when the local stack is empty, global Undo/Redo now correctly reports no local operation instead of falling through to unrelated server history
+
+Implementation:
+- `b37be8286b8c8b4bba905d234f99172d73b31f7c` — fix: keep workspace undo isolated from server history
+- `2d6e5d2600c260e03c22de29bd52e4dfd8948a82` — test: enforce single workspace history authority
+
+Validation status:
+- focused/full tests and production build: **PENDING Codespaces gate**
+- previous verified baseline remains `7232b9f0a2122d4be86b22f44a4ca43780586ea8`
+
+
+### 8 Oct 2026 — Workspace-native subject time preferences v12 — IMPLEMENTATION READY / GATE PENDING
+
+Goal:
+- remove the last direct-DB exception from the Management Workspace editing model
+- requirement preferred day/start-period edits must stay local until the main Save
+- include those edits in the same atomic persistence boundary as placement/resource/structure changes
+
+Observed architecture gap:
+- `SET_REQUIREMENT_TIME_PREFERENCE` already participated in local Undo/Redo
+- however the UI still called `management_set_requirement_time_preferences` immediately on edit, Undo and Redo
+- therefore time preferences violated the workspace rule that Save is the persistence boundary
+
+Implemented:
+- requirement catalog now retains baseline preferred days/start periods after Course Plan hydration
+- workspace diff now emits deterministic `requirementTimePreferenceChanges`
+- time preference changes contribute to `hasChanges` and dirty requirement IDs
+- atomic commit payload now includes `timePreferenceChanges`
+- client commit target advanced from `management_commit_workspace_v11` to `management_commit_workspace_v12`
+- Course Plan time preference edit is now local-only
+- local Undo/Redo no longer writes time preferences directly to the database
+- UI still projects the local preference state immediately to Course Plan / solver view
+
+Migration prepared:
+- `20261008135000_management_workspace_time_preferences.sql`
+- new `management_commit_workspace_v12`
+- validates original snapshot/baseline freshness
+- stale-checks each preference change against its recorded before-state
+- applies preference changes and delegates the existing v11 workspace commit in the same PostgreSQL transaction
+- recomputes final snapshot hash after the complete transaction
+- authenticated execute only; anon/public revoked
+
+Implementation commits:
+- `0f6d603d360fe8c28c71fc6ab4b2f1241f6d2bde` — feat: diff local time preferences in workspace
+- `c5f67c3b32bafd8604c51ef31e16ddf23cab9c3b` — feat: include time preferences in workspace commit
+- `e8de449cdd6e3fa8e8981c86fb215f9fbc459e1e` — fix: keep time preferences local until workspace save
+- `4afe3892c50372db6ae89c529dc2ec14196d1a66` — feat: persist time preferences in workspace save
+- `198efa52f0622147729b1847bd5afb0eb7061995` — test: cover atomic time preference save
+- `97df7d1c21e48820173bcff64d715012905210a8` — chore: expose workspace time preference commit count
+
+Validation status:
+- focused/full tests: PENDING
+- production build: PENDING
+- migration list/dry-run: PENDING
+- DB push: NOT DONE
+- browser acceptance: PENDING
+
+Required gate:
+1. pull branch and run focused workspace history/commit/history-policy tests
+2. run full suite + production build + diff check
+3. inspect migration parity
+4. dry-run must show only the expected new v12 migration before any DB push
+5. after DB push, verify: edit time preference -> Undo/Redo local -> reload before Save loses edit -> edit again -> one Save -> reload persists it
+
+
+### 8 Oct 2026 — Migration history parity repaired in repo — DB UNTOUCHED
+
+Observed during v12 dry-run:
+- remote DB contained four applied 7 Oct migration versions missing from the branch
+- branch contained the same four migration names/content under later timestamps, so Supabase CLI refused dry-run
+
+Remote applied versions/names:
+- `20261007114637 management_workspace_bundle_limit_72`
+- `20261007115654 management_workspace_fast_move_bundle`
+- `20261007120302 management_workspace_fast_validator_provisional_resources`
+- `20261007122918 management_solver_teacher_load_objective`
+
+Incorrect branch timestamps that were not applied remotely:
+- `20261007145500`
+- `20261007150500`
+- `20261007151000`
+- `20261007153000`
+
+Resolution:
+- preserved migration SQL content
+- renamed the four repo migrations to the exact remote-applied version numbers
+- did **not** run `supabase migration repair`
+- did **not** run `supabase db push`
+- remote database remains unchanged
+
+Repo alignment commits:
+- `540d64ca2bd57cf4e7d6af51bc76dea886d57b55` / `93b3783ef56d1775173e151b1b4a5ddc6d9f8414`
+- `e4f0b5f33f17439ad800d88787c91047daa08520` / `a4a39edf307ab1230ae303d14be93e4b3824d324`
+- `c6711157e3678bc8ff24bae4542f065904542986` / `736a812a5e53d427f14bfaf2b6b3b0400c0397e3`
+- `457098b7c66a11d422e5e9b7d7941521aa3cf71c` / `332ff8ef089d0afbade3c3aaa92143b1c273604e`
+
+Next gate:
+- `supabase migration list` must show 7 Oct parity
+- `supabase db push --dry-run` must show only `20261008135000_management_workspace_time_preferences.sql`
+
+
+### 8 Oct 2026 — Workspace v12 time preferences browser acceptance PASS
+
+Browser acceptance:
+- requirement day/start-period preference edit stays local before Save
+- local Undo restores the previous preference
+- local Redo reapplies it
+- Save persists the preference through the workspace v12 atomic boundary
+- reload after Save preserves the preference
+
+Observed UI-only defect during acceptance:
+- Save success notice did not include `changedTimePreferenceCount`
+- time-preference-only saves therefore displayed an incorrect zero/empty change summary even though persistence succeeded
+
+Fix:
+- `884b17a6bb92ea497f2bf2fdc2c8b7161c6d763f` — ux: count time preferences in save notice
+- Save notice now reports e.g. `1 zaman tercihi değişikliği kaydedildi.`
+
+Status:
+- **WORKSPACE V12 TIME PREFERENCES BROWSER ACCEPTANCE CLOSED / PASS**
+- remaining action: normal test/build gate for the UI-only notice patch
+
+
+### 8 Oct 2026 — Workspace v12 save progress count UI acceptance PASS
+
+Browser acceptance confirmed:
+- save progress overlay now counts all workspace delta categories, including time preferences
+- time-preference-only save correctly shows `1 değişiklik kontrol edilip kaydediliyor.`
+- success notice count and progress overlay are now consistent with workspace v12 persistence
+
+Implementation:
+- `4d77abaf3898bfdaff3e2f41eac07d8cd0104362` — ux: count all workspace deltas in save progress
+
+Status:
+- **WORKSPACE V12 TIME PREFERENCES + SAVE COUNT UI CLOSED / PASS**
+- next active phase: objective model expansion continuation
+
+
+### 8 Oct 2026 — Blocking overlay reserved for startup only
+
+UX simplification:
+- startup loading keeps the full blocking `ManagementBusyOverlay`
+- ordinary in-app operations no longer render a second full-screen blocking overlay
+- ongoing Save/Undo/Redo/calculation activity continues through the existing top activity band
+- `commandBusy` still protects action buttons and write concurrency
+- completion/error feedback continues through toast/notice
+
+Implementation:
+- `0d4375bb16e1ac7da72b46f0b18ba77046a043d8` — ux: reserve blocking overlay for startup only
+
+Resulting feedback hierarchy:
+- startup -> blocking overlay
+- normal ongoing operation -> top activity band
+- result -> toast/notice
+
+Status: implementation complete; normal test/build gate remains.
+
+
+### 8 Oct 2026 — Objective inputs projected into local solver workspace — GATE PENDING
+
+Finding:
+- solver scoring/search already supports `teacherLoadBalance` and `subjectTimePreference`
+- however the local solver adapter projected only placements
+- unsaved teacher load targets and subject time preferences therefore did not affect solver proposals until after the main Save
+
+Implemented:
+- local teacher planning targets project into `preview.teacherLoadTargets`
+- local requirement day/start-period preferences project into `preview.subjectTimePreferences`
+- local solver fingerprint/hash now includes placements + teacher load targets + time preferences
+- solver proposals can therefore react to unsaved objective inputs in the current Management Workspace session
+- server objective inputs are preserved until matching local inputs are hydrated
+- explicit local empty values correctly clear server objective inputs
+
+Implementation commits:
+- `cc18544640fb25608065efa89c69ee5bafd9fdd6` — feat: project local objective inputs into solver snapshot
+- `5a99ee1b6ac28855fb1ba0836f116a7d0e23d67a` — test: cover local objective input projection
+- `6f93d2811e0303f77e4aa706308bd6e6603435fd` — fix: preserve server objective inputs until local hydration
+- `3228e69f3e322019048796ea2460dba6317c1ba1` — test: cover objective input hydration fallback
+
+Validation status:
+- focused adapter tests: PENDING
+- full suite: PENDING
+- production build: PENDING
+
+Next gate:
+- `tests/managementSolverWorkspaceAdapter.test.ts`
+- full test suite
+- production build
+
+
+### 8 Oct 2026 — Teacher-load + subject-time solver search acceptance tests added — GATE PENDING
+
+Acceptance objective:
+- prove the solver does not merely expose metrics/weights but actually changes proposals in the intended direction
+
+Deterministic search scenarios added:
+1. `subjectTimePreference` only:
+   - baseline card starts outside preferred day
+   - optimizer must move it to the preferred day/start period
+   - penalty must improve from 1 -> 0
+2. `teacherLoadBalance` only:
+   - flexible card baseline is assigned to teacher t1
+   - configured load targets prefer t2
+   - optimizer must reassign the card to t2
+   - teacher load deviation must improve from 2 -> 0
+
+Implementation:
+- `8965362445fdf02727022cd3aee0c05fc86f0585` — test: accept teacher load and time preference search
+
+UI integration check:
+- dirty Management Workspace uses `solverWorkspaceForView`
+- `solverWorkspaceForView` is built through the local solver adapter
+- the projected teacher load targets and subject time preferences therefore feed the real Tercihler / proposal-generation path before Save
+
+Validation status:
+- new focused objective-search test: PENDING
+- adapter focused test: PENDING
+- full suite/build: PENDING
+
+
+### 8 Oct 2026 — Objective projection + search code gate PASS
+
+Validation received from Codespaces:
+- Test Files: **39 passed (39)**
+- Tests: **278 passed (278)**
+- production build: PASS
+- TypeScript: PASS
+- static generation: 9/9
+- `/yonetim`: build PASS
+
+This closes the code gate for:
+- local projection of unsaved teacher load targets into solver workspace
+- local projection of unsaved subject day/start-period preferences into solver workspace
+- server fallback before local hydration
+- explicit local clearing semantics
+- deterministic optimizer acceptance for teacher-load balance
+- deterministic optimizer acceptance for subject-time preference
+
+Status:
+- **OBJECTIVE PROJECTION + SEARCH CODE GATE CLOSED / PASS**
+- next: real-data/browser acceptance + objective tuning
+
+
+### 8 Oct 2026 — Real-data objective browser acceptance PASS
+
+Browser evidence on the live 299-card draft schedule confirms both new objective paths affect real solver proposals as intended.
+
+Subject time preference acceptance:
+- active profile: Gün Saat
+- affected cards: 1
+- current-program distance: 0 -> 1
+- teacher continuity breaks: 0 -> 0
+- teacher idle gaps: 94 -> 95
+- room stability breaks: 40 -> 40
+- teacher load deviation: 301 -> 301
+- subject time preference penalty: **1 -> 0**
+- observed move: 11A BALE + 12A BALE / Pas de Deux / block 1 moved from Monday period 10 to Tuesday period 10
+- result: **PASS** — selected objective improved to zero with isolated, explainable schedule movement
+
+Teacher load balance acceptance:
+- active profile: Öğretmen Yükleri
+- affected cards: 2
+- current-program distance: 0 -> 2
+- teacher continuity breaks: 0 -> 0
+- teacher idle gaps: 94 -> 95
+- room stability breaks: 40 -> 40
+- teacher load deviation: **301 -> 299**
+- subject time preference penalty: 1 -> 1
+- result: **PASS** — selected objective improves on real schedule and search changes only the required placements
+
+Conclusion:
+- local objective projection: PASS
+- deterministic search acceptance: PASS
+- real-data/browser acceptance: PASS
+- next work is objective tuning/diagnostics, especially explaining the large absolute teacher-load deviation (301) across 53 configured teachers
+
+
+### 8 Oct 2026 — Teacher-load real-data acceptance corrected: assigned-teacher drop bug found
+
+Correction to the earlier browser interpretation:
+- teacher-load proposal showed `301 -> 299`
+- however the affected rows did not rebalance to another teacher
+- the proposal silently removed existing teacher assignments from OPTIONAL-teacher rows, leaving the room unchanged
+- this is not an acceptable teacher-load optimization outcome
+
+Root cause:
+- OPTIONAL teacher requirements include `null` in their candidate domain
+- with teacher-load objective dominant, local search could reduce load deviation by choosing `teacherId = null`
+- the score improved numerically while the schedule lost teacher assignments
+
+Fix:
+- objective search now preserves existing teacher evidence
+- if a baseline card has an assigned teacher, optimization may switch to another eligible teacher but may not drop the assignment to null
+- explicit teacher removal remains a Management Workspace edit, not an optimizer side effect
+
+Implementation:
+- `5dc13dd3b36c38432dcae7d1b772bc6a64ea8ca7` — fix: prevent objective search from dropping assigned teachers
+- `a47a295c31a9d4e93033983dd12322319547e413` — test: prevent load objective from clearing optional teachers
+
+Acceptance status correction:
+- subject-time real-data acceptance remains **PASS**
+- teacher-load real-data acceptance is **REOPENED / RETEST REQUIRED**
+- deterministic teacher-load reassignment test remains valid, but browser acceptance must be repeated after this guard
+
+
+### 8 Oct 2026 — Teacher-load real-data no-op diagnosed: candidate-cap starvation
+
+Observed after preventing teacher-null optimization:
+- teacher-load profile became a real-data no-op (301 -> 301)
+- A. Küçüküçerler is at 17 periods vs target 10 / max 12
+- E. Gemalmaz is at 10 vs target 10, so A -> E alone does not improve total absolute deviation
+- however A.'s ELIGIBLE_POOL requirements include many under-target teachers, so genuine improving reassignment paths exist
+
+Root cause:
+- raw candidate generation scanned day -> period -> teacher -> room and stopped at maxCandidatesPerCard
+- wide teacher/room pools could exhaust the cap before reaching the baseline slot with alternative teachers
+- therefore the optimizer often could not see minimal teacher-only swaps even though eligibility allowed them
+
+Fix:
+- before generic Cartesian enumeration, generate high-value resource-only alternatives at the current baseline slot
+- first: same day/time + same room + alternative eligible teachers
+- second: same day/time + same teacher + alternative rooms
+- existing teacher-preservation guard remains: assigned teachers cannot be dropped to null by objective search
+
+Implementation:
+- `0f85253b801a5095781a2ce2e1108f901797cacd` — fix: prioritize same-slot teacher swaps before candidate cap
+- `e97c9fbf55a712837a42e9adf61d146aa702f911` — test: keep teacher swaps reachable under candidate cap
+
+Validation: PENDING
+Browser teacher-load acceptance remains REOPENED until a real teacher A -> teacher B reassignment is observed.
+
+
+### 8 Oct 2026 — Teacher-load real-data browser acceptance PASS + solver loading UI fix
+
+Teacher-load browser retest after candidate-cap fix:
+- current-program distance: 0 -> 3
+- teacher continuity breaks: 0 -> 0
+- teacher idle gaps: 94 -> 96
+- room stability breaks: 40 -> 40
+- teacher load deviation: **301 -> 289**
+- subject time preference penalty: 1 -> 1
+- affected cards: 3
+- all three visible changes are genuine teacher reassignments while day/time remains fixed:
+  - 10A BALLET / Doğaçlama / block 2: A. Küçüküçerler -> V. Kondisyon Öğretmeni
+  - 9A BALLET / Doğaçlama / block 1: A. Küçüküçerler -> Müzik Öğretmeni 2
+  - ORKESTRA 11B+11A / block 2: A. Küçüküçerler -> H. S. Pekel
+
+Conclusion:
+- teacher-null escape bug: CLOSED
+- candidate-cap starvation bug: CLOSED
+- **TEACHER-LOAD REAL-DATA/BROWSER ACCEPTANCE CLOSED / PASS**
+
+UI issue observed:
+- while solver preferences are still loading, panel displayed `Program tercihleri alınamadı.`
+- loading and failure states were conflated because `data === null` rendered the failure message immediately
+
+UI fix:
+- explicit `solverWorkspaceLoading` and `solverWorkspaceLoadError` states added in page
+- panel now renders:
+  - loading -> `Program tercihleri yükleniyor…`
+  - actual failure -> `Program tercihleri alınamadı.`
+  - neutral empty -> `Program tercihleri henüz hazır değil.`
+
+Implementation:
+- `895c57f041af5b107572a5ca857d8bc4c1eeaf1c` — ux: distinguish solver loading from load failure
+- `965fdffc7d5fa579f3ad500609aead68f966b7f7` — ux: show solver loading state before load errors
+
+Validation status for UI-only loading-state patch: PENDING
+
+
+### 8 Oct 2026 — Solver loading-state UI gate PASS
+
+Codespaces validation:
+- Test Files: **39 passed (39)**
+- Tests: **280 passed (280)**
+- production build: PASS
+- TypeScript: PASS
+- static generation: 9/9
+- `/yonetim`: build PASS
+
+This closes the UI patch that separates solver preference loading from actual load failure:
+- loading -> `Program tercihleri yükleniyor…`
+- failure -> `Program tercihleri alınamadı.`
+- neutral empty -> `Program tercihleri henüz hazır değil.`
+
+Status:
+- **SOLVER LOADING-STATE UI CLOSED / PASS**
+- next: teacher-load diagnostics/tuning and objective UX refinement
+
+
+### 8 Oct 2026 — Teacher-load diagnostics UI v1 — GATE PENDING
+
+Goal:
+- make the aggregate teacher-load deviation explainable before changing scoring semantics
+- avoid new DB reads; reuse existing Management Resources teacher rows
+
+Implemented in Resources > Teachers:
+- per-teacher load deviation indicator computed from existing row data
+- target semantics match solver scoring:
+  - if targetLoad exists: abs(actual - target)
+  - otherwise: outside min/max band only
+- configured teachers display `Hedef sapması N`
+- optional `Sapmaya göre sırala` toggle sorts largest deviation contributors first
+- default teacher ordering remains unchanged until the toggle is enabled
+
+Implementation:
+- `83347b38dec442c60d22c98bb92bb076490e4956` — ux: expose teacher load deviation contributors
+
+Validation:
+- tests/build: PENDING
+- browser UX acceptance: PENDING
+
+
+### 8 Oct 2026 — Deterministic fixed-teacher assignment repair prepared — DB NOT PUSHED
+
+Finding:
+- many placeholder teachers (e.g. subject Teacher 1/2 records) remain attached to ACTIVE requirements but carry 0 draft load
+- affected requirements are commonly `FIXED + REQUIRED + REQUIREMENT`
+- DRAFT placements for these requirements have `teacher_id = NULL`
+- 172 such placements currently exist across 38 teachers
+- preflight found **0 teacher-time conflicts** against existing assigned placements
+- 167 rows carry only `TEACHER_ASSIGNMENT_INCONSISTENT`
+- 5 rows also carry `ROOM_IDENTITY_PROVISIONAL`
+
+Prepared repair semantics:
+- only ACTIVE requirements with `teacher_mode=FIXED` and `teacher_requirement=REQUIRED`
+- exactly one requirement teacher
+- only placements whose teacher_id is currently NULL
+- preserve day/time/room
+- do not touch ELIGIBLE_POOL assignments
+- set teacher_resolution_status = RESOLVED
+- remove only `TEACHER_ASSIGNMENT_INCONSISTENT`
+- preserve unrelated room/resource warnings
+
+Migration:
+- `20261008155800_restore_fixed_teacher_assignments.sql`
+- commit `42c458b2012302fb2e4c7edcfb6479a72aadca88`
+
+Status:
+- migration prepared in repo
+- DB push: **NOT DONE**
+- dry-run / apply / post-repair validation: PENDING
+
+
+### 8 Oct 2026 — Fixed-teacher repair runtime acceptance PASS
+
+Post-push browser verification:
+- teacher inventory now shows recovered FIXED/REQUIRED assignments as real weekly load
+- summary now shows 53 teacher records / 52 assigned to active lessons / 51 used in the draft program
+- previously empty subject teacher placeholders now carry their expected schedule load (examples: Fen Bilimleri 1/2 = 12 periods each, Biyoloji 1/2 = 3 each, Coğrafya 1/2 = 3 each, Matematik 1/2 = 24 each, Türkçe 1/2 = 21 each)
+
+Post-repair DB diagnostics:
+- aggregate teacher-load deviation remains 301
+- zero-load configured teachers dropped to 2
+- zero-load contribution dropped to 20 total
+- therefore the dominant remaining problem is no longer missing teacher assignments; it is unrealistic/default load targets being treated as explicit planning goals
+
+Largest current contributors include:
+- S. Jaferov: 28 vs target 10 => 18
+- Matematik Öğretmeni 1: 24 vs 10 => 14
+- Matematik Öğretmeni 2: 24 vs 10 => 14
+- İngilizce Öğretmeni 1: 22 vs 10 => 12
+- Türkçe Öğretmeni 1: 21 vs 10 => 11
+- Türkçe Öğretmeni 2: 21 vs 10 => 11
+- Din Kültürü Öğretmeni 1: 20 vs 10 => 10
+
+Status:
+- **FIXED-TEACHER DATA REPAIR CLOSED / PASS**
+- next: distinguish default-seeded teacher load suggestions from explicit human-approved targets; solver should optimize only against explicit targets
+
+
+### 8 Oct 2026 — Teacher load target provenance package prepared — DB NOT PUSHED
+
+Goal:
+- separate historical auto-seeded load suggestions from human-approved teacher planning targets
+- prevent teacherLoadBalance from optimizing against bootstrap defaults as if they were explicit goals
+
+DB preflight on current data:
+- 53 teacher planning rows total
+- 45 untouched 1/10/20 bootstrap rows qualify as DEFAULT_SEED
+- 8 rows have been subsequently edited and remain EXPLICIT
+- explicit set includes A. Küçüküçerler, S. Jaferov, Matematik 1/2, Türkçe 1/2, İngilizce 1, Din Kültürü 1
+
+Prepared migration:
+- `20261008161500_teacher_load_target_provenance.sql`
+- adds `input_source = DEFAULT_SEED | EXPLICIT`
+- backfills only untouched historical bootstrap rows to DEFAULT_SEED
+- direct/user saves always promote a row to EXPLICIT
+- `management_list_teacher_load_targets.configured` is true only for EXPLICIT targets
+- existing numeric seed values remain visible for UI/reference
+- solver snapshot already consumes only rows where `configured=true`, therefore teacherLoadBalance becomes explicit-only without a second snapshot wrapper
+- workspace v5 stale/no-op logic treats DEFAULT_SEED as logically absent, allowing a user to confirm the same suggested values as an explicit target
+
+UI/client behavior:
+- Resources teacher rows expose provenance
+- DEFAULT_SEED values remain visible in neutral styling with `Varsayılan öneri · solver kullanmıyor`
+- EXPLICIT targets show normal target deviation
+- summary separates `onaylı hedef` from `varsayılan`
+- editing/saving a seed suggestion promotes it locally to EXPLICIT before main Save
+- local explicit clear remains distinguishable from a seed fallback
+
+Implementation commits:
+- `2efe4ad3c47b9e1354f54a971dd622b4f5ee955b` — provenance migration
+- `c2ee6785a97e08c3fcb36a0cd2ad6830fc669a97` — expose target provenance in Resources model
+- `b5ab6bbbf8342860dd4937f2af8c0ca3a7d7183c` — project seed vs explicit targets correctly
+- `fb2caa1a43dd8fce3435eee965443ce3deb8a115` — Resources provenance UX
+- `8fb8e620391989fe3df5a86172f12b1344ade24c` — result/type semantics
+- `876c889d7dceb708e45f63a675736aafa3392cf1` — seed/explicit projection tests
+
+Status:
+- DB push: **NOT DONE**
+- focused/full tests: PENDING
+- production build: PENDING
+- migration dry-run: PENDING
+- browser acceptance: PENDING
+
+
+### 8 Oct 2026 — Teacher load target provenance runtime acceptance PASS
+
+Browser acceptance:
+- Resources summary shows **8 onaylı hedef / 45 varsayılan / 0 uygunluk**
+- explicit targets retain normal deviation display
+- seeded suggestions are separated from approved planning targets
+
+DB/snapshot verification:
+- EXPLICIT rows: **8**
+- DEFAULT_SEED rows: **45**
+- solver snapshot teacherLoadTargets: **8**
+- missingOptionalModelInputs: **[]**
+
+Conclusion:
+- 45 historical bootstrap suggestions no longer participate in teacherLoadBalance
+- only the 8 human-approved targets are solver objective inputs
+- user edits/saves continue to promote targets to EXPLICIT
+- **TEACHER LOAD TARGET PROVENANCE CLOSED / PASS**
+
+This closes the teacher-load objective leg for the current milestone:
+- recovered deterministic fixed teacher assignments
+- prevented teacher-null optimization
+- protected same-slot teacher swaps from candidate-cap starvation
+- validated real teacher reassignment behavior
+- exposed per-teacher deviation diagnostics
+- separated default suggestions from explicit solver targets
+
+
+### 8 Oct 2026 — M42 fine-grained card pin foundation — GATE PENDING
+
+Roadmap return after teacher-load objective closure.
+
+M42 contract:
+- legacy `locked=true` remains a full card pin
+- new independent solver pin dimensions:
+  - `timePinned` => preserve baseline day/start period
+  - `teacherPinned` => preserve baseline teacher
+  - `roomPinned` => preserve baseline room
+- unpinned dimensions remain optimizable
+- no hidden inference: pins are explicit card-level state
+
+DB/snapshot foundation:
+- migration `20261008170000_m42_fine_grained_card_pin_foundation.sql`
+- adds `schedule_cards.time_pinned / teacher_pinned / room_pinned`
+- wraps current solver snapshot as M42-v1 and injects pin fields into cards
+- adds `FINE_GRAINED_CARD_PIN` to hard constraint contract
+- pin state participates in snapshotHash
+- no existing card is pinned by migration; defaults are false
+
+Solver semantics:
+- time pin restricts domain to baseline day/start while teacher/room may vary
+- teacher pin restricts teacher domain to baseline teacher
+- room pin restricts room domain to baseline room
+- legacy locked card still pins all dimensions
+
+Implementation commits:
+- `77115fa78788e4de1dc5c0d371fa3b5d5fccf72b` — card pin typing
+- `dbf23e7f8bb80a9131edafe77f410bf59f7e015e` — solver domain enforcement
+- `ab7740ea5c19019d525a913f5f89990ad6b598d8` — M42 DB/snapshot foundation
+- `ffa5bc1737c9fd0d41caa0d61c4794f2f51c673a` — fine-grained pin regression tests
+
+Validation status:
+- focused solver tests: PENDING
+- full suite/build: PENDING
+- migration dry-run: PENDING
+- DB push: NOT DONE
+- UI/local Undo/Redo/atomic Save controls: intentionally next sub-phase after foundation gate
+
+
+### 8 Oct 2026 — M42 fine-grained pin foundation gate PASS
+
+Validation received from Codespaces:
+- Test Files: **39 passed (39)**
+- Tests: **285 passed (285)**
+- production build: PASS
+- TypeScript: PASS
+- static generation: 9/9
+- migration parity: `20261008170000 | 20261008170000`
+
+Status:
+- **M42 FOUNDATION CLOSED / PASS**
+- next sub-phase: local card-pin editing + shared Undo/Redo + atomic main Save + Program/Inspector UI controls
+
+
+### 8 Oct 2026 — M42 local pin editing + Undo/Redo + atomic Save + UI — IMPLEMENTATION READY / GATE PENDING
+
+Implemented local workspace contract:
+- card pin state is part of Management Workspace working copy
+- pin diff is independent from placement diff
+- pin edits mark the card/workspace dirty without moving the lesson
+- shared history operation: `SET_CARD_PINS`
+- Undo/Redo restores all three pin dimensions
+- local solver projection includes unsaved pin state immediately
+- local solver fingerprint/hash includes pin dimensions
+
+Atomic Save:
+- commit payload adds deterministic `pinChanges`
+- client now targets `management_commit_workspace_v13`
+- migration `20261008173000_management_workspace_card_pins.sql`
+- v13 validates original snapshot/baseline, stale-checks current pin state, writes pins, then delegates v12 in the same DB transaction
+- result exposes `changedPinCount`
+
+Inspector UI:
+- new `Solver sabitlemeleri` panel on placed cards
+- independent controls:
+  - Gün / saat
+  - Öğretmen
+  - Salon
+- active dimensions display `Sabit`
+- legacy full `locked` card displays `Tam kilit` and disables fine-grained toggles
+- helper copy states that unpinned dimensions may still change in proposals
+
+Regression coverage added:
+- fine-grained pin workspace diff
+- shared Undo/Redo
+- atomic v13 pin payload
+- unsaved local pin solver projection
+- existing solver time/teacher/full-lock pin semantics
+
+Key commits:
+- `cf415636fce90bff6eca936825c614c014c4da67` workspace pin diff
+- `0c824df9d70a48809142939a09b558648d70408e` history
+- `d5e1677718719fb4bbc4485121850a76fee7ea1c` commands
+- `d6f2f4847843a7f708f84f0c936cd982266e42f9` local solver projection
+- `caf912cde460a8fa9f438c88b5125ef41d45f1c1` workspace v13 migration
+- `60da5f6eef0078f6daace17b1c111af22945110b` Inspector controls
+- `eb133330674945131fa9977ca9dd9c5a99b7e513` page wiring
+- `60ebe46ae047a1b45b19f38ce6d25aff327859a1` v13 client/payload fix
+- tests through `e9e9e8104fb743748426b55d964622951fd34fbb` + fixture-id correction `967b1e887b76a52cb2539a469b8f016107e76071`
+
+Validation status:
+- focused tests: PENDING
+- full suite: PENDING
+- production build: PENDING
+- v13 migration dry-run: PENDING
+- DB push: NOT DONE
+- browser acceptance: PENDING
+
+
+### 8 Oct 2026 — M42 v13 gate failure diagnosed and patched — RE-RUN PENDING
+
+Codespaces gate result:
+- Test Files: 9 failed / 30 passed (39)
+- Tests: 86 failed / 203 passed (289)
+- build compile completed, TypeScript failed
+- migration dry-run was clean and listed only `20261008173000_management_workspace_card_pins.sql`
+- DB push remains NOT DONE
+
+Root causes:
+1. `diffManagementWorkspaceV1` referenced `cardPinChanges` but the declaration block had not actually been inserted; this caused the broad ReferenceError cascade.
+2. Inspector pin props exposed optional booleans directly, causing `boolean | undefined` TypeScript errors.
+3. v13 migration originally applied pins before delegating v12, which would prevent pinning a newly-created structural card. Sequencing was corrected to v12 first, pins second, within the same PostgreSQL transaction.
+4. pin diff now treats a newly-created card baseline as false/false/false, while removed structural cards need no separate pin write.
+
+Fix commits:
+- `c61e43d38dd0c0dc8a8fa8beab65b35acedd3925` — define cardPinChanges before dirty aggregation
+- `3b059e6623741436ec591471ae9d4fd617471dfc` — normalize Inspector optional pin flags
+- `cdc988d5c0851d943f025784a237bd8e03ff52b8` — v13 delegates v12 before pin writes
+- `0fe68366a73602266daffdf75a4963b278222043` — support pins on newly-created cards
+- `ed21ddc3c93fab8f26e406b050cec76547a72417` — align v13 migration documentation
+
+Status:
+- code fixes pushed to branch
+- focused/full tests: RE-RUN PENDING
+- build: RE-RUN PENDING
+- migration dry-run: must be repeated after migration edit
+- DB push: NOT DONE
+
+
+### 8 Oct 2026 — M42 local pin workspace code gate PASS
+
+Codespaces validation:
+- Test Files: **39 passed (39)**
+- Tests: **289 passed (289)**
+- production build: PASS
+- TypeScript: PASS
+- static generation: 9/9
+- v13 migration dry-run: clean; only `20261008173000_management_workspace_card_pins.sql`
+
+Status:
+- **M42 LOCAL PIN WORKSPACE CODE GATE CLOSED / PASS**
+- DB push: pending
+- browser acceptance: pending
+
+
+### 8 Oct 2026 — M42 browser acceptance found semantic/UX defects — PATCHED / RE-TEST PENDING
+
+Browser evidence:
+- Inspector exposed the technical heading `Solver sabitlemeleri`; rejected as implementation jargon in user-facing UI.
+- A card with Gün / saat pin could still be moved manually; linked/parallel move path reported `Türkçe birlikte taşındı`.
+- Therefore M42 was NOT accepted despite prior code gate.
+
+Corrected product semantics:
+- heading is now simply `Sabitlemeler`
+- a pin is a real edit lock, not merely an optimizer hint
+- Gün / saat pin blocks manual drag, candidate move, linked/parallel move and any workspace placement edit that changes day/start
+- Öğretmen pin blocks direct/manual teacher changes
+- Salon pin blocks direct/manual room changes
+- user must remove the corresponding pin before changing that dimension
+- optimizer semantics remain unchanged and honor the same pins
+
+Implementation hardening:
+- central workspace validation codes added:
+  - TIME_PINNED_CHANGED
+  - TEACHER_PINNED_CHANGED
+  - ROOM_PINNED_CHANGED
+- validation compares current placement to baseline for each pinned dimension, so all command paths are covered
+- drag preparation rejects a linked/parallel bundle if any participating card has full lock or time pin
+- Inspector disables teacher/room editors when corresponding pin is active
+- plain-language helper text replaces optimizer-specific wording
+- regression tests added for all three manual pin dimensions
+
+Patch commits:
+- `eec17be54202baa5ceb9ca754fe4e907b94096b4` — central pin validation
+- `fd7e73c6f43489f0428a4f2f74a203b19696d869` — block pinned manual/parallel drag + labels
+- `20d01fb2c5c4787eb99d07ff0abd2b75f57dc9b3` — plain-language pin UI and teacher guard
+- `b057f7b23f9227abc0548392601facea0d1e944a` — room editor guard + helper copy
+- `42790e59a02d2149e8e802313f7171ce24c42d56` — manual pin regression tests
+
+DB status:
+- `20261008173000 management_workspace_card_pins` is confirmed APPLIED remotely.
+- no new migration is required for this semantic hardening; patch is application/workspace validation only.
+
+Status:
+- M42 browser acceptance: **REOPENED**
+- focused/full tests + build after semantic patch: PENDING
+- browser re-test: PENDING
+
+
+### 8 Oct 2026 — M42 notice copy/runtime reason fix — RE-TEST PENDING
+
+Browser feedback:
+- time-pinned drag surfaced the generic error `Yerel aday bilgisi hazırlanamadı. Programı yenileyip tekrar deneyin.` instead of the real pin reason.
+- successful pin-only Save surfaced an empty summary ending as just `kaydedildi.` because `changedPinCount` was omitted from the success-label aggregation.
+
+Fix:
+- beginDrag now re-checks full/time pin state (including linked/parallel bundle members) before emitting the generic preparation failure; blocked drag keeps the explanatory info message: `Bu dersin gün / saati sabit. Taşımak için önce Gün / saat sabitlemesini kaldırın.`
+- generic drag failure copy changed from technical `Yerel aday bilgisi` wording to `Taşıma seçenekleri hazırlanamadı...`
+- Save success aggregation now includes `changedPinCount` as `N sabitleme değişikliği`
+- success notice has a fallback `N değişiklik kaydedildi.`, so an empty `kaydedildi.` message cannot occur
+
+Commit:
+- `d1c34a4b9bcf7d8d8591e655e2d00c21a4624d7f` — meaningful pin-block and save notices
+
+Status:
+- M42 acceptance still REOPENED
+- tests/build after notice patch: PENDING
+- browser re-test: PENDING
+
+
+### 9 Oct 2026 — AWS EC2 development environment migration — CODE/STARTUP PASS
+
+- User moved development from Codespaces to AWS EC2 in eu-north-1 (Stockholm).
+- Ubuntu 26.04 x86_64; t3.small (2 vCPU / 2 GiB RAM), 30 GiB gp3; 4 GiB persistent swap verified.
+- Working directory: `/home/ubuntu/msgsud-bale-programi`; branch: `feat/management-workspace-v1`.
+- Validated source checkpoint: `7f7e249d0ac301f2946a42b9f5a7e188559a8cab` (implementation `d1c34a4b9bcf7d8d8591e655e2d00c21a4624d7f`).
+- Node.js 24.21.0 / npm 11.19.0 / nvm 0.40.8.
+- `npm ci`: PASS; dependency audit reported 17 vulnerabilities; dependencies were not changed for remediation.
+- `npm test`: 39 files / 292 tests PASS.
+- `npm run build`: PASS; TypeScript PASS; 9/9 static pages.
+- Tracked `.env.production` provides public application configuration; no secret transfer was needed, and no Supabase access token was copied.
+- Application: `msgsud-dev` systemd service, built Next.js preview on 127.0.0.1:3000; HTTP 200 and management login/data rendering verified.
+- Editor: code-server 4.141.0, `code-server@ubuntu` systemd service on localhost:8080, password authentication.
+- Windows SSH tunnel forwards localhost ports 3000/8080; SSH ingress restricted to user's IP. No public app/editor port was opened.
+- System update/reboot workflow completed by user; user confirmed both surfaces ready after reboot.
+- Source changes require rebuild and `sudo systemctl restart msgsud-dev`; current service serves built output, not hot reload.
+- Codespaces remains a fallback; do not delete it as part of this migration.
+- No product source edits, DB writes, migration execution, merge to main, or public deployment occurred in this migration.
+- AWS Agent Toolkit: Windows default skills installed earlier; MCP integration with browser ChatGPT Work is NOT verified/completed. EC2 migration does not close that separate setup task.
+- Next: M42 pin-block notice / pin-only Save summary / manual pin behavior targeted browser retest. Environment smoke does not close M42 acceptance.
+
+
+### 9 Oct 2026 — M42 targeted notice browser acceptance PASS on AWS
+
+User supplied two browser screenshots at 15:12 local time:
+- time-pinned drag info notice: `Bu dersin gün / saati sabit. Taşımak için önce Gün / saat sabitlemesini kaldırın.`
+- pin-only Save success: `1 sabitleme değişikliği kaydedildi.`
+
+Both previously rejected notice defects are CLOSED / PASS on the AWS built preview. The code gate already passed 39 files / 292 tests and production build on validated source 7f7e249 (implementation d1c34a4).
+
+Scope: screenshots verify correct blocked-drag reason and successful pin-only Save count. They do not independently prove all teacher/room pin paths, linked-card behavior, persistence after refresh, or baseline restoration. Full M42 acceptance remains pending those checks; do not infer overall closure from the two notice screenshots.
+
+Next: remove the test time pin, Save, refresh, and verify baseline restoration; then targeted teacher/room pin and Undo/Redo checks. No new source or migration change is required by these screenshots.
 
 ## 31. 1 Ekim 2026 — Vercel gate correction
 
@@ -2047,4 +3523,3 @@ yayın istediğinde `[prod]` ile yapılır. Preview yalnız `[deploy]` ile yapı
 Localhost/Codespaces ana doğrulama ortamıdır.
 
 Bu kural 30 Eylül'deki "production her zaman build" notunun yerini alır.
-

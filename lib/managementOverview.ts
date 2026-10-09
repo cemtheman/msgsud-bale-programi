@@ -1,6 +1,7 @@
 'use client';
 
 import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+import { fetchLatestManagementDraftRevision } from '@/lib/managementRevision';
 
 export interface ManagementOverview {
   revisionId: string;
@@ -15,11 +16,6 @@ export interface ManagementOverview {
   activeMoveCount: number;
   touchedCardIds: string[];
   placementsByDay: Record<number, number>;
-}
-
-interface RevisionRow {
-  id: string;
-  version_number: number;
 }
 
 interface CardRow {
@@ -80,12 +76,7 @@ async function authedGet<T>(path: string, accessToken: string): Promise<T> {
 export async function fetchManagementOverview(
   accessToken: string,
 ): Promise<ManagementOverview | null> {
-  const revisions = await authedGet<RevisionRow[]>(
-    'schedule_revisions?select=id,version_number&status=eq.DRAFT&order=version_number.desc&limit=1',
-    accessToken,
-  );
-
-  const revision = revisions[0];
+  const revision = await fetchLatestManagementDraftRevision(accessToken);
   if (!revision) return null;
 
   const cards = await authedGet<CardRow[]>(
@@ -95,11 +86,12 @@ export async function fetchManagementOverview(
 
   const cardIds = new Set(cards.map((card) => card.id));
 
-  const [placements, summaries, moves] = await Promise.all([
-    authedGet<PlacementRow[]>(
-      'placements?select=card_id,day_of_week',
-      accessToken,
-    ),
+  const placements = await authedGet<PlacementRow[]>(
+    'placements?select=card_id,day_of_week',
+    accessToken,
+  );
+
+  const [summaryResult, moveResult] = await Promise.allSettled([
     authedGet<DomainSummaryRow[]>(
       'schedule_card_domain_summaries?select=card_id,unresolved_count,is_forced,is_contradiction',
       accessToken,
@@ -109,6 +101,13 @@ export async function fetchManagementOverview(
       accessToken,
     ),
   ]);
+
+  const summaries = summaryResult.status === 'fulfilled'
+    ? summaryResult.value
+    : [];
+  const moves = moveResult.status === 'fulfilled'
+    ? moveResult.value
+    : [];
 
   const revisionPlacements = placements.filter((placement) => cardIds.has(placement.card_id));
   const revisionSummaries = summaries.filter((summary) => cardIds.has(summary.card_id));

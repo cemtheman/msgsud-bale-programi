@@ -109,6 +109,8 @@ export function ManagementInspector({
   onApplyPlacementResource,
   onUpdatePlanTeachers,
   onUpdatePlanRoomStrategy,
+  pinState,
+  onUpdatePins,
   onRemove,
   onClose,
 }: {
@@ -156,9 +158,21 @@ export function ManagementInspector({
     roomIds: string[],
     requiredCapability: string | null,
   ) => Promise<void>;
+  pinState: {
+    timePinned: boolean;
+    teacherPinned: boolean;
+    roomPinned: boolean;
+  } | null;
+  onUpdatePins: (pins: {
+    timePinned: boolean;
+    teacherPinned: boolean;
+    roomPinned: boolean;
+  }) => void;
   onRemove: () => void;
   onClose: () => void;
 }) {
+  const focusHasCandidates = (candidateFocus?.candidates.length ?? 0) > 0;
+
   const focusTeacherIds = useMemo(
     () => Array.from(new Set(
       (candidateFocus?.candidates ?? [])
@@ -170,6 +184,19 @@ export function ManagementInspector({
 
   const [focusTeacherId, setFocusTeacherId] = useState<string | null>(null);
   const [focusRoomId, setFocusRoomId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Teacher/room choices belong to one exact card + target cell. Carrying
+    // them into another card/cell can leave a stale teacher selected with no
+    // matching room choices, which makes the move panel appear stuck.
+    setFocusTeacherId(null);
+    setFocusRoomId(null);
+  }, [
+    card?.id,
+    candidateFocus?.dayOfWeek,
+    candidateFocus?.startPeriod,
+    candidateFocus?.candidates,
+  ]);
   const [showGeneralCandidates, setShowGeneralCandidates] = useState(false);
   const [candidateHelpOpen, setCandidateHelpOpen] = useState(false);
   const [placementEditMode, setPlacementEditMode] = useState<'TEACHER' | 'ROOM' | null>(null);
@@ -228,15 +255,27 @@ export function ManagementInspector({
   ]);
 
 
+  const focusNeedsTeacherSelection = focusTeacherIds.length > 0;
+
   const focusCandidatesForTeacher = useMemo(
-    () => (
-      focusTeacherId
-        ? (candidateFocus?.candidates ?? []).filter(
-          (candidate) => candidate.teacherId === focusTeacherId,
-        )
-        : []
-    ),
-    [candidateFocus, focusTeacherId],
+    () => {
+      const candidates = candidateFocus?.candidates ?? [];
+
+      if (!focusNeedsTeacherSelection) {
+        return candidates.filter((candidate) => candidate.teacherId === null);
+      }
+
+      if (!focusTeacherId) return [];
+
+      return candidates.filter(
+        (candidate) => candidate.teacherId === focusTeacherId,
+      );
+    },
+    [
+      candidateFocus,
+      focusNeedsTeacherSelection,
+      focusTeacherId,
+    ],
   );
 
   const focusRoomIds = useMemo(
@@ -248,15 +287,29 @@ export function ManagementInspector({
     [focusCandidatesForTeacher],
   );
 
+  const focusNeedsRoomSelection = focusRoomIds.length > 0;
+
   const focusCandidate = useMemo(
-    () => (
-      focusTeacherId && focusRoomId
-        ? focusCandidatesForTeacher.find(
-          (candidate) => candidate.roomId === focusRoomId,
-        ) ?? null
-        : null
-    ),
-    [focusCandidatesForTeacher, focusRoomId, focusTeacherId],
+    () => {
+      if (focusCandidatesForTeacher.length === 0) return null;
+
+      if (!focusNeedsRoomSelection) {
+        return focusCandidatesForTeacher.find(
+          (candidate) => candidate.roomId === null,
+        ) ?? focusCandidatesForTeacher[0] ?? null;
+      }
+
+      if (!focusRoomId) return null;
+
+      return focusCandidatesForTeacher.find(
+        (candidate) => candidate.roomId === focusRoomId,
+      ) ?? null;
+    },
+    [
+      focusCandidatesForTeacher,
+      focusNeedsRoomSelection,
+      focusRoomId,
+    ],
   );
 
 
@@ -424,7 +477,11 @@ export function ManagementInspector({
   }, [candidateFocus, focusTeacherIds]);
 
   useEffect(() => {
-    if (!candidateFocus || !focusTeacherId) {
+    if (
+      !candidateFocus
+      || (focusNeedsTeacherSelection && !focusTeacherId)
+      || !focusNeedsRoomSelection
+    ) {
       setFocusRoomId(null);
       return;
     }
@@ -432,7 +489,13 @@ export function ManagementInspector({
     setFocusRoomId(
       focusRoomIds.length === 1 ? focusRoomIds[0] : null,
     );
-  }, [candidateFocus, focusRoomIds, focusTeacherId]);
+  }, [
+    candidateFocus,
+    focusNeedsRoomSelection,
+    focusNeedsTeacherSelection,
+    focusRoomIds,
+    focusTeacherId,
+  ]);
 
 
   useEffect(() => {
@@ -617,6 +680,55 @@ export function ManagementInspector({
       )}
 
 
+
+      {placement && pinState && (
+        <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                Sabitlemeler
+              </p>
+              <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">
+                Seçtiğiniz özellik değiştirilmez. Değiştirmek için önce ilgili sabitlemeyi kaldırın.
+              </p>
+            </div>
+            {card.locked && (
+              <span className="rounded-full bg-slate-900 px-2 py-1 text-[9px] font-black text-white">
+                Tam kilit
+              </span>
+            )}
+          </div>
+
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {([
+              ['timePinned', 'Gün / saat'],
+              ['teacherPinned', 'Öğretmen'],
+              ['roomPinned', 'Salon'],
+            ] as const).map(([key, label]) => {
+              const active = card.locked || pinState[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={!canEdit || commandBusy || card.locked}
+                  onClick={() => onUpdatePins({
+                    ...pinState,
+                    [key]: !pinState[key],
+                  })}
+                  className={`rounded-xl border px-2 py-2 text-[10px] font-black transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    active
+                      ? 'border-violet-300 bg-violet-50 text-violet-800'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {active ? 'Sabit · ' : ''}{label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {placement && !candidateFocus && canEdit && (
         <div
           ref={placementEditSectionRef}
@@ -630,7 +742,7 @@ export function ManagementInspector({
             Yerleşimi düzenle
           </p>
           <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">
-            Gün veya saati değiştirmek için kartı çizelgede sürükleyin. Öğretmen veya salonu değiştirmek için kaynağı seçin; sistem mevcut slot üzerindeki etkisini ve çakışmaları önce hesaplar.
+            Sabitlenmemiş gün veya saati değiştirmek için kartı çizelgede sürükleyin. Öğretmen veya salon sabitse önce ilgili sabitlemeyi kaldırın; diğer değişikliklerde sistem mevcut slot üzerindeki etkisini ve çakışmaları önce hesaplar.
           </p>
           {((
             card.teacherRequirement === 'REQUIRED'
@@ -667,6 +779,7 @@ export function ManagementInspector({
                 || teacherOptions.length <= (placement.teacherId ? 1 : 0)
                 || commandBusy
                 || card.locked
+                || pinState?.teacherPinned === true
               }
               className={`rounded-xl border px-3 py-2.5 text-[10px] font-bold transition ${
                 placementEditMode === 'TEACHER'
@@ -691,7 +804,12 @@ export function ManagementInspector({
                 setPlacementResourcePreview(null);
                 setPlacementResourceError(null);
               }}
-              disabled={roomOptions.length <= (placement.roomId ? 1 : 0) || commandBusy || card.locked}
+              disabled={
+                roomOptions.length <= (placement.roomId ? 1 : 0)
+                || commandBusy
+                || card.locked
+                || pinState?.roomPinned === true
+              }
               className={`rounded-xl border px-3 py-2.5 text-[10px] font-bold transition ${
                 placementEditMode === 'ROOM'
                   ? 'border-emerald-700 bg-emerald-700 text-white'
@@ -1016,16 +1134,24 @@ export function ManagementInspector({
               {DAY_LABELS[candidateFocus.dayOfWeek]} · {candidateFocus.startPeriod}. ders
             </p>
             <p className="mt-1 text-[10px] font-medium text-blue-700">
-              Yalnızca kararsız kalan bilgiyi seçin.
+              {focusHasCandidates
+                ? 'Yalnızca kararsız kalan bilgiyi seçin.'
+                : 'Bu hücre mevcut program durumunda artık uygun değil.'}
             </p>
           </div>
 
+          {focusHasCandidates && (
+          <>
           <div className="mt-4">
             <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">
               Öğretmen
             </p>
 
-            {focusTeacherIds.length === 1 ? (
+            {focusTeacherIds.length === 0 ? (
+              <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] font-semibold text-slate-500">
+                Öğretmen seçimi gerekmiyor
+              </div>
+            ) : focusTeacherIds.length === 1 ? (
               <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-bold text-slate-700">
                 {teacherNamesById[focusTeacherIds[0]] ?? 'Öğretmen'}
                 <span className="ml-2 text-[9px] font-semibold text-slate-400">
@@ -1057,10 +1183,14 @@ export function ManagementInspector({
               Salon
             </p>
 
-            {!focusTeacherId ? (
+            {focusNeedsTeacherSelection && !focusTeacherId ? (
               <p className="mt-2 rounded-xl bg-white/70 px-3 py-2.5 text-[10px] font-semibold text-slate-400">
                 Önce öğretmeni seçin.
               </p>
+            ) : !focusNeedsRoomSelection ? (
+              <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[10px] font-semibold text-slate-500">
+                Salon seçimi gerekmiyor
+              </div>
             ) : focusRoomIds.length === 1 ? (
               <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-bold text-slate-700">
                 {roomNamesById[focusRoomIds[0]] ?? 'Salon'}
@@ -1091,9 +1221,13 @@ export function ManagementInspector({
           <div className="mt-4 border-t border-blue-100 pt-3">
             {focusCandidate ? (
               <p className="mb-2 text-[10px] font-semibold text-slate-500">
-                {teacherNamesById[focusCandidate.teacherId ?? ''] ?? 'Öğretmen'}
+                {focusCandidate.teacherId
+                  ? teacherNamesById[focusCandidate.teacherId] ?? 'Öğretmen'
+                  : 'Öğretmen gerekmiyor'}
                 {' · '}
-                {roomNamesById[focusCandidate.roomId ?? ''] ?? 'Salon'}
+                {focusCandidate.roomId
+                  ? roomNamesById[focusCandidate.roomId] ?? 'Salon'
+                  : 'Salon gerekmiyor'}
               </p>
             ) : (
               <p className="mb-2 text-[10px] font-semibold text-slate-400">
@@ -1114,6 +1248,8 @@ export function ManagementInspector({
               </button>
             )}
           </div>
+          </>
+          )}
         </div>
       )}
 

@@ -1,53 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
-  <!-- Arka Plan Zemin (iOS Safe-Area Squircle Uyumlu) -->
-  <rect width="512" height="512" rx="112" fill="#FAFAF8"/>
-  
-  <!-- Dış İnce Dairesel Halka -->
-  <circle cx="256" cy="256" r="216" fill="none" stroke="#76AAA5" stroke-width="6" opacity="0.3"/>
-  <circle cx="256" cy="256" r="198" fill="none" stroke="#D94B55" stroke-width="3" stroke-dasharray="12 12" opacity="0.4"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%" role="img" aria-label="Partisyon">
+  <defs>
+    <linearGradient id="partisyon-blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#173FD1"/>
+      <stop offset="1" stop-color="#081E8A"/>
+    </linearGradient>
+  </defs>
 
-  <!-- Balerin Silüeti ve Tütü -->
-  <g transform="translate(0, 8)">
-    <!-- Hareket / Işıma Çemberi -->
-    <ellipse cx="256" cy="260" rx="120" ry="120" fill="#CFE8E5" opacity="0.45"/>
+  <rect x="18" y="18" width="476" height="476" rx="112" fill="#FFFFFF" stroke="#DCE3EF" stroke-width="8"/>
 
-    <!-- Balerin Gövde & Pozisyon (Gül Kırmızısı / Burgundy Vurgu) -->
-    <!-- Baş ve Topuz -->
-    <circle cx="256" cy="122" r="18" fill="#244A47"/>
-    <circle cx="266" cy="114" r="9" fill="#244A47"/> <!-- Topuz -->
+  <g fill="url(#partisyon-blue)">
+    <path d="M130 104H292c82 0 132 43 132 114 0 72-50 116-132 116h-83v103c0 30-20 51-49 51h-30V104Zm79 76v78h79c36 0 56-13 56-40 0-26-20-38-56-38h-79Z"/>
+  </g>
 
-    <!-- Kollar (En Haut / Crown Pozisyonu) -->
-    <path d="M256 142 C230 130, 220 100, 240 85 C250 78, 262 82, 256 95" 
-          fill="none" stroke="#244A47" stroke-width="10" stroke-linecap="round"/>
-    <path d="M256 142 C282 130, 292 100, 272 85 C262 78, 250 82, 256 95" 
-          fill="none" stroke="#244A47" stroke-width="10" stroke-linecap="round"/>
-
-    <!-- Beden / Korse (Leotard) -->
-    <path d="M246 140 C248 165, 248 185, 250 205 L262 205 C264 185, 264 165, 266 140 Z" 
-          fill="#244A47"/>
-
-    <!-- Tütü Etek (Kavisli Katmanlar - Katmanlı Katman Akışı) -->
-    <!-- Alt Tütü Katmanı -->
-    <path d="M210 215 C170 210, 120 225, 140 245 C180 255, 230 245, 256 245 C282 245, 332 255, 372 245 C392 225, 342 210, 302 215 Z" 
-          fill="#76AAA5" opacity="0.7"/>
-    
-    <!-- Üst Tütü Katmanı -->
-    <path d="M220 208 C185 200, 145 212, 160 230 C195 238, 235 232, 256 232 C277 232, 317 238, 352 230 C367 212, 327 200, 292 208 Z" 
-          fill="#D94B55"/>
-
-    <!-- Bacaklar ve Pointe Duruşu (En Pointe) -->
-    <!-- Sol Bacak (Taşıyıcı Bacak - Düz En Pointe) -->
-    <path d="M252 240 L252 375 L250 390" 
-          fill="none" stroke="#244A47" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
-    
-    <!-- Sağ Bacak (Attitude / Passé Kıvrımı) -->
-    <path d="M260 240 C275 270, 295 295, 280 320 C270 335, 258 350, 252 375" 
-          fill="none" stroke="#244A47" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-
-    <!-- Pointe Patikleri & Kurdele Detayı -->
-    <!-- Parmak Ucu Platform Noktası -->
-    <ellipse cx="251" cy="392" rx="6" ry="3" fill="#D94B55"/>
-    <!-- Çapraz Kurdele Vurguları -->
-    <path d="M247 360 L257 368 M247 368 L257 360" stroke="#D94B55" stroke-width="3" stroke-linecap="round"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round">
+    <path d="M145 194H286"/>
+    <path d="M145 230H307"/>
+    <path d="M145 266H286"/>
   </g>
 </svg>

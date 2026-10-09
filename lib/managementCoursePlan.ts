@@ -1,6 +1,7 @@
 'use client';
 
 import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+import { fetchLatestManagementDraftRevision } from '@/lib/managementRevision';
 
 const MANAGEMENT_ROOM_CAPABILITY_IDS = [
   'GENERAL_CLASSROOM_SMALL_GROUP',
@@ -29,7 +30,9 @@ export type ManagementTeacherRequirement =
 
 export interface ManagementCoursePlanRow {
   requirementId: string;
+  subjectId: string;
   subjectName: string;
+  groupId: string;
   groupName: string;
   groupType: string;
   classCodes: string[];
@@ -54,6 +57,8 @@ export interface ManagementCoursePlanRow {
   roomNames: string[];
   placedBlockCount: number;
   requiredCapability: string | null;
+  preferredDays: number[];
+  preferredStartPeriods: number[];
 }
 
 export interface ManagementCoursePlanOption {
@@ -137,11 +142,6 @@ export interface ManagementRequirementStructurePreview {
   ambiguities: ManagementRequirementStructureAmbiguity[];
   candidateRebuildCardCount: number;
   previewOnly: boolean;
-}
-
-interface RevisionRow {
-  id: string;
-  requirement_set_id: string;
 }
 
 interface RequirementRow {
@@ -233,6 +233,12 @@ interface CardRow {
 
 interface PlacementRow {
   card_id: string;
+}
+
+interface RequirementTimePreferenceRow {
+  requirementId: string;
+  preferredDays: number[];
+  preferredStartPeriods: number[];
 }
 
 interface TeacherPolicyAuditResult {
@@ -488,31 +494,22 @@ export function coursePlanMatchesStage(
 
 export async function fetchManagementCoursePlan(
   accessToken: string,
+  onStage?: (stage:
+    | 'STRUCTURE'
+    | 'TEACHERS'
+    | 'ROOMS'
+    | 'PLACEMENTS'
+    | 'CHECKS'
+  ) => void,
 ): Promise<ManagementCoursePlanData | null> {
-  const revisions = await authedGet<RevisionRow[]>(
-    'schedule_revisions?select=id,requirement_set_id&status=eq.DRAFT&order=version_number.desc&limit=1',
-    accessToken,
-  );
-
-  const revision = revisions[0];
+  const revision = await fetchLatestManagementDraftRevision(accessToken);
   if (!revision) return null;
 
-  const [
-    requirements,
-    groups,
-    groupRelations,
-    classGroups,
-    subjects,
-    requirementTeachers,
-    teachers,
-    requirementRooms,
-    rooms,
-    cards,
-    placements,
-    teacherNameOverrides,
-    roomNameOverrides,
-    teacherPolicyAudit,
-  ] = await Promise.all([
+  // Keep request concurrency bounded. The previous implementation launched
+  // fourteen REST/RPC calls at once, which could amplify transient Supabase
+  // edge 522 failures into a complete Course Plan load failure.
+  onStage?.('STRUCTURE');
+  const [requirements, groups, groupRelations] = await Promise.all([
     authedGet<RequirementRow[]>(
       `course_requirements?select=id,subject_id,instructional_group_id,weekly_load,preferred_partition,allowed_partitions,min_distinct_days,max_blocks_per_day,max_consecutive_periods,course_character,delivery_mode,term_status,knowledge_status,teacher_mode,teacher_requirement,teacher_assignment_scope,teacher_continuity,resource_mode,required_capability&requirement_set_id=eq.${revision.requirement_set_id}`,
       accessToken,
@@ -525,16 +522,40 @@ export async function fetchManagementCoursePlan(
       'instructional_group_relations?select=left_group_id,right_group_id,relation',
       accessToken,
     ),
+  ]);
+
+  const timePreferences = await authedRpc<RequirementTimePreferenceRow[]>(
+    'management_list_requirement_time_preferences',
+    accessToken,
+    { p_schedule_revision_id: revision.id },
+  );
+
+  const [classGroups, subjects] = await Promise.all([
     authedGet<ClassGroupRow[]>(
       'class_groups?select=id,grade,section&academic_year=eq.2026-2027&order=grade.asc,section.asc',
       accessToken,
     ),
     authedGet<NamedRow[]>('subjects?select=id,name', accessToken),
+  ]);
+
+  onStage?.('TEACHERS');
+  const [requirementTeachers, teachers, teacherNameOverrides] = await Promise.all([
     authedGet<RequirementTeacherRow[]>(
       'course_requirement_teachers?select=requirement_id,teacher_id',
       accessToken,
     ),
-    authedGet<TeacherOptionRow[]>('teachers?select=id,name,operational_status,archived_at', accessToken),
+    authedGet<TeacherOptionRow[]>(
+      'teachers?select=id,name,operational_status,archived_at',
+      accessToken,
+    ),
+    authedGet<TeacherNameOverrideRow[]>(
+      `management_teacher_name_overrides?select=teacher_id,display_name&schedule_revision_id=eq.${revision.id}`,
+      accessToken,
+    ),
+  ]);
+
+  onStage?.('ROOMS');
+  const [requirementRooms, rooms, roomNameOverrides] = await Promise.all([
     authedGet<RequirementRoomRow[]>(
       'course_requirement_rooms?select=requirement_id,room_id',
       accessToken,
@@ -543,6 +564,14 @@ export async function fetchManagementCoursePlan(
       'rooms?select=id,name,canonical_room_id,capabilities,operational_status,archived_at',
       accessToken,
     ),
+    authedGet<RoomNameOverrideRow[]>(
+      `management_room_name_overrides?select=room_id,display_name&schedule_revision_id=eq.${revision.id}`,
+      accessToken,
+    ),
+  ]);
+
+  onStage?.('PLACEMENTS');
+  const [cards, placements] = await Promise.all([
     authedGet<CardRow[]>(
       `schedule_cards?select=id,requirement_id&schedule_revision_id=eq.${revision.id}`,
       accessToken,
@@ -551,20 +580,14 @@ export async function fetchManagementCoursePlan(
       'placements?select=card_id',
       accessToken,
     ),
-    authedGet<TeacherNameOverrideRow[]>(
-      `management_teacher_name_overrides?select=teacher_id,display_name&schedule_revision_id=eq.${revision.id}`,
-      accessToken,
-    ),
-    authedGet<RoomNameOverrideRow[]>(
-      `management_room_name_overrides?select=room_id,display_name&schedule_revision_id=eq.${revision.id}`,
-      accessToken,
-    ),
-    authedRpc<TeacherPolicyAuditResult>(
-      'management_diagnose_teacher_assignment_policy',
-      accessToken,
-      { p_schedule_revision_id: revision.id },
-    ),
   ]);
+
+  onStage?.('CHECKS');
+  const teacherPolicyAudit = await authedRpc<TeacherPolicyAuditResult>(
+    'management_diagnose_teacher_assignment_policy',
+    accessToken,
+    { p_schedule_revision_id: revision.id },
+  );
 
   const groupById = new Map(groups.map((row) => [row.id, row]));
   const classById = new Map(classGroups.map((row) => [row.id, row]));
@@ -638,6 +661,13 @@ export async function fetchManagementCoursePlan(
     teacherIdsByRequirement.set(row.requirement_id, values);
   });
 
+  const timePreferenceByRequirement = new Map(
+    timePreferences.map((preference) => [
+      preference.requirementId,
+      preference,
+    ]),
+  );
+
   const roomIdsByRequirement = new Map<string, string[]>();
   requirementRooms.forEach((row) => {
     const values = roomIdsByRequirement.get(row.requirement_id) ?? [];
@@ -668,7 +698,9 @@ export async function fetchManagementCoursePlan(
 
     return [{
       requirementId: requirement.id,
+      subjectId: requirement.subject_id,
       subjectName: subjectById.get(requirement.subject_id) ?? 'Ders',
+      groupId: group.id,
       groupName: formatGroupName(group.name),
       groupType: group.group_type,
       classCodes: resolveClassCodes(group.id),
@@ -693,6 +725,10 @@ export async function fetchManagementCoursePlan(
       roomNames: roomIds.map((id) => roomById.get(id) ?? 'Bilinmeyen salon'),
       placedBlockCount: placedBlocksByRequirement.get(requirement.id) ?? 0,
       requiredCapability: requirement.required_capability,
+      preferredDays:
+        timePreferenceByRequirement.get(requirement.id)?.preferredDays ?? [],
+      preferredStartPeriods:
+        timePreferenceByRequirement.get(requirement.id)?.preferredStartPeriods ?? [],
     }];
   });
 
@@ -781,6 +817,34 @@ export function applyManagementRequirementStructure(
       p_allowed_partitions: input.allowedPartitions,
       p_term_status: input.termStatus,
       p_expected_structure_token: expectedStructureToken,
+    },
+  );
+}
+
+export interface ManagementRequirementTimePreferenceResult {
+  requirementId: string;
+  preferredDays: number[];
+  preferredStartPeriods: number[];
+  configured: boolean;
+  publishedChanged: false;
+  solverBehaviorChanged: true;
+}
+
+export function updateManagementRequirementTimePreferences(
+  accessToken: string,
+  scheduleRevisionId: string,
+  requirementId: string,
+  preferredDays: number[],
+  preferredStartPeriods: number[],
+) {
+  return authedRpc<ManagementRequirementTimePreferenceResult>(
+    'management_set_requirement_time_preferences',
+    accessToken,
+    {
+      p_schedule_revision_id: scheduleRevisionId,
+      p_requirement_id: requirementId,
+      p_preferred_days: preferredDays,
+      p_preferred_start_periods: preferredStartPeriods,
     },
   );
 }

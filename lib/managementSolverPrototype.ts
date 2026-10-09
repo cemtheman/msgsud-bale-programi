@@ -6,6 +6,8 @@ import type {
   ManagementSolverRoom,
   ManagementSolverSnapshotPreview,
   ManagementSolverTeacher,
+  ManagementSolverTeacherLoadTarget,
+  ManagementSolverSubjectTimePreference,
   ManagementSolverObjectiveWeights,
 } from '@/lib/managementSolver';
 
@@ -100,12 +102,16 @@ interface SolverContext {
   baseline: Map<string, ManagementSolverBaselinePlacement>;
   activeTeacherIds: Set<string>;
   teachers: Map<string, ManagementSolverTeacher>;
+  teacherUnavailableKeys: Set<string>;
+  teacherLoadTargets: Map<string, ManagementSolverTeacherLoadTarget>;
+  subjectTimePreferences: Map<string, ManagementSolverSubjectTimePreference>;
   rooms: Map<string, ManagementSolverRoom>;
   activeRoomIds: Set<string>;
   teacherPools: Map<string, string[]>;
   roomPools: Map<string, string[]>;
   groupRelations: ManagementSolverInstructionalGroupRelation[];
   groupDescendants: Map<string, Set<string>>;
+  synchronizedCardBundles: Map<string, string[]>;
   maxCandidatesPerCard: number;
 }
 
@@ -117,6 +123,40 @@ const LUNCH_RIGHT_PERIOD = 6;
 
 function unique<T>(values: T[]) {
   return [...new Set(values)];
+}
+
+function teacherAvailabilityKey(
+  teacherId: string,
+  dayOfWeek: number,
+  period: number,
+) {
+  return `${teacherId}|${dayOfWeek}|${period}`;
+}
+
+function teacherIsUnavailable(
+  teacherId: string | null,
+  dayOfWeek: number,
+  startPeriod: number,
+  durationPeriods: number,
+  context: SolverContext,
+) {
+  if (!teacherId) return false;
+
+  for (
+    let period = startPeriod;
+    period < startPeriod + durationPeriods;
+    period += 1
+  ) {
+    if (
+      context.teacherUnavailableKeys.has(
+        teacherAvailabilityKey(teacherId, dayOfWeek, period),
+      )
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function overlaps(
@@ -419,16 +459,20 @@ function rawCandidatesForCard(
   const days = context.snapshot.hardConstraintContract.days;
   const periods = context.snapshot.hardConstraintContract.periods;
 
+  const teacherPinned = card.locked || card.teacherPinned === true;
+  const roomPinned = card.locked || card.roomPinned === true;
+  const timePinned = card.locked || card.timePinned === true;
+
   const teachers = teacherChoices(
     requirement,
     baseline,
-    card.locked,
+    teacherPinned,
     context,
   );
   const rooms = roomChoices(
     requirement,
     baseline,
-    card.locked,
+    roomPinned,
     context,
   );
 
@@ -449,6 +493,15 @@ function rawCandidatesForCard(
     if (!days.includes(dayOfWeek)) return;
     if (!periods.includes(startPeriod)) return;
     if (!validTimeStart(startPeriod, card.durationPeriods, periods)) return;
+    if (
+      teacherIsUnavailable(
+        teacherId,
+        dayOfWeek,
+        startPeriod,
+        card.durationPeriods,
+        context,
+      )
+    ) return;
 
     const key = [
       dayOfWeek,
@@ -493,7 +546,67 @@ function rawCandidatesForCard(
     );
   }
 
-  if (!card.locked) {
+  if (
+    !card.locked
+    && !timePinned
+    && baselinePlacementIsMaterialized(baseline)
+  ) {
+    // Preserve high-value resource-only alternatives before the generic
+    // day/time/resource Cartesian scan reaches the candidate cap. This is
+    // especially important for wide teacher pools: teacher-load balancing
+    // should be able to try "same slot + same room + different teacher"
+    // without first moving the lesson in time or changing its room.
+    for (const teacherId of teachers) {
+      addCandidate(
+        baseline.dayOfWeek,
+        baseline.startPeriod,
+        teacherId,
+        baseline.roomId,
+        false,
+      );
+
+      if (candidates.length >= context.maxCandidatesPerCard) {
+        return candidates;
+      }
+    }
+
+    // Symmetric room-only alternatives are also useful to other objectives,
+    // but keep the current teacher fixed so these remain minimal edits.
+    for (const roomId of rooms) {
+      addCandidate(
+        baseline.dayOfWeek,
+        baseline.startPeriod,
+        baseline.teacherId,
+        roomId,
+        false,
+      );
+
+      if (candidates.length >= context.maxCandidatesPerCard) {
+        return candidates;
+      }
+    }
+  }
+
+  if (
+    timePinned
+    && baselinePlacementIsMaterialized(baseline)
+  ) {
+    for (const teacherId of teachers) {
+      for (const roomId of rooms) {
+        addCandidate(
+          baseline.dayOfWeek,
+          baseline.startPeriod,
+          teacherId,
+          roomId,
+          true,
+        );
+      }
+    }
+
+    return candidates;
+  }
+
+  if (!card.locked && !timePinned) {
     for (const dayOfWeek of days) {
       for (const startPeriod of periods) {
         if (!validTimeStart(startPeriod, card.durationPeriods, periods)) {
@@ -645,6 +758,18 @@ function canAssign(
   remainingCardsByRequirement: Map<string, number>,
   context: SolverContext,
 ) {
+  if (
+    teacherIsUnavailable(
+      candidate.teacherId,
+      candidate.dayOfWeek,
+      candidate.startPeriod,
+      candidate.durationPeriods,
+      context,
+    )
+  ) {
+    return false;
+  }
+
   for (const occupied of assignments) {
     if (candidate.dayOfWeek !== occupied.dayOfWeek) continue;
     if (!overlaps(
@@ -683,11 +808,115 @@ function canAssign(
   );
 }
 
+function sectionGradeKey(
+  requirement: ManagementSolverRequirement,
+) {
+  if (requirement.groupType !== 'SECTION') return null;
+  const match = requirement.groupName
+    .trim()
+    .match(/^(\d+)[A-Z]\s+SECTION$/i);
+  return match?.[1] ?? null;
+}
+
+function buildSynchronizedSectionBundles(
+  requirements: Map<string, ManagementSolverRequirement>,
+  cards: Map<string, ManagementSolverCard>,
+  baseline: Map<string, ManagementSolverBaselinePlacement>,
+) {
+  const grouped = new Map<string, string[]>();
+
+  for (const card of cards.values()) {
+    const requirement = requirements.get(card.requirementId);
+    const placement = baseline.get(card.id);
+    if (!requirement || !baselinePlacementIsMaterialized(placement)) {
+      continue;
+    }
+
+    const grade = sectionGradeKey(requirement);
+    if (!grade) continue;
+
+    const key = [
+      grade,
+      requirement.subjectId,
+      card.blockIndex,
+      card.durationPeriods,
+    ].join('|');
+    const ids = grouped.get(key) ?? [];
+    ids.push(card.id);
+    grouped.set(key, ids);
+  }
+
+  const result = new Map<string, string[]>();
+
+  for (const ids of grouped.values()) {
+    if (ids.length < 2) continue;
+
+    const placements = ids
+      .map((cardId) => baseline.get(cardId))
+      .filter(baselinePlacementIsMaterialized);
+    if (placements.length !== ids.length) continue;
+
+    const first = placements[0];
+    const synchronized = placements.every((placement) => (
+      placement.dayOfWeek === first.dayOfWeek
+      && placement.startPeriod === first.startPeriod
+    ));
+    if (!synchronized) continue;
+
+    const sortedIds = [...ids].sort();
+    for (const cardId of sortedIds) {
+      result.set(cardId, sortedIds);
+    }
+  }
+
+  return result;
+}
+
+function synchronizedBundlesHold(
+  assignments: Candidate[],
+  context: SolverContext,
+) {
+  const byCardId = new Map(
+    assignments.map((assignment) => [assignment.cardId, assignment]),
+  );
+  const visited = new Set<string>();
+
+  for (const [cardId, bundleIds] of context.synchronizedCardBundles) {
+    if (visited.has(cardId)) continue;
+    bundleIds.forEach((id) => visited.add(id));
+
+    const bundle = bundleIds
+      .map((id) => byCardId.get(id))
+      .filter((item): item is Candidate => Boolean(item));
+
+    if (bundle.length !== bundleIds.length) continue;
+
+    const anchor = bundle[0];
+    if (!bundle.every((candidate) => (
+      candidate.dayOfWeek === anchor.dayOfWeek
+      && candidate.startPeriod === anchor.startPeriod
+    ))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function finalRequirementRulesHold(
   assignments: Candidate[],
   context: SolverContext,
 ) {
+  if (!synchronizedBundlesHold(assignments, context)) {
+    return false;
+  }
+
+  const requirementIdsWithCards = new Set(
+    [...context.cards.values()].map((card) => card.requirementId),
+  );
+
   for (const requirement of context.requirements.values()) {
+    if (!requirementIdsWithCards.has(requirement.id)) continue;
     if (requirement.minDistinctDays == null) continue;
 
     const distinctDays = new Set(
@@ -719,19 +948,68 @@ function createContext(
   const cards = new Map(
     snapshot.cards.map((card) => [card.id, card]),
   );
-  const baseline = new Map(
-    snapshot.baselinePlacements.map((placement) => [
-      placement.cardId,
-      placement,
-    ]),
-  );
   const activeTeacherIds = new Set(
     snapshot.teachers
       .filter((teacher) => teacher.operationalStatus === 'ACTIVE')
       .map((teacher) => teacher.id),
   );
+  const teacherPools = buildPoolMap(
+    snapshot.teacherPools,
+    (entry) => entry.teacherId,
+  );
+  const baseline = new Map(
+    snapshot.baselinePlacements.map((placement) => {
+      const card = cards.get(placement.cardId);
+      const requirement = card
+        ? requirements.get(card.requirementId)
+        : null;
+      const plannedTeachers = requirement
+        ? (teacherPools.get(requirement.id) ?? [])
+            .filter((teacherId) => activeTeacherIds.has(teacherId))
+        : [];
+      const effectiveTeacherId = (
+        placement.teacherId == null
+        && requirement?.teacherRequirement === 'REQUIRED'
+        && requirement.teacherMode === 'FIXED'
+        && plannedTeachers.length === 1
+      )
+        ? plannedTeachers[0]
+        : placement.teacherId;
+
+      return [
+        placement.cardId,
+        effectiveTeacherId === placement.teacherId
+          ? placement
+          : {
+              ...placement,
+              teacherId: effectiveTeacherId,
+            },
+      ];
+    }),
+  );
   const teachers = new Map(
     snapshot.teachers.map((teacher) => [teacher.id, teacher]),
+  );
+  const teacherUnavailableKeys = new Set(
+    (snapshot.teacherUnavailablePeriods ?? []).map((slot) => (
+      teacherAvailabilityKey(
+        slot.teacherId,
+        slot.dayOfWeek,
+        slot.period,
+      )
+    )),
+  );
+  const teacherLoadTargets = new Map(
+    (snapshot.teacherLoadTargets ?? []).map((target) => [
+      target.teacherId,
+      target,
+    ]),
+  );
+  const subjectTimePreferences = new Map(
+    (snapshot.subjectTimePreferences ?? []).map((preference) => [
+      preference.requirementId,
+      preference,
+    ]),
   );
   const rooms = new Map(
     snapshot.rooms.map((room) => [room.id, room]),
@@ -741,16 +1019,17 @@ function createContext(
       .filter((room) => room.operationalStatus === 'ACTIVE')
       .map((room) => room.id),
   );
-  const teacherPools = buildPoolMap(
-    snapshot.teacherPools,
-    (entry) => entry.teacherId,
-  );
   const roomPools = buildPoolMap(
     snapshot.roomPools,
     (entry) => entry.roomId,
   );
   const groupTree = buildGroupDescendants(
     snapshot.instructionalGroupRelations,
+  );
+  const synchronizedCardBundles = buildSynchronizedSectionBundles(
+    requirements,
+    cards,
+    baseline,
   );
 
   for (const group of snapshot.instructionalGroups) {
@@ -764,12 +1043,16 @@ function createContext(
     baseline,
     activeTeacherIds,
     teachers,
+    teacherUnavailableKeys,
+    teacherLoadTargets,
+    subjectTimePreferences,
     rooms,
     activeRoomIds,
     teacherPools,
     roomPools,
     groupRelations: snapshot.instructionalGroupRelations,
     groupDescendants: groupTree.memo,
+    synchronizedCardBundles,
     maxCandidatesPerCard,
   };
 }
@@ -841,6 +1124,22 @@ function baselineAudit(
       && !context.activeTeacherIds.has(baseline.teacherId)
     ) {
       addBaselineIssue(issueMap, card.id, 'BASELINE_TEACHER_INACTIVE');
+    }
+
+    if (
+      teacherIsUnavailable(
+        baseline.teacherId,
+        baseline.dayOfWeek,
+        baseline.startPeriod,
+        card.durationPeriods,
+        context,
+      )
+    ) {
+      addBaselineIssue(
+        issueMap,
+        card.id,
+        'BASELINE_TEACHER_UNAVAILABLE',
+      );
     }
 
     if (
@@ -1213,6 +1512,567 @@ function tryBaseline(
     : null;
 }
 
+
+function baselinePinnedCandidatesForCard(
+  card: ManagementSolverCard,
+  context: SolverContext,
+  teacherRepairCardIds: Set<string>,
+) {
+  const requirement = context.requirements.get(card.requirementId);
+  const baseline = context.baseline.get(card.id);
+
+  if (!requirement || !baselinePlacementIsMaterialized(baseline)) {
+    return [];
+  }
+
+  const days = context.snapshot.hardConstraintContract.days;
+  const periods = context.snapshot.hardConstraintContract.periods;
+  if (
+    !days.includes(baseline.dayOfWeek)
+    || !periods.includes(baseline.startPeriod)
+    || !validTimeStart(
+      baseline.startPeriod,
+      card.durationPeriods,
+      periods,
+    )
+  ) {
+    return [];
+  }
+
+  const activePoolTeachers = (
+    context.teacherPools.get(requirement.id) ?? []
+  ).filter((teacherId) => context.activeTeacherIds.has(teacherId));
+
+  const teacherIds = baseline.teacherId != null
+    ? (
+        !card.locked
+        && requirement.teacherMode === 'ELIGIBLE_POOL'
+        && teacherRepairCardIds.has(card.id)
+      )
+        ? unique([
+            baseline.teacherId,
+            ...activePoolTeachers,
+          ])
+        : [baseline.teacherId]
+    : requirement.teacherRequirement === 'REQUIRED'
+      ? teacherChoices(requirement, baseline, card.locked, context)
+      : [null];
+
+  const candidates: Candidate[] = [];
+
+  for (const teacherId of teacherIds) {
+    const effectiveBaseline = {
+      ...baseline,
+      teacherId,
+    };
+
+    if (!baselineResourceDimensionsAllowed(
+      requirement,
+      effectiveBaseline,
+      context,
+    )) {
+      continue;
+    }
+
+    if (teacherIsUnavailable(
+      teacherId,
+      baseline.dayOfWeek,
+      baseline.startPeriod,
+      card.durationPeriods,
+      context,
+    )) {
+      continue;
+    }
+
+    candidates.push({
+      cardId: card.id,
+      requirementId: card.requirementId,
+      groupId: requirement.groupId,
+      durationPeriods: card.durationPeriods,
+      dayOfWeek: baseline.dayOfWeek,
+      startPeriod: baseline.startPeriod,
+      endPeriod: baseline.startPeriod + card.durationPeriods - 1,
+      teacherId,
+      roomId: baseline.roomId,
+      roomConflictKey: roomConflictKey(baseline.roomId, context),
+      provisionalRoom: requirement.resourceMode === 'UNKNOWN',
+      baseline: teacherId === baseline.teacherId,
+    });
+  }
+
+  return candidates;
+}
+
+function tryBaselinePinnedTeacherResolution(
+  cards: ManagementSolverCard[],
+  context: SolverContext,
+  maxVisitedNodes: number,
+  baselineIssues: ManagementFeasibilityBaselineIssue[],
+  diagnostics: string[],
+) {
+  const domains = new Map<string, Candidate[]>();
+  const teacherRepairCardIds = new Set(
+    baselineIssues
+      .filter((issue) => issue.codes.includes('BASELINE_TEACHER_CONFLICT'))
+      .map((issue) => issue.cardId),
+  );
+
+  for (const card of cards) {
+    const candidates = baselinePinnedCandidatesForCard(
+      card,
+      context,
+      teacherRepairCardIds,
+    );
+    if (candidates.length === 0) {
+      diagnostics.push(`PINNED_REPAIR_EMPTY_DOMAIN:${card.id}`);
+      return null;
+    }
+    domains.set(card.id, candidates);
+  }
+
+  const fixedCards = cards.filter(
+    (card) => (domains.get(card.id)?.length ?? 0) === 1,
+  );
+  const variableCards = cards.filter(
+    (card) => (domains.get(card.id)?.length ?? 0) > 1,
+  );
+
+  const assignments: Candidate[] = [];
+  const remainingByRequirement = new Map<string, number>();
+  for (const card of cards) {
+    remainingByRequirement.set(
+      card.requirementId,
+      (remainingByRequirement.get(card.requirementId) ?? 0) + 1,
+    );
+  }
+
+  // Tek adaylı baseline kartları search ağacına sokma. Bunlar mevcut
+  // programın sabit kısmıdır; bir kez doğrulanıp başlangıç assignment'ı olur.
+  for (const card of fixedCards) {
+    const candidate = domains.get(card.id)?.[0];
+    if (!candidate) {
+      diagnostics.push(`PINNED_REPAIR_FIXED_CANDIDATE_MISSING:${card.id}`);
+      return null;
+    }
+
+    remainingByRequirement.set(
+      card.requirementId,
+      Math.max(
+        (remainingByRequirement.get(card.requirementId) ?? 1) - 1,
+        0,
+      ),
+    );
+
+    if (!canAssign(
+      candidate,
+      assignments,
+      remainingByRequirement,
+      context,
+    )) {
+      diagnostics.push(`PINNED_REPAIR_FIXED_PREFIX_CONFLICT:${card.id}`);
+      return null;
+    }
+
+    assignments.push(candidate);
+  }
+
+  type RepairUnit = {
+    id: string;
+    requirementId: string;
+    bundles: Candidate[][];
+  };
+
+  const units: RepairUnit[] = [];
+  const handled = new Set<string>();
+
+  for (const card of variableCards) {
+    if (handled.has(card.id)) continue;
+
+    const requirement = context.requirements.get(card.requirementId);
+    if (!requirement) {
+      diagnostics.push(`PINNED_REPAIR_REQUIREMENT_MISSING:${card.requirementId}`);
+      return null;
+    }
+
+    const continuityUnit = (
+      requirement.teacherAssignmentScope === 'REQUIREMENT'
+      && requirement.teacherContinuity === 'REQUIRED'
+    );
+
+    if (!continuityUnit) {
+      units.push({
+        id: card.id,
+        requirementId: card.requirementId,
+        bundles: (domains.get(card.id) ?? []).map(
+          (candidate) => [candidate],
+        ),
+      });
+      handled.add(card.id);
+      continue;
+    }
+
+    const siblings = variableCards.filter(
+      (item) => item.requirementId === card.requirementId,
+    );
+    for (const sibling of siblings) handled.add(sibling.id);
+
+    const fixedTeachers = unique(
+      assignments
+        .filter(
+          (assignment) => assignment.requirementId === card.requirementId,
+        )
+        .map((assignment) => assignment.teacherId)
+        .filter((teacherId): teacherId is string => teacherId != null),
+    );
+
+    const firstDomain = domains.get(siblings[0].id) ?? [];
+    let teacherIds = unique(
+      firstDomain
+        .map((candidate) => candidate.teacherId)
+        .filter((teacherId): teacherId is string => teacherId != null),
+    );
+
+    for (const sibling of siblings.slice(1)) {
+      const siblingTeachers = new Set(
+        (domains.get(sibling.id) ?? [])
+          .map((candidate) => candidate.teacherId)
+          .filter((teacherId): teacherId is string => teacherId != null),
+      );
+      teacherIds = teacherIds.filter(
+        (teacherId) => siblingTeachers.has(teacherId),
+      );
+    }
+
+    if (fixedTeachers.length > 0) {
+      teacherIds = teacherIds.filter(
+        (teacherId) => fixedTeachers.includes(teacherId),
+      );
+    }
+
+    const bundles = teacherIds.map((teacherId) => (
+      siblings.map((sibling) => {
+        const candidate = (domains.get(sibling.id) ?? []).find(
+          (item) => item.teacherId === teacherId,
+        );
+        if (!candidate) {
+          throw new Error(
+            'Pinned teacher continuity bundle could not be materialized.',
+          );
+        }
+        return candidate;
+      })
+    ));
+
+    if (bundles.length === 0) {
+      diagnostics.push(
+        `PINNED_REPAIR_CONTINUITY_NO_COMMON_TEACHER:${card.requirementId}`,
+      );
+      return null;
+    }
+
+    units.push({
+      id: `requirement:${card.requirementId}`,
+      requirementId: card.requirementId,
+      bundles,
+    });
+  }
+
+  const tryBundle = (
+    bundle: Candidate[],
+    commit: boolean,
+  ) => {
+    const added: Candidate[] = [];
+    let valid = true;
+
+    for (const candidate of bundle) {
+      remainingByRequirement.set(
+        candidate.requirementId,
+        Math.max(
+          (remainingByRequirement.get(candidate.requirementId) ?? 1) - 1,
+          0,
+        ),
+      );
+
+      if (!canAssign(
+        candidate,
+        assignments,
+        remainingByRequirement,
+        context,
+      )) {
+        remainingByRequirement.set(
+          candidate.requirementId,
+          (remainingByRequirement.get(candidate.requirementId) ?? 0) + 1,
+        );
+        valid = false;
+        break;
+      }
+
+      assignments.push(candidate);
+      added.push(candidate);
+    }
+
+    if (!commit || !valid) {
+      while (added.length > 0) {
+        const removed = added.pop();
+        assignments.pop();
+
+        if (removed) {
+          remainingByRequirement.set(
+            removed.requirementId,
+            (remainingByRequirement.get(removed.requirementId) ?? 0) + 1,
+          );
+        }
+      }
+    }
+
+    return {
+      valid,
+      addedCount: commit && valid ? added.length : 0,
+    };
+  };
+
+  // Sabit prefix'e karşı zaten imkânsız olan adayları baştan temizle.
+  for (const unit of units) {
+    unit.bundles = unit.bundles.filter(
+      (bundle) => tryBundle(bundle, false).valid,
+    );
+
+    if (unit.bundles.length === 0) {
+      diagnostics.push(`PINNED_REPAIR_EMPTY_UNIT:${unit.id}`);
+      return null;
+    }
+  }
+
+  const unitsOverlap = (left: RepairUnit, right: RepairUnit) => {
+    const leftBundle = left.bundles[0] ?? [];
+    const rightBundle = right.bundles[0] ?? [];
+
+    return leftBundle.some((leftCandidate) => (
+      rightBundle.some((rightCandidate) => (
+        leftCandidate.dayOfWeek === rightCandidate.dayOfWeek
+        && overlaps(
+          leftCandidate.startPeriod,
+          leftCandidate.endPeriod,
+          rightCandidate.startPeriod,
+          rightCandidate.endPeriod,
+        )
+      ))
+    ));
+  };
+
+  const conflictDegree = new Map<string, number>();
+  for (const unit of units) {
+    conflictDegree.set(
+      unit.id,
+      units.filter(
+        (other) => other.id !== unit.id && unitsOverlap(unit, other),
+      ).length,
+    );
+  }
+
+  const teacherNameForBundle = (bundle: Candidate[]) => {
+    const teacherId = bundle[0]?.teacherId;
+    if (!teacherId) return '';
+    return context.teachers.get(teacherId)?.name ?? teacherId;
+  };
+
+  // Canlı programın teacher-only alt problemi liste-boyama problemidir.
+  // Önce deterministik greedy çözümü dene: dar domain, sonra yüksek derece.
+  // Başarırsa pahalı generic backtracking'e hiç girme.
+  const greedyUnits = [...units].sort((left, right) => (
+    left.bundles.length - right.bundles.length
+    || (conflictDegree.get(right.id) ?? 0) - (conflictDegree.get(left.id) ?? 0)
+    || left.id.localeCompare(right.id)
+  ));
+
+  const greedyBaseAssignmentCount = assignments.length;
+  let greedyVisitedNodeCount = 0;
+  let greedyFailed = false;
+
+  for (const unit of greedyUnits) {
+    const viableBundles = unit.bundles
+      .filter((bundle) => tryBundle(bundle, false).valid)
+      .sort((left, right) => (
+        teacherNameForBundle(left).localeCompare(
+          teacherNameForBundle(right),
+          'tr',
+        )
+      ));
+
+    const chosen = viableBundles[0];
+    if (!chosen) {
+      diagnostics.push(
+        `PINNED_GREEDY_NO_VIABLE_BUNDLE:${unit.id}:${unit.bundles.length}`,
+      );
+      greedyFailed = true;
+      break;
+    }
+
+    greedyVisitedNodeCount += 1;
+    const attempt = tryBundle(chosen, true);
+    if (!attempt.valid) {
+      diagnostics.push(
+        `PINNED_GREEDY_COMMIT_FAILED:${unit.id}`,
+      );
+      greedyFailed = true;
+      break;
+    }
+  }
+
+  const greedyFinalRulesHold = (
+    !greedyFailed
+    && finalRequirementRulesHold(assignments, context)
+  );
+
+  if (!greedyFailed && !greedyFinalRulesHold) {
+    diagnostics.push('PINNED_GREEDY_FINAL_RULES_FAILED');
+    diagnostics.push(
+      `PINNED_GREEDY_ASSIGNMENT_COUNT:${assignments.length}/${cards.length}`,
+    );
+
+    for (const requirement of context.requirements.values()) {
+      if (requirement.minDistinctDays == null) continue;
+
+      const distinctDays = new Set(
+        assignments
+          .filter(
+            (assignment) => assignment.requirementId === requirement.id,
+          )
+          .map((assignment) => assignment.dayOfWeek),
+      ).size;
+
+      if (distinctDays < requirement.minDistinctDays) {
+        diagnostics.push(
+          `PINNED_GREEDY_MIN_DISTINCT_DAYS:${requirement.id}:${distinctDays}/${requirement.minDistinctDays}`,
+        );
+      }
+    }
+  }
+
+  if (greedyFinalRulesHold) {
+    return {
+      assignments,
+      visitedNodeCount: greedyVisitedNodeCount,
+      backtrackCount: 0,
+      generatedCandidateCount: [...domains.values()].reduce(
+        (sum, candidates) => sum + candidates.length,
+        0,
+      ),
+    };
+  }
+
+  while (assignments.length > greedyBaseAssignmentCount) {
+    const removed = assignments.pop();
+    if (removed) {
+      remainingByRequirement.set(
+        removed.requirementId,
+        (remainingByRequirement.get(removed.requirementId) ?? 0) + 1,
+      );
+    }
+  }
+
+  let visitedNodeCount = 0;
+  let backtrackCount = 0;
+  let hitSearchLimit = false;
+  let terminalReached = false;
+  let finalRulesFailed = false;
+
+  const search = (remainingUnits: RepairUnit[]): boolean => {
+    if (remainingUnits.length === 0) {
+      terminalReached = true;
+      const valid = finalRequirementRulesHold(assignments, context);
+      if (!valid) finalRulesFailed = true;
+      return valid;
+    }
+
+    if (visitedNodeCount >= maxVisitedNodes) {
+      hitSearchLimit = true;
+      return false;
+    }
+
+    // Dinamik MRV: mevcut prefix altında gerçekten en az uygulanabilir
+    // bundle'ı kalan unit önce çözülür.
+    const ranked = remainingUnits.map((unit) => {
+      const viableBundles = unit.bundles.filter(
+        (bundle) => tryBundle(bundle, false).valid,
+      );
+
+      return {
+        unit,
+        viableBundles,
+      };
+    }).sort((left, right) => (
+      left.viableBundles.length - right.viableBundles.length
+      || right.unit.bundles.length - left.unit.bundles.length
+      || left.unit.id.localeCompare(right.unit.id)
+    ));
+
+    const selected = ranked[0];
+    if (!selected || selected.viableBundles.length === 0) {
+      return false;
+    }
+
+    const nextUnits = remainingUnits.filter(
+      (unit) => unit.id !== selected.unit.id,
+    );
+
+    for (const bundle of selected.viableBundles) {
+      visitedNodeCount += 1;
+
+      if (visitedNodeCount > maxVisitedNodes) {
+        hitSearchLimit = true;
+        break;
+      }
+
+      const attempt = tryBundle(bundle, true);
+      if (!attempt.valid) {
+        continue;
+      }
+
+      if (search(nextUnits)) {
+        return true;
+      }
+
+      for (let index = 0; index < attempt.addedCount; index += 1) {
+        const removed = assignments.pop();
+        if (removed) {
+          remainingByRequirement.set(
+            removed.requirementId,
+            (remainingByRequirement.get(removed.requirementId) ?? 0) + 1,
+          );
+        }
+      }
+
+      backtrackCount += 1;
+
+      if (hitSearchLimit) break;
+    }
+
+    return false;
+  };
+
+  if (!search(units)) {
+    if (hitSearchLimit) {
+      diagnostics.push('PINNED_REPAIR_SEARCH_LIMIT');
+    } else if (finalRulesFailed || terminalReached) {
+      diagnostics.push('PINNED_REPAIR_FINAL_RULES_FAILED');
+    } else {
+      diagnostics.push('PINNED_REPAIR_NO_ASSIGNMENT');
+    }
+    return null;
+  }
+
+  return {
+    assignments,
+    visitedNodeCount,
+    backtrackCount,
+    generatedCandidateCount: [...domains.values()].reduce(
+      (sum, candidates) => sum + candidates.length,
+      0,
+    ),
+  };
+}
+
 function toPublicPlacement(
   candidate: Candidate,
 ): ManagementFeasibilityPlacement {
@@ -1346,6 +2206,7 @@ export function runManagementFeasibilityPrototype(
   const materializedBaselineCount = cards.filter((card) => (
     baselinePlacementIsMaterialized(context.baseline.get(card.id))
   )).length;
+  const pinnedRepairDiagnostics: string[] = [];
 
   if (materializedBaselineCount === cards.length) {
     const baselineAssignments = tryBaseline(cards, context);
@@ -1368,6 +2229,42 @@ export function runManagementFeasibilityPrototype(
           baselineAssignments.length,
           0,
           0,
+          Date.now() - startedAt,
+        ),
+      };
+    }
+
+    const pinnedResolution = tryBaselinePinnedTeacherResolution(
+      cards,
+      context,
+      maxVisitedNodes,
+      baselineIssues,
+      pinnedRepairDiagnostics,
+    );
+
+    if (pinnedResolution) {
+      return {
+        engineVersion: ENGINE_VERSION,
+        status: 'FEASIBLE',
+        snapshotHash: snapshot.snapshotHash,
+        baselineHash: snapshot.baselineHash,
+        baselineWasFeasible: false,
+        writesPerformed: false,
+        objectiveProfileUsed: false,
+        placements: pinnedResolution.assignments.map(toPublicPlacement),
+        reasons: [],
+        baselineIssues,
+        changedCards: changedCardDiagnostics(
+          pinnedResolution.assignments,
+          baselineIssues,
+          context,
+        ),
+        metrics: resultMetrics(
+          cards.length,
+          pinnedResolution.assignments,
+          pinnedResolution.generatedCandidateCount,
+          pinnedResolution.visitedNodeCount,
+          pinnedResolution.backtrackCount,
           Date.now() - startedAt,
         ),
       };
@@ -1507,6 +2404,7 @@ export function runManagementFeasibilityPrototype(
         hitSearchLimit
           ? 'SEARCH_NODE_LIMIT_REACHED'
           : 'NO_FEASIBLE_ASSIGNMENT_FOUND',
+        ...pinnedRepairDiagnostics,
       ],
       metrics: resultMetrics(
         cards.length,
@@ -1552,6 +2450,8 @@ export interface ManagementOptimizationMetricVector {
   preferredTeacherContinuityBreaks: number;
   teacherIdleGapPeriods: number;
   roomStabilityBreaks: number;
+  teacherLoadDeviationPeriods: number;
+  subjectTimePreferencePenalty: number;
 }
 
 export interface ManagementOptimizationScoreComponent {
@@ -1568,6 +2468,8 @@ export interface ManagementOptimizationScore {
     preferredTeacherContinuity: ManagementOptimizationScoreComponent;
     teacherIdleGaps: ManagementOptimizationScoreComponent;
     roomStability: ManagementOptimizationScoreComponent;
+    teacherLoadBalance: ManagementOptimizationScoreComponent;
+    subjectTimePreference: ManagementOptimizationScoreComponent;
   };
 }
 
@@ -1601,6 +2503,7 @@ export interface ManagementOptimizationOptions {
   maxIterations?: number;
   maxNeighborsPerCard?: number;
   maxCandidatesPerCard?: number;
+  seedPlacements?: ManagementFeasibilityPlacement[];
 }
 
 const DEFAULT_OPTIMIZATION_ITERATIONS = 8;
@@ -1629,6 +2532,7 @@ function objectiveMetricVector(
 
   const byRequirement = new Map<string, Candidate[]>();
   const byTeacherDay = new Map<string, Candidate[]>();
+  const loadByTeacher = new Map<string, number>();
 
   for (const assignment of assignments) {
     const requirementAssignments = byRequirement.get(
@@ -1645,6 +2549,11 @@ function objectiveMetricVector(
       const teacherAssignments = byTeacherDay.get(key) ?? [];
       teacherAssignments.push(assignment);
       byTeacherDay.set(key, teacherAssignments);
+      loadByTeacher.set(
+        assignment.teacherId,
+        (loadByTeacher.get(assignment.teacherId) ?? 0)
+          + assignment.durationPeriods,
+      );
     }
   }
 
@@ -1698,11 +2607,64 @@ function objectiveMetricVector(
     );
   }
 
+  let teacherLoadDeviationPeriods = 0;
+
+  for (const target of context.teacherLoadTargets.values()) {
+    const actualLoad = loadByTeacher.get(target.teacherId) ?? 0;
+
+    if (target.targetLoad != null) {
+      teacherLoadDeviationPeriods += Math.abs(
+        actualLoad - target.targetLoad,
+      );
+      continue;
+    }
+
+    if (
+      target.minimumLoad != null
+      && actualLoad < target.minimumLoad
+    ) {
+      teacherLoadDeviationPeriods += target.minimumLoad - actualLoad;
+    }
+
+    if (
+      target.maximumLoad != null
+      && actualLoad > target.maximumLoad
+    ) {
+      teacherLoadDeviationPeriods += actualLoad - target.maximumLoad;
+    }
+  }
+
+  let subjectTimePreferencePenalty = 0;
+
+  for (const assignment of assignments) {
+    const preference = context.subjectTimePreferences.get(
+      assignment.requirementId,
+    );
+    if (!preference) continue;
+
+    if (
+      preference.preferredDays.length > 0
+      && !preference.preferredDays.includes(assignment.dayOfWeek)
+    ) {
+      subjectTimePreferencePenalty += 1;
+    }
+
+    if (preference.preferredStartPeriods.length > 0) {
+      subjectTimePreferencePenalty += Math.min(
+        ...preference.preferredStartPeriods.map((period) => (
+          Math.abs(period - assignment.startPeriod)
+        )),
+      );
+    }
+  }
+
   return {
     changeCost,
     preferredTeacherContinuityBreaks,
     teacherIdleGapPeriods,
     roomStabilityBreaks,
+    teacherLoadDeviationPeriods,
+    subjectTimePreferencePenalty,
   };
 }
 
@@ -1745,18 +2707,32 @@ function objectiveScore(
     weights.roomStability,
     cardCount,
   );
+  const teacherLoadBalance = optimizationScoreComponent(
+    metrics.teacherLoadDeviationPeriods,
+    weights.teacherLoadBalance,
+    cardCount,
+  );
+  const subjectTimePreference = optimizationScoreComponent(
+    metrics.subjectTimePreferencePenalty,
+    weights.subjectTimePreference,
+    cardCount,
+  );
 
   return {
     total:
       changeCost.contribution
       + preferredTeacherContinuity.contribution
       + teacherIdleGaps.contribution
-      + roomStability.contribution,
+      + roomStability.contribution
+      + teacherLoadBalance.contribution
+      + subjectTimePreference.contribution,
     components: {
       changeCost,
       preferredTeacherContinuity,
       teacherIdleGaps,
       roomStability,
+      teacherLoadBalance,
+      subjectTimePreference,
     },
   };
 }
@@ -1769,6 +2745,8 @@ function supportedPositiveWeightCount(
     weights.preferredTeacherContinuity,
     weights.teacherIdleGaps,
     weights.roomStability,
+    weights.teacherLoadBalance,
+    weights.subjectTimePreference,
   ].filter((weight) => weight > 0).length;
 }
 
@@ -1840,6 +2818,18 @@ function preserveUnknownRoomEvidence(
   return candidate.roomId === baseline.roomId;
 }
 
+function preserveBaselineTeacherEvidence(
+  candidate: Candidate,
+  context: SolverContext,
+) {
+  const baseline = context.baseline.get(candidate.cardId);
+
+  // Objective optimization may rebalance an existing assignment to another
+  // eligible teacher, but it must not improve a score by silently removing
+  // an already assigned teacher. Explicit removal is a workspace edit.
+  return baseline?.teacherId == null || candidate.teacherId != null;
+}
+
 function moveIsHardFeasible(
   candidate: Candidate,
   assignments: Candidate[],
@@ -1863,6 +2853,191 @@ function moveIsHardFeasible(
   );
 }
 
+
+function candidateTimePreferencePenalty(
+  candidate: Candidate,
+  context: SolverContext,
+) {
+  const preference = context.subjectTimePreferences.get(
+    candidate.requirementId,
+  );
+  if (!preference) return 0;
+
+  let penalty = 0;
+
+  if (
+    preference.preferredDays.length > 0
+    && !preference.preferredDays.includes(candidate.dayOfWeek)
+  ) {
+    penalty += 1;
+  }
+
+  if (preference.preferredStartPeriods.length > 0) {
+    penalty += Math.min(
+      ...preference.preferredStartPeriods.map((period) => (
+        Math.abs(period - candidate.startPeriod)
+      )),
+    );
+  }
+
+  return penalty;
+}
+
+function candidatesConflict(
+  left: Candidate,
+  right: Candidate,
+  context: SolverContext,
+) {
+  if (left.dayOfWeek !== right.dayOfWeek) return false;
+  if (!overlaps(
+    left.startPeriod,
+    left.endPeriod,
+    right.startPeriod,
+    right.endPeriod,
+  )) {
+    return false;
+  }
+
+  if (
+    left.teacherId != null
+    && left.teacherId === right.teacherId
+  ) {
+    return true;
+  }
+
+  if (
+    left.roomConflictKey != null
+    && left.roomConflictKey === right.roomConflictKey
+  ) {
+    return true;
+  }
+
+  return groupsConflict(left.groupId, right.groupId, context);
+}
+
+function replacementBundleIsHardFeasible(
+  replacements: Candidate[],
+  untouchedAssignments: Candidate[],
+  context: SolverContext,
+) {
+  const tryOrder = (ordered: Candidate[]) => {
+    const staged = [...untouchedAssignments];
+    const remainingByRequirement = new Map<string, number>();
+
+    for (const candidate of ordered) {
+      remainingByRequirement.set(
+        candidate.requirementId,
+        (remainingByRequirement.get(candidate.requirementId) ?? 0) + 1,
+      );
+    }
+
+    for (const candidate of ordered) {
+      remainingByRequirement.set(
+        candidate.requirementId,
+        Math.max(
+          (remainingByRequirement.get(candidate.requirementId) ?? 1) - 1,
+          0,
+        ),
+      );
+
+      if (!canAssign(
+        candidate,
+        staged,
+        remainingByRequirement,
+        context,
+      )) {
+        return false;
+      }
+
+      staged.push(candidate);
+    }
+
+    return finalRequirementRulesHold(staged, context);
+  };
+
+  if (tryOrder(replacements)) return true;
+
+  return replacements.length === 2
+    ? tryOrder([replacements[1], replacements[0]])
+    : false;
+}
+
+function synchronizedBundleIds(
+  cardId: string,
+  context: SolverContext,
+) {
+  return context.synchronizedCardBundles.get(cardId) ?? [cardId];
+}
+
+function sameTimeBundleCandidates(
+  cardIds: string[],
+  dayOfWeek: number,
+  startPeriod: number,
+  domains: Map<string, Candidate[]>,
+  currentAssignments: Candidate[],
+  context: SolverContext,
+) {
+  const currentByCardId = new Map(
+    currentAssignments.map((assignment) => [
+      assignment.cardId,
+      assignment,
+    ]),
+  );
+  const result: Candidate[] = [];
+
+  for (const cardId of cardIds) {
+    const current = currentByCardId.get(cardId);
+    if (!current) return null;
+
+    const candidates = (domains.get(cardId) ?? [])
+      .filter((candidate) => (
+        candidate.dayOfWeek === dayOfWeek
+        && candidate.startPeriod === startPeriod
+        && preserveUnknownRoomEvidence(candidate, context)
+        && preserveBaselineTeacherEvidence(candidate, context)
+      ))
+      .sort((left, right) => (
+        candidateDistance(left, current)
+        - candidateDistance(right, current)
+        || candidateKey(left).localeCompare(candidateKey(right))
+      ));
+
+    const selected = candidates[0];
+    if (!selected) return null;
+    result.push(selected);
+  }
+
+  return result;
+}
+
+function pairRerouteNeighborhood(
+  domain: Candidate[],
+  current: Candidate,
+  vacatedBy: Candidate,
+  maxNeighbors: number,
+) {
+  return domain
+    .filter((candidate) => !samePlacement(candidate, current))
+    .sort((left, right) => {
+      const leftVacated = (
+        left.dayOfWeek === vacatedBy.dayOfWeek
+        && left.startPeriod === vacatedBy.startPeriod
+      ) ? 0 : 1;
+      const rightVacated = (
+        right.dayOfWeek === vacatedBy.dayOfWeek
+        && right.startPeriod === vacatedBy.startPeriod
+      ) ? 0 : 1;
+
+      return (
+        leftVacated - rightVacated
+        || candidateDistance(left, current)
+          - candidateDistance(right, current)
+        || candidateKey(left).localeCompare(candidateKey(right))
+      );
+    })
+    .slice(0, maxNeighbors);
+}
+
 function metricDelta(
   baseline: ManagementOptimizationMetricVector,
   proposed: ManagementOptimizationMetricVector,
@@ -1878,6 +3053,12 @@ function metricDelta(
     roomStabilityBreaks:
       proposed.roomStabilityBreaks
       - baseline.roomStabilityBreaks,
+    teacherLoadDeviationPeriods:
+      proposed.teacherLoadDeviationPeriods
+      - baseline.teacherLoadDeviationPeriods,
+    subjectTimePreferencePenalty:
+      proposed.subjectTimePreferencePenalty
+      - baseline.subjectTimePreferencePenalty,
   };
 }
 
@@ -1918,6 +3099,7 @@ function runLocalObjectiveSearch(
           metrics: ManagementOptimizationMetricVector;
           score: ManagementOptimizationScore;
           key: string;
+          acceptedMoveIncrement: number;
         }
       | null = null;
 
@@ -1939,7 +3121,10 @@ function runLocalObjectiveSearch(
       );
 
       for (const candidate of neighborhood) {
-        if (!preserveUnknownRoomEvidence(candidate, context)) {
+        if (
+          !preserveUnknownRoomEvidence(candidate, context)
+          || !preserveBaselineTeacherEvidence(candidate, context)
+        ) {
           continue;
         }
 
@@ -1983,7 +3168,178 @@ function runLocalObjectiveSearch(
             metrics: proposedMetrics,
             score: proposedScore,
             key,
+            acceptedMoveIncrement: 1,
           };
+        }
+      }
+    }
+
+    if (weights.subjectTimePreference > 0) {
+      const pairPrimaryLimit = Math.max(
+        8,
+        Math.min(maxNeighborsPerCard, 20),
+      );
+
+      for (const card of cards) {
+        if (card.locked) continue;
+
+        const current = currentAssignments.find(
+          (assignment) => assignment.cardId === card.id,
+        );
+        if (!current) continue;
+
+        const preference = context.subjectTimePreferences.get(
+          card.requirementId,
+        );
+        if (!preference) continue;
+
+        const currentPreferencePenalty = candidateTimePreferencePenalty(
+          current,
+          context,
+        );
+        if (currentPreferencePenalty <= 0) continue;
+
+        const primaryBundleIds = synchronizedBundleIds(
+          card.id,
+          context,
+        );
+        if (primaryBundleIds.some((id) => context.cards.get(id)?.locked)) {
+          continue;
+        }
+
+        const primaryCandidates = (domains.get(card.id) ?? [])
+          .filter((candidate) => (
+            !samePlacement(candidate, current)
+            && candidateTimePreferencePenalty(candidate, context)
+              < currentPreferencePenalty
+          ))
+          .sort((left, right) => (
+            candidateTimePreferencePenalty(left, context)
+              - candidateTimePreferencePenalty(right, context)
+            || candidateDistance(left, current)
+              - candidateDistance(right, current)
+            || candidateKey(left).localeCompare(candidateKey(right))
+          ))
+          .slice(0, pairPrimaryLimit);
+
+        for (const primaryCandidate of primaryCandidates) {
+          const primaryBundle = sameTimeBundleCandidates(
+            primaryBundleIds,
+            primaryCandidate.dayOfWeek,
+            primaryCandidate.startPeriod,
+            domains,
+            currentAssignments,
+            context,
+          );
+          if (!primaryBundle) continue;
+
+          const primaryIds = new Set(primaryBundleIds);
+          const blockers = currentAssignments.filter((assignment) => (
+            !primaryIds.has(assignment.cardId)
+            && primaryBundle.some((candidate) => (
+              candidatesConflict(candidate, assignment, context)
+            ))
+          ));
+          if (blockers.length === 0) continue;
+
+          const blockerIds = new Set<string>();
+          for (const blocker of blockers) {
+            synchronizedBundleIds(blocker.cardId, context)
+              .forEach((id) => blockerIds.add(id));
+          }
+
+          const blockersAreCompleteBundles = [...blockerIds].every((id) => (
+            currentAssignments.some((assignment) => assignment.cardId === id)
+          ));
+          if (!blockersAreCompleteBundles) continue;
+
+          if ([...blockerIds].some((id) => context.cards.get(id)?.locked)) {
+            continue;
+          }
+
+          const primaryAnchorCurrent = currentAssignments.find(
+            (assignment) => assignment.cardId === card.id,
+          );
+          if (!primaryAnchorCurrent) continue;
+
+          const blockerBundle = sameTimeBundleCandidates(
+            [...blockerIds],
+            primaryAnchorCurrent.dayOfWeek,
+            primaryAnchorCurrent.startPeriod,
+            domains,
+            currentAssignments,
+            context,
+          );
+          if (!blockerBundle) continue;
+
+          const replacedIds = new Set([
+            ...primaryBundleIds,
+            ...blockerIds,
+          ]);
+          const untouched = currentAssignments.filter(
+            (assignment) => !replacedIds.has(assignment.cardId),
+          );
+          const replacements = [
+            ...primaryBundle,
+            ...blockerBundle,
+          ];
+
+          evaluatedMoveCount += 1;
+
+          if (!replacementBundleIsHardFeasible(
+            replacements,
+            untouched,
+            context,
+          )) {
+            continue;
+          }
+
+          const proposedAssignments = [
+            ...untouched,
+            ...replacements,
+          ];
+          const proposedMetrics = objectiveMetricVector(
+            proposedAssignments,
+            context,
+          );
+          const proposedScore = objectiveScore(
+            proposedMetrics,
+            weights,
+            cards.length,
+          );
+
+          if (
+            proposedScore.total
+            >= currentScore.total - SCORE_EPSILON
+          ) {
+            continue;
+          }
+
+          const key = [
+            'bundle-swap',
+            ...primaryBundleIds,
+            primaryCandidate.dayOfWeek,
+            primaryCandidate.startPeriod,
+            ...[...blockerIds].sort(),
+          ].join('|');
+
+          if (
+            best == null
+            || proposedScore.total < best.score.total - SCORE_EPSILON
+            || (
+              Math.abs(proposedScore.total - best.score.total)
+                <= SCORE_EPSILON
+              && key.localeCompare(best.key) < 0
+            )
+          ) {
+            best = {
+              assignments: proposedAssignments,
+              metrics: proposedMetrics,
+              score: proposedScore,
+              key,
+              acceptedMoveIncrement: replacements.length,
+            };
+          }
         }
       }
     }
@@ -1993,7 +3349,7 @@ function runLocalObjectiveSearch(
     currentAssignments = best.assignments;
     currentMetrics = best.metrics;
     currentScore = best.score;
-    acceptedMoveCount += 1;
+    acceptedMoveCount += best.acceptedMoveIncrement;
   }
 
   return {
@@ -2014,7 +3370,9 @@ function singleObjectiveSeedWeights(
     key:
       | 'preferredTeacherContinuity'
       | 'teacherIdleGaps'
-      | 'roomStability',
+      | 'roomStability'
+      | 'teacherLoadBalance'
+      | 'subjectTimePreference',
   ) => {
     if (weights[key] <= 0) return;
     seeds.push({
@@ -2031,6 +3389,8 @@ function singleObjectiveSeedWeights(
   add('preferredTeacherContinuity');
   add('teacherIdleGaps');
   add('roomStability');
+  add('teacherLoadBalance');
+  add('subjectTimePreference');
 
   return seeds;
 }
@@ -2046,6 +3406,80 @@ function targetScoreForAssignments(
     metrics,
     score: objectiveScore(metrics, weights, cardCount),
   };
+}
+
+function assignmentsFromOptimizationSeed(
+  placements: ManagementFeasibilityPlacement[],
+  cards: ManagementSolverCard[],
+  context: SolverContext,
+) {
+  if (placements.length !== cards.length) return null;
+
+  const byCardId = new Map(
+    placements.map((placement) => [placement.cardId, placement]),
+  );
+  if (byCardId.size !== cards.length) return null;
+
+  const assignments: Candidate[] = [];
+  const remainingByRequirement = new Map<string, number>();
+
+  for (const card of cards) {
+    remainingByRequirement.set(
+      card.requirementId,
+      (remainingByRequirement.get(card.requirementId) ?? 0) + 1,
+    );
+  }
+
+  for (const card of cards) {
+    const placement = byCardId.get(card.id);
+    const requirement = context.requirements.get(card.requirementId);
+    if (!placement || !requirement) return null;
+
+    const baseline = context.baseline.get(card.id);
+    const candidate: Candidate = {
+      cardId: card.id,
+      requirementId: card.requirementId,
+      groupId: requirement.groupId,
+      durationPeriods: card.durationPeriods,
+      dayOfWeek: placement.dayOfWeek,
+      startPeriod: placement.startPeriod,
+      endPeriod: placement.startPeriod + card.durationPeriods - 1,
+      teacherId: placement.teacherId,
+      roomId: placement.roomId,
+      roomConflictKey: roomConflictKey(placement.roomId, context),
+      provisionalRoom: placement.provisionalRoom,
+      baseline: (
+        baselinePlacementIsMaterialized(baseline)
+        && baseline.dayOfWeek === placement.dayOfWeek
+        && baseline.startPeriod === placement.startPeriod
+        && baseline.teacherId === placement.teacherId
+        && baseline.roomId === placement.roomId
+      ),
+    };
+
+    remainingByRequirement.set(
+      card.requirementId,
+      Math.max(
+        (remainingByRequirement.get(card.requirementId) ?? 1) - 1,
+        0,
+      ),
+    );
+
+    if (!canAssign(
+      candidate,
+      assignments,
+      remainingByRequirement,
+      context,
+    )) {
+      return null;
+    }
+
+    assignments.push(candidate);
+  }
+
+  return finalRequirementRulesHold(assignments, context)
+    ? assignments
+    : null;
 }
 
 export function runManagementObjectiveOptimization(
@@ -2071,6 +3505,8 @@ export function runManagementObjectiveOptimization(
     preferredTeacherContinuityBreaks: 0,
     teacherIdleGapPeriods: 0,
     roomStabilityBreaks: 0,
+    teacherLoadDeviationPeriods: 0,
+    subjectTimePreferencePenalty: 0,
   };
   const emptyScore = objectiveScore(
     emptyMetrics,
@@ -2109,9 +3545,20 @@ export function runManagementObjectiveOptimization(
     return blocked('NO_ACTIVE_SUPPORTED_PRIORITIES');
   }
 
-  const baselineAssignments = tryBaseline(cards, context);
+  const baselineAssignments = options.seedPlacements
+    ? assignmentsFromOptimizationSeed(
+        options.seedPlacements,
+        cards,
+        context,
+      )
+    : tryBaseline(cards, context);
+
   if (!baselineAssignments) {
-    return blocked('BASELINE_NOT_FEASIBLE');
+    return blocked(
+      options.seedPlacements
+        ? 'FEASIBLE_SEED_INVALID'
+        : 'BASELINE_NOT_FEASIBLE',
+    );
   }
 
   const domains = new Map<string, Candidate[]>();
@@ -2197,6 +3644,10 @@ export function runManagementObjectiveOptimization(
       - right.metrics.teacherIdleGapPeriods
     || left.metrics.roomStabilityBreaks
       - right.metrics.roomStabilityBreaks
+    || left.metrics.teacherLoadDeviationPeriods
+      - right.metrics.teacherLoadDeviationPeriods
+    || left.metrics.subjectTimePreferencePenalty
+      - right.metrics.subjectTimePreferencePenalty
     || left.sourceKey.localeCompare(right.sourceKey)
   ));
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+import { fetchLatestManagementDraftRevision } from '@/lib/managementRevision';
 
 import { schoolConfig } from '@/data/scheduleData';
 import type { ManagementStage } from '@/lib/managementBoard';
@@ -44,11 +45,6 @@ export interface ManagementPublicationPreviewData {
   unmappedCurrentPublicSessionCount: number;
   mappingHealthy: boolean;
   stages: Record<ManagementStage, ManagementPublicationStagePreview>;
-}
-
-interface RevisionRow {
-  id: string;
-  requirement_set_id: string;
 }
 
 interface RequirementRow {
@@ -326,12 +322,7 @@ function requirementComparison(
 export async function fetchManagementPublicationPreview(
   accessToken: string,
 ): Promise<ManagementPublicationPreviewData | null> {
-  const revisions = await authedGet<RevisionRow[]>(
-    'schedule_revisions?select=id,requirement_set_id&status=eq.DRAFT&order=version_number.desc&limit=1',
-    accessToken,
-  );
-
-  const revision = revisions[0];
+  const revision = await fetchLatestManagementDraftRevision(accessToken);
   if (!revision) return null;
 
   const publications = await authedGet<PublicationRow[]>(

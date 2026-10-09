@@ -39,6 +39,17 @@ export interface ManagementCommandState {
   redo: ManagementCommandDescriptor | null;
 }
 
+export function canUseServerManagementHistoryDescriptor(
+  descriptor: ManagementCommandDescriptor | null,
+  workspaceOwnsHistory: boolean,
+) {
+  // Management Workspace is the single history authority while it is active.
+  // Falling back to an older server descriptor when the local stack becomes
+  // empty makes the global Undo/Redo controls target unrelated persisted
+  // operations from an earlier session.
+  return Boolean(descriptor && !workspaceOwnsHistory);
+}
+
 export interface ManagementBundleCandidateInput {
   cardId: string;
   dayOfWeek: number;
@@ -84,6 +95,9 @@ export function translateManagementPlacementResourceBlockReason(
   if (reason === 'TEACHER_CONFLICT') {
     return 'Öğretmen aynı saatte başka derste.';
   }
+  if (reason === 'TEACHER_UNAVAILABLE') {
+    return 'Öğretmen bu ders saatinde uygun değil.';
+  }
   if (reason === 'ROOM_CONFLICT') {
     return 'Salon aynı saatte başka derste kullanılıyor.';
   }
@@ -98,6 +112,15 @@ export function translateManagementPlacementResourceBlockReason(
   }
   if (reason === 'REQUIREMENT_TEACHER_MISMATCH') {
     return 'Bu ders tüm bloklarda aynı öğretmeni kullanmalı.';
+  }
+  if (reason === 'TEACHER_NOT_ELIGIBLE') {
+    return 'Seçilen öğretmen bu dersin mevcut öğretmen havuzunda değil.';
+  }
+  if (reason === 'ROOM_NOT_ELIGIBLE') {
+    return 'Seçilen salon bu dersin mevcut salon havuzunda değil.';
+  }
+  if (reason === 'TEACHER_CONTINUITY') {
+    return 'Bu dersin blokları aynı öğretmenle yürütülmeli.';
   }
   if (reason === 'OUTSIDE_PLANNING_POOL_WITH_UNPLACED_BLOCKS') {
     return 'Bu dersin henüz yerleşmemiş blokları var. Seçilen öğretmeni önce Ders Planı öğretmen havuzuna ekleyin.';
@@ -223,6 +246,12 @@ function translateCommandError(message: string, fallback: string) {
     return 'İşlem beklenenden uzun sürdü ve zaman aşımına uğradı. Programın güncel durumunu yenileyip yeniden deneyin.';
   }
 
+
+  if (
+    normalized.includes('m39.1 placement teacher is hard unavailable for selected slot')
+  ) {
+    return 'Öğretmen bu ders saatinde uygun değil. Başka bir saat veya öğretmen seçin.';
+  }
 
   if (
     normalized.includes('candidate is invalid')
@@ -545,6 +574,43 @@ export function removeManagementCard(
   return callRpc('management_remove_card', accessToken, {
     p_card_id: cardId,
   });
+}
+
+export async function fetchManagementPlacedCardIds(
+  accessToken: string,
+  cardIds: string[],
+): Promise<string[]> {
+  const uniqueIds = Array.from(new Set(cardIds)).filter(Boolean);
+  if (uniqueIds.length === 0) return [];
+
+  const { url, key } = getSupabaseConfig();
+  const token = await getFreshManagementAccessToken(accessToken);
+  const filter = `in.(${uniqueIds.join(',')})`;
+
+  const response = await fetch(
+    `${url}/rest/v1/placements?select=card_id&card_id=${encodeURIComponent(filter)}`,
+    {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${token}`,
+      },
+      cache: 'no-store',
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readRpcError(
+        response,
+        'Kartların güncel yerleşim durumu doğrulanamadı.',
+      ),
+    );
+  }
+
+  const rows = await response.json() as Array<{ card_id?: string }>;
+  return rows
+    .map((row) => row.card_id)
+    .filter((value): value is string => typeof value === 'string');
 }
 
 function bundleItemsPayload(items: ManagementBundleCandidateInput[]) {
@@ -1005,13 +1071,35 @@ export async function fetchManagementCommandState(
     '&order=history_sequence.desc',
   ].join('');
 
-  const response = await fetch(`${url}/rest/v1/${path}`, {
+  const token = await getFreshManagementAccessToken(accessToken);
+  const request = () => fetch(`${url}/rest/v1/${path}`, {
     headers: {
       apikey: key,
-      Authorization: `Bearer ${await getFreshManagementAccessToken(accessToken)}`,
+      Authorization: `Bearer ${token}`,
     },
     cache: 'no-store',
   });
+
+  let response: Response;
+  try {
+    response = await request();
+  } catch (reason: unknown) {
+    const message = reason instanceof Error
+      ? reason.message.toLocaleLowerCase('tr-TR')
+      : '';
+    const transient = (
+      message.includes('load failed')
+      || message.includes('failed to fetch')
+      || message.includes('networkerror')
+      || message.includes('network error')
+      || message.includes('network request failed')
+    );
+
+    if (!transient) throw reason;
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    response = await request();
+  }
 
   if (!response.ok) {
     throw new Error(

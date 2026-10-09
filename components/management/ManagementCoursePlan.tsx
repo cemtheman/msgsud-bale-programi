@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ManagementRequirementStructurePreview } from '@/components/management/ManagementRequirementStructurePreview';
 import { ManagementRoomStrategyEditor } from '@/components/management/ManagementRoomStrategyEditor';
 import { ManagementTeacherPolicyEditor } from '@/components/management/ManagementTeacherPolicyEditor';
+import { ManagementTimePreferenceEditor } from '@/components/management/ManagementTimePreferenceEditor';
 import { ManagementTeacherContinuityResolver } from '@/components/management/ManagementTeacherContinuityResolver';
 import {
   coursePlanMatchesStage,
@@ -229,6 +230,7 @@ function requirementRow(
   onEditTeacher: (row: ManagementCoursePlanRow) => void,
   onEditTeacherPolicy: (row: ManagementCoursePlanRow) => void,
   onEditRoom: (row: ManagementCoursePlanRow) => void,
+  onEditTimePreference: (row: ManagementCoursePlanRow) => void,
   onEditStructure: (row: ManagementCoursePlanRow) => void,
 ) {
   const term = termMeta(row.termStatus);
@@ -360,6 +362,18 @@ function requirementRow(
                 >
                   Salon
                 </button>
+                <button
+                  type="button"
+                  onClick={() => onEditTimePreference(row)}
+                  className={`rounded-lg border px-2 py-1 text-[11px] font-bold ${
+                    row.preferredDays.length > 0
+                    || row.preferredStartPeriods.length > 0
+                      ? 'border-[#A63D48]/30 bg-[#A63D48]/5 text-[#A63D48] hover:bg-[#A63D48]/10'
+                      : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  Zaman
+                </button>
               </>
             )}
             <button
@@ -388,6 +402,7 @@ export function ManagementCoursePlan({
   onPreviewCoordinatedTeacherReconciliation,
   onApplyCoordinatedTeacherReconciliation,
   onUpdateRoomStrategy,
+  onUpdateTimePreferences,
   onPreviewStructure,
   onApplyStructure,
 }: {
@@ -434,6 +449,11 @@ export function ManagementCoursePlan({
     roomIds: string[],
     requiredCapability: string | null,
   ) => Promise<void>;
+  onUpdateTimePreferences: (
+    requirementId: string,
+    preferredDays: number[],
+    preferredStartPeriods: number[],
+  ) => Promise<void>;
   onPreviewStructure: (
     input: ManagementRequirementStructurePreviewInput,
   ) => Promise<ManagementRequirementStructurePreviewResult>;
@@ -458,6 +478,8 @@ export function ManagementCoursePlan({
   const [roomStrategyRow, setRoomStrategyRow] =
     useState<ManagementCoursePlanRow | null>(null);
   const [teacherPolicyRow, setTeacherPolicyRow] =
+    useState<ManagementCoursePlanRow | null>(null);
+  const [timePreferenceRow, setTimePreferenceRow] =
     useState<ManagementCoursePlanRow | null>(null);
   const [continuityResolverOpen, setContinuityResolverOpen] = useState(false);
 
@@ -961,6 +983,7 @@ export function ManagementCoursePlan({
                           (row) => openEditor(row, 'TEACHER'),
                           (row) => setTeacherPolicyRow(row),
                           (row) => setRoomStrategyRow(row),
+                          (row) => setTimePreferenceRow(row),
                           (row) => setStructureRow(row),
                         ))}
                       </div>
@@ -973,7 +996,7 @@ export function ManagementCoursePlan({
         </div>
 
         <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-[11px] font-medium leading-5 text-blue-800">
-          Öğretmen ve salon atamaları kontrollü biçimde düzenlenebilir. Haftalık saat, blok yapısı ve dönem durumu için “Ders yapısı” önizlemesi değişikliğin kartlara etkisini kaydetmeden gösterir.
+          Öğretmen, salon ve yumuşak zaman tercihleri ders bazında düzenlenebilir. Haftalık saat, blok yapısı ve dönem durumu için “Ders yapısı” önizlemesi değişikliğin kartlara etkisini kaydetmeden gösterir.
         </div>
       </div>
 
@@ -1003,6 +1026,14 @@ export function ManagementCoursePlan({
             onOpenProgram(requirementId, targetStage);
           }}
           onSave={onUpdateRoomStrategy}
+        />
+      )}
+
+      {timePreferenceRow && (
+        <ManagementTimePreferenceEditor
+          row={timePreferenceRow}
+          onClose={() => setTimePreferenceRow(null)}
+          onSave={onUpdateTimePreferences}
         />
       )}
 
@@ -1074,8 +1105,8 @@ export function ManagementCoursePlan({
               </p>
               <p className="mt-1 text-[11px] font-medium leading-4 text-slate-600">
                 {editRow.placedBlockCount > 0
-                  ? 'Mevcut programı sessizce geçersiz kılmamak için önce bu dersin yerleşimlerini Program ekranından kaldırın.'
-                  : 'Değişiklik kaydedildiğinde yalnız bu dersin uygun yerleri yeniden hesaplanacak.'}
+                  ? 'Mevcut programı sessizce geçersiz kılmamak için önce bu dersin yerleşimlerini Program ekranından kaldırın ve ana Kaydet ile kalıcılaştırın.'
+                  : 'Bu seçim önce yerel çalışma alanına uygulanır; kalıcı kayıt için yönetim ekranındaki ana Kaydet kullanılır.'}
               </p>
 
               {editRow.placedBlockCount > 0 && (
@@ -1145,7 +1176,7 @@ export function ManagementCoursePlan({
                 disabled={saving || editRow.placedBlockCount > 0}
                 className="rounded-xl bg-slate-950 px-4 py-2.5 text-[11px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
               >
-                {saving ? 'Kaydediliyor…' : 'Değişikliği kaydet'}
+                {saving ? 'Uygulanıyor…' : 'Çalışmaya uygula'}
               </button>
             </div>
           </div>

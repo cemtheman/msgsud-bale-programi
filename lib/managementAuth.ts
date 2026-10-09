@@ -175,29 +175,75 @@ export async function refreshManagementSession(
   session: ManagementSession,
 ): Promise<ManagementSession> {
   const { url, key } = getSupabaseConfig();
+  const delays = [0, 350, 900];
+  let lastError = 'Oturum yenilenemedi.';
 
-  const response = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
-    method: 'POST',
-    headers: {
-      apikey: key,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      refresh_token: session.refreshToken,
-    }),
-  });
+  for (let attempt = 0; attempt < delays.length; attempt += 1) {
+    if (delays[attempt] > 0) {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, delays[attempt]);
+      });
+    }
 
-  if (!response.ok) {
-    clearManagementSession();
-    throw new Error(await readError(response, 'Oturum yenilenemedi.'));
+    try {
+      const response = await fetch(
+        `${url}/auth/v1/token?grant_type=refresh_token`,
+        {
+          method: 'POST',
+          headers: {
+            apikey: key,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            refresh_token: session.refreshToken,
+          }),
+          cache: 'no-store',
+        },
+      );
+
+      if (response.ok) {
+        const refreshed = normalizeSession(
+          await response.json() as AuthResponse,
+          session.email,
+        );
+        storeManagementSession(refreshed);
+        return refreshed;
+      }
+
+      lastError = await readError(response, 'Oturum yenilenemedi.');
+
+      // Only an actual authentication rejection invalidates the local session.
+      // Edge/origin failures (5xx/522), rate limits and temporary network
+      // problems must not log the user out.
+      if (
+        response.status === 400
+        || response.status === 401
+        || response.status === 403
+      ) {
+        clearManagementSession();
+        throw new Error(lastError);
+      }
+
+      if (response.status < 500 && response.status !== 429) {
+        throw new Error(lastError);
+      }
+    } catch (reason: unknown) {
+      lastError = reason instanceof Error
+        ? reason.message
+        : 'Oturum yenilenemedi.';
+
+      if (
+        lastError.includes('süresi doldu')
+        || lastError.includes('yeniden giriş')
+      ) {
+        throw reason;
+      }
+    }
   }
 
-  const refreshed = normalizeSession(
-    await response.json() as AuthResponse,
-    session.email,
+  throw new Error(
+    'Sunucuya kısa süreli erişim sorunu var. Oturumunuz korunuyor; lütfen tekrar deneyin.',
   );
-  storeManagementSession(refreshed);
-  return refreshed;
 }
 
 export async function getFreshManagementAccessToken(

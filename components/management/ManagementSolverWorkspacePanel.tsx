@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type {
-  ManagementSolverObjectiveKey,
-  ManagementSolverObjectiveProfile,
-  ManagementSolverObjectiveWeights,
-  ManagementSolverProfileInput,
-  ManagementSolverProfileStatus,
-  ManagementSolverRequirement,
-  ManagementSolverWorkspace,
+import {
+  countEnabledSupportedManagementObjectives,
+  sanitizeManagementSolverObjectiveWeights,
+  type ManagementSolverObjectiveKey,
+  type ManagementSolverObjectiveProfile,
+  type ManagementSolverObjectiveWeights,
+  type ManagementSolverProfileInput,
+  type ManagementSolverProfileStatus,
+  type ManagementSolverRequirement,
+  type ManagementSolverWorkspace,
 } from '@/lib/managementSolver';
 import {
   runManagementFeasibilityPrototype,
@@ -157,6 +159,22 @@ const OBJECTIVES: Array<{
     baseline: (workspace) =>
       `Mevcut programda: ${workspace.preview.baselineMetrics.roomStabilityBreaks} salon değişimi`,
   },
+  {
+    key: 'teacherLoadBalance',
+    title: 'Öğretmen yüklerini hedeflere yaklaştır',
+    summary:
+      'Öğretmenlerin tanımlı haftalık ders saati hedeflerinden toplam sapmayı azaltmayı tercih eder.',
+    baseline: (workspace) =>
+      `${workspace.preview.teacherLoadTargets?.length ?? 0} öğretmen için yük hedefi tanımlı`,
+  },
+  {
+    key: 'subjectTimePreference',
+    title: 'Derslerin tercih edilen gün ve saatlerine yaklaş',
+    summary:
+      'Dersler için Dersler ekranında tanımlanan tercih edilen günleri ve başlangıç ders saatlerini mümkün olduğunca karşılar.',
+    baseline: (workspace) =>
+      `${workspace.preview.subjectTimePreferences?.length ?? 0} ders için zaman tercihi tanımlı`,
+  },
 ];
 
 function statusMeta(status: ManagementSolverProfileStatus) {
@@ -183,9 +201,11 @@ function statusMeta(status: ManagementSolverProfileStatus) {
 function profileWeights(
   profile: ManagementSolverObjectiveProfile | null,
 ): ManagementSolverObjectiveWeights {
-  return profile
-    ? { ...EMPTY_WEIGHTS, ...profile.weights }
-    : { ...EMPTY_WEIGHTS };
+  return sanitizeManagementSolverObjectiveWeights(
+    profile
+      ? { ...EMPTY_WEIGHTS, ...profile.weights }
+      : EMPTY_WEIGHTS,
+  );
 }
 
 function weightsEqual(
@@ -200,16 +220,22 @@ function weightsEqual(
 
 export function ManagementSolverWorkspacePanel({
   data,
+  loading = false,
+  loadError = null,
   canEdit,
   busy,
   onSave,
   onApplyProposal,
+  onActivityChange,
 }: {
   data: ManagementSolverWorkspace | null;
+  loading?: boolean;
+  loadError?: string | null;
   canEdit: boolean;
   busy: boolean;
   onSave: (input: ManagementSolverProfileInput) => Promise<void>;
   onApplyProposal?: (result: ManagementOptimizationResult) => Promise<void>;
+  onActivityChange?: (activity: string | null) => void;
 }) {
   const initialProfile = data?.profiles.find((profile) => profile.status === 'ACTIVE')
     ?? data?.profiles.find((profile) => profile.status === 'DRAFT')
@@ -232,6 +258,22 @@ export function ManagementSolverWorkspacePanel({
   const [activationPending, setActivationPending] = useState(false);
   const [proposalApplyPending, setProposalApplyPending] = useState(false);
   const [proposalApplyError, setProposalApplyError] = useState<string | null>(null);
+  const [feasibilityDetailsOpen, setFeasibilityDetailsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!onActivityChange) return;
+    if (optimizationBusy) {
+      onActivityChange('Daha uygun program seçeneği hesaplanıyor…');
+      return;
+    }
+    if (feasibilityBusy) {
+      onActivityChange('Program kuralları kontrol ediliyor…');
+      return;
+    }
+    onActivityChange(null);
+
+    return () => onActivityChange(null);
+  }, [feasibilityBusy, onActivityChange, optimizationBusy]);
 
   const selectedProfile = useMemo(
     () => data?.profiles.find((profile) => profile.id === selectedProfileId) ?? null,
@@ -271,10 +313,16 @@ export function ManagementSolverWorkspacePanel({
   ]);
 
   if (!data) {
+    const statusText = loading
+      ? 'Program tercihleri yükleniyor…'
+      : loadError
+        ? 'Program tercihleri alınamadı.'
+        : 'Program tercihleri henüz hazır değil.';
+
     return (
       <section className="flex min-h-0 flex-1 items-center justify-center p-6">
         <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-semibold text-slate-500">
-          Program tercihleri alınamadı.
+          {statusText}
         </div>
       </section>
     );
@@ -285,9 +333,9 @@ export function ManagementSolverWorkspacePanel({
   const unknownRooms = provisionalInputs.find(
     (item) => item.code === 'RESOURCE_MODE_UNKNOWN',
   ) ?? null;
-  const positiveObjectiveCount = OBJECTIVES.filter(
-    (objective) => weights[objective.key] > 0,
-  ).length;
+  const positiveObjectiveCount = countEnabledSupportedManagementObjectives(
+    weights,
+  );
   const canActivate = (
     canEdit
     && !busy
@@ -300,6 +348,70 @@ export function ManagementSolverWorkspacePanel({
   const additionalBaselineIssues = (
     feasibilityResult?.baselineIssues ?? []
   ).filter((issue) => !changedCardIds.has(issue.cardId));
+
+  const feasibilityChangedCards = feasibilityResult?.changedCards ?? [];
+  const directChangedCount = feasibilityChangedCards.filter(
+    (item) => item.baselineIssueCodes.length > 0,
+  ).length;
+  const rippleChangedCount = feasibilityChangedCards.length - directChangedCount;
+  const timeChangedCount = feasibilityChangedCards.filter((item) => (
+    item.baseline.dayOfWeek !== item.proposed.dayOfWeek
+    || item.baseline.startPeriod !== item.proposed.startPeriod
+  )).length;
+  const teacherChangedCount = feasibilityChangedCards.filter(
+    (item) => item.baseline.teacherName !== item.proposed.teacherName,
+  ).length;
+  const roomChangedCount = feasibilityChangedCards.filter(
+    (item) => item.baseline.roomName !== item.proposed.roomName,
+  ).length;
+  const issueCodeCounts = new Map<string, number>();
+  for (const issue of feasibilityResult?.baselineIssues ?? []) {
+    for (const code of issue.codes) {
+      issueCodeCounts.set(code, (issueCodeCounts.get(code) ?? 0) + 1);
+    }
+  }
+  const issueSummary = [...issueCodeCounts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+
+  const feasibilityPlacementByCardId = new Map(
+    (feasibilityResult?.placements ?? []).map((placement) => [
+      placement.cardId,
+      placement,
+    ]),
+  );
+  const optimizationPlacementByCardId = new Map(
+    (optimizationResult?.placements ?? []).map((placement) => [
+      placement.cardId,
+      placement,
+    ]),
+  );
+  const preferenceAdjustedCardIds = new Set(
+    [...optimizationPlacementByCardId.entries()]
+      .filter(([cardId, proposed]) => {
+        const seed = feasibilityPlacementByCardId.get(cardId);
+        if (!seed) return true;
+
+        return (
+          seed.dayOfWeek !== proposed.dayOfWeek
+          || seed.startPeriod !== proposed.startPeriod
+          || seed.teacherId !== proposed.teacherId
+          || seed.roomId !== proposed.roomId
+        );
+      })
+      .map(([cardId]) => cardId),
+  );
+  const preferenceAdjustedCards = (optimizationResult?.changedCards ?? [])
+    .filter((item) => preferenceAdjustedCardIds.has(item.cardId));
+  const mandatoryRepairCardIds = new Set(
+    (feasibilityResult?.changedCards ?? []).map((item) => item.cardId),
+  );
+  const preferenceNewCardCount = preferenceAdjustedCards.filter(
+    (item) => !mandatoryRepairCardIds.has(item.cardId),
+  ).length;
+  const preferenceOverlapCount = (
+    preferenceAdjustedCards.length - preferenceNewCardCount
+  );
+  const mandatoryRepairCount = feasibilityResult?.changedCards?.length ?? 0;
 
   const loadProfile = (profile: ManagementSolverObjectiveProfile | null) => {
     setSelectedProfileId(profile?.id ?? null);
@@ -374,13 +486,20 @@ export function ManagementSolverWorkspacePanel({
     setPendingSelectionId(null);
   };
 
-  const runFeasibility = () => {
+  const runFeasibility = async () => {
     if (!hardReady || feasibilityBusy) return;
 
     setFeasibilityBusy(true);
     setLocalError(null);
 
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve());
+      });
+    });
+
     try {
+      setFeasibilityDetailsOpen(false);
       setFeasibilityResult(
         runManagementFeasibilityPrototype(data.preview),
       );
@@ -401,6 +520,7 @@ export function ManagementSolverWorkspacePanel({
       !hardReady
       || optimizationBusy
       || positiveObjectiveCount === 0
+      || feasibilityResult?.status !== 'FEASIBLE'
     ) {
       return;
     }
@@ -424,6 +544,9 @@ export function ManagementSolverWorkspacePanel({
         runManagementObjectiveOptimization(
           data.preview,
           weights,
+          {
+            seedPlacements: feasibilityResult.placements,
+          },
         ),
       );
     } catch (reason: unknown) {
@@ -546,7 +669,7 @@ export function ManagementSolverWorkspacePanel({
                     <p className={`mt-1 text-[11px] font-semibold ${
                       selected ? 'text-slate-300' : 'text-slate-400'
                     }`}>
-                      {Object.values(profile.weights).filter((value) => value > 0).length} tercih açık
+                      {countEnabledSupportedManagementObjectives(profile.weights)} tercih açık
                     </p>
                   </button>
                 );
@@ -675,9 +798,6 @@ export function ManagementSolverWorkspacePanel({
                 );
               })}
             </div>
-            <div className="border-t border-slate-100 px-4 py-2.5 text-[12px] font-medium text-slate-400">
-              Yakında: Öğretmen yük dengesi · Derslerin tercih edilen gün ve saatleri
-            </div>
           </section>
 
           {localError && (
@@ -780,7 +900,7 @@ export function ManagementSolverWorkspacePanel({
 
               <button
                 type="button"
-                onClick={runFeasibility}
+                onClick={() => void runFeasibility()}
                 disabled={!hardReady || feasibilityBusy}
                 className="shrink-0 rounded-xl bg-slate-950 px-4 py-2.5 text-[12px] font-black text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-35"
               >
@@ -791,11 +911,11 @@ export function ManagementSolverWorkspacePanel({
             {unknownRooms && (
               <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50/70 px-4 py-3">
                 <p className="text-[12px] font-black text-blue-950">
-                  {unknownRooms.count} dersin salonu henüz kesinleşmedi
+                  {unknownRooms.count} ders tanımının salon stratejisi henüz kesinleşmedi
                 </p>
                 <p className="mt-1 text-[11px] font-medium leading-4 text-blue-800">
-                  Bu durum program oluşturmayı engellemez. {unknownRooms.withBaselineRoomEvidence ?? 0} derste
-                  mevcut salon bilgisi var; {unknownRooms.withoutBaselineRoomEvidence ?? 0} derste salon daha sonra belirlenecek.
+                  Bu durum program oluşturmayı engellemez. {unknownRooms.withBaselineRoomEvidence ?? 0} ders tanımında
+                  mevcut salon bilgisi var; {unknownRooms.withoutBaselineRoomEvidence ?? 0} ders tanımında salon daha sonra belirlenecek.
                 </p>
               </div>
             )}
@@ -851,7 +971,7 @@ export function ManagementSolverWorkspacePanel({
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
                   <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-400">
-                    Salonu henüz belirlenmeyen ders
+                    Geçici salonlu program kartı
                   </p>
                   <p className="mt-1 text-[14px] font-black text-slate-900">
                     {feasibilityResult.metrics.provisionalRoomCount}
@@ -864,156 +984,268 @@ export function ManagementSolverWorkspacePanel({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[12px] font-black text-amber-950">
-                      Kurallara uygun bir seçenek bulmak için {feasibilityResult.changedCards.length} dersin yeri değişti
+                      Uygun seçenek {feasibilityResult.changedCards.length} derste kaynak düzeltmesi yapıyor
                     </p>
                     <p className="mt-1 max-w-4xl text-[11px] font-medium leading-4 text-amber-800">
-                      Bu yalnızca karşılaştırmadır; program değişmedi. Aşağıda hangi derslerin neden etkilendiğini görebilirsiniz.
+                      {timeChangedCount === 0 && roomChangedCount === 0
+                        ? `Gün ve saatler korunuyor; salonlar değişmiyor. ${teacherChangedCount} derste yalnız öğretmen ataması/değişikliği öneriliyor.`
+                        : 'Bu yalnızca karşılaştırmadır; program değişmedi. Önce özet etkiyi inceleyin, gerekirse ders ayrıntılarını açın.'}
                     </p>
                   </div>
                   <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-black text-amber-700">
-                    {feasibilityResult.baselineIssues?.length ?? 0} kural uyuşmazlığı
+                    {feasibilityResult.baselineIssues?.length ?? 0} uyarı kaydı
                   </span>
                 </div>
 
-                <div className="mt-3 grid gap-2">
-                  {feasibilityResult.changedCards.map((item) => (
-                    <div
-                      key={item.cardId}
-                      className="rounded-xl border border-amber-100 bg-white px-3 py-3"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="text-[12px] font-black text-slate-900">
-                            {displayGroupName(item.groupName)} · {item.subjectName} · {item.blockIndex}. bölüm
-                          </p>
-                          <p className="mt-1 text-[11px] font-medium text-slate-500">
-                            Önce: {placementSummary(
-                              item.baseline.dayOfWeek,
-                              item.baseline.startPeriod,
-                              item.baseline.teacherName,
-                              item.baseline.roomName,
-                            )}
-                          </p>
-                          <p className="mt-0.5 text-[11px] font-bold text-slate-700">
-                            Alternatif yerleşim: {placementSummary(
-                              item.proposed.dayOfWeek,
-                              item.proposed.startPeriod,
-                              item.proposed.teacherName,
-                              item.proposed.roomName,
-                            )}
-                          </p>
-                        </div>
-                      </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-5">
+                  <div className="rounded-xl border border-amber-100 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-400">
+                      Doğrudan düzeltme
+                    </p>
+                    <p className="mt-1 text-[14px] font-black text-slate-900">
+                      {directChangedCount}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                      Kendi kural sorunu nedeniyle
+                    </p>
+                  </div>
 
-                      {item.baselineIssueCodes.length > 0 ? (
-                        <div className="mt-2">
-                          <div className="flex flex-wrap gap-1.5">
-                            {item.baselineIssueCodes.map((code) => (
-                              <span
-                                key={code}
-                                className="rounded-full bg-amber-100 px-2 py-1 text-[12px] font-black text-amber-800"
-                                title={BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
-                              >
-                                {BASELINE_ISSUE_LABELS[code] ?? code}
-                              </span>
-                            ))}
-                          </div>
-                          {item.baselineIssueCodes.map((code) => {
-                            const detail = baselineIssueDetail(
-                              code,
-                              data.preview.requirements.find(
-                                (requirement) => requirement.id === item.requirementId,
-                              ),
-                            );
+                  <div className="rounded-xl border border-amber-100 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-400">
+                      Zincirleme etki
+                    </p>
+                    <p className="mt-1 text-[14px] font-black text-slate-900">
+                      {rippleChangedCount}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                      Diğer dersleri çözmek için
+                    </p>
+                  </div>
 
-                            return detail ? (
-                              <p
-                                key={`${code}-detail`}
-                                className="mt-1.5 text-[12px] font-semibold text-amber-800"
-                              >
-                                {detail}
-                              </p>
-                            ) : null;
-                          })}
-                        </div>
-                      ) : (
-                        <p className="mt-2 text-[12px] font-bold text-slate-400">
-                          Bu derste doğrudan bir sorun yok; diğer derslerdeki uyuşmazlıkları gidermek için alternatif yerleşimde yeri değişti.
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                  <div className="rounded-xl border border-amber-100 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-400">
+                      Gün / saat
+                    </p>
+                    <p className="mt-1 text-[14px] font-black text-slate-900">
+                      {timeChangedCount}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                      Zamanı değişen ders
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-100 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-400">
+                      Öğretmen
+                    </p>
+                    <p className="mt-1 text-[14px] font-black text-slate-900">
+                      {teacherChangedCount}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                      Öğretmeni değişen ders
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-100 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.08em] text-slate-400">
+                      Salon
+                    </p>
+                    <p className="mt-1 text-[14px] font-black text-slate-900">
+                      {roomChangedCount}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                      Salonu değişen ders
+                    </p>
+                  </div>
                 </div>
 
-                {additionalBaselineIssues.length > 0 && (
-                  <div className="mt-4 border-t border-amber-200 pt-3">
-                    <p className="text-[11px] font-black text-amber-950">
-                      Yeri değişmeden kalan diğer uyarılı dersler
-                    </p>
-                    <p className="mt-1 text-[12px] font-medium leading-4 text-amber-800">
-                      Bu derslerin yeri değişmedi; ancak aynı kural uyuşmazlığından etkileniyorlar.
-                    </p>
-
-                    <div className="mt-2 grid gap-2">
-                      {additionalBaselineIssues.map((issue) => {
-                        const requirement = data.preview.requirements.find(
-                          (item) => item.id === issue.requirementId,
-                        );
-                        const placement = data.preview.baselinePlacements.find(
-                          (item) => item.cardId === issue.cardId,
-                        );
-                        const teacherName = placement?.teacherId
-                          ? data.preview.teachers.find(
-                            (item) => item.id === placement.teacherId,
-                          )?.name ?? null
-                          : null;
-                        const roomName = placement?.roomId
-                          ? data.preview.rooms.find(
-                            (item) => item.id === placement.roomId,
-                          )?.name ?? null
-                          : null;
-
-                        return (
-                          <div
-                            key={issue.cardId}
-                            className="rounded-xl border border-amber-100 bg-white px-3 py-2.5"
-                          >
-                            <p className="text-[11px] font-black text-slate-900">
-                              {displayGroupName(issue.groupName)} · {issue.subjectName} · {issue.blockIndex}. bölüm
-                            </p>
-                            <p className="mt-1 text-[12px] font-medium text-slate-500">
-                              Mevcut: {placementSummary(
-                                placement?.dayOfWeek ?? null,
-                                placement?.startPeriod ?? null,
-                                teacherName,
-                                roomName,
-                              )}
-                            </p>
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {issue.codes.map((code) => (
-                                <span
-                                  key={code}
-                                  className="rounded-full bg-amber-100 px-2 py-1 text-[12px] font-black text-amber-800"
-                                >
-                                  {BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
-                                </span>
-                              ))}
-                            </div>
-                            {issue.codes.map((code) => {
-                              const detail = baselineIssueDetail(code, requirement);
-                              return detail ? (
-                                <p
-                                  key={`${code}-detail`}
-                                  className="mt-1.5 text-[12px] font-semibold text-amber-800"
-                                >
-                                  {detail}
-                                </p>
-                              ) : null;
-                            })}
-                          </div>
-                        );
-                      })}
+                {issueSummary.length > 0 && (
+                  <div className="mt-3 rounded-xl border border-amber-100 bg-white px-3 py-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-[11px] font-black text-slate-900">
+                        Mevcut programdaki başlıca uyarılar
+                      </p>
+                      <p className="text-[10px] font-semibold text-slate-400">
+                        Aynı ders birden fazla uyarıya dahil olabilir.
+                      </p>
                     </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {issueSummary.map(([code, count]) => (
+                        <span
+                          key={code}
+                          className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-black text-amber-800"
+                        >
+                          {BASELINE_ISSUE_LABELS[code] ?? code} · {count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-amber-200 pt-3">
+                  <div>
+                    <p className="text-[11px] font-black text-amber-950">
+                      Ders bazında karşılaştırma
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-medium text-amber-800">
+                      {feasibilityResult.changedCards.length} değişen ders
+                      {additionalBaselineIssues.length > 0
+                        ? ` · ${additionalBaselineIssues.length} yerinde kalan uyarılı ders`
+                        : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFeasibilityDetailsOpen((current) => !current)}
+                    className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-[11px] font-black text-amber-800 hover:bg-amber-50"
+                  >
+                    {feasibilityDetailsOpen ? 'Ayrıntıları kapat' : 'Ders ayrıntılarını göster'}
+                  </button>
+                </div>
+
+                {feasibilityDetailsOpen && (
+                  <div className="mt-3">
+                    <div className="grid gap-2">
+                      {feasibilityResult.changedCards.map((item) => (
+                        <div
+                          key={item.cardId}
+                          className="rounded-xl border border-amber-100 bg-white px-3 py-3"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="text-[12px] font-black text-slate-900">
+                                {displayGroupName(item.groupName)} · {item.subjectName} · {item.blockIndex}. bölüm
+                              </p>
+                              <p className="mt-1 text-[11px] font-medium text-slate-500">
+                                Önce: {placementSummary(
+                                  item.baseline.dayOfWeek,
+                                  item.baseline.startPeriod,
+                                  item.baseline.teacherName,
+                                  item.baseline.roomName,
+                                )}
+                              </p>
+                              <p className="mt-0.5 text-[11px] font-bold text-slate-700">
+                                Alternatif: {placementSummary(
+                                  item.proposed.dayOfWeek,
+                                  item.proposed.startPeriod,
+                                  item.proposed.teacherName,
+                                  item.proposed.roomName,
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          {item.baselineIssueCodes.length > 0 ? (
+                            <div className="mt-2">
+                              <div className="flex flex-wrap gap-1.5">
+                                {item.baselineIssueCodes.map((code) => (
+                                  <span
+                                    key={code}
+                                    className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-800"
+                                    title={BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
+                                  >
+                                    {BASELINE_ISSUE_LABELS[code] ?? code}
+                                  </span>
+                                ))}
+                              </div>
+                              {item.baselineIssueCodes.map((code) => {
+                                const detail = baselineIssueDetail(
+                                  code,
+                                  data.preview.requirements.find(
+                                    (requirement) => requirement.id === item.requirementId,
+                                  ),
+                                );
+
+                                return detail ? (
+                                  <p
+                                    key={`${code}-detail`}
+                                    className="mt-1.5 text-[11px] font-semibold text-amber-800"
+                                  >
+                                    {detail}
+                                  </p>
+                                ) : null;
+                              })}
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-[11px] font-bold text-slate-400">
+                              Doğrudan kural sorunu yok; diğer uyuşmazlıkları çözmek için zincirleme olarak değişiyor.
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {additionalBaselineIssues.length > 0 && (
+                      <div className="mt-4 border-t border-amber-200 pt-3">
+                        <p className="text-[11px] font-black text-amber-950">
+                          Yeri değişmeden kalan uyarılı dersler
+                        </p>
+                        <p className="mt-1 text-[11px] font-medium leading-4 text-amber-800">
+                          Alternatifte bu derslerin yeri korunuyor; ancak mevcut programdaki uyarının diğer tarafında yer alıyorlar.
+                        </p>
+
+                        <div className="mt-2 grid gap-2">
+                          {additionalBaselineIssues.map((issue) => {
+                            const requirement = data.preview.requirements.find(
+                              (item) => item.id === issue.requirementId,
+                            );
+                            const placement = data.preview.baselinePlacements.find(
+                              (item) => item.cardId === issue.cardId,
+                            );
+                            const teacherName = placement?.teacherId
+                              ? data.preview.teachers.find(
+                                (item) => item.id === placement.teacherId,
+                              )?.name ?? null
+                              : null;
+                            const roomName = placement?.roomId
+                              ? data.preview.rooms.find(
+                                (item) => item.id === placement.roomId,
+                              )?.name ?? null
+                              : null;
+
+                            return (
+                              <div
+                                key={issue.cardId}
+                                className="rounded-xl border border-amber-100 bg-white px-3 py-2.5"
+                              >
+                                <p className="text-[11px] font-black text-slate-900">
+                                  {displayGroupName(issue.groupName)} · {issue.subjectName} · {issue.blockIndex}. bölüm
+                                </p>
+                                <p className="mt-1 text-[11px] font-medium text-slate-500">
+                                  Mevcut: {placementSummary(
+                                    placement?.dayOfWeek ?? null,
+                                    placement?.startPeriod ?? null,
+                                    teacherName,
+                                    roomName,
+                                  )}
+                                </p>
+                                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                  {issue.codes.map((code) => (
+                                    <span
+                                      key={code}
+                                      className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-800"
+                                    >
+                                      {BASELINE_ISSUE_LABELS[code] ?? 'Program kuralı uyarısı'}
+                                    </span>
+                                  ))}
+                                </div>
+                                {issue.codes.map((code) => {
+                                  const detail = baselineIssueDetail(code, requirement);
+                                  return detail ? (
+                                    <p
+                                      key={`${code}-detail`}
+                                      className="mt-1.5 text-[11px] font-semibold text-amber-800"
+                                    >
+                                      {detail}
+                                    </p>
+                                  ) : null;
+                                })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1030,8 +1262,8 @@ export function ManagementSolverWorkspacePanel({
                   Bu tercihlere göre daha uygun bir yerleşim var mı?
                 </h2>
                 <p className="mt-2 text-[12px] font-medium leading-5 text-slate-600">
-                  Ekranda seçili öncelikleri kullanarak mevcut programa yakın alternatifleri karşılaştırır.
-                  Denemek için ayarı kaydetmeniz gerekmez; sonuç yalnızca öneridir ve programı değiştirmez.
+                  Önce program kontrolünde bulunan kurallara uygun temel çözümü esas alır; ardından ekrandaki önceliklere göre
+                  daha iyi bir seçenek arar. Denemek için ayarı kaydetmeniz gerekmez; sonuç yalnızca öneridir ve programı değiştirmez.
                 </p>
               </div>
 
@@ -1042,6 +1274,7 @@ export function ManagementSolverWorkspacePanel({
                   !hardReady
                   || optimizationBusy
                   || positiveObjectiveCount === 0
+                  || feasibilityResult?.status !== 'FEASIBLE'
                 }
                 className="shrink-0 rounded-xl bg-[#A63D48] px-4 py-2.5 text-[12px] font-black text-white hover:bg-[#8F3340] disabled:cursor-not-allowed disabled:opacity-35"
               >
@@ -1072,9 +1305,15 @@ export function ManagementSolverWorkspacePanel({
               </div>
             )}
 
+            {feasibilityResult?.status !== 'FEASIBLE' && (
+              <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-[11px] font-bold text-blue-800">
+                Önce Program kontrolü bölümünde kurallara uygun bir temel çözüm bulun.
+              </div>
+            )}
+
             {positiveObjectiveCount === 0 && (
               <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-bold text-amber-800">
-                Önce en az bir tercihe Düşük, Orta, Yüksek veya Çok yüksek öncelik verin.
+                Ardından en az bir tercihe Düşük, Orta, Yüksek veya Çok yüksek öncelik verin.
               </div>
             )}
 
@@ -1102,10 +1341,12 @@ export function ManagementSolverWorkspacePanel({
                   </p>
                   <p className="mt-1 text-[11px] font-medium leading-4 text-slate-600">
                     {optimizationResult.status === 'IMPROVED'
-                      ? `${optimizationResult.changedCards.length} ders için farklı yerleşim öneriliyor.`
+                      ? `Temel çözüm ${mandatoryRepairCount} dersi düzeltiyor. Tercihler ${preferenceAdjustedCards.length} dersin temel çözümdeki yerleşimini yeniden ayarlıyor; bunların ${preferenceNewCardCount} tanesi toplam etkiye yeni ekleniyor${preferenceOverlapCount > 0 ? `, ${preferenceOverlapCount} tanesi zaten zorunlu düzeltme kapsamındaydı` : ''}. Nihai öneri mevcut programa göre ${optimizationResult.changedCards.length} dersi etkiliyor.`
                       : optimizationResult.status === 'UNCHANGED'
-                        ? 'Mevcut program korunuyor.'
-                        : 'Önce program kontrolünün temiz olduğundan ve en az bir tercihin açık olduğundan emin olun.'}
+                        ? 'Tercihler, kurallara uygun temel çözümün üzerine ek bir iyileştirme getirmedi.'
+                        : optimizationResult.reasons.includes('FEASIBLE_SEED_INVALID')
+                          ? 'Program kontrolündeki temel çözüm artık kullanılamıyor. Programı yeniden kontrol edin.'
+                          : 'Kurallara uygun temel çözüm ve en az bir açık tercih gerektiğini kontrol edin.'}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-400">
@@ -1127,12 +1368,86 @@ export function ManagementSolverWorkspacePanel({
                   </div>
                 </div>
 
+                {optimizationResult.status === 'IMPROVED'
+                  && canEdit
+                  && onApplyProposal && (
+                  <div className="mt-3">
+                    {!proposalApplyPending ? (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProposalApplyError(null);
+                            setProposalApplyPending(true);
+                          }}
+                          disabled={busy}
+                          className="rounded-xl bg-slate-950 px-4 py-2.5 text-[11px] font-black text-white hover:bg-slate-800 disabled:opacity-40"
+                        >
+                          Öneriyi uygula
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                        <p className="text-[11px] font-black text-amber-950">
+                          Bu öneri programa uygulansın mı?
+                        </p>
+                        <p className="mt-1 text-[12px] font-medium leading-4 text-amber-800">
+                          Nihai öneri mevcut programa göre {optimizationResult.changedCards.length} dersi etkileyecek.
+                          Bunun {mandatoryRepairCount} dersi zorunlu kural düzeltmesi; {preferenceAdjustedCards.length} dersinde ise temel çözüme göre tercih kaynaklı ek ayar var.
+                          Uygulamadan hemen önce programın hâlâ aynı olduğu doğrulanacak ve değişiklikler tek işlem olarak kaydedilecek.
+                        </p>
+                        <div className="mt-3 flex flex-wrap justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProposalApplyPending(false);
+                              setProposalApplyError(null);
+                            }}
+                            disabled={busy}
+                            className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[12px] font-black text-amber-800 disabled:opacity-40"
+                          >
+                            Vazgeç
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProposalApplyError(null);
+                              void onApplyProposal(optimizationResult)
+                                .then(() => {
+                                  setProposalApplyPending(false);
+                                  setProposalApplyError(null);
+                                  setOptimizationResult(null);
+                                })
+                                .catch((reason: unknown) => {
+                                  setProposalApplyError(
+                                    reason instanceof Error
+                                      ? reason.message
+                                      : 'Öneri uygulanamadı.',
+                                  );
+                                });
+                            }}
+                            disabled={busy}
+                            className="rounded-lg bg-[#A63D48] px-3 py-1.5 text-[12px] font-black text-white disabled:opacity-40"
+                          >
+                            Onayla ve uygula
+                          </button>
+                        </div>
+                        {proposalApplyError && (
+                          <p className="mt-2 text-[12px] font-bold text-rose-700">
+                            {proposalApplyError}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {optimizationResult.status !== 'BLOCKED' && (
                   <>
-                    <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                    <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-6">
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                         <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
-                          Değişen karar
+                          Mevcut programa uzaklık
                         </p>
                         <p className="mt-1 text-[11px] font-black text-slate-900">
                           {optimizationResult.baselineMetrics.changeCost}
@@ -1143,7 +1458,7 @@ export function ManagementSolverWorkspacePanel({
 
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                         <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
-                          Öğretmen değişimi
+                          Öğretmen süreklilik kırılması
                         </p>
                         <p className="mt-1 text-[11px] font-black text-slate-900">
                           {optimizationResult.baselineMetrics.preferredTeacherContinuityBreaks}
@@ -1165,7 +1480,7 @@ export function ManagementSolverWorkspacePanel({
 
                       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                         <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
-                          Salon değişimi
+                          Salon süreklilik kırılması
                         </p>
                         <p className="mt-1 text-[11px] font-black text-slate-900">
                           {optimizationResult.baselineMetrics.roomStabilityBreaks}
@@ -1173,117 +1488,102 @@ export function ManagementSolverWorkspacePanel({
                           {optimizationResult.proposedMetrics.roomStabilityBreaks}
                         </p>
                       </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
+                          Öğretmen yük hedefi sapması
+                        </p>
+                        <p className="mt-1 text-[11px] font-black text-slate-900">
+                          {optimizationResult.baselineMetrics.teacherLoadDeviationPeriods}
+                          {' → '}
+                          {optimizationResult.proposedMetrics.teacherLoadDeviationPeriods}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <p className="text-[11px] font-black uppercase tracking-[0.08em] text-slate-400">
+                          Zaman tercihi sapması
+                        </p>
+                        <p className="mt-1 text-[11px] font-black text-slate-900">
+                          {optimizationResult.baselineMetrics.subjectTimePreferencePenalty}
+                          {' → '}
+                          {optimizationResult.proposedMetrics.subjectTimePreferencePenalty}
+                        </p>
+                      </div>
                     </div>
 
-                    {optimizationResult.changedCards.length > 0 && (
-                      <div className="mt-3 grid gap-2">
-                        {optimizationResult.changedCards.slice(0, 12).map((item) => (
-                          <div
-                            key={item.cardId}
-                            className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
-                          >
+                    <div className="mt-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
                             <p className="text-[11px] font-black text-slate-900">
-                              {displayGroupName(item.groupName)} · {item.subjectName} · {item.blockIndex}. bölüm
+                              Tercihlerin temel çözüme ek etkisi
                             </p>
-                            <p className="mt-1 text-[12px] font-medium text-slate-500">
-                              Mevcut: {placementSummary(
-                                item.baseline.dayOfWeek,
-                                item.baseline.startPeriod,
-                                item.baseline.teacherName,
-                                item.baseline.roomName,
-                              )}
-                            </p>
-                            <p className="mt-0.5 text-[12px] font-bold text-slate-700">
-                              Öneri: {placementSummary(
-                                item.proposed.dayOfWeek,
-                                item.proposed.startPeriod,
-                                item.proposed.teacherName,
-                                item.proposed.roomName,
-                              )}
+                            <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                              {preferenceAdjustedCards.length > 0
+                                ? `${preferenceAdjustedCards.length} ders yeniden ayarlanıyor; ${preferenceNewCardCount} ders toplam etkiye yeni ekleniyor.`
+                                : 'Tercihler temel çözümde ek ders değişikliği oluşturmadı.'}
                             </p>
                           </div>
-                        ))}
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
+                            {optimizationResult.changedCards.length} toplam etkilenen ders
+                          </span>
+                        </div>
 
-                        {optimizationResult.changedCards.length > 12 && (
-                          <p className="text-[12px] font-bold text-slate-400">
-                            Ayrıca {optimizationResult.changedCards.length - 12} ders daha değişiyor.
-                          </p>
-                        )}
-                      </div>
-                    )}
+                        {preferenceAdjustedCards.length > 0 && (
+                          <div className="mt-2 grid gap-2">
+                            {preferenceAdjustedCards.slice(0, 12).map((item) => {
+                              const seed = feasibilityPlacementByCardId.get(item.cardId);
+                              const seedTeacherName = seed?.teacherId
+                                ? data.preview.teachers.find(
+                                  (teacher) => teacher.id === seed.teacherId,
+                                )?.name ?? null
+                                : null;
+                              const seedRoomName = seed?.roomId
+                                ? data.preview.rooms.find(
+                                  (room) => room.id === seed.roomId,
+                                )?.name ?? null
+                                : null;
 
-                    {optimizationResult.status === 'IMPROVED'
-                      && canEdit
-                      && onApplyProposal && (
-                      <div className="mt-4 border-t border-slate-100 pt-3">
-                        {!proposalApplyPending ? (
-                          <div className="flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setProposalApplyError(null);
-                                setProposalApplyPending(true);
-                              }}
-                              disabled={busy}
-                              className="rounded-xl bg-slate-950 px-4 py-2.5 text-[11px] font-black text-white hover:bg-slate-800 disabled:opacity-40"
-                            >
-                              Öneriyi uygula
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-                            <p className="text-[11px] font-black text-amber-950">
-                              Bu öneri programa uygulansın mı?
-                            </p>
-                            <p className="mt-1 text-[12px] font-medium leading-4 text-amber-800">
-                              {optimizationResult.changedCards.length} dersin yerleşimi değişecek.
-                              Uygulamadan hemen önce programın hâlâ aynı olduğu doğrulanacak ve değişiklikler tek işlem olarak kaydedilecek.
-                            </p>
-                            <div className="mt-3 flex flex-wrap justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setProposalApplyPending(false);
-                                  setProposalApplyError(null);
-                                }}
-                                disabled={busy}
-                                className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-[12px] font-black text-amber-800 disabled:opacity-40"
-                              >
-                                Vazgeç
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setProposalApplyError(null);
-                                  void onApplyProposal(optimizationResult)
-                                    .then(() => {
-                                      setProposalApplyPending(false);
-                                      setProposalApplyError(null);
-                                      setOptimizationResult(null);
-                                    })
-                                    .catch((reason: unknown) => {
-                                      setProposalApplyError(
-                                        reason instanceof Error
-                                          ? reason.message
-                                          : 'Öneri uygulanamadı.',
-                                      );
-                                    });
-                                }}
-                                disabled={busy}
-                                className="rounded-lg bg-[#A63D48] px-3 py-1.5 text-[12px] font-black text-white disabled:opacity-40"
-                              >
-                                Onayla ve uygula
-                              </button>
-                            </div>
-                            {proposalApplyError && (
-                              <p className="mt-2 text-[12px] font-bold text-rose-700">
-                                {proposalApplyError}
+                              return (
+                                <div
+                                  key={item.cardId}
+                                  className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
+                                >
+                                  <p className="text-[11px] font-black text-slate-900">
+                                    {displayGroupName(item.groupName)} · {item.subjectName} · {item.blockIndex}. bölüm
+                                  </p>
+                                  <p className="mt-1 text-[12px] font-medium text-slate-500">
+                                    Temel çözüm: {seed
+                                      ? placementSummary(
+                                          seed.dayOfWeek,
+                                          seed.startPeriod,
+                                          seedTeacherName,
+                                          seedRoomName,
+                                        )
+                                      : '—'}
+                                  </p>
+                                  <p className="mt-0.5 text-[12px] font-bold text-slate-700">
+                                    Tercihli öneri: {placementSummary(
+                                      item.proposed.dayOfWeek,
+                                      item.proposed.startPeriod,
+                                      item.proposed.teacherName,
+                                      item.proposed.roomName,
+                                    )}
+                                  </p>
+                                </div>
+                              );
+                            })}
+
+                            {preferenceAdjustedCards.length > 12 && (
+                              <p className="text-[12px] font-bold text-slate-400">
+                                Ayrıca {preferenceAdjustedCards.length - 12} tercih değişikliği daha var.
                               </p>
                             )}
                           </div>
                         )}
                       </div>
-                    )}
+
+
                   </>
                 )}
               </div>

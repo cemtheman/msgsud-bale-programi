@@ -306,6 +306,84 @@ describe('management grade-group audience rows', () => {
     });
   });
 
+
+  it('coalesces sibling cards from the same requirement even when they share the same class', () => {
+    const first = {
+      ...card('same-requirement-1', ['BALLET'], ['6A']),
+      requirementId: 'req-k-bale-6a',
+      subjectId: 'subject-k-bale',
+      subjectName: 'K. Bale',
+      groupId: 'group-6a-ballet',
+      groupName: '6A Bale',
+      groupType: 'BALLET',
+      blockIndex: 1,
+      durationPeriods: 2,
+      placement: {
+        ...card('base-1', ['BALLET'], ['6A']).placement!,
+        startPeriod: 3,
+      },
+    };
+    const second = {
+      ...first,
+      id: 'same-requirement-2',
+      blockIndex: 2,
+    };
+
+    const displayCards = buildManagementRowDisplayCards(
+      [first, second],
+      'SINIFLAR',
+    );
+
+    expect(displayCards).toHaveLength(1);
+    expect(displayCards[0]).toMatchObject({
+      grouped: true,
+      sourceCardIds: ['same-requirement-1', 'same-requirement-2'],
+      classCodes: ['6A'],
+    });
+  });
+
+  it('coalesces different requirements from the same parallel family', () => {
+    const first = {
+      ...card('parallel-family-1', ['BALLET'], ['6A', '7A']),
+      requirementId: 'req-parallel-1',
+      subjectId: 'subject-k-bale',
+      subjectName: 'K. Bale',
+      groupId: 'parallel-group-1',
+      groupName: 'Paralel · 6A 🩰 · 1 + 7A 🩰 · 1',
+      groupType: 'BALLET',
+      durationPeriods: 2,
+      placement: {
+        ...card('parallel-base-1', ['BALLET'], ['6A']).placement!,
+        startPeriod: 3,
+      },
+    };
+    const second = {
+      ...first,
+      id: 'parallel-family-2',
+      requirementId: 'req-parallel-2',
+      groupId: 'parallel-group-2',
+      groupName: 'Paralel · 6A 🩰 · 2 + 7A 🩰 · 2',
+      // Parallel sub-requirements may carry different low-level metadata.
+      // Those differences must not split one visible lesson block.
+      audienceTargets: ['BALLET', 'SECTION'],
+      groupType: 'PARALLEL',
+      courseCharacter: 'TECHNIQUE',
+      deliveryMode: 'GROUP',
+    };
+
+    const displayCards = buildManagementRowDisplayCards(
+      [first, second],
+      'SINIFLAR',
+    );
+
+    expect(displayCards).toHaveLength(1);
+    expect(displayCards[0]).toMatchObject({
+      grouped: true,
+      sourceCardIds: ['parallel-family-1', 'parallel-family-2'],
+      classCodes: ['6A', '7A'],
+    });
+  });
+
   it('does not collapse two distinct cards belonging to the same class', () => {
     const first = {
       ...card('same-class-1', ['SECTION'], ['5A']),

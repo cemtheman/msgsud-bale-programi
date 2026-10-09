@@ -51,26 +51,18 @@ import {
   type ManagementSolverWorkspace,
 } from '@/lib/managementSolver';
 import {
+  buildManagementSolverProposalWorkspaceCommands,
   prepareManagementSolverProposalApply,
   translateManagementSolverProposalApplyReason,
 } from '@/lib/managementSolverProposal';
 import {
-  applyManagementRoomOperationalStatus,
-  applyManagementRoomProfile,
-  createManagementRoomResource,
-  createManagementTeacherResource,
-  deleteManagementRoomResource,
-  deleteManagementTeacherResource,
   fetchManagementResources,
-  previewManagementRoomOperationalStatus,
-  previewManagementRoomProfile,
   previewManagementRoomDeparture,
   previewManagementTeacherDeparture,
   applyManagementRoomDeparture,
   applyManagementTeacherDeparture,
-  setManagementTeacherOperationalStatus,
-  updateManagementRoomDisplayName,
-  updateManagementTeacherDisplayName,
+  validateManagementTeacherLoadTargets,
+  validateManagementTeacherUnavailablePeriods,
   type ManagementResourceInventoryData,
 } from '@/lib/managementResources';
 import {
@@ -86,7 +78,6 @@ import {
   type ManagementPublicationPreviewData,
 } from '@/lib/managementPublicationPreview';
 import {
-  attachManagementPlacementAssistantForwardImpacts,
   buildManagementPlacementAssistantGroups,
   buildManagementPlacementAssistantPlan,
   sortManagementPlacementAssistantPlans,
@@ -96,44 +87,116 @@ import {
   type ManagementPlacementAssistantSlot,
 } from '@/lib/managementPlacementAssistant';
 import {
-  applyManagementRequirementStructure,
-  applyManagementRequirementTeacherPolicy,
-  applyManagementRequirementTeacherReconciliation,
-  applyManagementCoordinatedTeacherReconciliation,
   fetchManagementCoursePlan,
-  previewManagementRequirementStructure,
-  previewManagementRequirementTeacherPolicy,
-  previewManagementRequirementTeacherReconciliation,
-  previewManagementCoordinatedTeacherReconciliation,
   updateManagementRequirementRoomStrategy,
   type ManagementCoursePlanData,
   type ManagementPlanStage,
+  type ManagementRoomStrategy,
+  type ManagementTeacherAssignmentScope,
+  type ManagementTeacherContinuity,
 } from '@/lib/managementCoursePlan';
 import {
+  canUseServerManagementHistoryDescriptor,
   fetchManagementCommandState,
+  fetchManagementPlacedCardIds,
   fetchManagementSlotBlockers,
   moveManagementCard,
   moveManagementCardBundle,
   placeManagementCard,
   placeManagementCardBundle,
-  previewManagementPlacementResourceChange,
-  applyManagementPlacementResourceChange,
-  applyManagementSolverProposalBundle,
   previewManagementCandidateForwardImpacts,
   redoManagement,
   redoManagementBundle,
   removeManagementCard,
   removeManagementCardBundle,
-  refreshManagementCardGroupCandidates,
   undoManagement,
   undoManagementBundle,
   undoManagementCardGroup,
   updateManagementRequirementTeachers,
+  translateManagementPlacementResourceBlockReason,
   type ManagementCommandDescriptor,
   type ManagementCommandState,
-  type ManagementForwardImpact,
   type ManagementRootAction,
 } from '@/lib/managementCommands';
+import {
+  fetchLatestManagementWorkspaceSnapshotV1,
+  fetchManagementWorkspaceSnapshotV1,
+  type ManagementWorkspaceSnapshotV1,
+} from '@/lib/managementWorkspace';
+import {
+  invalidateManagementDraftRevisionCache,
+} from '@/lib/managementRevision';
+import {
+  createManagementWorkspaceWorkingCopyV1,
+  diffManagementWorkspaceV1,
+  hydrateManagementWorkspaceInventoryDisplayNamesV1,
+  hydrateManagementWorkspaceRequirementCatalogV1,
+  type ManagementWorkspaceWorkingCopyV1,
+} from '@/lib/managementWorkspaceWorkingCopy';
+import {
+  createManagementWorkspaceHistoryV1,
+  redoManagementWorkspaceOperationV1,
+  undoManagementWorkspaceOperationV1,
+  type ManagementWorkspaceHistoryV1,
+  type ManagementWorkspaceOperationV1,
+} from '@/lib/managementWorkspaceHistory';
+import {
+  executeManagementWorkspaceCommandV1,
+  executeManagementWorkspaceCommandsV1,
+  previewManagementWorkspaceCommandsV1,
+} from '@/lib/managementWorkspaceCommands';
+import {
+  findManagementWorkspaceParallelBundleV1,
+} from '@/lib/managementWorkspaceValidation';
+import {
+  buildManagementWorkspaceMoveCandidateDetailV1,
+  buildManagementWorkspacePlacementCandidateDetailV1,
+  buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1,
+} from '@/lib/managementWorkspaceCandidates';
+import {
+  prepareManagementWorkspaceResourceEditV1,
+} from '@/lib/managementWorkspaceResources';
+import {
+  prepareManagementWorkspaceTeacherPolicyV1,
+} from '@/lib/managementWorkspaceTeacherPolicy';
+import {
+  prepareManagementWorkspaceCoordinatedTeacherReconciliationV1,
+  prepareManagementWorkspaceTeacherReconciliationV1,
+} from '@/lib/managementWorkspaceTeacherReconciliation';
+import {
+  prepareManagementWorkspaceRequirementStructureV1,
+  previewManagementWorkspaceRequirementStructureV1,
+} from '@/lib/managementWorkspaceStructure';
+import {
+  prepareManagementWorkspaceResourceCreateV1,
+  prepareManagementWorkspaceResourceDeleteV1,
+  prepareManagementWorkspaceRoomDepartureV1,
+  prepareManagementWorkspaceRoomNameEditV1,
+  prepareManagementWorkspaceRoomProfileV1,
+  prepareManagementWorkspaceRoomStatusEditV1,
+  prepareManagementWorkspaceTeacherDepartureV1,
+  prepareManagementWorkspaceTeacherNameEditV1,
+  prepareManagementWorkspaceTeacherStatusEditV1,
+  previewManagementWorkspaceRoomDepartureV1,
+  previewManagementWorkspaceTeacherDepartureV1,
+} from '@/lib/managementWorkspaceInventoryEdits';
+import {
+  projectManagementBoardFromWorkspaceV1,
+} from '@/lib/managementWorkspaceBoardAdapter';
+import {
+  projectManagementSolverWorkspacePlacementsV1,
+} from '@/lib/managementSolverWorkspaceAdapter';
+import {
+  projectManagementCoursePlanFromWorkspaceV1,
+} from '@/lib/managementWorkspaceCoursePlan';
+import {
+  projectManagementResourcesFromWorkspaceV1,
+} from '@/lib/managementWorkspaceInventory';
+import {
+  commitManagementWorkspaceV1,
+  prepareManagementWorkspaceCommitV1,
+  translateManagementWorkspaceCommitErrorV1,
+} from '@/lib/managementWorkspaceCommit';
 
 const DAYS = [
   { id: 1, label: 'Pzt' },
@@ -176,6 +239,51 @@ const RESOURCE_VIEWS: Array<{
   { id: 'SALONLAR', label: 'Salonlar' },
 ];
 
+const MANAGEMENT_STARTUP_STEPS = [
+  'Sunucuya bağlanılıyor',
+  'Oturum doğrulanıyor',
+  'Çalışma alanı hazırlanıyor',
+  'Ders programı indiriliyor',
+  'Hazır',
+] as const;
+
+
+function workspaceIssueLabel(code: string) {
+  const labels: Record<string, string> = {
+    TIME_OUTSIDE_DAY: 'Ders saati gün sınırlarının dışında',
+    LUNCH_BREAK_CROSSING: 'Ders öğle arasını bölüyor',
+    LOCKED_CARD_MOVED: 'Kilitli bir ders değiştirilmiş',
+    TIME_PINNED_CHANGED: 'Gün / saat sabit; değiştirmek için önce sabitlemeyi kaldırın',
+    TEACHER_PINNED_CHANGED: 'Öğretmen sabit; değiştirmek için önce sabitlemeyi kaldırın',
+    ROOM_PINNED_CHANGED: 'Salon sabit; değiştirmek için önce sabitlemeyi kaldırın',
+    TEACHER_REQUIRED: 'Ders için öğretmen seçilmemiş',
+    TEACHER_INACTIVE: 'Seçilen öğretmen kullanılamıyor',
+    TEACHER_NOT_ELIGIBLE: 'Seçilen öğretmen bu ders için uygun değil',
+    TEACHER_UNAVAILABLE: 'Öğretmen bu saatte uygun değil',
+    ROOM_REQUIRED: 'Ders için salon seçilmemiş',
+    ROOM_INACTIVE: 'Seçilen salon kullanılamıyor',
+    ROOM_NOT_ELIGIBLE: 'Seçilen salon bu ders için uygun değil',
+    ROOM_CAPABILITY_MISMATCH: 'Salon dersin ihtiyacını karşılamıyor',
+    TEACHER_CONFLICT: 'Öğretmenin aynı saatte başka dersi var',
+    ROOM_CONFLICT: 'Salon aynı saatte başka derste kullanılıyor',
+    GROUP_CONFLICT: 'Aynı öğrenci grubu için saat çakışması var',
+    PARALLEL_BUNDLE_BROKEN: 'Bağlı paralel ders paketi birlikte taşınmalı',
+    REQUIREMENT_RESOURCES_REQUIRE_UNPLACED: 'Ders Planı kaynaklarını değiştirmek için ders önce programdan kaldırılıp kaydedilmeli',
+    TEACHER_CONTINUITY: 'Dersin öğretmen sürekliliği bozuluyor',
+    MAX_BLOCKS_PER_DAY: 'Ders aynı güne fazla sayıda yerleştirilmiş',
+    MAX_CONSECUTIVE_PERIODS: 'Ders art arda fazla ders saati oluşturuyor',
+    MIN_DISTINCT_DAYS: 'Ders yeterli farklı güne dağıtılmamış',
+  };
+  return labels[code] ?? 'Program kuralıyla uyuşmayan bir değişiklik var';
+}
+
+function workspaceIssueSummary(codes: string[]) {
+  const unique = Array.from(new Set(codes.map(workspaceIssueLabel)));
+  if (unique.length === 1) return unique[0];
+  if (unique.length === 2) return `${unique[0]}; ${unique[1]}`;
+  return `${unique.slice(0, 2).join('; ')} ve ${unique.length - 2} başka sorun`;
+}
+
 function roleLabel(role: string | null | undefined) {
   if (role === 'ADMIN') return 'Yönetici';
   if (role === 'EDITOR') return 'Editör';
@@ -183,6 +291,132 @@ function roleLabel(role: string | null | undefined) {
   return 'Yetkisiz';
 }
 
+function PartisyonMark({
+  className = 'h-7 w-7',
+}: {
+  className?: string;
+}) {
+  return (
+    <svg
+      viewBox="5.5 3.5 25.5 29"
+      aria-hidden="true"
+      className={className}
+    >
+      <path
+        d="M7 4.5h12.5c6.3 0 10 3.1 10 8.2 0 5.2-3.7 8.3-10 8.3h-6.3v10.5H7V4.5Zm6.2 6v4.6h6.1c2.8 0 4.2-.8 4.2-2.4 0-1.5-1.4-2.2-4.2-2.2h-6.1Z"
+        fill="currentColor"
+      />
+      <path
+        d="M8.2 11.5h10.6M8.2 15.7h12.1M8.2 19.9h10.6"
+        fill="none"
+        stroke="white"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function PartisyonBrand({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
+  return (
+    <div className="flex items-center" aria-label="MSGSÜ İDK Partisyon">
+      <img
+        src="/brand/msgsu-owl.svg"
+        alt=""
+        aria-hidden="true"
+        className={compact ? 'h-8 w-auto shrink-0' : 'h-12 w-auto shrink-0'}
+      />
+
+      <span
+        className={`mx-3 w-px shrink-0 bg-slate-300 ${compact ? 'h-8' : 'h-11'}`}
+        aria-hidden="true"
+      />
+
+      <span className="min-w-0">
+        <span className={`block font-bold uppercase text-slate-400 ${compact ? 'text-[7px] tracking-[0.26em]' : 'text-[9px] tracking-[0.3em]'}`}>
+          MSGSÜ İDK
+        </span>
+        <span className="mt-0.5 flex items-end gap-0 whitespace-nowrap">
+          <span className="grid shrink-0 place-items-center text-[#1437B8]">
+            <PartisyonMark className={compact ? 'h-[18px] w-auto' : 'h-[25px] w-auto'} />
+          </span>
+          <span className={`relative top-[2px] -ml-[1px] font-black leading-none tracking-[-0.045em] text-[#081736] ${compact ? 'text-[18px]' : 'text-[25px]'}`}>
+            artisyon
+          </span>
+        </span>
+      </span>
+    </div>
+  );
+}
+
+
+function isTransientManagementReadError(reason: unknown) {
+  if (!(reason instanceof Error)) return false;
+
+  const message = reason.message.trim().toLocaleLowerCase('tr-TR');
+  return (
+    message === 'load failed'
+    || message.includes('failed to fetch')
+    || message.includes('networkerror')
+    || message.includes('network error')
+    || message.includes('network request failed')
+    || message.includes('network connection was lost')
+    || message.includes('status code: 522')
+  );
+}
+
+async function retryManagementRead<T>(
+  load: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await load();
+  } catch (reason: unknown) {
+    if (!isTransientManagementReadError(reason)) {
+      throw reason;
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+    return load();
+  }
+}
+
+
+function localWorkspaceOperationLabel(
+  operation: ManagementWorkspaceOperationV1 | null | undefined,
+) {
+  if (!operation) return 'Yerel değişiklik';
+
+  switch (operation.kind) {
+    case 'SET_PLACEMENT':
+      return 'Program yerleşimi';
+    case 'REMOVE_PLACEMENT':
+      return 'Programdan kaldırma';
+    case 'SET_CARD_PINS':
+      return 'Kart sabitlemeleri';
+    case 'SET_REQUIREMENT_RESOURCES':
+      return 'Ders Planı kaynak değişikliği';
+    case 'SET_REQUIREMENT_TIME_PREFERENCE':
+      return 'Ders zaman tercihi';
+    case 'SET_INVENTORY_RESOURCE':
+      return 'Kaynak kaydı değişikliği';
+    case 'SET_TEACHER_PLANNING':
+      return 'Öğretmen yük planlaması';
+    case 'SET_TEACHER_AVAILABILITY':
+      return 'Öğretmen uygunluk kısıtı';
+    case 'SET_ROOM_PROFILE':
+      return 'Salon özellikleri değişikliği';
+    case 'SET_RESOURCE_BUNDLE':
+      return operation.resourceType === 'TEACHER'
+        ? 'Öğretmen kaydı değişikliği'
+        : 'Salon kaydı değişikliği';
+    case 'SET_REQUIREMENT_STRUCTURE':
+      return 'Ders yapısı değişikliği';
+  }
+}
 
 function actionNoun(action: ManagementRootAction) {
   if (action === 'PLACE') return 'yerleştirmesi';
@@ -347,10 +581,8 @@ function LoginScreen({
   return (
     <main className="management-workbench-root flex min-h-screen items-center justify-center bg-[#F5F3EE] px-5 py-10 text-slate-900">
       <section className="w-full max-w-[430px] rounded-[28px] border border-slate-200 bg-white p-7 shadow-[0_24px_70px_rgba(15,23,42,0.10)]">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#A63D48]">
-          PARTİSYON
-        </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
+        <PartisyonBrand />
+        <h1 className="mt-6 text-3xl font-bold tracking-tight text-slate-950">
           Yönetim
         </h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -424,17 +656,29 @@ export default function ManagementPage() {
 
   const [overview, setOverview] = useState<ManagementOverview | null>(null);
   const [board, setBoard] = useState<ManagementBoardData | null>(null);
+  const serverBoardRef = useRef<ManagementBoardData | null>(null);
+  const workspaceSnapshotRef = useRef<ManagementWorkspaceSnapshotV1 | null>(null);
+  const workspaceWorkingCopyRef = useRef<ManagementWorkspaceWorkingCopyV1 | null>(null);
+  const workspaceHistoryRef = useRef<ManagementWorkspaceHistoryV1 | null>(null);
+  const [workspaceDirty, setWorkspaceDirty] = useState(false);
   const [coursePlan, setCoursePlan] = useState<ManagementCoursePlanData | null>(null);
   const [resources, setResources] = useState<ManagementResourceInventoryData | null>(null);
   const [solverWorkspace, setSolverWorkspace] =
     useState<ManagementSolverWorkspace | null>(null);
+  const [solverWorkspaceLoading, setSolverWorkspaceLoading] = useState(false);
+  const [solverWorkspaceLoadError, setSolverWorkspaceLoadError] =
+    useState<string | null>(null);
   const [publicationPreview, setPublicationPreview] =
     useState<ManagementPublicationPreviewData | null>(null);
   const [publicationGate, setPublicationGate] =
     useState<ManagementPublicationGateData | null>(null);
   const [dataError, setDataError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
+  const [sectionActivity, setSectionActivity] = useState<string | null>(null);
+  const [solverActivity, setSolverActivity] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [startupStep, setStartupStep] = useState(0);
+  const [startupComplete, setStartupComplete] = useState(false);
 
   const [activeSection, setActiveSection] =
     useState<'PROGRAM' | 'PLAN' | 'RESOURCES' | 'SOLVER' | 'STATUS'>('PROGRAM');
@@ -470,6 +714,7 @@ export default function ManagementPage() {
   const [placementAssistantPlans, setPlacementAssistantPlans] =
     useState<ManagementPlacementAssistantPlan[]>([]);
   const [placementAssistantLoading, setPlacementAssistantLoading] = useState(false);
+  const [placementAssistantImpactChecking, setPlacementAssistantImpactChecking] = useState(false);
   const [placementAssistantWaitingForRefresh, setPlacementAssistantWaitingForRefresh] = useState(false);
   const [placementAssistantSawRefreshLoading, setPlacementAssistantSawRefreshLoading] = useState(false);
   const [placementAssistantAnalyzed, setPlacementAssistantAnalyzed] = useState(false);
@@ -492,10 +737,20 @@ export default function ManagementPage() {
   } | null>(null);
 
   const [dragCardIds, setDragCardIds] = useState<string[]>([]);
+  const [dragStartOffsetsByCardId, setDragStartOffsetsByCardId] =
+    useState<Record<string, number>>({});
+  const dragCardIdsRef = useRef<string[]>([]);
   const [dragCandidateDetails, setDragCandidateDetails] =
     useState<Record<string, ManagementCandidateDetail>>({});
   const [dragLoading, setDragLoading] = useState(false);
   const dragSequenceRef = useRef(0);
+  const dragPreparedRef = useRef<{
+    anchorCardId: string;
+    ids: string[];
+    startOffsetsByCardId: Record<string, number>;
+    details: Record<string, ManagementCandidateDetail>;
+    needsPrevalidation: boolean;
+  } | null>(null);
 
   const [commandState, setCommandState] = useState<ManagementCommandState>({
     undo: null,
@@ -581,75 +836,366 @@ export default function ManagementPage() {
     if (status !== 'ready' || !session) {
       setOverview(null);
       setBoard(null);
+      serverBoardRef.current = null;
+      workspaceSnapshotRef.current = null;
+      workspaceWorkingCopyRef.current = null;
+      workspaceHistoryRef.current = null;
+      setWorkspaceDirty(false);
       setCoursePlan(null);
       setResources(null);
       setSolverWorkspace(null);
       setPublicationPreview(null);
       setPublicationGate(null);
+      if (status === 'anonymous') {
+        setStartupStep(0);
+        setStartupComplete(false);
+      }
       return;
     }
 
     let active = true;
+    const showStartup = !startupComplete;
     setDataLoading(true);
     setDataError(null);
+    if (showStartup) setStartupStep(2);
 
-    Promise.all([
-      fetchManagementOverview(session.accessToken),
-      fetchManagementBoard(session.accessToken),
-      fetchManagementCoursePlan(session.accessToken),
-      fetchManagementResources(session.accessToken),
-      fetchLatestManagementSolverWorkspace(session.accessToken),
-      fetchManagementPublicationPreview(session.accessToken),
-      fetchManagementPublicationGate(session.accessToken),
-    ])
-      .then(async ([
-        nextOverview,
-        nextBoard,
-        nextCoursePlan,
-        nextResources,
-        nextSolverWorkspace,
-        nextPublicationPreview,
-        nextPublicationGate,
-      ]) => {
+    void (async () => {
+      try {
+        // Avoid opening every management data fan-out at once. Several of
+        // these loaders issue their own parallel REST requests; starting all
+        // of them together can create dozens of simultaneous Supabase calls
+        // and has repeatedly produced transient edge 522 responses.
+        //
+        // Load the Program workspace first, then secondary management panels
+        // in small stages. This keeps the existing contracts intact while
+        // sharply reducing peak request concurrency.
+        const nextWorkspaceSnapshot =
+          await fetchLatestManagementWorkspaceSnapshotV1(
+            session.accessToken,
+          );
+        if (!active) return;
+
+        if (showStartup) setStartupStep(3);
+        const [nextOverview, nextBoard] = await Promise.all([
+          fetchManagementOverview(session.accessToken),
+          fetchManagementBoard(session.accessToken),
+        ]);
         if (!active) return;
 
         setOverview(nextOverview);
-        setBoard(nextBoard);
-        setCoursePlan(nextCoursePlan);
-        setResources(nextResources);
-        setSolverWorkspace(nextSolverWorkspace);
-        setPublicationPreview(nextPublicationPreview);
-        setPublicationGate(nextPublicationGate);
+        serverBoardRef.current = nextBoard;
+
+        if (
+          nextBoard
+          && nextWorkspaceSnapshot
+          && nextWorkspaceSnapshot.identity.revisionId === nextBoard.revisionId
+        ) {
+          const nextWorkingCopy =
+            createManagementWorkspaceWorkingCopyV1(nextWorkspaceSnapshot);
+          workspaceSnapshotRef.current = nextWorkspaceSnapshot;
+          workspaceWorkingCopyRef.current = nextWorkingCopy;
+          workspaceHistoryRef.current = createManagementWorkspaceHistoryV1();
+          setWorkspaceDirty(false);
+          setBoard(
+            projectManagementBoardFromWorkspaceV1(
+              nextBoard,
+              nextWorkingCopy,
+              nextWorkspaceSnapshot,
+            ),
+          );
+        } else {
+          workspaceSnapshotRef.current = null;
+          workspaceWorkingCopyRef.current = null;
+          workspaceHistoryRef.current = null;
+          setWorkspaceDirty(false);
+          setBoard(nextBoard);
+        }
 
         if (nextBoard) {
-          const nextCommandState = await fetchManagementCommandState(
-            session.accessToken,
-            nextBoard.revisionId,
-          );
-          if (active) setCommandState(nextCommandState);
+          try {
+            const nextCommandState = await fetchManagementCommandState(
+              session.accessToken,
+              nextBoard.revisionId,
+            );
+            if (!active) return;
+            setCommandState(nextCommandState);
+          } catch {
+            // Server-side history is secondary during startup. Local workspace
+            // history becomes authoritative for edits in this session, and a
+            // transient history read must never keep Program behind the loader.
+            if (!active) return;
+            setCommandState({ undo: null, redo: null });
+          }
         } else {
-          setCommandState({
-            undo: null,
-            redo: null,
-          });
+          setCommandState({ undo: null, redo: null });
         }
-      })
-      .catch((reason: unknown) => {
+
+        // The Program workspace is the only startup-critical surface.
+        // Plan/Resources/Solver/Status data is lazy-loaded by its own section
+        // so transient failures there can never keep the app behind the loader.
+        if (showStartup) {
+          setStartupStep(4);
+          setStartupComplete(true);
+        }
+      } catch (reason: unknown) {
         if (!active) return;
         setDataError(
           reason instanceof Error
             ? reason.message
             : 'Taslak program verisi alınamadı.',
         );
-      })
-      .finally(() => {
+      } finally {
         if (active) setDataLoading(false);
-      });
+      }
+    })();
 
     return () => {
       active = false;
     };
   }, [refreshToken, session, status]);
+
+  useEffect(() => {
+    if (
+      status !== 'ready'
+      || !session
+      || !startupComplete
+      || (activeSection !== 'PLAN' && activeSection !== 'PROGRAM')
+    ) {
+      return;
+    }
+
+    let active = true;
+    setSectionActivity('Ders tanımları veritabanından okunuyor…');
+
+    void fetchManagementCoursePlan(session.accessToken)
+      .then((nextCoursePlan) => {
+        if (!active) return;
+        if (!nextCoursePlan) {
+          setCoursePlan(null);
+          return;
+        }
+        const localWorkingCopy = workspaceWorkingCopyRef.current;
+        if (
+          localWorkingCopy
+          && nextCoursePlan.revisionId
+            === localWorkingCopy.baseline.revisionId
+          && nextCoursePlan.requirementSetId
+            === localWorkingCopy.baseline.requirementSetId
+        ) {
+          hydrateManagementWorkspaceRequirementCatalogV1(
+            localWorkingCopy,
+            nextCoursePlan.rows,
+          );
+        }
+        setCoursePlan(nextCoursePlan);
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        setCommandNotice({
+          kind: 'info',
+          text: reason instanceof Error
+            ? `Ders planı şu anda alınamadı: ${reason.message}`
+            : 'Ders planı şu anda alınamadı. Biraz sonra yeniden deneyin.',
+        });
+      })
+      .finally(() => {
+        if (active) setSectionActivity(null);
+      });
+
+    return () => {
+      active = false;
+      setSectionActivity(null);
+    };
+  }, [activeSection, refreshToken, session, startupComplete, status]);
+
+  useEffect(() => {
+    if (
+      status !== 'ready'
+      || !session
+      || !startupComplete
+      || activeSection !== 'RESOURCES'
+    ) {
+      return;
+    }
+
+    let active = true;
+    setSectionActivity('Kaynaklar veritabanından okunuyor…');
+
+    void fetchManagementResources(session.accessToken)
+      .then((nextResources) => {
+        if (!active) return;
+
+        const localWorkingCopy = workspaceWorkingCopyRef.current;
+        if (localWorkingCopy && nextResources) {
+          hydrateManagementWorkspaceInventoryDisplayNamesV1(
+            localWorkingCopy,
+            nextResources,
+          );
+        }
+
+        setResources(nextResources);
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        setCommandNotice({
+          kind: 'info',
+          text: reason instanceof Error
+            ? `Kaynak bilgileri şu anda alınamadı: ${reason.message}`
+            : 'Kaynak bilgileri şu anda alınamadı. Biraz sonra yeniden deneyin.',
+        });
+      })
+      .finally(() => {
+        if (active) setSectionActivity(null);
+      });
+
+    return () => {
+      active = false;
+      setSectionActivity(null);
+    };
+  }, [activeSection, refreshToken, session, startupComplete, status]);
+
+  useEffect(() => {
+    if (
+      status !== 'ready'
+      || !session
+      || !startupComplete
+      || activeSection !== 'SOLVER'
+    ) {
+      return;
+    }
+
+    let active = true;
+    setSolverWorkspaceLoading(true);
+    setSolverWorkspaceLoadError(null);
+    setSectionActivity('Tercih verileri veritabanından okunuyor…');
+
+    void fetchLatestManagementSolverWorkspace(session.accessToken)
+      .then((nextSolverWorkspace) => {
+        if (!active) return;
+        setSolverWorkspace(nextSolverWorkspace);
+        setSolverWorkspaceLoadError(null);
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        const message = reason instanceof Error
+          ? reason.message
+          : 'Tercih ayarları şu anda alınamadı.';
+        setSolverWorkspaceLoadError(message);
+        setCommandNotice({
+          kind: 'info',
+          text: reason instanceof Error
+            ? `Tercih ayarları şu anda alınamadı: ${reason.message}`
+            : 'Tercih ayarları şu anda alınamadı. Biraz sonra yeniden deneyin.',
+        });
+      })
+      .finally(() => {
+        if (!active) return;
+        setSolverWorkspaceLoading(false);
+        setSectionActivity(null);
+      });
+
+    return () => {
+      active = false;
+      setSectionActivity(null);
+    };
+  }, [activeSection, refreshToken, session, startupComplete, status]);
+
+  useEffect(() => {
+    if (
+      status !== 'ready'
+      || !session
+      || !startupComplete
+      || activeSection !== 'STATUS'
+    ) {
+      return;
+    }
+
+    let active = true;
+    setSectionActivity('Kontrol ve yayın verileri veritabanından okunuyor…');
+
+    void (async () => {
+      const [previewResult, gateResult] = await Promise.allSettled([
+        fetchManagementPublicationPreview(session.accessToken),
+        fetchManagementPublicationGate(session.accessToken),
+      ]);
+
+      if (!active) return;
+
+      if (previewResult.status === 'fulfilled') {
+        setPublicationPreview(previewResult.value);
+      }
+
+      if (gateResult.status === 'fulfilled') {
+        setPublicationGate(gateResult.value);
+      }
+
+      if (
+        previewResult.status === 'rejected'
+        || gateResult.status === 'rejected'
+      ) {
+        setCommandNotice({
+          kind: 'info',
+          text: 'Program durumu kontrollerinin bir bölümü şu anda alınamadı. Ana program etkilenmedi; biraz sonra yeniden deneyebilirsiniz.',
+        });
+      }
+      if (active) setSectionActivity(null);
+    })();
+
+    return () => {
+      active = false;
+      setSectionActivity(null);
+    };
+  }, [activeSection, refreshToken, session, startupComplete, status]);
+
+  const localUndoAvailable = Boolean(
+    workspaceHistoryRef.current?.undoStack.length,
+  );
+  const localRedoAvailable = Boolean(
+    workspaceHistoryRef.current?.redoStack.length,
+  );
+  // A redo-only history after undo does not mean the local program differs
+  // from the server. Use the actual working-copy diff as the source of truth
+  // for solver projection/edit locking; otherwise a clean undo leaves
+  // Tercihler disabled and hides "Öneriyi uygula".
+  const workspaceLocalSessionActive = workspaceDirty;
+  const solverWorkspaceForView = (
+    workspaceLocalSessionActive
+    && solverWorkspace
+    && workspaceWorkingCopyRef.current
+    && workspaceHistoryRef.current
+  )
+    ? projectManagementSolverWorkspacePlacementsV1(
+        solverWorkspace,
+        workspaceWorkingCopyRef.current,
+        workspaceHistoryRef.current.nextSequence,
+      )
+    : solverWorkspace;
+  const workspaceOwnsStructureHistory = Boolean(
+    workspaceSnapshotRef.current
+    && workspaceWorkingCopyRef.current
+    && workspaceHistoryRef.current
+    && serverBoardRef.current
+  );
+  const serverUndoAvailable = canUseServerManagementHistoryDescriptor(
+    commandState.undo,
+    workspaceOwnsStructureHistory,
+  );
+  const serverRedoAvailable = canUseServerManagementHistoryDescriptor(
+    commandState.redo,
+    workspaceOwnsStructureHistory,
+  );
+
+  useEffect(() => {
+    if (!workspaceLocalSessionActive) return;
+
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [workspaceLocalSessionActive]);
 
   const visibleCards = useMemo(
     () => board?.cards.filter(
@@ -856,6 +1402,130 @@ export default function ManagementPage() {
     [selectedCards],
   );
 
+  const previewSelectedCandidate = useCallback((
+    candidate: ManagementCandidateAssessment,
+  ) => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+    if (!selectedCardId || !localSnapshot || !localWorkingCopy) {
+      return {
+        applied: true,
+        issues: [] as Array<{ code: string }>,
+      };
+    }
+
+    return previewManagementWorkspaceCommandsV1(
+      localSnapshot,
+      localWorkingCopy,
+      [{
+        type: 'SET_PLACEMENT' as const,
+        placement: {
+          cardId: selectedCardId,
+          dayOfWeek: candidate.dayOfWeek,
+          startPeriod: candidate.startPeriod,
+          teacherId: candidate.teacherId,
+          roomId: candidate.roomId,
+        },
+      }],
+    );
+  }, [board, selectedCardId]);
+
+  const locallyValidatedCandidateDetail = useMemo(() => {
+    if (!candidateDetail) return null;
+
+    const assessments = candidateDetail.assessments.map((assessment) => {
+      if (
+        assessment.status !== 'VALID'
+        || !assessment.isComplete
+      ) {
+        return assessment;
+      }
+
+      const preview = previewSelectedCandidate(assessment);
+      if (preview.applied) return assessment;
+
+      const localCodes = preview.issues.map((issue) => issue.code);
+      return {
+        ...assessment,
+        status: 'INVALID' as const,
+        isComplete: false,
+        reasonCodes: Array.from(new Set([
+          ...assessment.reasonCodes,
+          ...localCodes,
+        ])),
+      };
+    });
+
+    const reasonMap = new Map<string, number>();
+    assessments.forEach((assessment) => {
+      assessment.reasonCodes.forEach((code) => {
+        reasonMap.set(code, (reasonMap.get(code) ?? 0) + 1);
+      });
+    });
+
+    return {
+      ...candidateDetail,
+      assessments,
+      validCandidates: assessments.filter(
+        (assessment) => assessment.status === 'VALID' && assessment.isComplete,
+      ),
+      reasonCounts: Array.from(reasonMap.entries())
+        .map(([code, count]) => ({ code, count }))
+        .sort((left, right) => (
+          right.count - left.count
+          || left.code.localeCompare(right.code)
+        )),
+    };
+  }, [
+    board,
+    candidateDetail,
+    previewSelectedCandidate,
+    workspaceDirty,
+  ]);
+
+  const locallyValidatedCandidateFocus = useMemo(() => {
+    if (!candidateFocus) return null;
+
+    return {
+      ...candidateFocus,
+      candidates: candidateFocus.candidates.filter(
+        (candidate) => previewSelectedCandidate(candidate).applied,
+      ),
+    };
+  }, [
+    board,
+    candidateFocus,
+    previewSelectedCandidate,
+    workspaceDirty,
+  ]);
+
+  const inspectorCard = useMemo(() => {
+    if (!selectedCard || !locallyValidatedCandidateDetail) {
+      return selectedCard;
+    }
+
+    const validCount = locallyValidatedCandidateDetail.assessments.filter(
+      (assessment) => assessment.status === 'VALID' && assessment.isComplete,
+    ).length;
+    const unresolvedCount = locallyValidatedCandidateDetail.assessments.filter(
+      (assessment) => assessment.status === 'UNRESOLVED',
+    ).length;
+    const invalidCount = locallyValidatedCandidateDetail.assessments.length
+      - validCount
+      - unresolvedCount;
+
+    return {
+      ...selectedCard,
+      validCount,
+      unresolvedCount,
+      invalidCount,
+    };
+  }, [
+    locallyValidatedCandidateDetail,
+    selectedCard,
+  ]);
+
   const dragCard = useMemo(
     () => board?.cards.find((card) => card.id === dragCardIds[0]) ?? null,
     [board, dragCardIds],
@@ -872,7 +1542,9 @@ export default function ManagementPage() {
     cardId: string,
     sourceBoard: ManagementBoardData | null = board,
   ) => {
-    const detail = await fetchManagementCardCandidates(accessToken, cardId);
+    const detail = await retryManagementRead(
+      () => fetchManagementCardCandidates(accessToken, cardId),
+    );
     const card = sourceBoard?.cards.find((item) => item.id === cardId) ?? null;
     return card
       ? applyManagementTeacherPolicyToCandidateDetail(
@@ -1233,8 +1905,11 @@ export default function ManagementPage() {
     try {
       // Always start from a fresh board snapshot. This prevents a just-placed
       // card from being analyzed again while the normal workbench refresh is
-      // still catching up.
-      const freshBoard = await fetchManagementBoard(session.accessToken);
+      // still catching up. A transient browser/network failure may be retried
+      // once because this is a read-only snapshot.
+      const freshBoard = await retryManagementRead(
+        () => fetchManagementBoard(session.accessToken),
+      );
       if (!freshBoard) {
         throw new Error('Güncel program verisi alınamadı.');
       }
@@ -1253,18 +1928,23 @@ export default function ManagementPage() {
       );
       const nextPlans: ManagementPlacementAssistantPlan[] = [];
 
-      // Deliberately sequential: each refresh can be expensive and later
-      // M32 phases may add many more pool cards. Avoid a database fan-out.
+      // Assistant analysis is read-only. Candidate domains are maintained by
+      // the placement/remove/resource flows themselves; forcing a fresh domain
+      // rebuild here made a simple comparison screen depend on an expensive
+      // write-heavy RPC and could hit statement timeout. Read the current
+      // persisted candidate snapshot instead. The selected option is still
+      // revalidated before any placement write.
       for (const group of analyzableGroups) {
-        await refreshManagementCardGroupCandidates(
-          session.accessToken,
-          group.cardIds,
-        );
-
         const entries = await Promise.all(
           group.cardIds.map(async (cardId) => [
             cardId,
-            await fetchPolicyAwareCandidates(session.accessToken, cardId, freshBoard),
+            await retryManagementRead(
+              () => fetchPolicyAwareCandidates(
+                session.accessToken,
+                cardId,
+                freshBoard,
+              ),
+            ),
           ] as const),
         );
 
@@ -1279,35 +1959,14 @@ export default function ManagementPage() {
       }
 
       const sortedPlans = sortManagementPlacementAssistantPlans(nextPlans);
-      const impactScenarios = sortedPlans
-        .flatMap((plan) => plan.exactOptions)
-        .map((option) => ({
-          id: option.id,
-          items: option.moves.map(({ cardId, candidate }) => ({
-            cardId,
-            dayOfWeek: candidate.dayOfWeek,
-            startPeriod: candidate.startPeriod,
-            teacherId: candidate.teacherId,
-            roomId: candidate.roomId,
-          })),
-        }));
 
-      const impacts: ManagementForwardImpact[] = [];
-      for (let index = 0; index < impactScenarios.length; index += 60) {
-        impacts.push(
-          ...await previewManagementCandidateForwardImpacts(
-            session.accessToken,
-            impactScenarios.slice(index, index + 60),
-          ),
-        );
-      }
-
-      setPlacementAssistantPlans(
-        attachManagementPlacementAssistantForwardImpacts(
-          sortedPlans,
-          impacts,
-        ),
-      );
+      // Do not calculate forward-domain impact for every option up front.
+      // A single pool card can have 100+ exact options; the previous batch
+      // query rescanned the full candidate domain for each scenario and could
+      // hit the database statement timeout. Options are now shown immediately.
+      // The selected option is forward-impact checked immediately before any
+      // placement write.
+      setPlacementAssistantPlans(sortedPlans);
       setPlacementAssistantAnalyzed(true);
     } catch (reason: unknown) {
       setPlacementAssistantError(
@@ -1321,62 +1980,252 @@ export default function ManagementPage() {
     }
   };
 
+  const prepareDrag = (cardId: string, sourceCardIds?: string[]) => {
+    if (!session || !access?.canEdit || status !== 'ready') return;
+
+    const baseIds = Array.from(new Set(
+      sourceCardIds?.length ? sourceCardIds : [cardId],
+    ));
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    if (!localSnapshot || !localWorkingCopy) {
+      dragPreparedRef.current = null;
+      return;
+    }
+
+    const parallelBundle =
+      findManagementWorkspaceParallelBundleV1(localSnapshot, cardId);
+    const ids = Array.from(new Set(
+      parallelBundle
+        ? [...baseIds, ...parallelBundle.cardIds]
+        : baseIds,
+    ));
+
+    const fixedTimeCard = ids.find((id) => {
+      const localCard = localWorkingCopy.cardsById[id];
+      return localCard?.locked === true || localCard?.timePinned === true;
+    });
+    if (fixedTimeCard) {
+      dragPreparedRef.current = null;
+      setCommandNotice({
+        kind: 'info',
+        text: 'Bu dersin gün / saati sabit. Taşımak için önce Gün / saat sabitlemesini kaldırın.',
+      });
+      return;
+    }
+
+    const anchorOffset = parallelBundle?.offsetsByCardId[cardId] ?? 0;
+    const startOffsetsByCardId = parallelBundle
+      ? Object.fromEntries(ids.map((id) => [
+        id,
+        (parallelBundle.offsetsByCardId[id] ?? anchorOffset) - anchorOffset,
+      ]))
+      : Object.fromEntries(ids.map((id) => [id, 0]));
+
+    const allPlaced = ids.every((id) => {
+      const placement = localWorkingCopy.placementsByCardId[id];
+      return Boolean(
+        placement
+        && placement.dayOfWeek !== null
+        && placement.startPeriod !== null
+      );
+    });
+
+    // Pointer-down preparation must stay cheap. The card must attach to the
+    // pointer immediately; authoritative per-slot prevalidation starts only
+    // after the native drag has begun.
+    const entries = ids.map((id) => [
+      id,
+      allPlaced
+        ? buildManagementWorkspaceMoveCandidateDetailV1(
+          localSnapshot,
+          localWorkingCopy,
+          id,
+        )
+        : buildManagementWorkspacePlacementCandidateDetailV1(
+          localSnapshot,
+          localWorkingCopy,
+          id,
+        ),
+    ] as const);
+
+    if (entries.some(([, detail]) => detail === null)) {
+      dragPreparedRef.current = null;
+      return;
+    }
+
+    dragPreparedRef.current = {
+      anchorCardId: cardId,
+      ids,
+      startOffsetsByCardId,
+      details: Object.fromEntries(entries) as Record<
+        string,
+        ManagementCandidateDetail
+      >,
+      needsPrevalidation: allPlaced,
+    };
+  };
+
   const beginDrag = (cardId: string, sourceCardIds?: string[]) => {
     if (!session || !access?.canEdit || status !== 'ready') return;
 
-    const ids = Array.from(new Set(
-      sourceCardIds?.length ? sourceCardIds : [cardId],
-    ));
+    const prepared = dragPreparedRef.current?.anchorCardId === cardId
+      ? dragPreparedRef.current
+      : null;
+
+    if (!prepared) {
+      prepareDrag(cardId, sourceCardIds);
+    }
+
+    const ready = dragPreparedRef.current?.anchorCardId === cardId
+      ? dragPreparedRef.current
+      : null;
+
     const sequence = dragSequenceRef.current + 1;
     dragSequenceRef.current = sequence;
 
-    setDragCardIds(ids);
-    setDragCandidateDetails({});
-    setDragLoading(true);
+    if (!ready) {
+      dragCardIdsRef.current = [];
+      setDragCardIds([]);
+      setDragStartOffsetsByCardId({});
+      setDragCandidateDetails({});
+      setDragLoading(false);
+
+      const localSnapshot = workspaceSnapshotRef.current;
+      const localWorkingCopy = workspaceWorkingCopyRef.current;
+      const baseIds = Array.from(new Set(
+        sourceCardIds?.length ? sourceCardIds : [cardId],
+      ));
+      const parallelBundle = localSnapshot
+        ? findManagementWorkspaceParallelBundleV1(localSnapshot, cardId)
+        : null;
+      const blockedIds = Array.from(new Set(
+        parallelBundle
+          ? [...baseIds, ...parallelBundle.cardIds]
+          : baseIds,
+      ));
+      const timeBlocked = Boolean(
+        localWorkingCopy
+        && blockedIds.some((id) => {
+          const localCard = localWorkingCopy.cardsById[id];
+          return localCard?.locked === true || localCard?.timePinned === true;
+        }),
+      );
+
+      setCommandNotice(
+        timeBlocked
+          ? {
+              kind: 'info',
+              text: 'Bu dersin gün / saati sabit. Taşımak için önce Gün / saat sabitlemesini kaldırın.',
+            }
+          : {
+              kind: 'error',
+              text: 'Taşıma seçenekleri hazırlanamadı. Programı yenileyip tekrar deneyin.',
+            },
+      );
+      return;
+    }
+
+    dragCardIdsRef.current = ready.ids;
+    setDragCardIds(ready.ids);
+    setDragStartOffsetsByCardId(ready.startOffsetsByCardId);
+    setDragCandidateDetails(ready.details);
+    setDragLoading(ready.needsPrevalidation);
     setCandidateFocus(null);
-    setSelectedCardId(cardId);
-    setSelectedCardIds(ids);
     setCommandNotice(null);
 
-    void refreshManagementCardGroupCandidates(
-      session.accessToken,
-      ids,
-    )
-      .then(() => Promise.all(
-        ids.map(async (id) => [
-          id,
-          await fetchPolicyAwareCandidates(session.accessToken, id),
-        ] as const),
-      ))
-      .then((entries) => {
-        if (dragSequenceRef.current !== sequence) return;
-        setDragCandidateDetails(Object.fromEntries(entries));
-      })
-      .catch((reason: unknown) => {
-        if (dragSequenceRef.current !== sequence) return;
-        setDragCardIds([]);
-        setDragCandidateDetails({});
-        setCommandNotice({
-          kind: 'error',
-          text: reason instanceof Error
-            ? reason.message
-            : 'Sürükleme için aday alanı hazırlanamadı.',
-        });
-        setInspectorOpen(true);
-      })
-      .finally(() => {
-        if (dragSequenceRef.current === sequence) {
-          setDragLoading(false);
+    if (!ready.needsPrevalidation) return;
+
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    if (!localSnapshot || !localWorkingCopy) {
+      setDragLoading(false);
+      return;
+    }
+
+    const validationSequence = sequence;
+    const validationIds = [...ready.ids];
+    const validationOffsets = { ...ready.startOffsetsByCardId };
+
+    // Give the browser a frame to establish the native drag/ghost first.
+    // Until this finishes every target remains LOADING, so an early release
+    // is rejected and the card naturally returns to its original cell.
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        if (
+          dragSequenceRef.current !== validationSequence
+          || dragCardIdsRef.current.length === 0
+        ) {
+          return;
         }
-      });
+
+        const validated =
+          buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
+            localSnapshot,
+            localWorkingCopy,
+            validationIds,
+            validationOffsets,
+          );
+
+        if (
+          dragSequenceRef.current !== validationSequence
+          || dragCardIdsRef.current.length === 0
+        ) {
+          return;
+        }
+
+        if (!validated) {
+          setDragLoading(false);
+          setCommandNotice({
+            kind: 'error',
+            text: 'Hedef hücreleri doğrulanamadı. Kart eski yerinde bırakıldı.',
+          });
+          return;
+        }
+
+        setDragCandidateDetails(validated);
+        setDragLoading(false);
+      }, 40);
+    });
   };
 
   const endDrag = () => {
     dragSequenceRef.current += 1;
+    dragPreparedRef.current = null;
+    dragCardIdsRef.current = [];
     setDragCardIds([]);
+    setDragStartOffsetsByCardId({});
     setDragCandidateDetails({});
     setDragLoading(false);
   };
+
+  useEffect(() => {
+    if (dragCardIds.length === 0) return;
+
+    const clearDragSoon = () => {
+      window.setTimeout(() => {
+        if (dragCardIdsRef.current.length > 0) {
+          endDrag();
+        }
+      }, 0);
+    };
+    const clearOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') endDrag();
+    };
+
+    window.addEventListener('dragend', clearDragSoon);
+    window.addEventListener('drop', clearDragSoon);
+    window.addEventListener('blur', clearDragSoon);
+    window.addEventListener('keydown', clearOnEscape);
+
+    return () => {
+      window.removeEventListener('dragend', clearDragSoon);
+      window.removeEventListener('drop', clearDragSoon);
+      window.removeEventListener('blur', clearDragSoon);
+      window.removeEventListener('keydown', clearOnEscape);
+    };
+  }, [dragCardIds.length]);
+
 
   const runCandidateCommand = async (
     candidate: ManagementCandidateAssessment,
@@ -1391,6 +2240,67 @@ export default function ManagementPage() {
       || commandBusy
     ) {
       return false;
+    }
+
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      localSnapshot
+      && localWorkingCopy
+      && localHistory
+      && serverBoard
+    ) {
+      const result = executeManagementWorkspaceCommandV1(
+        localSnapshot,
+        localWorkingCopy,
+        localHistory,
+        {
+          type: 'SET_PLACEMENT',
+          placement: {
+            cardId: commandCard.id,
+            dayOfWeek: candidate.dayOfWeek,
+            startPeriod: candidate.startPeriod,
+            teacherId: candidate.teacherId,
+            roomId: candidate.roomId,
+          },
+        },
+      );
+
+      if (!result.applied) {
+        setCommandNotice({
+          kind: 'error',
+          text: result.issues.length > 0
+            ? `Bu konuma taşınamıyor: ${workspaceIssueSummary(result.issues.map((issue) => issue.code))}.`
+            : 'Bu konuma taşınamıyor.',
+        });
+        return false;
+      }
+
+      setBoard(
+        projectManagementBoardFromWorkspaceV1(
+          serverBoard,
+          localWorkingCopy,
+          localSnapshot,
+        ),
+      );
+      setWorkspaceDirty(
+        diffManagementWorkspaceV1(
+          localSnapshot,
+          localWorkingCopy,
+        ).hasChanges,
+      );
+      setCandidateFocus(null);
+      setActiveDay(candidate.dayOfWeek);
+      setCommandNotice({
+        kind: 'success',
+        text: commandCard.placement
+          ? 'Kart yeni yerine taşındı. Değişiklik henüz kaydedilmedi.'
+          : 'Kart programa yerleştirildi. Değişiklik henüz kaydedilmedi.',
+      });
+      return true;
     }
 
     setCommandBusy(true);
@@ -1461,6 +2371,73 @@ export default function ManagementPage() {
       return runCandidateCommand(commands[0].candidate, commands[0].card);
     }
 
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      localSnapshot
+      && localWorkingCopy
+      && localHistory
+      && serverBoard
+    ) {
+      const result = executeManagementWorkspaceCommandsV1(
+        localSnapshot,
+        localWorkingCopy,
+        localHistory,
+        commands.map(({ card, candidate }) => ({
+          type: 'SET_PLACEMENT' as const,
+          placement: {
+            cardId: card.id,
+            dayOfWeek: candidate.dayOfWeek,
+            startPeriod: candidate.startPeriod,
+            teacherId: candidate.teacherId,
+            roomId: candidate.roomId,
+          },
+        })),
+      );
+
+      if (!result.applied) {
+        setCommandNotice({
+          kind: 'error',
+          text: result.issues.length > 0
+            ? `Birleşik ders bu konuma taşınamıyor: ${workspaceIssueSummary(result.issues.map((issue) => issue.code))}.`
+            : 'Birleşik ders bu konuma taşınamıyor.',
+        });
+        return false;
+      }
+
+      setBoard(
+        projectManagementBoardFromWorkspaceV1(
+          serverBoard,
+          localWorkingCopy,
+          localSnapshot,
+        ),
+      );
+      setWorkspaceDirty(
+        diffManagementWorkspaceV1(
+          localSnapshot,
+          localWorkingCopy,
+        ).hasChanges,
+      );
+      setCandidateFocus(null);
+      setActiveDay(commands[0].candidate.dayOfWeek);
+      setCommandNotice({
+        kind: 'success',
+        text: `${commands[0].card.subjectName} birlikte taşındı. Değişiklik henüz kaydedilmedi; tek Geri Al ile eski yerine döner.`,
+      });
+      return true;
+    }
+
+    if (workspaceLocalSessionActive) {
+      setCommandNotice({
+        kind: 'info',
+        text: 'Yerel çalışma alanı hazır değilken birleşik ders işlemi güvenli biçimde uygulanamaz.',
+      });
+      return false;
+    }
+
     const placementStates = commands.map(({ card }) => Boolean(card.placement));
     const allPlaced = placementStates.every(Boolean);
     const allUnplaced = placementStates.every((placed) => !placed);
@@ -1523,16 +2500,78 @@ export default function ManagementPage() {
   const applyPlacementAssistantOption = async (
     option: ManagementPlacementAssistantOption,
   ) => {
+    if (workspaceLocalSessionActive) {
+      setPlacementAssistantError(
+        'Yerel çalışma alanında kaydedilmemiş değişiklik var. Önce geri alın veya çalışma alanını yenileyin.',
+      );
+      return;
+    }
+
     if (
-      placementAssistantStale
+      !session
+      || placementAssistantStale
       || placementAssistantLoading
       || placementAssistantWaitingForRefresh
+      || placementAssistantImpactChecking
       || commandBusy
       || !access?.canEdit
     ) {
       return;
     }
 
+    setPlacementAssistantError(null);
+    setPlacementAssistantImpactChecking(true);
+
+    try {
+      const impacts = await retryManagementRead(
+        () => previewManagementCandidateForwardImpacts(
+          session.accessToken,
+          [{
+            id: option.id,
+            items: option.moves.map(({ cardId, candidate }) => ({
+              cardId,
+              dayOfWeek: candidate.dayOfWeek,
+              startPeriod: candidate.startPeriod,
+              teacherId: candidate.teacherId,
+              roomId: candidate.roomId,
+            })),
+          }],
+        ),
+      );
+
+      const impact = impacts.find((item) => item.id === option.id) ?? null;
+
+      if (!impact) {
+        setPlacementAssistantError(
+          'Bu seçeneğin ileri etkisi doğrulanamadı. Program değiştirilmedi; yeniden deneyin.',
+        );
+        setPlacementAssistantImpactChecking(false);
+        return;
+      }
+
+      if (!impact.safeToApply) {
+        setPlacementAssistantError(
+          impact.newContradictionCount > 0
+            ? `Bu seçenek ${impact.newContradictionCount} dersi seçeneksiz bırakacağı için uygulanmadı.`
+            : 'Bu seçeneğin başka derslere etkisi güvenli değil. Program değiştirilmedi.',
+        );
+        setPlacementAssistantImpactChecking(false);
+        return;
+      }
+    } catch (reason: unknown) {
+      const raw = reason instanceof Error ? reason.message : '';
+      const timedOut = raw.toLocaleLowerCase('tr-TR').includes('timeout');
+
+      setPlacementAssistantError(
+        timedOut
+          ? 'İleri etki kontrolü zaman aşımına uğradı. Program değiştirilmedi; aynı seçeneği yeniden deneyin.'
+          : raw || 'İleri etki kontrolü tamamlanamadı. Program değiştirilmedi.',
+      );
+      setPlacementAssistantImpactChecking(false);
+      return;
+    }
+
+    setPlacementAssistantImpactChecking(false);
     setPlacementAssistantWaitingForRefresh(true);
     setPlacementAssistantSawRefreshLoading(false);
     setPlacementAssistantPlans([]);
@@ -1588,12 +2627,38 @@ export default function ManagementPage() {
     setCommandNotice(null);
 
     try {
-      const details = await Promise.all(
-        selectedCardIds.map(async (cardId) => ({
-          cardId,
-          detail: await fetchPolicyAwareCandidates(session.accessToken, cardId, board),
-        })),
-      );
+      const localSnapshot = workspaceSnapshotRef.current;
+      const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+      if (!localSnapshot || !localWorkingCopy) {
+        throw new Error('Yerel çalışma alanı hazır değil.');
+      }
+
+      const details = selectedCardIds.map((cardId) => {
+        const placement = localWorkingCopy.placementsByCardId[cardId];
+        const isPlaced = Boolean(
+          placement
+          && placement.dayOfWeek !== null
+          && placement.startPeriod !== null
+        );
+        const detail = isPlaced
+          ? buildManagementWorkspaceMoveCandidateDetailV1(
+            localSnapshot,
+            localWorkingCopy,
+            cardId,
+          )
+          : buildManagementWorkspacePlacementCandidateDetailV1(
+            localSnapshot,
+            localWorkingCopy,
+            cardId,
+          );
+
+        if (!detail) {
+          throw new Error('Birleşik dersin yerel aday bilgisi hazırlanamadı.');
+        }
+
+        return { cardId, detail };
+      });
 
       const moves: ManagementGroupDropCandidate[] = details.flatMap(
         ({ cardId, detail }) => {
@@ -1612,6 +2677,40 @@ export default function ManagementPage() {
             return exact ? [{ cardId, candidate: exact }] : [];
           }
 
+          const siblingCard = board.cards.find((item) => item.id === cardId) ?? null;
+          const currentPlacement = siblingCard?.placement ?? null;
+
+          const preserveCurrentResources = currentPlacement
+            ? validAtSlot.find((assessment) => (
+              assessment.teacherId === currentPlacement.teacherId
+              && assessment.roomId === currentPlacement.roomId
+            ))
+            : null;
+
+          if (preserveCurrentResources) {
+            return [{ cardId, candidate: preserveCurrentResources }];
+          }
+
+          const preserveCurrentTeacher = currentPlacement?.teacherId
+            ? validAtSlot.filter((assessment) => (
+              assessment.teacherId === currentPlacement.teacherId
+            ))
+            : [];
+
+          if (preserveCurrentTeacher.length === 1) {
+            return [{ cardId, candidate: preserveCurrentTeacher[0] }];
+          }
+
+          const preserveCurrentRoom = currentPlacement?.roomId
+            ? validAtSlot.filter((assessment) => (
+              assessment.roomId === currentPlacement.roomId
+            ))
+            : [];
+
+          if (preserveCurrentRoom.length === 1) {
+            return [{ cardId, candidate: preserveCurrentRoom[0] }];
+          }
+
           return validAtSlot.length === 1
             ? [{ cardId, candidate: validAtSlot[0] }]
             : [];
@@ -1621,7 +2720,7 @@ export default function ManagementPage() {
       if (moves.length !== selectedCardIds.length) {
         setCommandNotice({
           kind: 'error',
-          text: 'Bu saat, birleşik dersin tüm sınıfları için tek ve kesin bir hedef oluşturmuyor. Uygun hedefi program üzerinde sürükle-bırak ile seçin.',
+          text: 'Bu saatte birleşik dersin diğer sınıflarından en az biri için birden fazla eşdeğer kaynak seçeneği kaldı. Mevcut kaynak korunamadığı için otomatik seçim yapılmadı.',
         });
         return;
       }
@@ -1666,12 +2765,38 @@ export default function ManagementPage() {
     });
 
     try {
-      const details = await Promise.all(
-        cardIds.map(async (cardId) => ({
-          cardId,
-          detail: await fetchPolicyAwareCandidates(session.accessToken, cardId, board),
-        })),
-      );
+      const localSnapshot = workspaceSnapshotRef.current;
+      const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+      if (!localSnapshot || !localWorkingCopy) {
+        throw new Error('Yerel çalışma alanı hazır değil.');
+      }
+
+      const details = cardIds.map((cardId) => {
+        const placement = localWorkingCopy.placementsByCardId[cardId];
+        const isPlaced = Boolean(
+          placement
+          && placement.dayOfWeek !== null
+          && placement.startPeriod !== null
+        );
+        const detail = isPlaced
+          ? buildManagementWorkspaceMoveCandidateDetailV1(
+            localSnapshot,
+            localWorkingCopy,
+            cardId,
+          )
+          : buildManagementWorkspacePlacementCandidateDetailV1(
+            localSnapshot,
+            localWorkingCopy,
+            cardId,
+          );
+
+        if (!detail) {
+          throw new Error('Bırakma hedefinin yerel aday bilgisi hazırlanamadı.');
+        }
+
+        return { cardId, detail };
+      });
 
       const resolved = details.map(({ cardId, detail }) => {
         const card = board.cards.find((item) => item.id === cardId) ?? null;
@@ -1877,6 +3002,77 @@ export default function ManagementPage() {
       .sort((a, b) => a.localeCompare(b, 'tr', { numeric: true }))
       .join(' + ');
 
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      localSnapshot
+      && localWorkingCopy
+      && localHistory
+      && serverBoard
+    ) {
+      const result = uniqueIds.length === 1
+        ? executeManagementWorkspaceCommandV1(
+          localSnapshot,
+          localWorkingCopy,
+          localHistory,
+          {
+            type: 'REMOVE_PLACEMENT',
+            cardId: primaryCard.id,
+          },
+        )
+        : executeManagementWorkspaceCommandsV1(
+          localSnapshot,
+          localWorkingCopy,
+          localHistory,
+          uniqueIds.map((cardId) => ({
+            type: 'REMOVE_PLACEMENT' as const,
+            cardId,
+          })),
+        );
+
+      if (!result.applied) {
+        setCommandNotice({
+          kind: 'error',
+          text: result.issues.length > 0
+            ? `Ders programdan kaldırılamıyor: ${workspaceIssueSummary(result.issues.map((issue) => issue.code))}.`
+            : 'Ders programdan kaldırılamıyor.',
+        });
+        return false;
+      }
+
+      setBoard(
+        projectManagementBoardFromWorkspaceV1(
+          serverBoard,
+          localWorkingCopy,
+          localSnapshot,
+        ),
+      );
+      setWorkspaceDirty(
+        diffManagementWorkspaceV1(
+          localSnapshot,
+          localWorkingCopy,
+        ).hasChanges,
+      );
+      setCommandNotice({
+        kind: 'success',
+        text: uniqueIds.length > 1
+          ? `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan kaldırıldı. Değişiklik henüz kaydedilmedi; tek Geri Al ile geri getirilebilir.`
+          : `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan kaldırıldı. Değişiklik henüz kaydedilmedi.`,
+      });
+      return true;
+    }
+
+    if (workspaceLocalSessionActive) {
+      setCommandNotice({
+        kind: 'info',
+        text: 'Yerel çalışma alanında kaydedilmemiş değişiklik var. Toplu veya eski veritabanı yazma işlemleri şu anda kilitli.',
+      });
+      return false;
+    }
+
     setCommandBusy(true);
     setCommandActivity(
       cardsBeingRemoved.length > 1
@@ -1902,10 +3098,53 @@ export default function ManagementPage() {
       setRefreshToken((value) => value + 1);
       return true;
     } catch (reason: unknown) {
+      const originalMessage = reason instanceof Error
+        ? reason.message
+        : 'Kart kaldırılamadı.';
+
+      try {
+        const stillPlacedIds = new Set(
+          await fetchManagementPlacedCardIds(
+            session.accessToken,
+            cardsBeingRemoved.map((card) => card.id),
+          ),
+        );
+
+        const placedCount = cardsBeingRemoved.filter(
+          (card) => stillPlacedIds.has(card.id),
+        ).length;
+
+        if (placedCount === 0) {
+          setCommandNotice({
+            kind: 'success',
+            text: `${classLabel || primaryCard.groupName} ${primaryCard.subjectName} programdan kaldırıldı. Bağlantı cevabı eksik kaldığı için ekran güncel durumla yeniden eşitleniyor.`,
+          });
+          setRefreshToken((value) => value + 1);
+          return true;
+        }
+
+        if (placedCount !== cardsBeingRemoved.length) {
+          setCommandNotice({
+            kind: 'info',
+            text: 'Kart grubunun yerleşim durumu işlem sırasında değişti. Yeni bir yazma işlemi uygulanmadı; ekran sunucudaki güncel durumla yenileniyor.',
+          });
+          setRefreshToken((value) => value + 1);
+          return false;
+        }
+      } catch {
+        // Reconciliation is read-only and best-effort. Preserve the original
+        // command error when the network is still unavailable.
+      }
+
       setCommandNotice({
         kind: 'error',
-        text: reason instanceof Error ? reason.message : 'Kart kaldırılamadı.',
+        text: originalMessage,
       });
+
+      // A failed write response can still be ambiguous at the browser/network
+      // layer. Refresh so the next user action never relies on stale placement
+      // state.
+      setRefreshToken((value) => value + 1);
       return false;
     } finally {
       setCommandBusy(false);
@@ -1919,13 +3158,122 @@ export default function ManagementPage() {
   };
 
   const returnDraggedCardsToPool = () => {
-    const cardIds = [...dragCardIds];
+    const cardIds = [...dragCardIdsRef.current];
     endDrag();
+
+    if (cardIds.length === 0) {
+      setCommandNotice({
+        kind: 'info',
+        text: 'Sürüklenen dersin kimliği güncellendi. Kartı yeniden sürükleyin.',
+      });
+      return;
+    }
+
     void removeCardsNow(cardIds);
   };
 
+  const reflectTimePreferenceState = (
+    preference: {
+      requirementId: string;
+      preferredDays: number[];
+      preferredStartPeriods: number[];
+    },
+  ) => {
+    setCoursePlan((current) => current
+      ? {
+          ...current,
+          rows: current.rows.map((row) => (
+            row.requirementId === preference.requirementId
+              ? {
+                  ...row,
+                  preferredDays: [...preference.preferredDays],
+                  preferredStartPeriods: [
+                    ...preference.preferredStartPeriods,
+                  ],
+                }
+              : row
+          )),
+        }
+      : current);
+
+    setSolverWorkspace((current) => {
+      if (!current) return current;
+
+      const others = (current.preview.subjectTimePreferences ?? [])
+        .filter((item) => item.requirementId !== preference.requirementId);
+      const configured = (
+        preference.preferredDays.length > 0
+        || preference.preferredStartPeriods.length > 0
+      );
+
+      return {
+        ...current,
+        preview: {
+          ...current.preview,
+          subjectTimePreferences: configured
+            ? [
+                ...others,
+                {
+                  requirementId: preference.requirementId,
+                  preferredDays: [...preference.preferredDays],
+                  preferredStartPeriods: [
+                    ...preference.preferredStartPeriods,
+                  ],
+                },
+              ]
+            : others,
+        },
+      };
+    });
+  };
+
   const runUndo = async () => {
-    const descriptor = commandState.undo;
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      localSnapshot
+      && localWorkingCopy
+      && localHistory
+      && serverBoard
+      && localHistory.undoStack.length > 0
+    ) {
+      const localOperation = undoManagementWorkspaceOperationV1(
+        localWorkingCopy,
+        localHistory,
+      );
+
+      if (localOperation?.kind === 'SET_REQUIREMENT_TIME_PREFERENCE') {
+        reflectTimePreferenceState(localOperation.before);
+      }
+
+      setBoard(
+        projectManagementBoardFromWorkspaceV1(
+          serverBoard,
+          localWorkingCopy,
+          localSnapshot,
+        ),
+      );
+      setWorkspaceDirty(
+        diffManagementWorkspaceV1(
+          localSnapshot,
+          localWorkingCopy,
+        ).hasChanges,
+      );
+      if (localOperation?.kind === 'SET_INVENTORY_RESOURCE') {
+        setResources((current) => current ? { ...current } : current);
+      }
+      setCoursePlan((current) => current ? { ...current } : current);
+      setCommandNotice({
+        kind: 'success',
+        text: `${localWorkspaceOperationLabel(localOperation)} geri alındı.`,
+      });
+      return;
+    }
+
+    const descriptor = serverUndoAvailable ? commandState.undo : null;
 
     if (
       !session
@@ -1992,7 +3340,52 @@ export default function ManagementPage() {
   };
 
   const runRedo = async () => {
-    const descriptor = commandState.redo;
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      localSnapshot
+      && localWorkingCopy
+      && localHistory
+      && serverBoard
+      && localHistory.redoStack.length > 0
+    ) {
+      const localOperation = redoManagementWorkspaceOperationV1(
+        localWorkingCopy,
+        localHistory,
+      );
+
+      if (localOperation?.kind === 'SET_REQUIREMENT_TIME_PREFERENCE') {
+        reflectTimePreferenceState(localOperation.after);
+      }
+
+      setBoard(
+        projectManagementBoardFromWorkspaceV1(
+          serverBoard,
+          localWorkingCopy,
+          localSnapshot,
+        ),
+      );
+      setWorkspaceDirty(
+        diffManagementWorkspaceV1(
+          localSnapshot,
+          localWorkingCopy,
+        ).hasChanges,
+      );
+      if (localOperation?.kind === 'SET_INVENTORY_RESOURCE') {
+        setResources((current) => current ? { ...current } : current);
+      }
+      setCoursePlan((current) => current ? { ...current } : current);
+      setCommandNotice({
+        kind: 'success',
+        text: `${localWorkspaceOperationLabel(localOperation)} yeniden uygulandı.`,
+      });
+      return;
+    }
+
+    const descriptor = serverRedoAvailable ? commandState.redo : null;
 
     if (
       !session
@@ -2034,10 +3427,503 @@ export default function ManagementPage() {
     }
   };
 
+  const updateLocalRequirementTeachers = async (
+    requirementId: string,
+    teacherIds: string[],
+  ) => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      !access?.canEdit
+      || !localSnapshot
+      || !localWorkingCopy
+      || !localHistory
+      || !serverBoard
+    ) {
+      throw new Error('Yerel çalışma alanı hazır değil.');
+    }
+
+    const current =
+      localWorkingCopy.requirementResourcesById[requirementId] ?? null;
+    if (!current) {
+      throw new Error('Ders Planı kaynak tanımı bulunamadı.');
+    }
+
+    const normalizedTeacherIds = Array.from(new Set(teacherIds))
+      .sort((a, b) => a.localeCompare(b));
+
+    const result = executeManagementWorkspaceCommandV1(
+      localSnapshot,
+      localWorkingCopy,
+      localHistory,
+      {
+        type: 'SET_REQUIREMENT_RESOURCES',
+        resource: {
+          ...current,
+          teacherIds: normalizedTeacherIds,
+          teacherMode: normalizedTeacherIds.length === 0
+            ? 'UNKNOWN'
+            : normalizedTeacherIds.length === 1
+              ? 'FIXED'
+              : 'ELIGIBLE_POOL',
+        },
+      },
+    );
+
+    if (!result.applied) {
+      throw new Error(
+        result.issues.length > 0
+          ? `Ders Planı güncellenemiyor: ${workspaceIssueSummary(
+            result.issues.map((issue) => issue.code),
+          )}.`
+          : 'Ders Planı güncellenemiyor.',
+      );
+    }
+
+    setBoard(
+      projectManagementBoardFromWorkspaceV1(
+        serverBoard,
+        localWorkingCopy,
+        localSnapshot,
+      ),
+    );
+    setWorkspaceDirty(
+      diffManagementWorkspaceV1(
+        localSnapshot,
+        localWorkingCopy,
+      ).hasChanges,
+    );
+    setCommandNotice({
+      kind: 'success',
+      text: 'Öğretmen havuzu yerel çalışma alanında güncellendi.',
+    });
+  };
+
+  const updateLocalRequirementRoomStrategy = async (
+    requirementId: string,
+    strategy: ManagementRoomStrategy,
+    roomIds: string[],
+    requiredCapability: string | null,
+  ) => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      !access?.canEdit
+      || !localSnapshot
+      || !localWorkingCopy
+      || !localHistory
+      || !serverBoard
+    ) {
+      throw new Error('Yerel çalışma alanı hazır değil.');
+    }
+
+    const current =
+      localWorkingCopy.requirementResourcesById[requirementId] ?? null;
+    if (!current) {
+      throw new Error('Ders Planı kaynak tanımı bulunamadı.');
+    }
+
+    const normalizedRoomIds = Array.from(new Set(roomIds))
+      .sort((a, b) => a.localeCompare(b));
+
+    let resourceMode = 'UNKNOWN';
+    let nextRoomIds: string[] = [];
+    let nextCapability: string | null = null;
+
+    if (strategy === 'SPECIFIC') {
+      if (normalizedRoomIds.length === 0) {
+        throw new Error('En az bir salon seçilmelidir.');
+      }
+      resourceMode = normalizedRoomIds.length === 1
+        ? 'FIXED'
+        : 'ELIGIBLE_POOL';
+      nextRoomIds = normalizedRoomIds;
+    } else if (strategy === 'CAPABILITY') {
+      if (!requiredCapability) {
+        throw new Error('Salon özelliği seçilmelidir.');
+      }
+      resourceMode = 'CAPABILITY';
+      nextCapability = requiredCapability;
+    }
+
+    const result = executeManagementWorkspaceCommandV1(
+      localSnapshot,
+      localWorkingCopy,
+      localHistory,
+      {
+        type: 'SET_REQUIREMENT_RESOURCES',
+        resource: {
+          ...current,
+          resourceMode,
+          roomIds: nextRoomIds,
+          requiredCapability: nextCapability,
+        },
+      },
+    );
+
+    if (!result.applied) {
+      throw new Error(
+        result.issues.length > 0
+          ? `Salon tanımı güncellenemiyor: ${workspaceIssueSummary(
+            result.issues.map((issue) => issue.code),
+          )}.`
+          : 'Salon tanımı güncellenemiyor.',
+      );
+    }
+
+    setBoard(
+      projectManagementBoardFromWorkspaceV1(
+        serverBoard,
+        localWorkingCopy,
+        localSnapshot,
+      ),
+    );
+    setWorkspaceDirty(
+      diffManagementWorkspaceV1(
+        localSnapshot,
+        localWorkingCopy,
+      ).hasChanges,
+    );
+    setCommandNotice({
+      kind: 'success',
+      text: 'Salon stratejisi yerel çalışma alanında güncellendi.',
+    });
+  };
+
+  const previewLocalRequirementTeacherPolicy = async (
+    requirementId: string,
+    scope: ManagementTeacherAssignmentScope,
+    continuity: ManagementTeacherContinuity,
+  ) => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+    if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+      throw new Error('Yerel çalışma alanı hazır değil.');
+    }
+
+    return prepareManagementWorkspaceTeacherPolicyV1(
+      localSnapshot,
+      localWorkingCopy,
+      requirementId,
+      scope,
+      continuity,
+    ).preview;
+  };
+
+  const applyLocalRequirementTeacherPolicy = async (
+    requirementId: string,
+    scope: ManagementTeacherAssignmentScope,
+    continuity: ManagementTeacherContinuity,
+    expectedStateToken: string,
+  ) => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      !access?.canEdit
+      || !localSnapshot
+      || !localWorkingCopy
+      || !localHistory
+      || !serverBoard
+    ) {
+      throw new Error('Yerel çalışma alanı hazır değil.');
+    }
+
+    const prepared = prepareManagementWorkspaceTeacherPolicyV1(
+      localSnapshot,
+      localWorkingCopy,
+      requirementId,
+      scope,
+      continuity,
+    );
+
+    if (prepared.preview.stateToken !== expectedStateToken) {
+      throw new Error(
+        'Öğretmen kuralı önizlemeden sonra değişti. Lütfen yeniden kontrol edin.',
+      );
+    }
+
+    if (!prepared.preview.canApply) {
+      throw new Error(
+        prepared.preview.blockReasons[0]
+          ?? 'Öğretmen kuralı uygulanamıyor.',
+      );
+    }
+
+    const result = executeManagementWorkspaceCommandV1(
+      localSnapshot,
+      localWorkingCopy,
+      localHistory,
+      {
+        type: 'SET_REQUIREMENT_RESOURCES',
+        resource: prepared.resource,
+      },
+    );
+
+    if (!result.applied) {
+      throw new Error(
+        result.issues.length > 0
+          ? `Öğretmen kuralı uygulanamıyor: ${workspaceIssueSummary(
+            result.issues.map((issue) => issue.code),
+          )}.`
+          : 'Öğretmen kuralı uygulanamıyor.',
+      );
+    }
+
+    setBoard(
+      projectManagementBoardFromWorkspaceV1(
+        serverBoard,
+        localWorkingCopy,
+        localSnapshot,
+      ),
+    );
+    setWorkspaceDirty(
+      diffManagementWorkspaceV1(
+        localSnapshot,
+        localWorkingCopy,
+      ).hasChanges,
+    );
+    setCommandNotice({
+      kind: 'success',
+      text: 'Öğretmen kuralı yerel çalışma alanında güncellendi.',
+    });
+  };
+
+  const applyLocalInventoryCommand = (
+    command: Parameters<typeof executeManagementWorkspaceCommandV1>[3],
+    successText: string,
+  ) => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+    const localHistory = workspaceHistoryRef.current;
+    const serverBoard = serverBoardRef.current;
+
+    if (
+      !access?.canEdit
+      || !localSnapshot
+      || !localWorkingCopy
+      || !localHistory
+      || !serverBoard
+    ) {
+      throw new Error('Yerel çalışma alanı hazır değil.');
+    }
+
+    const result = executeManagementWorkspaceCommandV1(
+      localSnapshot,
+      localWorkingCopy,
+      localHistory,
+      command,
+    );
+
+    if (!result.applied) {
+      throw new Error(
+        result.issues.length > 0
+          ? `Kaynak değişikliği uygulanamıyor: ${workspaceIssueSummary(
+            result.issues.map((issue) => issue.code),
+          )}.`
+          : 'Kaynak değişikliği uygulanamıyor.',
+      );
+    }
+
+    setBoard(
+      projectManagementBoardFromWorkspaceV1(
+        serverBoard,
+        localWorkingCopy,
+        localSnapshot,
+      ),
+    );
+    setWorkspaceDirty(
+      diffManagementWorkspaceV1(
+        localSnapshot,
+        localWorkingCopy,
+      ).hasChanges,
+    );
+    setResources((current) => current ? { ...current } : current);
+    setCommandNotice({
+      kind: 'success',
+      text: successText,
+    });
+  };
+
+  const assertServerResourceMutationAllowed = () => {
+    if (workspaceLocalSessionActive) {
+      throw new Error(
+        'Kaydedilmemiş yerel değişiklikler varken bu Kaynaklar işlemi kullanılamaz. Önce ana Kaydet veya Geri Al yapın.',
+      );
+    }
+  };
+
+  const saveWorkspace = async () => {
+    const localSnapshot = workspaceSnapshotRef.current;
+    const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+    if (
+      !session
+      || !access?.canEdit
+      || !localSnapshot
+      || !localWorkingCopy
+      || !workspaceDirty
+      || commandBusy
+    ) {
+      return;
+    }
+
+    const prepared = prepareManagementWorkspaceCommitV1(
+      localSnapshot,
+      localWorkingCopy,
+    );
+
+    if (!prepared.ready || !prepared.payload) {
+      setCommandNotice({
+        kind: prepared.issues.length > 0 ? 'error' : 'info',
+        text: prepared.issues.length > 0
+          ? `Kaydetmeden önce şu durumu düzeltin: ${workspaceIssueSummary(prepared.issues.map((issue) => issue.code))}.`
+          : 'Kaydedilecek değişiklik yok.',
+      });
+      return;
+    }
+
+    setCommandBusy(true);
+    const pendingWorkspaceChangeCount = [
+      prepared.payload.changes.length,
+      prepared.payload.requirementChanges.length,
+      prepared.payload.resourceChanges.length,
+      prepared.payload.teacherPlanningChanges.length,
+      prepared.payload.teacherAvailabilityChanges.length,
+      prepared.payload.roomProfileChanges.length,
+      prepared.payload.resourceCreates.length,
+      prepared.payload.resourceDeletes.length,
+      prepared.payload.structureChanges.length,
+      prepared.payload.timePreferenceChanges.length,
+      prepared.payload.pinChanges.length,
+    ].reduce((total, count) => total + count, 0);
+
+    setCommandActivity(
+      `${pendingWorkspaceChangeCount} değişiklik kontrol edilip kaydediliyor.`,
+    );
+    setCommandNotice(null);
+
+    try {
+      const result = await commitManagementWorkspaceV1(
+        session.accessToken,
+        prepared.payload,
+      );
+
+      // The successful DB commit becomes the new local baseline immediately.
+      // Do not wait for the broad management refresh, otherwise the short-lived
+      // draft revision cache or stale inspector state can make the previous
+      // placement look like the baseline for the next edit.
+      invalidateManagementDraftRevisionCache();
+
+      const [freshSnapshot, freshBoard] = await Promise.all([
+        fetchManagementWorkspaceSnapshotV1(
+          session.accessToken,
+          result.revisionId,
+        ),
+        fetchManagementBoard(session.accessToken),
+      ]);
+
+      if (
+        !freshBoard
+        || freshSnapshot.identity.snapshotHash !== result.snapshotHash
+        || freshSnapshot.identity.baselineHash !== result.baselineHash
+      ) {
+        throw new Error(
+          'Kaydedilen programın güncel hali yeniden okunamadı. Değişiklikler kaydedildi; ekranı yenileyin.',
+        );
+      }
+
+      const freshWorkingCopy =
+        createManagementWorkspaceWorkingCopyV1(freshSnapshot);
+
+      workspaceSnapshotRef.current = freshSnapshot;
+      workspaceWorkingCopyRef.current = freshWorkingCopy;
+      workspaceHistoryRef.current = createManagementWorkspaceHistoryV1();
+      serverBoardRef.current = freshBoard;
+
+      setBoard(
+        projectManagementBoardFromWorkspaceV1(
+          freshBoard,
+          freshWorkingCopy,
+          freshSnapshot,
+        ),
+      );
+      setWorkspaceDirty(false);
+      setCommandState({ undo: null, redo: null });
+
+      // Candidate/inspector state belongs to the previous baseline and must not
+      // leak into the next edit.
+      setCandidateFocus(null);
+      setCandidateDetail(null);
+      setCandidateError(null);
+      setCandidateLoading(false);
+      setDragCandidateDetails({});
+      setDragLoading(false);
+      dragCardIdsRef.current = [];
+      setDragCardIds([]);
+
+      const savedChangeLabels = [
+        result.changedCardCount > 0
+          ? `${result.changedCardCount} program değişikliği`
+          : null,
+        result.changedRequirementCount > 0
+          ? `${result.changedRequirementCount} ders planı değişikliği`
+          : null,
+        result.changedResourceCount > 0
+          ? `${result.changedResourceCount} kaynak değişikliği`
+          : null,
+        (result.changedStructureCount ?? 0) > 0
+          ? `${result.changedStructureCount} ders yapısı değişikliği`
+          : null,
+        (result.changedTimePreferenceCount ?? 0) > 0
+          ? `${result.changedTimePreferenceCount} zaman tercihi değişikliği`
+          : null,
+        (result.changedPinCount ?? 0) > 0
+          ? `${result.changedPinCount} sabitleme değişikliği`
+          : null,
+      ].filter((label): label is string => Boolean(label));
+
+      setCommandNotice({
+        kind: 'success',
+        text: savedChangeLabels.length > 0
+          ? `${savedChangeLabels.join(' + ')} kaydedildi.`
+          : `${pendingWorkspaceChangeCount} değişiklik kaydedildi.`,
+      });
+
+      // Refresh the secondary management panels after the fresh Program
+      // baseline is already established.
+      setRefreshToken((value) => value + 1);
+    } catch (reason: unknown) {
+      const raw = reason instanceof Error
+        ? reason.message
+        : 'Yerel çalışma alanı kaydedilemedi.';
+      setCommandNotice({
+        kind: 'error',
+        text: translateManagementWorkspaceCommitErrorV1(raw),
+      });
+    } finally {
+      setCommandBusy(false);
+      setCommandActivity(null);
+    }
+  };
+
   if (status === 'loading') {
     return (
-      <main className="management-workbench-root flex min-h-screen items-center justify-center bg-[#F5F3EE] text-sm font-semibold text-slate-400">
-        Yönetim alanı hazırlanıyor…
+      <main className="management-workbench-root min-h-screen bg-[#F5F3EE]">
+        <ManagementBusyOverlay
+          title="Partisyon hazırlanıyor"
+          steps={[...MANAGEMENT_STARTUP_STEPS]}
+          activeStep={startupStep}
+        />
       </main>
     );
   }
@@ -2048,6 +3934,8 @@ export default function ManagementPage() {
         error={error}
         loading={false}
         onSubmit={async (email, password) => {
+          setStartupComplete(false);
+          setStartupStep(1);
           await login(email, password);
         }}
       />
@@ -2078,6 +3966,27 @@ export default function ManagementPage() {
       </main>
     );
   }
+
+  const projectedCoursePlan = (
+    coursePlan
+    && workspaceWorkingCopyRef.current
+  )
+    ? projectManagementCoursePlanFromWorkspaceV1(
+      coursePlan,
+      workspaceWorkingCopyRef.current,
+    )
+    : coursePlan;
+
+  const projectedResources = (
+    resources
+    && workspaceWorkingCopyRef.current
+  )
+    ? projectManagementResourcesFromWorkspaceV1(
+      resources,
+      workspaceWorkingCopyRef.current,
+      workspaceSnapshotRef.current,
+    )
+    : resources;
 
   const visiblePlacedCount = visibleCards.filter((card) => card.placement).length;
   const visibleUnplacedCount = visibleCards.length - visiblePlacedCount;
@@ -2125,20 +4034,47 @@ export default function ManagementPage() {
     .filter(Boolean)
     .join(' ');
 
+  const activityStatus = commandBusy
+    ? (commandActivity ?? 'Değişiklik uygulanıyor…')
+    : dragLoading
+      ? 'Hedef hücreler hesaplanıyor…'
+      : placementAssistantImpactChecking
+        ? 'Yerleşim etkisi hesaplanıyor…'
+        : placementAssistantWaitingForRefresh
+          ? 'Program veritabanından yeniden okunuyor…'
+          : placementAssistantLoading
+            ? 'Yerleşim seçenekleri hesaplanıyor…'
+            : solverActivity
+              ? solverActivity
+              : candidateLoading
+                ? 'Aday yerleşimler hesaplanıyor…'
+                : sectionActivity
+                  ? sectionActivity
+                  : dataLoading
+                    ? (startupComplete
+                      ? 'Program verileri veritabanından okunuyor…'
+                      : 'Partisyon hazırlanıyor…')
+                    : null;
+
   return (
     <main className="management-workbench-root flex h-[100dvh] min-w-[1180px] flex-col overflow-hidden bg-[#F4F2ED] text-slate-900">
       <div className="management-portrait-note">
         Yönetim çalışma alanı yatay ekran için tasarlandı.
       </div>
+      <style jsx global>{`
+        @keyframes managementStatusSweep {
+          0% { transform: translateX(-120%); }
+          50% { transform: translateX(140%); }
+          100% { transform: translateX(320%); }
+        }
+      `}</style>
 
       <header className="shrink-0 border-b border-slate-200 bg-white">
-        <div className="flex h-[46px] items-center gap-5 px-5">
-          <div className="flex h-full items-center gap-4">
-            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A63D48]">
-              Partisyon
-            </span>
+        <div className="flex h-[60px] items-center gap-3 px-4">
+          <div className="flex h-full min-w-0 items-center gap-4">
+            <PartisyonBrand compact />
 
-            <nav className="flex h-full items-center gap-5">
+            <nav className="management-primary-tabs flex h-full shrink-0 items-center gap-1">
               <button
                 type="button"
                 onClick={() => {
@@ -2148,30 +4084,30 @@ export default function ManagementPage() {
                 }}
                 className={
                   activeSection === 'PROGRAM'
-                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'management-primary-tab management-primary-tab-active'
+                    : 'management-primary-tab'
                 }
               >
-                Program
+                Çizelge
               </button>
               <button
                 type="button"
                 onClick={() => setActiveSection('PLAN')}
                 className={
                   activeSection === 'PLAN'
-                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'management-primary-tab management-primary-tab-active'
+                    : 'management-primary-tab'
                 }
               >
-                Ders Planı
+                Dersler
               </button>
               <button
                 type="button"
                 onClick={() => setActiveSection('RESOURCES')}
                 className={
                   activeSection === 'RESOURCES'
-                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'management-primary-tab management-primary-tab-active'
+                    : 'management-primary-tab'
                 }
               >
                 Kaynaklar
@@ -2181,28 +4117,28 @@ export default function ManagementPage() {
                 onClick={() => setActiveSection('SOLVER')}
                 className={
                   activeSection === 'SOLVER'
-                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'management-primary-tab management-primary-tab-active'
+                    : 'management-primary-tab'
                 }
               >
-                Öncelikler
+                Tercihler
               </button>
               <button
                 type="button"
                 onClick={() => setActiveSection('STATUS')}
                 className={
                   activeSection === 'STATUS'
-                    ? 'h-full border-b-2 border-slate-950 px-1 text-[12px] font-bold text-slate-950'
-                    : 'h-full px-1 text-[12px] font-semibold text-slate-400 hover:text-slate-700'
+                    ? 'management-primary-tab management-primary-tab-active'
+                    : 'management-primary-tab'
                 }
               >
-                Program Durumu
+                Kontrol & Yayın
               </button>
             </nav>
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
-            <span className="hidden max-w-[210px] truncate text-[10px] font-medium text-slate-400 xl:block">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+            <span className="hidden max-w-[160px] truncate text-[10px] font-medium text-slate-400 2xl:block">
               {session?.email}
               {overview ? ` · Taslak v${overview.versionNumber}` : ''}
             </span>
@@ -2214,17 +4150,41 @@ export default function ManagementPage() {
                 Düzenleme açık
               </span>
             )}
+            {workspaceDirty && (
+              <span className="rounded-full bg-amber-50 px-2 py-1 text-[9px] font-semibold text-amber-700">
+                Kaydedilmemiş değişiklik
+              </span>
+            )}
+            {access?.canEdit && workspaceDirty && (
+              <button
+                type="button"
+                onClick={() => void saveWorkspace()}
+                disabled={commandBusy || dataLoading}
+                className="rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-bold text-white transition hover:bg-emerald-600 disabled:cursor-wait disabled:opacity-50"
+                title="Yerel program değişikliklerini tek işlem olarak kaydet"
+              >
+                Kaydet
+              </button>
+            )}
             {access?.canEdit && (
               <ManagementHistoryActions
-                undoAvailable={Boolean(commandState.undo) && !dataLoading}
-                redoAvailable={Boolean(commandState.redo) && !dataLoading}
+                undoAvailable={(localUndoAvailable || serverUndoAvailable) && !dataLoading}
+                redoAvailable={(localRedoAvailable || serverRedoAvailable) && !dataLoading}
                 busy={commandBusy || dataLoading}
-                undoTitle={commandState.undo
-                  ? `${commandContextLabel(commandState.undo, board)}${commandState.undo.bundleSize > 1 ? ` · ${commandState.undo.bundleSize} kayıt` : ''}${commandState.undo.autoCount > 0 ? ` + ${commandState.undo.autoCount} otomatik` : ''} geri al`
-                  : 'Geri alınabilecek işlem yok'}
-                redoTitle={commandState.redo
-                  ? `${commandContextLabel(commandState.redo, board)}${commandState.redo.bundleSize > 1 ? ` · ${commandState.redo.bundleSize} kayıt` : ''}${commandState.redo.autoCount > 0 ? ` + ${commandState.redo.autoCount} otomatik` : ''} yeniden uygula`
-                  : 'Yinelenecek işlem yok'}
+                undoTitle={localUndoAvailable
+                  ? `${localWorkspaceOperationLabel(
+                      workspaceHistoryRef.current?.undoStack.at(-1),
+                    )} geri al`
+                  : serverUndoAvailable && commandState.undo
+                    ? `${commandContextLabel(commandState.undo, board)}${commandState.undo.bundleSize > 1 ? ` · ${commandState.undo.bundleSize} kayıt` : ''}${commandState.undo.autoCount > 0 ? ` + ${commandState.undo.autoCount} otomatik` : ''} geri al`
+                    : 'Geri alınabilecek işlem yok'}
+                redoTitle={localRedoAvailable
+                  ? `${localWorkspaceOperationLabel(
+                      workspaceHistoryRef.current?.redoStack.at(-1),
+                    )} yeniden uygula`
+                  : serverRedoAvailable && commandState.redo
+                    ? `${commandContextLabel(commandState.redo, board)}${commandState.redo.bundleSize > 1 ? ` · ${commandState.redo.bundleSize} kayıt` : ''}${commandState.redo.autoCount > 0 ? ` + ${commandState.redo.autoCount} otomatik` : ''} yeniden uygula`
+                    : 'Yinelenecek işlem yok'}
                 onUndo={() => void runUndo()}
                 onRedo={() => void runRedo()}
               />
@@ -2239,7 +4199,16 @@ export default function ManagementPage() {
             </button>
             <button
               type="button"
-              onClick={() => setRefreshToken((value) => value + 1)}
+              onClick={() => {
+                if (workspaceDirty) {
+                  setCommandNotice({
+                    kind: 'info',
+                    text: 'Kaydedilmemiş değişiklikler var. Yenilemeden önce değişiklikleri kaydedin veya Geri Al ile geri alın.',
+                  });
+                  return;
+                }
+                setRefreshToken((value) => value + 1);
+              }}
               disabled={dataLoading}
               className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
             >
@@ -2247,12 +4216,44 @@ export default function ManagementPage() {
             </button>
             <button
               type="button"
-              onClick={() => void logout()}
+              onClick={() => {
+                if (workspaceDirty) {
+                  setCommandNotice({
+                    kind: 'info',
+                    text: 'Kaydedilmemiş değişiklikler var. Çıkmadan önce değişiklikleri kaydedin veya Geri Al ile geri alın.',
+                  });
+                  return;
+                }
+                void logout();
+              }}
               className="rounded-lg bg-slate-950 px-2.5 py-1.5 text-[10px] font-semibold text-white transition hover:bg-slate-800"
             >
               Çıkış
             </button>
           </div>
+        </div>
+
+        <div
+          className={`relative h-[22px] overflow-hidden border-t border-slate-100 bg-slate-50/90 transition-opacity ${activityStatus ? 'opacity-100' : 'opacity-60'}`}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <div className="flex h-full items-center px-4 text-[10px] font-semibold text-slate-500">
+            {activityStatus ? (
+              <>
+                <span className="mr-2 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#A63D48]" />
+                <span className="truncate">{activityStatus}</span>
+              </>
+            ) : (
+              <span className="text-slate-400">Hazır</span>
+            )}
+          </div>
+          {activityStatus && (
+            <div className="absolute inset-x-0 bottom-0 h-[2px] overflow-hidden bg-slate-200">
+              <div className="h-full w-1/3 animate-[managementStatusSweep_1.2s_ease-in-out_infinite] bg-[#A63D48]" />
+            </div>
+          )}
         </div>
 
         {activeSection === 'PROGRAM' && (
@@ -2306,7 +4307,9 @@ export default function ManagementPage() {
                   key={item.id}
                   type="button"
                   onClick={() => setAudienceFilter(item.id)}
-                  className={`rounded-lg px-3 py-1.5 text-[10px] font-bold transition ${
+                  className={`flex h-[32px] min-w-[42px] items-center justify-center rounded-lg px-3 font-bold transition ${
+                    item.id === 'ALL' ? 'text-[10px]' : 'text-[18px] leading-none'
+                  } ${
                     audienceFilter === item.id
                       ? 'bg-slate-950 text-white shadow-sm'
                       : 'text-slate-500 hover:bg-slate-50'
@@ -2509,6 +4512,7 @@ export default function ManagementPage() {
               </p>
 
               {commandNotice.kind === 'success'
+                && !workspaceOwnsStructureHistory
                 && commandState.undo?.action === 'STRUCTURE' && (
                 <button
                   type="button"
@@ -2871,10 +4875,18 @@ export default function ManagementPage() {
               canEdit={access?.canEdit === true}
               dragCard={dragCard}
               dragCardIds={dragCardIds}
+              dragStartOffsetsByCardId={dragStartOffsetsByCardId}
               dragCandidateDetails={dragCandidateDetails}
               dragLoading={dragLoading}
+              onDragPrepare={prepareDrag}
               onDragStart={beginDrag}
               onDragEnd={endDrag}
+              // Do not validate every visible cell while dragging. The old
+              // path ran a full workspace preview for each row × period on
+              // every drag render, which made the "calculation" phase scale
+              // with the whole timetable. Candidate geometry stays cheap;
+              // the selected destination is authoritatively validated once
+              // by the workspace command when the user actually drops it.
               onDropCandidates={(moves) => {
                 endDrag();
                 void runDropCandidates(moves);
@@ -2895,17 +4907,17 @@ export default function ManagementPage() {
               aria-label="Ders ayrıntıları"
             >
             <ManagementInspector
-              card={selectedCard}
+              card={inspectorCard}
               cardIds={selectedCardIds}
-              candidateDetail={candidateDetail}
+              candidateDetail={locallyValidatedCandidateDetail}
               candidateLoading={candidateLoading}
               candidateError={candidateError}
-              candidateFocus={candidateFocus}
+              candidateFocus={locallyValidatedCandidateFocus}
               teacherNamesById={board?.teacherNamesById ?? {}}
               roomNamesById={board?.roomNamesById ?? {}}
               planRow={
                 selectedCard
-                  ? coursePlan?.rows.find(
+                  ? projectedCoursePlan?.rows.find(
                     (row) => row.requirementId === selectedCard.requirementId,
                   ) ?? null
                   : null
@@ -2930,12 +4942,21 @@ export default function ManagementPage() {
                 if (!session || !access?.canEdit) {
                   throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
                 }
-                return previewManagementPlacementResourceChange(
-                  session.accessToken,
+
+                const localSnapshot = workspaceSnapshotRef.current;
+                const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+                if (!localSnapshot || !localWorkingCopy) {
+                  throw new Error('Yerel çalışma alanı hazır değil.');
+                }
+
+                return prepareManagementWorkspaceResourceEditV1(
+                  localSnapshot,
+                  localWorkingCopy,
                   cardIds,
                   resourceType,
                   resourceId,
-                );
+                ).preview;
               }}
               onApplyPlacementResource={async (
                 cardIds,
@@ -2947,54 +4968,83 @@ export default function ManagementPage() {
                   throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
                 }
 
-                setCommandBusy(true);
-                setCommandActivity(
-                  resourceType === 'TEACHER'
-                    ? 'Öğretmen değişikliğinin güvenli uygulaması yapılıyor.'
-                    : 'Salon değişikliğinin güvenli uygulaması yapılıyor.',
+                const localSnapshot = workspaceSnapshotRef.current;
+                const localWorkingCopy = workspaceWorkingCopyRef.current;
+                const localHistory = workspaceHistoryRef.current;
+                const serverBoard = serverBoardRef.current;
+
+                if (
+                  !localSnapshot
+                  || !localWorkingCopy
+                  || !localHistory
+                  || !serverBoard
+                ) {
+                  throw new Error('Yerel çalışma alanı hazır değil.');
+                }
+
+                const prepared = prepareManagementWorkspaceResourceEditV1(
+                  localSnapshot,
+                  localWorkingCopy,
+                  cardIds,
+                  resourceType,
+                  resourceId,
                 );
 
-                try {
-                  const result = await applyManagementPlacementResourceChange(
-                    session.accessToken,
-                    cardIds,
-                    resourceType,
-                    resourceId,
-                    expectedStateToken,
+                if (prepared.preview.stateToken !== expectedStateToken) {
+                  throw new Error(
+                    'Kaynak değişikliği önizlemeden sonra değişti. Lütfen yeniden kontrol edin.',
                   );
-                  setCommandNotice({
-                    kind: 'success',
-                    text: resourceType === 'TEACHER'
-                      ? `Öğretmen “${result.resourceName}” olarak değiştirildi. ${result.affectedCardCount} kart güncellendi.`
-                      : `Salon “${result.resourceName}” olarak değiştirildi. ${result.affectedCardCount} kart güncellendi.`,
-                  });
-                  setRefreshToken((value) => value + 1);
-                } finally {
-                  setCommandBusy(false);
-                  setCommandActivity(null);
                 }
+
+                if (!prepared.preview.canApply || prepared.commands.length === 0) {
+                  throw new Error('Kaynak değişikliği artık uygulanamıyor.');
+                }
+
+                const result = executeManagementWorkspaceCommandsV1(
+                  localSnapshot,
+                  localWorkingCopy,
+                  localHistory,
+                  prepared.commands,
+                );
+
+                if (!result.applied) {
+                  throw new Error(
+                    result.issues.length > 0
+                      ? `Kaynak değişikliği uygulanamıyor: ${workspaceIssueSummary(
+                        result.issues.map((issue) => issue.code),
+                      )}.`
+                      : 'Kaynak değişikliği uygulanamıyor.',
+                  );
+                }
+
+                setBoard(
+                  projectManagementBoardFromWorkspaceV1(
+                    serverBoard,
+                    localWorkingCopy,
+                    localSnapshot,
+                  ),
+                );
+                setWorkspaceDirty(
+                  diffManagementWorkspaceV1(
+                    localSnapshot,
+                    localWorkingCopy,
+                  ).hasChanges,
+                );
+                setCandidateFocus(null);
+                setCandidateDetail(null);
+
+                setCommandNotice({
+                  kind: 'success',
+                  text: resourceType === 'TEACHER'
+                    ? `${prepared.preview.affectedCardCount} yerleşimde öğretmen yerel olarak güncellendi.`
+                    : `${prepared.preview.affectedCardCount} yerleşimde salon yerel olarak güncellendi.`,
+                });
               }}
               onUpdatePlanTeachers={async (requirementId, teacherIds) => {
-                if (!session || !access?.canEdit) {
-                  throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-                }
-                setCommandBusy(true);
-                setCommandActivity('Dersin öğretmen tanımı güncelleniyor.');
-                try {
-                  await updateManagementRequirementTeachers(
-                    session.accessToken,
-                    requirementId,
-                    teacherIds,
-                  );
-                  setCommandNotice({
-                    kind: 'success',
-                    text: 'Öğretmen tanımı güncellendi; uygun program yerleri yeniden hesaplandı.',
-                  });
-                  setRefreshToken((value) => value + 1);
-                } finally {
-                  setCommandBusy(false);
-                  setCommandActivity(null);
-                }
+                await updateLocalRequirementTeachers(
+                  requirementId,
+                  teacherIds,
+                );
               }}
               onUpdatePlanRoomStrategy={async (
                 requirementId,
@@ -3002,28 +5052,38 @@ export default function ManagementPage() {
                 roomIds,
                 requiredCapability,
               ) => {
-                if (!session || !access?.canEdit) {
-                  throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-                }
-                setCommandBusy(true);
-                setCommandActivity('Dersin salon tanımı güncelleniyor.');
-                try {
-                  const result = await updateManagementRequirementRoomStrategy(
-                    session.accessToken,
-                    requirementId,
-                    strategy,
-                    roomIds,
-                    requiredCapability,
-                  );
-                  setCommandNotice({
-                    kind: 'success',
-                    text: `Salon tanımı güncellendi. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`,
-                  });
-                  setRefreshToken((value) => value + 1);
-                } finally {
-                  setCommandBusy(false);
-                  setCommandActivity(null);
-                }
+                await updateLocalRequirementRoomStrategy(
+                  requirementId,
+                  strategy,
+                  roomIds,
+                  requiredCapability,
+                );
+              }}
+              pinState={selectedCardId && workspaceWorkingCopyRef.current
+                ? (() => {
+                    const localCard =
+                      workspaceWorkingCopyRef.current?.cardsById[selectedCardId];
+                    return localCard
+                      ? {
+                          timePinned: localCard.timePinned === true,
+                          teacherPinned: localCard.teacherPinned === true,
+                          roomPinned: localCard.roomPinned === true,
+                        }
+                      : null;
+                  })()
+                : null}
+              onUpdatePins={(pins) => {
+                if (!selectedCardId) return;
+                applyLocalInventoryCommand(
+                  {
+                    type: 'SET_CARD_PINS',
+                    pins: {
+                      cardId: selectedCardId,
+                      ...pins,
+                    },
+                  },
+                  'Kart sabitlemeleri yerel çalışma alanında güncellendi. Ana Kaydet ile veritabanına yazılacak.',
+                );
               }}
               onRemove={requestRemove}
               onClose={() => setInspectorOpen(false)}
@@ -3033,7 +5093,7 @@ export default function ManagementPage() {
         </section>
       ) : activeSection === 'PLAN' ? (
         <ManagementCoursePlan
-          data={coursePlan}
+          data={projectedCoursePlan}
           canEdit={access?.canEdit === true}
           onOpenProgram={(requirementId, planStage: ManagementPlanStage) => {
             const card = board?.cards.find(
@@ -3056,151 +5116,205 @@ export default function ManagementPage() {
             }
           }}
           onUpdateTeachers={async (requirementId, teacherIds) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-            }
-
-            setCommandBusy(true);
-            setCommandActivity('Ders planındaki öğretmen tanımı güncelleniyor.');
-
-            try {
-              await updateManagementRequirementTeachers(
-                session.accessToken,
-                requirementId,
-                teacherIds,
-              );
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            await updateLocalRequirementTeachers(
+              requirementId,
+              teacherIds,
+            );
           }}
           onUpdateTeacherPolicyPreview={async (
             requirementId,
             scope,
             continuity,
-          ) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-            }
-
-            return previewManagementRequirementTeacherPolicy(
-              session.accessToken,
-              requirementId,
-              scope,
-              continuity,
-            );
-          }}
+          ) => previewLocalRequirementTeacherPolicy(
+            requirementId,
+            scope,
+            continuity,
+          )}
           onUpdateTeacherPolicy={async (
             requirementId,
             scope,
             continuity,
             expectedStateToken,
           ) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
-            }
-
-            setCommandBusy(true);
-            setCommandActivity('Öğretmen kuralı güvenli biçimde güncelleniyor.');
-
-            try {
-              await applyManagementRequirementTeacherPolicy(
-                session.accessToken,
-                requirementId,
-                scope,
-                continuity,
-                expectedStateToken,
-              );
-              setCommandNotice({
-                kind: 'success',
-                text: 'Öğretmen kuralı kaydedildi. Mevcut yerleşimler değiştirilmedi.',
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            await applyLocalRequirementTeacherPolicy(
+              requirementId,
+              scope,
+              continuity,
+              expectedStateToken,
+            );
           }}
           onPreviewTeacherReconciliation={async (
             requirementId,
             teacherId,
           ) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            return previewManagementRequirementTeacherReconciliation(
-              session.accessToken,
+            return prepareManagementWorkspaceTeacherReconciliationV1(
+              localSnapshot,
+              localWorkingCopy,
               requirementId,
               teacherId,
-            );
+            ).preview;
           }}
           onApplyTeacherReconciliation={async (
             requirementId,
             teacherId,
             expectedStateToken,
           ) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+            const serverBoard = serverBoardRef.current;
+            if (
+              !access?.canEdit
+              || !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+              || !serverBoard
+            ) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Dersin öğretmeni tüm bloklarda uzlaştırılıyor.');
-
-            try {
-              const result = await applyManagementRequirementTeacherReconciliation(
-                session.accessToken,
-                requirementId,
-                teacherId,
-                expectedStateToken,
+            const prepared = prepareManagementWorkspaceTeacherReconciliationV1(
+              localSnapshot,
+              localWorkingCopy,
+              requirementId,
+              teacherId,
+            );
+            if (prepared.preview.stateToken !== expectedStateToken) {
+              throw new Error(
+                'Öğretmen uzlaştırma önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.',
               );
-              setCommandNotice({
-                kind: 'success',
-                text: `${result.changedBlockCount} blok aynı öğretmenle uzlaştırıldı. Gün, saat ve salonlar korundu.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
             }
+            if (!prepared.preview.canApply) {
+              throw new Error(
+                'Bu öğretmenle blokları mevcut gün, saat ve salonlarda uzlaştırmak mümkün değil.',
+              );
+            }
+
+            const result = executeManagementWorkspaceCommandsV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              prepared.commands,
+            );
+            if (!result.applied) {
+              throw new Error(
+                result.issues.length > 0
+                  ? `Öğretmen uzlaştırması uygulanamıyor: ${workspaceIssueSummary(
+                    result.issues.map((issue) => issue.code),
+                  )}.`
+                  : 'Öğretmen uzlaştırması uygulanamıyor.',
+              );
+            }
+
+            setBoard(
+              projectManagementBoardFromWorkspaceV1(
+                serverBoard,
+                localWorkingCopy,
+                localSnapshot,
+              ),
+            );
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+            setCandidateFocus(null);
+            setCandidateDetail(null);
+            setCommandNotice({
+              kind: 'success',
+              text: `${prepared.preview.changedBlockCount} blok yerel çalışma alanında aynı öğretmenle uzlaştırıldı. Gün, saat ve salonlar korundu; ana Kaydet ile veritabanına yazılacak.`,
+            });
           }}
           onPreviewCoordinatedTeacherReconciliation={async (assignments) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            return previewManagementCoordinatedTeacherReconciliation(
-              session.accessToken,
+            return prepareManagementWorkspaceCoordinatedTeacherReconciliationV1(
+              localSnapshot,
+              localWorkingCopy,
               assignments,
-            );
+            ).preview;
           }}
           onApplyCoordinatedTeacherReconciliation={async (
             assignments,
             expectedStateToken,
           ) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+            const serverBoard = serverBoardRef.current;
+            if (
+              !access?.canEdit
+              || !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+              || !serverBoard
+            ) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Birbirine bağlı öğretmen kararları birlikte uygulanıyor.');
-
-            try {
-              const result = await applyManagementCoordinatedTeacherReconciliation(
-                session.accessToken,
+            const prepared =
+              prepareManagementWorkspaceCoordinatedTeacherReconciliationV1(
+                localSnapshot,
+                localWorkingCopy,
                 assignments,
-                expectedStateToken,
               );
-              setCommandNotice({
-                kind: 'success',
-                text: `${result.changedBlockCount} blokta öğretmen dağılımı birlikte uzlaştırıldı. Gün, saat ve salonlar korundu.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
+            if (prepared.preview.stateToken !== expectedStateToken) {
+              throw new Error(
+                'Koordineli öğretmen planı önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.',
+              );
             }
+            if (!prepared.preview.canApply) {
+              throw new Error(
+                'Bu öğretmen dağılımı mevcut programda güvenli biçimde uygulanamıyor.',
+              );
+            }
+
+            const result = executeManagementWorkspaceCommandsV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              prepared.commands,
+            );
+            if (!result.applied) {
+              throw new Error(
+                result.issues.length > 0
+                  ? `Koordineli öğretmen planı uygulanamıyor: ${workspaceIssueSummary(
+                    result.issues.map((issue) => issue.code),
+                  )}.`
+                  : 'Koordineli öğretmen planı uygulanamıyor.',
+              );
+            }
+
+            setBoard(
+              projectManagementBoardFromWorkspaceV1(
+                serverBoard,
+                localWorkingCopy,
+                localSnapshot,
+              ),
+            );
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+            setCandidateFocus(null);
+            setCandidateDetail(null);
+            setCommandNotice({
+              kind: 'success',
+              text: `${prepared.preview.changedBlockCount} blokta öğretmen dağılımı yerel çalışma alanında uzlaştırıldı. Gün, saat ve salonlar korundu; ana Kaydet ile veritabanına yazılacak.`,
+            });
           }}
           onUpdateRoomStrategy={async (
             requirementId,
@@ -3208,205 +5322,328 @@ export default function ManagementPage() {
             roomIds,
             requiredCapability,
           ) => {
-            if (!session || !access?.canEdit) {
+            await updateLocalRequirementRoomStrategy(
+              requirementId,
+              strategy,
+              roomIds,
+              requiredCapability,
+            );
+          }}
+          onUpdateTimePreferences={async (
+            requirementId,
+            preferredDays,
+            preferredStartPeriods,
+          ) => {
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+
+            if (
+              !session
+              || !access?.canEdit
+              || !coursePlan
+              || !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+            ) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Ders planındaki salon seçme yöntemi güncelleniyor.');
+            const preference = {
+              requirementId,
+              preferredDays: Array.from(new Set(preferredDays))
+                .sort((a, b) => a - b),
+              preferredStartPeriods:
+                Array.from(new Set(preferredStartPeriods))
+                  .sort((a, b) => a - b),
+            };
 
-            try {
-              const result = await updateManagementRequirementRoomStrategy(
-                session.accessToken,
-                requirementId,
-                strategy,
-                roomIds,
-                requiredCapability,
-              );
-              setCommandNotice({
-                kind: 'success',
-                text: strategy === 'CAPABILITY'
-                  ? `Salon seçimi “özelliğe göre” olarak güncellendi. ${result.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden hesaplandı.`
-                  : strategy === 'SPECIFIC'
-                    ? `Salon seçimi güncellendi. ${result.roomCount} ana salon tanımlandı ve ${result.candidateRebuildCardCount} ders bloğu yeniden hesaplandı.`
-                    : `Salon bilgisi belirsiz olarak işaretlendi. ${result.candidateRebuildCardCount} ders bloğu yeniden hesaplandı.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
+            const result = executeManagementWorkspaceCommandV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              {
+                type: 'SET_REQUIREMENT_TIME_PREFERENCE',
+                preference,
+              },
+            );
+
+            if (!result.applied) {
+              throw new Error('Zaman tercihi yerel çalışma alanına uygulanamadı.');
             }
+
+            reflectTimePreferenceState(preference);
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+            setCommandNotice({
+              kind: 'success',
+              text: preference.preferredDays.length > 0
+                || preference.preferredStartPeriods.length > 0
+                ? 'Dersin zaman tercihleri yerel çalışma alanında güncellendi. Ana Kaydet ile veritabanına yazılacak.'
+                : 'Dersin zaman tercihi yerel çalışma alanında kaldırıldı. Ana Kaydet ile veritabanına yazılacak.',
+            });
           }}
           onPreviewStructure={async (input) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            return previewManagementRequirementStructure(
-              session.accessToken,
+            return previewManagementWorkspaceRequirementStructureV1(
+              localSnapshot,
+              localWorkingCopy,
               input,
             );
           }}
           onApplyStructure={async (input, expectedStructureToken) => {
-            if (!session || !access?.canEdit) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+            const serverBoard = serverBoardRef.current;
+            if (
+              !access?.canEdit
+              || !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+              || !serverBoard
+            ) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Ders yapısı güvenli biçimde uygulanıyor.');
+            const prepared = prepareManagementWorkspaceRequirementStructureV1(
+              localSnapshot,
+              localWorkingCopy,
+              input,
+              expectedStructureToken,
+            );
+            const result = executeManagementWorkspaceCommandV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              prepared.command,
+            );
 
-            try {
-              await applyManagementRequirementStructure(
-                session.accessToken,
-                input,
-                expectedStructureToken,
+            if (!result.applied) {
+              throw new Error(
+                result.issues.length > 0
+                  ? `Ders yapısı uygulanamıyor: ${workspaceIssueSummary(
+                    result.issues.map((issue) => issue.code),
+                  )}.`
+                  : 'Ders yapısı uygulanamıyor.',
               );
-              setCommandNotice({
-                kind: 'success',
-                text: 'Ders yapısı güncellendi. Program kartları yeni plana göre yenilendi.',
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
             }
+
+            setBoard(
+              projectManagementBoardFromWorkspaceV1(
+                serverBoard,
+                localWorkingCopy,
+                localSnapshot,
+              ),
+            );
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+            setCandidateFocus(null);
+            setCandidateDetail(null);
+            setCommandNotice({
+              kind: 'success',
+              text: `Ders yapısı yerel çalışma alanında güncellendi. ${prepared.preview.preservedCards.length} kart korundu, ${prepared.preview.removedCards.length} kart kaldırıldı, ${prepared.preview.createdBlocks.length} yeni kart oluşturuldu; ana Kaydet ile veritabanına yazılacak.`,
+            });
           }}
         />
       ) : activeSection === 'RESOURCES' ? (
         <ManagementResources
-          data={resources}
+          data={projectedResources}
           canEdit={access?.canEdit === true}
           onUpdateTeacherName={async (teacherId, displayName) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Öğretmenin taslak adı güncelleniyor.');
-
-            try {
-              const result = await updateManagementTeacherDisplayName(
-                session.accessToken,
-                resources.revisionId,
-                teacherId,
-                displayName,
-              );
-              setCommandNotice({
-                kind: 'success',
-                text: result.overridden
-                  ? `Öğretmen adı taslakta “${result.displayName}” olarak güncellendi. Yayınlanan program değişmedi.`
-                  : 'Öğretmen adı orijinal yayınlanan ada döndürüldü.',
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            const prepared = prepareManagementWorkspaceTeacherNameEditV1(
+              localWorkingCopy,
+              teacherId,
+              displayName,
+            );
+            applyLocalInventoryCommand(
+              prepared.command,
+              `Öğretmen adı yerel çalışma alanında “${prepared.resource.displayName}” olarak güncellendi.`,
+            );
           }}
           onUpdateRoomName={async (roomId, displayName) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Salonun taslak adı güncelleniyor.');
-
-            try {
-              const result = await updateManagementRoomDisplayName(
-                session.accessToken,
-                resources.revisionId,
-                roomId,
-                displayName,
-              );
-              setCommandNotice({
-                kind: 'success',
-                text: result.overridden
-                  ? `Salon adı taslakta “${result.displayName}” olarak güncellendi. Yayınlanan program değişmedi.`
-                  : 'Salon adı orijinal yayınlanan ada döndürüldü.',
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            const prepared = prepareManagementWorkspaceRoomNameEditV1(
+              localSnapshot,
+              localWorkingCopy,
+              roomId,
+              displayName,
+            );
+            applyLocalInventoryCommand(
+              prepared.command,
+              `Salon adı yerel çalışma alanında “${prepared.resource.displayName}” olarak güncellendi.`,
+            );
           }}
           onCreateTeacher={async (name) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Öğretmen kaydı ekleniyor.');
-
-            try {
-              await createManagementTeacherResource(
-                session.accessToken,
-                resources.revisionId,
-                name,
-              );
-              setCommandNotice({ kind: 'success', text: `Öğretmen “${name}” kaynaklara eklendi.` });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            const resourceId = crypto.randomUUID();
+            const prepared = prepareManagementWorkspaceResourceCreateV1(
+              localWorkingCopy,
+              'TEACHER',
+              resourceId,
+              name,
+            );
+            applyLocalInventoryCommand(
+              prepared.command,
+              `Öğretmen “${name.trim()}” yerel çalışma alanına eklendi. Ana Kaydet ile veritabanına yazılacak.`,
+            );
           }}
           onCreateRoom={async (name) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Salon kaydı ekleniyor.');
-
-            try {
-              await createManagementRoomResource(
-                session.accessToken,
-                resources.revisionId,
-                name,
-              );
-              setCommandNotice({ kind: 'success', text: `Salon “${name}” kaynaklara eklendi.` });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            const resourceId = crypto.randomUUID();
+            const prepared = prepareManagementWorkspaceResourceCreateV1(
+              localWorkingCopy,
+              'ROOM',
+              resourceId,
+              name,
+            );
+            applyLocalInventoryCommand(
+              prepared.command,
+              `Salon “${name.trim()}” yerel çalışma alanına eklendi. Ana Kaydet ile veritabanına yazılacak.`,
+            );
           }}
           onSetTeacherStatus={async (teacherId, operationalStatus) => {
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            const prepared = prepareManagementWorkspaceTeacherStatusEditV1(
+              localWorkingCopy,
+              teacherId,
+              operationalStatus,
+            );
+            applyLocalInventoryCommand(
+              prepared.command,
+              operationalStatus === 'ACTIVE'
+                ? 'Öğretmen yerel çalışma alanında atamaya açıldı.'
+                : 'Öğretmen yerel çalışma alanında atamaya kapatıldı.',
+            );
+          }}
+          onUpdateTeacherLoadTargets={async (teacherId, input) => {
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            const validationError = validateManagementTeacherLoadTargets(input);
+            if (validationError) {
+              throw new Error(validationError);
+            }
+
+            const current = localWorkingCopy.teacherPlanningById[teacherId];
+            if (!current) {
+              throw new Error('Öğretmen planlama girdisi bulunamadı.');
+            }
+
+            const label = [
+              input.minimumLoad ?? '–',
+              input.targetLoad ?? '–',
+              input.maximumLoad ?? '–',
+            ].join(' / ');
+
+            applyLocalInventoryCommand(
+              {
+                type: 'SET_TEACHER_PLANNING',
+                planning: {
+                  teacherId,
+                  minimumLoad: input.minimumLoad,
+                  targetLoad: input.targetLoad,
+                  maximumLoad: input.maximumLoad,
+                },
+              },
+              (
+                input.minimumLoad !== null
+                || input.targetLoad !== null
+                || input.maximumLoad !== null
+              )
+                ? `Öğretmen yük hedefleri yerel çalışma alanında ${label} olarak güncellendi. Ana Kaydet ile veritabanına yazılacak.`
+                : 'Öğretmen yük hedefleri yerel çalışma alanında temizlendi. Ana Kaydet ile veritabanına yazılacak.',
+            );
+          }}
+          onUpdateTeacherUnavailablePeriods={async (
+            teacherId,
+            unavailablePeriods,
+          ) => {
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            const validationError = validateManagementTeacherUnavailablePeriods(
+              unavailablePeriods,
+            );
+            if (validationError) {
+              throw new Error(validationError);
+            }
+
+            applyLocalInventoryCommand(
+              {
+                type: 'SET_TEACHER_AVAILABILITY',
+                availability: {
+                  teacherId,
+                  unavailablePeriods,
+                },
+              },
+              unavailablePeriods.length > 0
+                ? `${unavailablePeriods.length} uygun olmayan ders saati yerel çalışma alanında güncellendi. Mevcut program otomatik taşınmadı; ana Kaydet ile veritabanına yazılacak.`
+                : 'Öğretmenin uygunluk kısıtları yerel çalışma alanında temizlendi. Ana Kaydet ile veritabanına yazılacak.',
+            );
+          }}
+          onPreviewTeacherDeparture={async (teacherId, intent) => {
             if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Öğretmen durumu güncelleniyor.');
-
-            try {
-              const result = await setManagementTeacherOperationalStatus(
+            if (intent === 'ARCHIVE') {
+              assertServerResourceMutationAllowed();
+              return previewManagementTeacherDeparture(
                 session.accessToken,
                 resources.revisionId,
                 teacherId,
-                operationalStatus,
               );
-              setCommandNotice({
-                kind: 'success',
-                text: operationalStatus === 'ACTIVE'
-                  ? `Öğretmen atamaya açıldı. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`
-                  : `Öğretmen atamaya kapatıldı. ${result.candidateRebuildCardCount} ders bloğu yeniden değerlendirildi.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
-          }}
-          onPreviewTeacherDeparture={async (teacherId) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
-            return previewManagementTeacherDeparture(
-              session.accessToken,
-              resources.revisionId,
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            return previewManagementWorkspaceTeacherDepartureV1(
+              localSnapshot,
+              localWorkingCopy,
               teacherId,
             );
           }}
@@ -3419,70 +5656,127 @@ export default function ManagementPage() {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity(
-              mode === 'ARCHIVE_CLEAR'
-                ? 'Öğretmen kaydı derslerden ayrılıp arşivleniyor.'
-                : mode === 'INACTIVATE_CLEAR'
-                  ? 'Öğretmen derslerden çıkarılıp atamaya kapatılıyor.'
-                  : 'Öğretmen yeni atamalara kapatılıyor.',
-            );
-
-            try {
-              const result = await applyManagementTeacherDeparture(
-                session.accessToken,
-                resources.revisionId,
-                teacherId,
-                mode,
-                expectedStateToken,
+            if (mode === 'ARCHIVE_CLEAR') {
+              assertServerResourceMutationAllowed();
+              setCommandBusy(true);
+              setCommandActivity(
+                'Öğretmen kaydı derslerden ayrılıp arşivleniyor.',
               );
 
-              setCommandNotice({
-                kind: 'success',
-                text: mode === 'ARCHIVE_CLEAR'
-                  ? `“${result.teacherName}” aktif kaynaklardan silindi. ${result.placedBlockCount} program bloğu gün/saat/salon korunarak öğretmensiz bırakıldı.`
-                  : mode === 'INACTIVATE_CLEAR'
-                    ? `“${result.teacherName}” atamaya kapatıldı. ${result.placedBlockCount} program bloğu gün/saat/salon korunarak öğretmensiz bırakıldı.`
-                    : `“${result.teacherName}” yeni atamalara kapatıldı; mevcut ${result.placedBlockCount} program bloğundaki öğretmen kaydı korundu.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
+              try {
+                const result = await applyManagementTeacherDeparture(
+                  session.accessToken,
+                  resources.revisionId,
+                  teacherId,
+                  mode,
+                  expectedStateToken,
+                );
+                setCommandNotice({
+                  kind: 'success',
+                  text: `“${result.teacherName}” aktif kaynaklardan silindi. ${result.placedBlockCount} program bloğu gün/saat/salon korunarak öğretmensiz bırakıldı.`,
+                });
+                setRefreshToken((value) => value + 1);
+              } finally {
+                setCommandBusy(false);
+                setCommandActivity(null);
+              }
+              return;
             }
+
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+            const serverBoard = serverBoardRef.current;
+            if (
+              !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+              || !serverBoard
+            ) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            const prepared = prepareManagementWorkspaceTeacherDepartureV1(
+              localSnapshot,
+              localWorkingCopy,
+              teacherId,
+              mode,
+            );
+            if (prepared.preview.stateToken !== expectedStateToken) {
+              throw new Error(
+                'Öğretmen değişikliği önizlemeden sonra değişti. Lütfen yeniden kontrol edin.',
+              );
+            }
+
+            const result = executeManagementWorkspaceCommandsV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              prepared.commands,
+            );
+            if (!result.applied) {
+              throw new Error(
+                result.issues.length > 0
+                  ? `Öğretmen değişikliği uygulanamıyor: ${workspaceIssueSummary(
+                    result.issues.map((issue) => issue.code),
+                  )}.`
+                  : 'Öğretmen değişikliği uygulanamıyor.',
+              );
+            }
+
+            setBoard(
+              projectManagementBoardFromWorkspaceV1(
+                serverBoard,
+                localWorkingCopy,
+                localSnapshot,
+              ),
+            );
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+            setResources((current) => current ? { ...current } : current);
+            setCandidateFocus(null);
+            setCandidateDetail(null);
+            setCommandNotice({
+              kind: 'success',
+              text: mode === 'INACTIVATE_CLEAR'
+                ? `“${prepared.preview.teacherName}” yerel çalışma alanında atamaya kapatıldı. ${prepared.preview.placedBlockCount} program bloğu aynı gün/saat/salonda öğretmensiz bırakıldı. Ana Kaydet ile veritabanına yazılacak.`
+                : `“${prepared.preview.teacherName}” yerel çalışma alanında yeni atamalara kapatıldı; mevcut ${prepared.preview.placedBlockCount} program bloğundaki öğretmen korundu. Ana Kaydet ile veritabanına yazılacak.`,
+            });
           }}
           onDeleteTeacher={async (teacherId) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Kullanılmayan öğretmen kaydı siliniyor.');
-
-            try {
-              await deleteManagementTeacherResource(
-                session.accessToken,
-                resources.revisionId,
-                teacherId,
-              );
-              setCommandNotice({
-                kind: 'success',
-                text: 'Kullanılmayan öğretmen kaydı silindi.',
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            const prepared = prepareManagementWorkspaceResourceDeleteV1(
+              localWorkingCopy,
+              'TEACHER',
+              teacherId,
+            );
+            applyLocalInventoryCommand(
+              prepared.command,
+              'Öğretmen kaydı yerel çalışma alanından kaldırıldı. Ana Kaydet ile veritabanından silinecek.',
+            );
           }}
           onPreviewRoomDeparture={async (roomId) => {
             if (!session || !access?.canEdit || !resources) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
-            return previewManagementRoomDeparture(
-              session.accessToken,
-              resources.revisionId,
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            return previewManagementWorkspaceRoomDepartureV1(
+              localSnapshot,
+              localWorkingCopy,
               roomId,
             );
           }}
@@ -3495,58 +5789,119 @@ export default function ManagementPage() {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity(
-              mode === 'ARCHIVE_CLEAR'
-                ? 'Salon kaydı derslerden ayrılıp arşivleniyor.'
-                : mode === 'OUT_OF_SERVICE_CLEAR'
-                  ? 'Salon derslerden çıkarılıp kullanım dışına alınıyor.'
-                  : 'Salon yeni kullanımlara kapatılıyor.',
+            if (mode === 'ARCHIVE_CLEAR') {
+              assertServerResourceMutationAllowed();
+              setCommandBusy(true);
+              setCommandActivity(
+                'Salon kaydı derslerden ayrılıp arşivleniyor.',
+              );
+
+              try {
+                const serverPreview = await previewManagementRoomDeparture(
+                  session.accessToken,
+                  resources.revisionId,
+                  roomId,
+                );
+                const result = await applyManagementRoomDeparture(
+                  session.accessToken,
+                  resources.revisionId,
+                  roomId,
+                  mode,
+                  serverPreview.stateToken,
+                );
+
+                setCommandNotice({
+                  kind: 'success',
+                  text: `“${result.roomName}” aktif kaynaklardan silindi. ${result.placedBlockCount} program bloğu gün/saat/öğretmen korunarak salonsuz bırakıldı.`,
+                });
+                setRefreshToken((value) => value + 1);
+              } finally {
+                setCommandBusy(false);
+                setCommandActivity(null);
+              }
+              return;
+            }
+
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+            const serverBoard = serverBoardRef.current;
+            if (
+              !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+              || !serverBoard
+            ) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            const prepared = prepareManagementWorkspaceRoomDepartureV1(
+              localSnapshot,
+              localWorkingCopy,
+              roomId,
+              mode,
             );
 
-            try {
-              const result = await applyManagementRoomDeparture(
-                session.accessToken,
-                resources.revisionId,
-                roomId,
-                mode,
-                expectedStateToken,
+            if (prepared.preview.stateToken !== expectedStateToken) {
+              throw new Error(
+                'Salon değişikliği önizlemeden sonra değişti. Lütfen yeniden kontrol edin.',
               );
-
-              setCommandNotice({
-                kind: 'success',
-                text: mode === 'ARCHIVE_CLEAR'
-                  ? `“${result.roomName}” aktif kaynaklardan silindi. ${result.placedBlockCount} program bloğu gün/saat/öğretmen korunarak salonsuz bırakıldı.`
-                  : mode === 'OUT_OF_SERVICE_CLEAR'
-                    ? `“${result.roomName}” kullanım dışına alındı. ${result.placedBlockCount} program bloğu gün/saat/öğretmen korunarak salonsuz bırakıldı.`
-                    : `“${result.roomName}” yeni kullanımlara kapatıldı; mevcut ${result.placedBlockCount} program bloğundaki salon kaydı korundu.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
             }
+
+            const result = executeManagementWorkspaceCommandsV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              prepared.commands,
+            );
+            if (!result.applied) {
+              throw new Error(
+                result.issues.length > 0
+                  ? `Salon değişikliği uygulanamıyor: ${workspaceIssueSummary(
+                    result.issues.map((issue) => issue.code),
+                  )}.`
+                  : 'Salon değişikliği uygulanamıyor.',
+              );
+            }
+
+            setBoard(
+              projectManagementBoardFromWorkspaceV1(
+                serverBoard,
+                localWorkingCopy,
+                localSnapshot,
+              ),
+            );
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+            setResources((current) => current ? { ...current } : current);
+            setCandidateFocus(null);
+            setCandidateDetail(null);
+            setCommandNotice({
+              kind: 'success',
+              text: mode === 'OUT_OF_SERVICE_CLEAR'
+                ? `“${prepared.preview.roomName}” yerel çalışma alanında kullanım dışına alındı. ${prepared.preview.placedBlockCount} program bloğu aynı gün/saat/öğretmenle salonsuz bırakıldı. Ana Kaydet ile veritabanına yazılacak.`
+                : `“${prepared.preview.roomName}” yerel çalışma alanında yeni kullanımlara kapatıldı; mevcut ${prepared.preview.placedBlockCount} program bloğundaki salon korundu. Ana Kaydet ile veritabanına yazılacak.`,
+            });
           }}
           onDeleteRoom={async (roomId) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Salon kaydı siliniyor.');
-
-            try {
-              await deleteManagementRoomResource(
-                session.accessToken,
-                resources.revisionId,
-                roomId,
-              );
-              setCommandNotice({ kind: 'success', text: 'Kullanılmayan salon kaydı silindi.' });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
-            }
+            const prepared = prepareManagementWorkspaceResourceDeleteV1(
+              localWorkingCopy,
+              'ROOM',
+              roomId,
+            );
+            applyLocalInventoryCommand(
+              prepared.command,
+              'Salon kaydı yerel çalışma alanından kaldırıldı. Ana Kaydet ile veritabanından silinecek.',
+            );
           }}
           onOpenProgramResource={openResourceInProgram}
           onPreviewRoomProfile={async (
@@ -3554,17 +5909,19 @@ export default function ManagementPage() {
             capabilities,
             knowledgeStatus,
           ) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            return previewManagementRoomProfile(
-              session.accessToken,
-              resources.revisionId,
+            return prepareManagementWorkspaceRoomProfileV1(
+              localSnapshot,
+              localWorkingCopy,
               roomId,
               capabilities,
               knowledgeStatus,
-            );
+            ).preview;
           }}
           onApplyRoomProfile={async (
             roomId,
@@ -3572,88 +5929,101 @@ export default function ManagementPage() {
             knowledgeStatus,
             expectedStateToken,
           ) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Salon özellikleri güvenli biçimde uygulanıyor.');
-
-            try {
-              const result = await applyManagementRoomProfile(
-                session.accessToken,
-                resources.revisionId,
-                roomId,
-                capabilities,
-                knowledgeStatus,
-                expectedStateToken,
+            const prepared = prepareManagementWorkspaceRoomProfileV1(
+              localSnapshot,
+              localWorkingCopy,
+              roomId,
+              capabilities,
+              knowledgeStatus,
+            );
+            if (prepared.preview.stateToken !== expectedStateToken) {
+              throw new Error(
+                'Salon özellikleri önizlemeden sonra değişti. Etkiyi yeniden hesaplayın.',
               );
-              setCommandNotice({
-                kind: 'success',
-                text: `Salon özellikleri güncellendi. ${result.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirildi.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
             }
+            if (!prepared.preview.canApply) {
+              throw new Error(
+                'Bu salon değişikliği mevcut bir program yerleşimini geçersiz kıldığı için uygulanamıyor.',
+              );
+            }
+
+            applyLocalInventoryCommand(
+              prepared.command,
+              `Salon özellikleri yerel çalışma alanında güncellendi. ${prepared.preview.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirilecek; ana Kaydet ile veritabanına yazılacak.`,
+            );
           }}
           onPreviewRoomStatus={async (roomId, operationalStatus) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            return previewManagementRoomOperationalStatus(
-              session.accessToken,
-              resources.revisionId,
+            return prepareManagementWorkspaceRoomStatusEditV1(
+              localSnapshot,
+              localWorkingCopy,
               roomId,
               operationalStatus,
-            );
+            ).preview;
           }}
           onApplyRoomStatus={async (
             roomId,
             operationalStatus,
             expectedStateToken,
           ) => {
-            if (!session || !access?.canEdit || !resources) {
-              throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            if (!access?.canEdit || !localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity('Salon durumu güvenli biçimde uygulanıyor.');
+            const prepared = prepareManagementWorkspaceRoomStatusEditV1(
+              localSnapshot,
+              localWorkingCopy,
+              roomId,
+              operationalStatus,
+            );
 
-            try {
-              const result = await applyManagementRoomOperationalStatus(
-                session.accessToken,
-                resources.revisionId,
-                roomId,
-                operationalStatus,
-                expectedStateToken,
+            if (prepared.preview.stateToken !== expectedStateToken) {
+              throw new Error(
+                'Salon durumu önizlemeden sonra değişti. Lütfen yeniden kontrol edin.',
               );
-
-              const statusLabel = operationalStatus === 'MAINTENANCE'
-                ? 'Tadilatta'
-                : operationalStatus === 'OUT_OF_SERVICE'
-                  ? 'Kullanım dışı'
-                  : 'Aktif';
-
-              setCommandNotice({
-                kind: 'success',
-                text: `Salon durumu “${statusLabel}” olarak güncellendi. ${result.candidateRebuildCardCount} ders bloğunun uygun yerleri yeniden değerlendirildi.`,
-              });
-              setRefreshToken((value) => value + 1);
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
             }
+            if (!prepared.preview.canApply) {
+              throw new Error(
+                prepared.preview.blockReasons[0] === 'ROOM_INACTIVE'
+                  ? 'Salon mevcut programda kullanıldığı için kullanım dışına alınamaz.'
+                  : 'Salon durumu uygulanamıyor.',
+              );
+            }
+
+            const statusLabel = operationalStatus === 'MAINTENANCE'
+              ? 'Tadilatta'
+              : operationalStatus === 'OUT_OF_SERVICE'
+                ? 'Kullanım dışı'
+                : 'Aktif';
+
+            applyLocalInventoryCommand(
+              prepared.plan.command,
+              `Salon durumu yerel çalışma alanında “${statusLabel}” olarak güncellendi.`,
+            );
           }}
         />
       ) : activeSection === 'SOLVER' ? (
         <ManagementSolverWorkspacePanel
-          key={`solver-${refreshToken}-${solverWorkspace?.preview.snapshotHash ?? 'empty'}`}
-          data={solverWorkspace}
-          canEdit={access?.canEdit === true}
+          key={`solver-${refreshToken}-${solverWorkspaceForView?.preview.snapshotHash ?? 'empty'}`}
+          data={solverWorkspaceForView}
+          loading={solverWorkspaceLoading}
+          loadError={solverWorkspaceLoadError}
+          canEdit={access?.canEdit === true && !workspaceLocalSessionActive}
           busy={commandBusy}
+          onActivityChange={setSolverActivity}
           onSave={async (input) => {
             if (!session || !access?.canEdit) {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
@@ -3708,26 +6078,77 @@ export default function ManagementPage() {
                 );
               }
 
+              // Solver snapshotHash includes objective-profile state and is not
+              // comparable to the profile-neutral Program workspace snapshotHash.
+              // The fresh server solver workspace above already verifies the
+              // proposal's solver snapshot. Locally, revision/requirement-set
+              // identity plus baselineHash are the schedule-staleness contract.
+              const localSnapshot = workspaceSnapshotRef.current;
+              const localWorkingCopy = workspaceWorkingCopyRef.current;
+              const localHistory = workspaceHistoryRef.current;
+              const serverBoard = serverBoardRef.current;
+
+              if (
+                !localSnapshot
+                || !localWorkingCopy
+                || !localHistory
+                || !serverBoard
+              ) {
+                throw new Error('Yerel çalışma alanı hazır değil.');
+              }
+
+              if (
+                localSnapshot.identity.revisionId !== currentWorkspace?.revisionId
+                || localSnapshot.identity.requirementSetId !== currentWorkspace?.requirementSetId
+                || localSnapshot.identity.baselineHash !== proposal.baselineHash
+              ) {
+                throw new Error(
+                  'Programın yerel çalışma alanı öneri oluşturulduktan sonra değişti. Seçeneği yeniden hesaplayın.',
+                );
+              }
+
               setCommandActivity(
-                `${plan.items.length} ders tek işlem olarak güncelleniyor.`,
+                `${plan.items.length} ders yerel çalışma alanında doğrulanıyor.`,
               );
 
-              await applyManagementSolverProposalBundle(
-                session.accessToken,
-                {
-                  items: plan.items,
-                  expectedBaselineHash: proposal.baselineHash,
-                },
+              const result = executeManagementWorkspaceCommandsV1(
+                localSnapshot,
+                localWorkingCopy,
+                localHistory,
+                buildManagementSolverProposalWorkspaceCommands(plan),
               );
 
-              // The old history descriptor predates this proposal bundle.
-              // Disable it until the refreshed transaction state is loaded.
+              if (!result.applied) {
+                throw new Error(
+                  result.issues.length > 0
+                    ? `Öneri yerel programa uygulanamıyor: ${workspaceIssueSummary(
+                      result.issues.map((issue) => issue.code),
+                    )}.`
+                    : 'Öneri yerel programa uygulanamıyor.',
+                );
+              }
+
+              setBoard(
+                projectManagementBoardFromWorkspaceV1(
+                  serverBoard,
+                  localWorkingCopy,
+                  localSnapshot,
+                ),
+              );
+              setWorkspaceDirty(
+                diffManagementWorkspaceV1(
+                  localSnapshot,
+                  localWorkingCopy,
+                ).hasChanges,
+              );
+
+              // Any legacy server descriptor predates the local proposal batch.
+              // The proposal now belongs exclusively to shared workspace history.
               setCommandState({ undo: null, redo: null });
               setCommandNotice({
                 kind: 'success',
-                text: `${plan.items.length} ders için önerilen yerleşim uygulandı. İşlem Geri Al ile tek adımda geri alınabilir.`,
+                text: `${plan.items.length} ders için önerilen yerleşim yerel çalışma alanına uygulandı. Ana Kaydet ile veritabanına yazılacak; Geri Al ile tek adımda geri alınabilir.`,
               });
-              setRefreshToken((value) => value + 1);
             } finally {
               setCommandBusy(false);
               setCommandActivity(null);
@@ -3756,12 +6177,20 @@ export default function ManagementPage() {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
-            return previewManagementPlacementResourceChange(
-              session.accessToken,
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+
+            if (!localSnapshot || !localWorkingCopy) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            return prepareManagementWorkspaceResourceEditV1(
+              localSnapshot,
+              localWorkingCopy,
               cardIds,
               resourceType,
               resourceId,
-            );
+            ).preview;
           }}
           onBulkApply={async (
             cardIds,
@@ -3773,34 +6202,96 @@ export default function ManagementPage() {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
-            setCommandBusy(true);
-            setCommandActivity(
-              resourceType === 'TEACHER'
-                ? 'Toplu öğretmen ataması uygulanıyor.'
-                : 'Toplu salon ataması uygulanıyor.',
+            const localSnapshot = workspaceSnapshotRef.current;
+            const localWorkingCopy = workspaceWorkingCopyRef.current;
+            const localHistory = workspaceHistoryRef.current;
+            const serverBoard = serverBoardRef.current;
+
+            if (
+              !localSnapshot
+              || !localWorkingCopy
+              || !localHistory
+              || !serverBoard
+            ) {
+              throw new Error('Yerel çalışma alanı hazır değil.');
+            }
+
+            const prepared = prepareManagementWorkspaceResourceEditV1(
+              localSnapshot,
+              localWorkingCopy,
+              cardIds,
+              resourceType,
+              resourceId,
             );
 
-            try {
-              const result = await applyManagementPlacementResourceChange(
-                session.accessToken,
-                cardIds,
-                resourceType,
-                resourceId,
-                expectedStateToken,
+            if (prepared.preview.stateToken !== expectedStateToken) {
+              throw new Error(
+                'Toplu atama önizlemeden sonra değişti. Lütfen yeniden kontrol edin.',
               );
-
-              setCommandNotice({
-                kind: 'success',
-                text: resourceType === 'TEACHER'
-                  ? `Öğretmen “${result.resourceName}” toplu olarak atandı. ${result.affectedCardCount} kart güncellendi.`
-                  : `Salon “${result.resourceName}” toplu olarak atandı. ${result.affectedCardCount} kart güncellendi.`,
-              });
-              setRefreshToken((value) => value + 1);
-              return result;
-            } finally {
-              setCommandBusy(false);
-              setCommandActivity(null);
             }
+
+            if (!prepared.preview.canApply || prepared.commands.length === 0) {
+              throw new Error(
+                prepared.preview.blockReasons[0]
+                  ? translateManagementPlacementResourceBlockReason(
+                    prepared.preview.blockReasons[0],
+                  )
+                  : 'Toplu atama artık uygulanamıyor.',
+              );
+            }
+
+            const result = executeManagementWorkspaceCommandsV1(
+              localSnapshot,
+              localWorkingCopy,
+              localHistory,
+              prepared.commands,
+            );
+
+            if (!result.applied) {
+              throw new Error(
+                result.issues.length > 0
+                  ? `Toplu atama uygulanamıyor: ${workspaceIssueSummary(
+                    result.issues.map((issue) => issue.code),
+                  )}.`
+                  : 'Toplu atama uygulanamıyor.',
+              );
+            }
+
+            setBoard(
+              projectManagementBoardFromWorkspaceV1(
+                serverBoard,
+                localWorkingCopy,
+                localSnapshot,
+              ),
+            );
+            setWorkspaceDirty(
+              diffManagementWorkspaceV1(
+                localSnapshot,
+                localWorkingCopy,
+              ).hasChanges,
+            );
+
+            setCommandNotice({
+              kind: 'success',
+              text: resourceType === 'TEACHER'
+                ? `${prepared.preview.affectedCardCount} yerleşimde öğretmen yerel olarak güncellendi.`
+                : `${prepared.preview.affectedCardCount} yerleşimde salon yerel olarak güncellendi.`,
+            });
+
+            return {
+              applied: true,
+              resourceType,
+              resourceId,
+              resourceName: prepared.preview.resourceName,
+              affectedCardCount: prepared.preview.affectedCardCount,
+              poolExpansionCount: 0,
+              outsidePlanningPoolCount: 0,
+              requirementWideExpansionCount:
+                prepared.preview.requirementWideExpansionCount,
+              planningPoolChanged: false,
+              transactionId: prepared.preview.stateToken,
+              publishedChanged: false as const,
+            };
           }}
         />
       )}
@@ -3814,9 +6305,13 @@ export default function ManagementPage() {
         analyzed={placementAssistantAnalyzed}
         stale={placementAssistantStale}
         error={placementAssistantError}
-        canEdit={access?.canEdit === true}
-        commandBusy={commandBusy}
-        refreshing={dataLoading || placementAssistantWaitingForRefresh}
+        canEdit={access?.canEdit === true && !workspaceLocalSessionActive}
+        commandBusy={commandBusy || placementAssistantImpactChecking}
+        refreshing={
+          dataLoading
+          || placementAssistantWaitingForRefresh
+          || placementAssistantImpactChecking
+        }
         onAnalyze={() => {
           void analyzePlacementAssistant();
         }}
@@ -3856,11 +6351,14 @@ export default function ManagementPage() {
         />
       )}
 
-      {commandBusy && (
+      {!startupComplete && dataLoading && (
         <ManagementBusyOverlay
-          detail={commandActivity ?? 'Program güncelleniyor.'}
+          title="Partisyon hazırlanıyor"
+          steps={[...MANAGEMENT_STARTUP_STEPS]}
+          activeStep={startupStep}
         />
       )}
+
     </main>
   );
 }

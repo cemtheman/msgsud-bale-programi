@@ -1,6 +1,7 @@
 'use client';
 
 import { getFreshManagementAccessToken } from '@/lib/managementAuth';
+import { fetchLatestManagementDraftRevision } from '@/lib/managementRevision';
 
 export type ManagementSolverObjectiveKey =
   | 'changeCost'
@@ -12,10 +13,43 @@ export type ManagementSolverObjectiveKey =
 
 export type ManagementSolverProfileStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
 
+export const SUPPORTED_MANAGEMENT_OBJECTIVE_KEYS = [
+  'changeCost',
+  'preferredTeacherContinuity',
+  'teacherIdleGaps',
+  'roomStability',
+  'teacherLoadBalance',
+  'subjectTimePreference',
+] as const satisfies readonly ManagementSolverObjectiveKey[];
+
+export const UNSUPPORTED_MANAGEMENT_OBJECTIVE_KEYS =
+  [] as const satisfies readonly ManagementSolverObjectiveKey[];
+
 export type ManagementSolverObjectiveWeights = Record<
   ManagementSolverObjectiveKey,
   number
 >;
+
+export function sanitizeManagementSolverObjectiveWeights(
+  weights: Partial<ManagementSolverObjectiveWeights> | null | undefined,
+): ManagementSolverObjectiveWeights {
+  return {
+    changeCost: weights?.changeCost ?? 0,
+    preferredTeacherContinuity: weights?.preferredTeacherContinuity ?? 0,
+    teacherIdleGaps: weights?.teacherIdleGaps ?? 0,
+    roomStability: weights?.roomStability ?? 0,
+    teacherLoadBalance: weights?.teacherLoadBalance ?? 0,
+    subjectTimePreference: weights?.subjectTimePreference ?? 0,
+  };
+}
+
+export function countEnabledSupportedManagementObjectives(
+  weights: Partial<ManagementSolverObjectiveWeights> | null | undefined,
+) {
+  return SUPPORTED_MANAGEMENT_OBJECTIVE_KEYS.filter(
+    (key) => (weights?.[key] ?? 0) > 0,
+  ).length;
+}
 
 export interface ManagementSolverObjectiveCatalogItem {
   id: ManagementSolverObjectiveKey;
@@ -79,7 +113,7 @@ export interface ManagementSolverRequirement {
   groupType: string;
   weeklyLoad: number;
   preferredPartition: number[] | null;
-  allowedPartitions: number[] | null;
+  allowedPartitions: number[][] | null;
   minDistinctDays: number | null;
   maxBlocksPerDay: number | null;
   maxConsecutivePeriods: number | null;
@@ -99,6 +133,9 @@ export interface ManagementSolverCard {
   blockIndex: number;
   durationPeriods: number;
   locked: boolean;
+  timePinned?: boolean;
+  teacherPinned?: boolean;
+  roomPinned?: boolean;
 }
 
 export interface ManagementSolverInstructionalGroup {
@@ -132,6 +169,12 @@ export interface ManagementSolverTeacher {
   operationalStatus: string;
 }
 
+export interface ManagementSolverTeacherUnavailablePeriod {
+  teacherId: string;
+  dayOfWeek: number;
+  period: number;
+}
+
 export interface ManagementSolverRoom {
   id: string;
   name: string;
@@ -155,6 +198,19 @@ export interface ManagementSolverHardConstraintContract {
   rules: string[];
 }
 
+export interface ManagementSolverTeacherLoadTarget {
+  teacherId: string;
+  minimumLoad: number | null;
+  targetLoad: number | null;
+  maximumLoad: number | null;
+}
+
+export interface ManagementSolverSubjectTimePreference {
+  requirementId: string;
+  preferredDays: number[];
+  preferredStartPeriods: number[];
+}
+
 export interface ManagementSolverSnapshotPreview {
   snapshotVersion: string;
   solverEngineStatus: 'SNAPSHOT_ONLY' | string;
@@ -175,6 +231,9 @@ export interface ManagementSolverSnapshotPreview {
   teacherPools: ManagementSolverTeacherPoolEntry[];
   roomPools: ManagementSolverRoomPoolEntry[];
   teachers: ManagementSolverTeacher[];
+  teacherUnavailablePeriods?: ManagementSolverTeacherUnavailablePeriod[];
+  teacherLoadTargets?: ManagementSolverTeacherLoadTarget[];
+  subjectTimePreferences?: ManagementSolverSubjectTimePreference[];
   rooms: ManagementSolverRoom[];
   baselinePlacements: ManagementSolverBaselinePlacement[];
   baselineMetrics: ManagementSolverBaselineMetrics;
@@ -346,10 +405,6 @@ export function upsertManagementSolverProfile(
   );
 }
 
-interface SolverRevisionRow {
-  id: string;
-}
-
 async function authedSolverGet<T>(
   path: string,
   accessToken: string,
@@ -408,12 +463,7 @@ export async function fetchManagementSolverWorkspace(
 export async function fetchLatestManagementSolverWorkspace(
   accessToken: string,
 ): Promise<ManagementSolverWorkspace | null> {
-  const revisions = await authedSolverGet<SolverRevisionRow[]>(
-    'schedule_revisions?select=id&status=eq.DRAFT&order=version_number.desc&limit=1',
-    accessToken,
-  );
-
-  const revision = revisions[0];
+  const revision = await fetchLatestManagementDraftRevision(accessToken);
   if (!revision) return null;
 
   return fetchManagementSolverWorkspace(accessToken, revision.id);

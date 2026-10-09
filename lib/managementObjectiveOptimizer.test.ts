@@ -483,3 +483,373 @@ describe('M33.3 weighted objective optimization', () => {
     expect(result.writesPerformed).toBe(false);
   });
 });
+
+
+describe('objective optimization feasible seed', () => {
+  it('can optimize from a feasible repair even when the original baseline is not feasible', () => {
+    const source = baseSnapshot();
+    const baselinePlacement = source.baselinePlacements[0];
+
+    const broken = {
+      ...source,
+      baselinePlacements: source.baselinePlacements.map((placement, index) => (
+        index === 0
+          ? { ...placement, teacherId: null }
+          : placement
+      )),
+    };
+
+    const seed = source.baselinePlacements.map((placement) => ({
+      cardId: placement.cardId,
+      dayOfWeek: placement.dayOfWeek as number,
+      startPeriod: placement.startPeriod as number,
+      teacherId: placement.teacherId,
+      roomId: placement.roomId,
+      provisionalRoom: false,
+      baseline: placement.cardId !== baselinePlacement.cardId,
+    }));
+
+    const result = runManagementObjectiveOptimization(
+      broken,
+      {
+        changeCost: 1000,
+        preferredTeacherContinuity: 0,
+        teacherIdleGaps: 0,
+        roomStability: 0,
+        teacherLoadBalance: 0,
+        subjectTimePreference: 0,
+      },
+      { seedPlacements: seed },
+    );
+
+    expect(result.status).not.toBe('BLOCKED');
+    expect(result.placements).toHaveLength(broken.cards.length);
+  });
+});
+
+
+describe('teacher load balance objective', () => {
+  it('reduces configured teacher-load target deviation', () => {
+    const data = baseSnapshot();
+
+    data.requirements = data.requirements.map((requirement) => ({
+      ...requirement,
+      teacherMode: 'ELIGIBLE_POOL',
+    }));
+    data.teachers = [
+      {
+        id: 't1',
+        name: 'Öğretmen 1',
+        operationalStatus: 'ACTIVE',
+      },
+      {
+        id: 't2',
+        name: 'Öğretmen 2',
+        operationalStatus: 'ACTIVE',
+      },
+    ];
+    data.teacherPools = [
+      { requirementId: 'r1', teacherId: 't1' },
+      { requirementId: 'r1', teacherId: 't2' },
+      { requirementId: 'r2', teacherId: 't1' },
+      { requirementId: 'r2', teacherId: 't2' },
+    ];
+    data.teacherLoadTargets = [
+      {
+        teacherId: 't1',
+        minimumLoad: null,
+        targetLoad: 1,
+        maximumLoad: null,
+      },
+      {
+        teacherId: 't2',
+        minimumLoad: null,
+        targetLoad: 1,
+        maximumLoad: null,
+      },
+    ];
+
+    const result = runManagementObjectiveOptimization(
+      data,
+      {
+        ...ZERO_WEIGHTS,
+        teacherLoadBalance: 1000,
+      },
+      {
+        maxIterations: 4,
+        maxNeighborsPerCard: 80,
+      },
+    );
+
+    expect(result.status).toBe('IMPROVED');
+    expect(result.baselineMetrics.teacherLoadDeviationPeriods).toBe(2);
+    expect(result.proposedMetrics.teacherLoadDeviationPeriods).toBe(0);
+    expect(new Set(
+      result.placements.map((placement) => placement.teacherId),
+    )).toEqual(new Set(['t1', 't2']));
+  });
+});
+
+
+describe('subject time preference objective', () => {
+  it('moves a lesson toward its configured preferred day and start period', () => {
+    const data = baseSnapshot();
+    data.subjectTimePreferences = [
+      {
+        requirementId: 'r2',
+        preferredDays: [3],
+        preferredStartPeriods: [4],
+      },
+    ];
+
+    const result = runManagementObjectiveOptimization(
+      data,
+      {
+        ...ZERO_WEIGHTS,
+        subjectTimePreference: 1000,
+      },
+      {
+        maxIterations: 4,
+        maxNeighborsPerCard: 120,
+      },
+    );
+
+    expect(result.status).toBe('IMPROVED');
+    expect(result.baselineMetrics.subjectTimePreferencePenalty)
+      .toBeGreaterThan(0);
+    expect(result.proposedMetrics.subjectTimePreferencePenalty)
+      .toBeLessThan(result.baselineMetrics.subjectTimePreferencePenalty);
+
+    const moved = result.placements.find(
+      (placement) => placement.cardId === 'c2',
+    );
+    expect(moved).toBeDefined();
+    expect(moved?.dayOfWeek).toBe(3);
+    expect(moved?.startPeriod).toBe(4);
+  });
+});
+
+
+describe('subject time preference coordinated reroute', () => {
+  it('can free a preferred slot by rerouting the single blocking lesson', () => {
+    const data = baseSnapshot();
+
+    data.requirements = [
+      {
+        ...data.requirements[0],
+        id: 'r1',
+        groupId: 'g1',
+        groupName: '5A',
+      },
+      {
+        ...data.requirements[1],
+        id: 'r2',
+        groupId: 'g1',
+        groupName: '5A',
+      },
+    ];
+    data.cards = [
+      {
+        id: 'c1',
+        requirementId: 'r1',
+        blockIndex: 1,
+        durationPeriods: 1,
+        locked: false,
+      },
+      {
+        id: 'c2',
+        requirementId: 'r2',
+        blockIndex: 1,
+        durationPeriods: 1,
+        locked: false,
+      },
+    ];
+    data.instructionalGroups = [data.instructionalGroups[0]];
+    data.teacherPools = [
+      { requirementId: 'r1', teacherId: 't1' },
+      { requirementId: 'r2', teacherId: 't1' },
+    ];
+    data.roomPools = [
+      { requirementId: 'r1', roomId: 'room1' },
+      { requirementId: 'r2', roomId: 'room2' },
+    ];
+    data.baselinePlacements = [
+      {
+        cardId: 'c1',
+        dayOfWeek: 1,
+        startPeriod: 1,
+        teacherId: 't1',
+        roomId: 'room1',
+      },
+      {
+        cardId: 'c2',
+        dayOfWeek: 1,
+        startPeriod: 3,
+        teacherId: 't1',
+        roomId: 'room2',
+      },
+    ];
+    data.subjectTimePreferences = [
+      {
+        requirementId: 'r2',
+        preferredDays: [1],
+        preferredStartPeriods: [1],
+      },
+    ];
+
+    const result = runManagementObjectiveOptimization(
+      data,
+      {
+        ...ZERO_WEIGHTS,
+        subjectTimePreference: 1000,
+      },
+      {
+        maxIterations: 2,
+        maxNeighborsPerCard: 40,
+      },
+    );
+
+    expect(result.status).toBe('IMPROVED');
+    expect(result.baselineMetrics.subjectTimePreferencePenalty).toBe(2);
+    expect(result.proposedMetrics.subjectTimePreferencePenalty).toBe(0);
+
+    const c1 = result.placements.find((placement) => placement.cardId === 'c1');
+    const c2 = result.placements.find((placement) => placement.cardId === 'c2');
+
+    expect(c2?.dayOfWeek).toBe(1);
+    expect(c2?.startPeriod).toBe(1);
+    expect(c1?.dayOfWeek).toBe(1);
+    expect(c1?.startPeriod).not.toBe(1);
+    expect(result.changedCards).toHaveLength(2);
+  });
+});
+
+
+describe('common section synchronization during time preference optimization', () => {
+  it('moves paired 5A/5B common lessons together instead of splitting the shared row', () => {
+    const data = baseSnapshot();
+
+    const baseRequirement = data.requirements[0];
+    data.requirements = [
+      {
+        ...baseRequirement,
+        id: 'din-5a',
+        subjectId: 'din',
+        subjectName: 'Din Kült.',
+        groupId: 'g5a',
+        groupName: '5A SECTION',
+      },
+      {
+        ...baseRequirement,
+        id: 'din-5b',
+        subjectId: 'din',
+        subjectName: 'Din Kült.',
+        groupId: 'g5b',
+        groupName: '5B SECTION',
+      },
+      {
+        ...baseRequirement,
+        id: 'turkce-5a',
+        subjectId: 'turkce',
+        subjectName: 'Türkçe',
+        groupId: 'g5a',
+        groupName: '5A SECTION',
+      },
+      {
+        ...baseRequirement,
+        id: 'turkce-5b',
+        subjectId: 'turkce',
+        subjectName: 'Türkçe',
+        groupId: 'g5b',
+        groupName: '5B SECTION',
+      },
+    ];
+    data.cards = [
+      { id: 'din-a', requirementId: 'din-5a', blockIndex: 1, durationPeriods: 2, locked: false },
+      { id: 'din-b', requirementId: 'din-5b', blockIndex: 1, durationPeriods: 2, locked: false },
+      { id: 'tr-a', requirementId: 'turkce-5a', blockIndex: 1, durationPeriods: 2, locked: false },
+      { id: 'tr-b', requirementId: 'turkce-5b', blockIndex: 1, durationPeriods: 2, locked: false },
+    ];
+    data.instructionalGroups = [
+      {
+        id: 'g5a',
+        classGroupId: 'cg5a',
+        name: '5A SECTION',
+        groupType: 'SECTION',
+        termStatus: 'ACTIVE',
+        knowledgeStatus: 'CONFIRMED',
+      },
+      {
+        id: 'g5b',
+        classGroupId: 'cg5b',
+        name: '5B SECTION',
+        groupType: 'SECTION',
+        termStatus: 'ACTIVE',
+        knowledgeStatus: 'CONFIRMED',
+      },
+    ];
+    data.teachers = [
+      { id: 'tdina', name: 'Din A', operationalStatus: 'ACTIVE' },
+      { id: 'tdinb', name: 'Din B', operationalStatus: 'ACTIVE' },
+      { id: 'ttra', name: 'Türkçe A', operationalStatus: 'ACTIVE' },
+      { id: 'ttrb', name: 'Türkçe B', operationalStatus: 'ACTIVE' },
+    ];
+    data.rooms = [
+      { id: 'r5a', name: '5A', canonicalRoomId: null, capabilities: [], knowledgeStatus: 'CONFIRMED', operationalStatus: 'ACTIVE' },
+      { id: 'r5b', name: '5B', canonicalRoomId: null, capabilities: [], knowledgeStatus: 'CONFIRMED', operationalStatus: 'ACTIVE' },
+    ];
+    data.teacherPools = [
+      { requirementId: 'din-5a', teacherId: 'tdina' },
+      { requirementId: 'din-5b', teacherId: 'tdinb' },
+      { requirementId: 'turkce-5a', teacherId: 'ttra' },
+      { requirementId: 'turkce-5b', teacherId: 'ttrb' },
+    ];
+    data.roomPools = [
+      { requirementId: 'din-5a', roomId: 'r5a' },
+      { requirementId: 'din-5b', roomId: 'r5b' },
+      { requirementId: 'turkce-5a', roomId: 'r5a' },
+      { requirementId: 'turkce-5b', roomId: 'r5b' },
+    ];
+    data.baselinePlacements = [
+      { cardId: 'din-a', dayOfWeek: 5, startPeriod: 2, teacherId: 'tdina', roomId: 'r5a' },
+      { cardId: 'din-b', dayOfWeek: 5, startPeriod: 2, teacherId: 'tdinb', roomId: 'r5b' },
+      { cardId: 'tr-a', dayOfWeek: 1, startPeriod: 1, teacherId: 'ttra', roomId: 'r5a' },
+      { cardId: 'tr-b', dayOfWeek: 1, startPeriod: 1, teacherId: 'ttrb', roomId: 'r5b' },
+    ];
+    data.baselineMetrics = {
+      ...data.baselineMetrics,
+      cardCount: 4,
+      placedCardCount: 4,
+    };
+    data.subjectTimePreferences = [{
+      requirementId: 'din-5a',
+      preferredDays: [1],
+      preferredStartPeriods: [1, 2, 3],
+    }];
+
+    const result = runManagementObjectiveOptimization(
+      data,
+      {
+        ...ZERO_WEIGHTS,
+        subjectTimePreference: 1000,
+      },
+      {
+        maxIterations: 3,
+        maxNeighborsPerCard: 80,
+      },
+    );
+
+    expect(result.status).toBe('IMPROVED');
+    expect(result.proposedMetrics.subjectTimePreferencePenalty).toBe(0);
+
+    const byId = new Map(
+      result.placements.map((placement) => [placement.cardId, placement]),
+    );
+
+    expect(byId.get('din-a')).toMatchObject({ dayOfWeek: 1, startPeriod: 1 });
+    expect(byId.get('din-b')).toMatchObject({ dayOfWeek: 1, startPeriod: 1 });
+    expect(byId.get('tr-a')).toMatchObject({ dayOfWeek: 5, startPeriod: 2 });
+    expect(byId.get('tr-b')).toMatchObject({ dayOfWeek: 5, startPeriod: 2 });
+    expect(result.changedCards).toHaveLength(4);
+  });
+});
