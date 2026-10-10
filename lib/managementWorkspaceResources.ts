@@ -34,28 +34,38 @@ function stableToken(
     .sort((a, b) => a.localeCompare(b))
     .map((cardId) => {
       const placement = workingCopy.placementsByCardId[cardId];
+      const card = workingCopy.cardsById[cardId];
+      const policy = card
+        ? workingCopy.requirementResourcesById[card.requirementId]
+        : null;
       return [
         cardId,
         placement?.dayOfWeek ?? '',
         placement?.startPeriod ?? '',
         placement?.teacherId ?? '',
         placement?.roomId ?? '',
-      ].join(':');
-    })
-    .join(',');
+        card?.requirementId ?? '',
+        card?.durationPeriods ?? null,
+        card?.locked === true,
+        card?.timePinned === true,
+        card?.teacherPinned === true,
+        card?.roomPinned === true,
+        policy?.teacherAssignmentScope ?? '',
+        policy?.teacherContinuity ?? '',
+      ];
+    });
 
   return [
-    'LOCAL_WORKSPACE_RESOURCE_V1',
+    'LOCAL_WORKSPACE_RESOURCE_V2',
     snapshot.identity.revisionId,
     snapshot.identity.snapshotHash,
     resourceType,
     resourceId,
-    placementState,
+    JSON.stringify(placementState),
   ].join('|');
 }
 
 function expandedCardIds(
-  snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   requestedCardIds: string[],
   resourceType: ManagementPlacementResourceType,
@@ -64,25 +74,20 @@ function expandedCardIds(
 
   if (resourceType !== 'TEACHER') return [...result];
 
-  const cardById = new Map(snapshot.cards.map((card) => [card.id, card]));
-  const requirementById = new Map(
-    snapshot.requirements.map((requirement) => [requirement.id, requirement]),
-  );
-
   const requirementIds = new Set<string>();
   requestedCardIds.forEach((cardId) => {
-    const card = cardById.get(cardId);
+    const card = workingCopy.cardsById[cardId];
     if (!card) return;
-    const requirement = requirementById.get(card.requirementId);
+    const requirement = workingCopy.requirementResourcesById[card.requirementId];
     if (
       requirement?.teacherAssignmentScope === 'REQUIREMENT'
       && requirement.teacherContinuity === 'REQUIRED'
     ) {
-      requirementIds.add(requirement.id);
+      requirementIds.add(card.requirementId);
     }
   });
 
-  snapshot.cards.forEach((card) => {
+  Object.values(workingCopy.cardsById).forEach((card) => {
     if (!requirementIds.has(card.requirementId)) return;
     const placement = workingCopy.placementsByCardId[card.id];
     if (
@@ -104,12 +109,13 @@ export function prepareManagementWorkspaceResourceEditV1(
   resourceType: ManagementPlacementResourceType,
   resourceId: string,
 ): ManagementWorkspaceResourceEditPlanV1 {
-  const cardById = new Map(snapshot.cards.map((card) => [card.id, card]));
+  const cardById = new Map(
+    Object.values(workingCopy.cardsById).map((card) => [card.id, card]),
+  );
   const normalizedRequested = Array.from(new Set(requestedCardIds))
     .filter((cardId) => cardById.has(cardId));
 
   const targetCardIds = expandedCardIds(
-    snapshot,
     workingCopy,
     normalizedRequested,
     resourceType,

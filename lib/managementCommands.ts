@@ -110,6 +110,18 @@ export function translateManagementPlacementResourceBlockReason(
   if (reason === 'CARD_LOCKED') {
     return 'Kart kilitli.';
   }
+  if (reason === 'LOCKED_CARD_MOVED') {
+    return 'Bu ders tam kilitli. Değiştirmek için önce kilidi kaldırın.';
+  }
+  if (reason === 'TIME_PINNED_CHANGED') {
+    return 'Bu dersin gün / saati sabit. Değiştirmek için önce Gün / saat sabitlemesini kaldırın.';
+  }
+  if (reason === 'TEACHER_PINNED_CHANGED') {
+    return 'Bu dersin öğretmeni sabit. Değiştirmek için önce Öğretmen sabitlemesini kaldırın.';
+  }
+  if (reason === 'ROOM_PINNED_CHANGED') {
+    return 'Bu dersin salonu sabit. Değiştirmek için önce Salon sabitlemesini kaldırın.';
+  }
   if (reason === 'REQUIREMENT_TEACHER_MISMATCH') {
     return 'Bu ders tüm bloklarda aynı öğretmeni kullanmalı.';
   }

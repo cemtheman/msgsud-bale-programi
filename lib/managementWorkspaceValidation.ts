@@ -1016,10 +1016,12 @@ export function validateManagementWorkspaceV1(
   });
   snapshot.requirements.forEach((requirement) => {
     const requirementPlacements = placedByRequirement.get(requirement.id) ?? [];
+    const teacherPolicy = workingCopy.requirementResourcesById[requirement.id]
+      ?? requirement;
 
     if (
-      requirement.teacherAssignmentScope === 'REQUIREMENT'
-      && requirement.teacherContinuity === 'REQUIRED'
+      teacherPolicy.teacherAssignmentScope === 'REQUIREMENT'
+      && teacherPolicy.teacherContinuity === 'REQUIRED'
     ) {
       const teacherIds = new Set(
         requirementPlacements
