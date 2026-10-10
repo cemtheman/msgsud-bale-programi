@@ -3586,3 +3586,24 @@ Historical note at promotion time: port 3000 post-promotion drag acceptance had 
 - Canonical HTTP probe returned proxy 403; no AWS SSH identity/Tailscale/usable AWS credential profile/browser connector. AWS tests and authenticated browser acceptance NOT RUN. No service restart, migration/DB write, main merge or deploy. All named AWS stash/backups/release/rollback assets untouched by this run.
 - Full technical report/acceptance criteria/next safe runtime checks: `docs/M42_PIN_RESOURCE_ACCEPTANCE_REPORT.md`; raw samples `docs/M42_PIN_RESOURCE_BENCHMARK.json`.
 - Decision: **CODE GATE PASS — BROWSER ACCEPTANCE PENDING**. Next: separate canonical release and remaining M42 pin/linked/history/persistence browser acceptance, preserving port 3000; do not close M42 or define M43.4 before actual acceptance.
+
+### 11 Oct 2026 — M42 AWS final acceptance
+
+Status: CLOSED / PASS
+
+- Branch: feat/m42-pin-resource-acceptance
+- Implementation/documentation checkpoint: 98307f5
+- AWS full suite: 350/350 PASS
+- Reference equivalence: 43/43 PASS
+- TypeScript: PASS
+- Isolated production build: PASS, 9/9 pages
+- Build ID: FWDpU_8fSNVyi-jkEaLdP
+- Browser functional acceptance: 5/5 PASS
+- Save / Reload / Restore / Reload: PASS
+- Main application: port 3000, HTTP 200
+- Active release: /home/ubuntu/partisyon-m42-acceptance
+- M43.3 performance acceptance remains CLOSED / PASS
+- Previous releases, backups and stash preserved
+- No main merge or database migration in this package
+
+M42 engineering, browser and AWS promotion gates: PASS.
