@@ -131,6 +131,7 @@ import {
   diffManagementWorkspaceV1,
   hydrateManagementWorkspaceInventoryDisplayNamesV1,
   hydrateManagementWorkspaceRequirementCatalogV1,
+  prepareManagementWorkspaceTimePreferenceEditV1,
   type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
@@ -159,6 +160,7 @@ import {
 import {
   prepareManagementWorkspaceTeacherPolicyV1,
 } from '@/lib/managementWorkspaceTeacherPolicy';
+import { prepareManagementWorkspaceRefreshV1 } from '@/lib/managementWorkspaceRefresh';
 import {
   prepareManagementWorkspaceCoordinatedTeacherReconciliationV1,
   prepareManagementWorkspaceTeacherReconciliationV1,
@@ -891,25 +893,41 @@ export default function ManagementPage() {
         ]);
         if (!active) return;
 
+        const currentSnapshot = workspaceSnapshotRef.current;
+        const currentWorkingCopy = workspaceWorkingCopyRef.current;
+        const currentHistory = workspaceHistoryRef.current;
+        const refresh = prepareManagementWorkspaceRefreshV1(
+          currentSnapshot && currentWorkingCopy && currentHistory
+            ? { snapshot: currentSnapshot, workingCopy: currentWorkingCopy, history: currentHistory }
+            : null,
+          nextWorkspaceSnapshot,
+          nextBoard?.revisionId ?? null,
+        );
+        if (refresh.kind === 'PRESERVE_LOCAL') {
+          setCommandNotice({
+            kind: 'info',
+            text: 'Yenileme sırasında yapılan yerel değişiklikler korundu. Programı yenilemeden önce kaydedin veya Geri Al ile geri alın.',
+          });
+          return;
+        }
+
         setOverview(nextOverview);
         serverBoardRef.current = nextBoard;
 
         if (
           nextBoard
-          && nextWorkspaceSnapshot
-          && nextWorkspaceSnapshot.identity.revisionId === nextBoard.revisionId
+          && refresh.state
         ) {
-          const nextWorkingCopy =
-            createManagementWorkspaceWorkingCopyV1(nextWorkspaceSnapshot);
-          workspaceSnapshotRef.current = nextWorkspaceSnapshot;
+          const nextWorkingCopy = refresh.state.workingCopy;
+          workspaceSnapshotRef.current = refresh.state.snapshot;
           workspaceWorkingCopyRef.current = nextWorkingCopy;
-          workspaceHistoryRef.current = createManagementWorkspaceHistoryV1();
+          workspaceHistoryRef.current = refresh.state.history;
           setWorkspaceDirty(false);
           setBoard(
             projectManagementBoardFromWorkspaceV1(
               nextBoard,
               nextWorkingCopy,
-              nextWorkspaceSnapshot,
+              refresh.state.snapshot,
             ),
           );
         } else {
@@ -5394,14 +5412,12 @@ export default function ManagementPage() {
               throw new Error('Bu işlem için düzenleme yetkisi gerekiyor.');
             }
 
-            const preference = {
+            const preference = prepareManagementWorkspaceTimePreferenceEditV1(
+              localWorkingCopy,
               requirementId,
-              preferredDays: Array.from(new Set(preferredDays))
-                .sort((a, b) => a - b),
-              preferredStartPeriods:
-                Array.from(new Set(preferredStartPeriods))
-                  .sort((a, b) => a - b),
-            };
+              preferredDays,
+              preferredStartPeriods,
+            );
 
             const result = executeManagementWorkspaceCommandV1(
               localSnapshot,

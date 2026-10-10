@@ -889,6 +889,10 @@ export function hydrateManagementWorkspaceRequirementCatalogV1(
 ) {
   rows.forEach((row) => {
     if (row.termStatus === 'UNKNOWN') return;
+    // A captured row belongs to this baseline and its local history. Repeated
+    // reads may discover other rows, but must not overwrite preferences or
+    // silently rebase before-values. A fresh working copy captures new inputs.
+    if (workingCopy.requirementTimePreferencesById?.[row.requirementId]) return;
 
     workingCopy.requirementCatalogById[row.requirementId] = {
       requirementId: row.requirementId,
@@ -959,6 +963,24 @@ export function hydrateManagementWorkspaceRequirementCatalogV1(
         requiredCapability: row.requiredCapability,
       };
     }
+  });
+}
+
+export function prepareManagementWorkspaceTimePreferenceEditV1(
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
+  requirementId: string,
+  preferredDays: readonly number[],
+  preferredStartPeriods: readonly number[],
+): ManagementWorkspaceRequirementTimePreferenceStateV1 {
+  // Missing inputs are not an explicit empty preference. Wait for the captured
+  // course row so history and Save retain its real before-values.
+  if (!workingCopy.requirementTimePreferencesById[requirementId]) {
+    throw new Error('Dersin zaman tercihleri henüz yüklenmedi. Biraz sonra yeniden deneyin.');
+  }
+  return cloneManagementWorkspaceRequirementTimePreferenceV1({
+    requirementId,
+    preferredDays: Array.from(new Set(preferredDays)),
+    preferredStartPeriods: Array.from(new Set(preferredStartPeriods)),
   });
 }
 
