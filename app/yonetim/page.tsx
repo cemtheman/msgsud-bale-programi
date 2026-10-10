@@ -2191,13 +2191,22 @@ export default function ManagementPage() {
           return;
         }
 
+        const validationStartedAt = performance.now();
         const validated =
           buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
             localSnapshot,
             localWorkingCopy,
             validationIds,
             validationOffsets,
+            activeDay,
           );
+        console.info(
+          '[M43 drag prevalidation]',
+          Math.round(performance.now() - validationStartedAt),
+          'ms',
+          'cards:',
+          validationIds.length,
+        );
 
         if (
           dragSequenceRef.current !== validationSequence

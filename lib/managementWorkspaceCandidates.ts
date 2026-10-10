@@ -94,6 +94,7 @@ export function buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   cardIds: string[],
   startOffsetsByCardId: Record<string, number>,
+  activeDay?: number,
 ): Record<string, ManagementCandidateDetail> | null {
   const uniqueCardIds = Array.from(new Set(cardIds));
   const details = Object.fromEntries(
@@ -131,6 +132,8 @@ export function buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
   ) as Record<string, ManagementCandidateDetail>;
 
   for (const dayOfWeek of snapshot.hardConstraintContract.days) {
+    if (activeDay !== undefined && dayOfWeek !== activeDay) continue;
+
     for (const anchorStartPeriod of snapshot.hardConstraintContract.periods) {
       const slotAssessments = uniqueCardIds.map((cardId) => {
         const startPeriod =

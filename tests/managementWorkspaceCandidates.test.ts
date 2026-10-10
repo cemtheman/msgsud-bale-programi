@@ -205,6 +205,88 @@ describe('management workspace local move candidates', () => {
     expect(free?.isComplete).toBe(true);
   });
 
+  it('prevalidates only the active day while preserving same-day conflict detection', () => {
+    const base = snapshot();
+    const source: ManagementWorkspaceSnapshotV1 = {
+      ...base,
+      requirements: [
+        ...base.requirements,
+        {
+          ...base.requirements[0],
+          id: 'requirement-2',
+          groupId: 'group-2',
+          groupName: '7A BALLET',
+        },
+      ],
+      cards: [
+        ...base.cards,
+        {
+          ...base.cards[0],
+          id: 'card-2',
+          requirementId: 'requirement-2',
+        },
+      ],
+      instructionalGroups: [
+        ...base.instructionalGroups,
+        {
+          ...base.instructionalGroups[0],
+          id: 'group-2',
+          name: '7A BALLET',
+        },
+      ],
+      teacherPools: [
+        ...base.teacherPools,
+        { requirementId: 'requirement-2', teacherId: 'teacher-1' },
+      ],
+      roomPools: [
+        ...base.roomPools,
+        { requirementId: 'requirement-2', roomId: 'room-1' },
+      ],
+      baselinePlacements: [
+        ...base.baselinePlacements,
+        {
+          cardId: 'card-2',
+          dayOfWeek: 2,
+          startPeriod: 7,
+          teacherId: 'teacher-1',
+          roomId: 'room-1',
+        },
+      ],
+    };
+
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+
+    const monday = buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
+      source, copy, ['card-1'], { 'card-1': 0 }, 1,
+    );
+    const tuesday = buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
+      source, copy, ['card-1'], { 'card-1': 0 }, 2,
+    );
+
+    expect(monday).not.toBeNull();
+    expect(tuesday).not.toBeNull();
+
+    const mondayCandidate = monday?.['card-1'].assessments.find(
+      (candidate) => candidate.dayOfWeek === 1 && candidate.startPeriod === 3,
+    );
+    const tuesdayConflict = tuesday?.['card-1'].assessments.find(
+      (candidate) => candidate.dayOfWeek === 2 && candidate.startPeriod === 7,
+    );
+    const tuesdayWithoutPrevalidation = monday?.['card-1'].assessments.find(
+      (candidate) => candidate.dayOfWeek === 2 && candidate.startPeriod === 7,
+    );
+
+    expect(mondayCandidate?.status).toBe('VALID');
+    expect(tuesdayConflict?.status).toBe('INVALID');
+    expect(tuesdayConflict?.reasonCodes).toContain('TEACHER_CONFLICT');
+
+    // Outside the selected day, the expensive preview is deliberately skipped.
+    // The result is an unvalidated candidate, not proof of a safe placement.
+    expect(tuesdayWithoutPrevalidation?.status).toBe('VALID');
+    expect(tuesdayWithoutPrevalidation?.reasonCodes)
+      .not.toContain('TEACHER_CONFLICT');
+  });
+
   it('builds the drag matrix locally while preserving current resources', () => {
     const source = snapshot();
     const copy = createManagementWorkspaceWorkingCopyV1(source);
