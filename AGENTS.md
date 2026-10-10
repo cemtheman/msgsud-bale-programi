@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/home/ubuntu/msgsud-bale-programi` |
 | Aktif branch | `feat/overnight-workspace-integrity` (Codex engineering); canonical AWS/GitHub başlangıcı `feat/m42-pin-resource-acceptance` |
 | Son doğrulanmış implementation checkpoint | `24101f6e96914a32097965a4e1cb6f498244536a` — M42 CLOSED / PASS; M43.3 CLOSED / PASS; AWS 350/350, equivalence 43/43, build/browser/Save–Reload–Restore–Reload PASS |
-| Aktif implementation checkpoint | `b1e5200` — toplu kaynak seçim bütünlüğü; CODE GATE PASS — BROWSER ACCEPTANCE PENDING |
-| Implementation commit | `fix: reject partial bulk resource selections` |
-| Son documentation checkpoint | Overnight raporu: `docs/WORKSPACE_BULK_SELECTION_INTEGRITY_REPORT.md`; kesin docs SHA için branch tipini okuyun |
+| Aktif implementation checkpoint | `7690062` — aktif yerel derslerin toplu kuralları; iki overnight paket CODE GATE PASS — BROWSER ACCEPTANCE PENDING |
+| Implementation commit | `fix: validate aggregate rules against active local requirements` |
+| Son documentation checkpoint | Overnight raporları: `docs/WORKSPACE_BULK_SELECTION_INTEGRITY_REPORT.md`, `docs/WORKSPACE_ACTIVE_REQUIREMENT_VALIDATION_REPORT.md`; kesin docs SHA için branch tipini okuyun |
 | Son kullanıcı/QA kabulü | **M42 CLOSED / PASS; M43.3 CLOSED / PASS** — canonical kabul `24101f6`; yeni paketlerin kabulü ayrı izlenir |
-| Sıradaki iş paketi | Toplu seçim code gate tamamlandı; yerel ACTIVE/INACTIVE ders Save doğrulamasındaki somut kusuru incele. M43.4 tanımlı değil; yeni milestone numarası üretilmedi |
+| Sıradaki iş paketi | Toplu seçim ve ACTIVE/INACTIVE Save doğrulaması code gate tamamlandı; öğretmen kuralı/uzlaştırma önizlemelerindeki yerel kart kapsamını incele. M43.4 tanımlı değil; yeni milestone numarası üretilmedi |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9757,3 +9757,13 @@ Next: remove the test time pin, Save, refresh, and verify baseline restoration; 
 - Code/push `b1e5200`; remote HEAD doğrulandı. AWS erişimi yok (profil dosyaları boş, SSH identity yok, canonical HTTP proxy 403); AWS/browser NOT RUN. Deploy/DB/migration/main merge yok.
 - Çalışma hatası: bir build yanlışlıkla yerel checkout'ta çalıştı ve yerel ignored `.next` yenilendi. Sonraki buildler yalnız izole dizinde. AWS release/servisi etkilenmedi; yerel serverlar yeniden başlatılmadı. Ayrıntı teknik raporda.
 - Karar: CODE GATE PASS — BROWSER ACCEPTANCE PENDING. Önceki kabul açılmadı. Sonraki araştırma: inactive dersin minDistinctDays Save kontrolü ve sonradan aktive edilen derslerin toplu kuralları.
+
+### 11 Ekim 2026 — Overnight: aktif yerel derslerin toplu kuralları
+
+- Paket başlangıcı `5e3a389`; önceki başarılı checkpoint korundu. Pasifleştirme sonrası Save yanlış minDistinctDays engeli ve snapshot dışında aktive edilen derste dört toplu kuralın atlanması 5 yeni testle FAIL olarak yeniden üretildi.
+- Aggregate doğrulama mevcut ACTIVE working-copy katalog haritasını kullanır. MIN_DISTINCT_DAYS yalnız COMMIT; MAX_BLOCKS_PER_DAY/MAX_CONSECUTIVE_PERIODS/TEACHER_CONTINUITY EDIT+COMMIT. Inactive derslere bu kurallar uygulanmaz. Yeni aktif dersin geçerli yerleşimleri uygulanabilir/kaydedilebilir; hata halinde batch copy/history atomik korunur.
+- Structure focused 14/14; sekiz dosya focused 140/140; final full 361/361 PASS (41 dosya, 1 opt-in benchmark skip). Equivalence 43/43, preview isolation 2/2, tsc/diff check PASS; lint 0 error, önceden mevcut 1 unused-cards warning.
+- İzole production build `/workspace/partisyon-overnight-active-build-5e3a389`, ID `E65JIFGy1KodD6lmW-t56`, 9/9 PASS. Aynı runtime kaynakları build ile karşılaştırıldı.
+- Accepted `24101f6` vs yeni drag pipeline aynı process/517 fixture/10 warmup/50 alternating samples: medyan değişimi -%1,71 ila +%0,71; p95 -%10,42 ila +%5,25. Anlamlı yavaşlama gözlenmedi; browser/AWS performans iddiası yok. Raw+driver `WORKSPACE_ACTIVE_REQUIREMENT_BENCHMARK.json`.
+- Code/push `7690062`; remote HEAD eşit. AWS/browser NOT RUN; CODE GATE PASS — BROWSER ACCEPTANCE PENDING. Raporda Save payload/Undo/Redo ve sonraki kısa acceptance adımları mevcut. No DB/migration/deploy/main merge.
+- Sonraki bağımsız kusur: öğretmen kuralı ve uzlaştırma preview'larında snapshot kartlarının yeni yerel kartları veya aktive edilmiş dersleri dışlaması. Kabul kriterleri testle üretildikten sonra ayrı checkpoint.

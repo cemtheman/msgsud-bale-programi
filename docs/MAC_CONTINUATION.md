@@ -31,7 +31,7 @@ cat docs/MAC_CONTINUATION.md
 
 **M42 CLOSED / PASS; M43.3 CLOSED / PASS.** Güncel canonical GitHub başlangıcı `24101f6e96914a32097965a4e1cb6f498244536a`. AWS 350/350 test, reference equivalence 43/43, TypeScript ve isolated build PASS; browser 5/5 ve Save / Reload / Restore / Reload PASS. Aktif release `/home/ubuntu/partisyon-m42-acceptance`, Build ID `FWDpU_8fSNVyi-jkEaLdP`, `msgsud-dev.service` port 3000 aktif/HTTP 200; geçici port 3001 kapalı. Bunlar son canonical kabul kaydıdır; bu Codex run AWS'ye erişemedi. Eski M42/M43.3 PENDING/BLOCKED kayıtları tarihsel ve superseded.
 
-**Overnight engineering:** `feat/overnight-workspace-integrity`, implementation `b1e5200`, toplu kaynak seçimi bütünlüğü: **CODE GATE PASS — BROWSER ACCEPTANCE PENDING**, 356/356 full suite, tsc/isolated production build PASS. Rapor `WORKSPACE_BULK_SELECTION_INTEGRITY_REPORT.md`. No deploy/DB/migration/main merge. M43.4 kapsamı yok; bu paket mevcut atomik işlem sözleşmesindeki yeniden üretilmiş hata düzeltmesidir.
+**Overnight engineering:** `feat/overnight-workspace-integrity`, son implementation `7690062`: toplu kaynak seçim bütünlüğü ve aktif yerel derslerin toplu kuralları **CODE GATE PASS — BROWSER ACCEPTANCE PENDING**. Son full suite 361/361, tsc/isolated production build PASS; aynı ortamda accepted drag medyanı -%1,71 ila +%0,71. Raporlar `WORKSPACE_BULK_SELECTION_INTEGRITY_REPORT.md`, `WORKSPACE_ACTIVE_REQUIREMENT_VALIDATION_REPORT.md`. No deploy/DB/migration/main merge. M43.4 kapsamı yok; bu paket mevcut atomik işlem sözleşmesindeki yeniden üretilmiş hata düzeltmesidir.
 
 ### M33.2 — CLOSED / PASS
 - hard-rule valid
@@ -2024,7 +2024,8 @@ Suggested later sequence:
 - **M43.3 CLOSED / PASS**; accepted drag performance preserved.
 - No M43.4 scope or acceptance definition exists. Stronger/full-auto generation and role-aware team teaching remain future design work; no numbered package was invented.
 - User's overnight priority 1/2 selects reproduced defects in existing functions before extending the solver. First bounded package: bulk resource selections must never silently apply a subset. Code checkpoint `b1e5200`, 356 tests/tsc/build PASS; new browser acceptance PENDING.
-- Next investigation: active/inactive local requirement aggregate validation at Save; then current local structural cards in teacher-policy preview. These are existing workspace behavior corrections, not a new roadmap milestone. Scope and criteria will be recorded only after reproduction.
+- Second bounded package: active/inactive local requirement aggregate validation at Save, reproduced five defects and corrected at `7690062`; 361 tests/tsc/build and same-environment drag comparison PASS, new browser acceptance PENDING.
+- Next investigation: current local structural cards/activated requirements in teacher-policy and reconciliation preview. This is an existing workspace correction, not a new roadmap milestone; criteria require reproduction.
 
 Rule:
 - preserve M33 solver snapshot/in-memory/no-trial-write architecture
@@ -3618,3 +3619,11 @@ Resource tests 21/21; focused six-file 109/109; full 41 files / 356 tests PASS, 
 AWS/browser NOT RUN: empty configured profiles, no SSH identity, canonical HTTP proxy 403. No deployment, DB writes/migration, main merge or canonical service mutation. One mistakenly launched local checkout build renewed local ignored `.next`; separately isolated build passed. AWS releases untouched and existing local servers not restarted.
 
 **CODE GATE PASS — BROWSER ACCEPTANCE PENDING.** Technical report: `WORKSPACE_BULK_SELECTION_INTEGRITY_REPORT.md`. Next: reproduce active/inactive aggregate Save rules; preserve this successful checkpoint.
+
+### 11 Oct 2026 — Overnight active-local requirement validation code gate
+
+Package baseline `5e3a389`. Five added tests failed before the fix: inactive courses falsely blocked Save on minimum days; newly activated hydrated courses skipped max blocks/day, max consecutive periods, required teacher continuity and minimum distinct days. Aggregate rules now iterate the active local requirement map already used by per-card validation. No hard rule or grandfathering policy changed.
+
+Focused structure 14/14 and eight-file gate 140/140 PASS; final full suite 361/361 PASS. Frozen equivalence 43/43 and preview isolation 2/2 PASS; tsc and diff check PASS, lint zero errors/one pre-existing warning. Isolated build 9/9 PASS, `E65JIFGy1KodD6lmW-t56`. Same-process accepted `24101f6` comparison: pipeline median -1.71%..+0.71%, p95 -10.42%..+5.25%; no material regression observed. All four candidate outputs exactly equal before timing. Raw samples + driver: `WORKSPACE_ACTIVE_REQUIREMENT_BENCHMARK.json`.
+
+Implementation/push `7690062`; remote HEAD verified. CODE GATE PASS — BROWSER ACCEPTANCE PENDING. AWS/browser NOT RUN; no production Save/DB migration, deploy or canonical service mutation. M42/M43.3 remain CLOSED / PASS. Report `WORKSPACE_ACTIVE_REQUIREMENT_VALIDATION_REPORT.md`. Continue with local-card teacher preview/reconciliation defects; preserve both successful checkpoints.
