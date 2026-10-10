@@ -677,6 +677,15 @@ export default function ManagementPage() {
   const [sectionActivity, setSectionActivity] = useState<string | null>(null);
   const [solverActivity, setSolverActivity] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const sectionLoadCacheRef = useRef<{
+    RESOURCES: string | null;
+    SOLVER: string | null;
+    STATUS: string | null;
+  }>({
+    RESOURCES: null,
+    SOLVER: null,
+    STATUS: null,
+  });
   const [startupStep, setStartupStep] = useState(0);
   const [startupComplete, setStartupComplete] = useState(false);
 
@@ -1017,6 +1026,9 @@ export default function ManagementPage() {
       return;
     }
 
+    const loadKey = `${refreshToken}:${session.accessToken}`;
+    if (sectionLoadCacheRef.current.RESOURCES === loadKey) return;
+
     let active = true;
     setSectionActivity('Kaynaklar veritabanından okunuyor…');
 
@@ -1033,6 +1045,7 @@ export default function ManagementPage() {
         }
 
         setResources(nextResources);
+        sectionLoadCacheRef.current.RESOURCES = loadKey;
       })
       .catch((reason: unknown) => {
         if (!active) return;
@@ -1063,6 +1076,9 @@ export default function ManagementPage() {
       return;
     }
 
+    const loadKey = `${refreshToken}:${session.accessToken}`;
+    if (sectionLoadCacheRef.current.SOLVER === loadKey) return;
+
     let active = true;
     setSolverWorkspaceLoading(true);
     setSolverWorkspaceLoadError(null);
@@ -1073,6 +1089,7 @@ export default function ManagementPage() {
         if (!active) return;
         setSolverWorkspace(nextSolverWorkspace);
         setSolverWorkspaceLoadError(null);
+        sectionLoadCacheRef.current.SOLVER = loadKey;
       })
       .catch((reason: unknown) => {
         if (!active) return;
@@ -1109,6 +1126,9 @@ export default function ManagementPage() {
       return;
     }
 
+    const loadKey = `${refreshToken}:${session.accessToken}`;
+    if (sectionLoadCacheRef.current.STATUS === loadKey) return;
+
     let active = true;
     setSectionActivity('Kontrol ve yayın verileri veritabanından okunuyor…');
 
@@ -1126,6 +1146,13 @@ export default function ManagementPage() {
 
       if (gateResult.status === 'fulfilled') {
         setPublicationGate(gateResult.value);
+      }
+
+      if (
+        previewResult.status === 'fulfilled'
+        && gateResult.status === 'fulfilled'
+      ) {
+        sectionLoadCacheRef.current.STATUS = loadKey;
       }
 
       if (
