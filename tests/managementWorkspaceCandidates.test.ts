@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { previewManagementWorkspaceCommandsV1 } from '@/lib/managementWorkspaceCommands';
+import { validateManagementWorkspaceV1 } from '@/lib/managementWorkspaceValidation';
 
 import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import {
@@ -285,6 +287,39 @@ describe('management workspace local move candidates', () => {
     expect(tuesdayWithoutPrevalidation?.status).toBe('VALID');
     expect(tuesdayWithoutPrevalidation?.reasonCodes)
       .not.toContain('TEACHER_CONFLICT');
+  });
+
+  it('preserves preview results when current validation is reused', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const cardIds = ['card-1'];
+    const current = validateManagementWorkspaceV1(
+      source, copy, 'EDIT', cardIds,
+    );
+
+    for (const dayOfWeek of source.hardConstraintContract.days) {
+      for (const startPeriod of source.hardConstraintContract.periods) {
+        const commands = [{
+          type: 'SET_PLACEMENT' as const,
+          placement: {
+            cardId: 'card-1',
+            dayOfWeek,
+            startPeriod,
+            teacherId: 'teacher-1',
+            roomId: 'room-1',
+          },
+        }];
+
+        const original = previewManagementWorkspaceCommandsV1(
+          source, copy, commands,
+        );
+        const reused = previewManagementWorkspaceCommandsV1(
+          source, copy, commands, current,
+        );
+
+        expect(reused).toEqual(original);
+      }
+    }
   });
 
   it('builds the drag matrix locally while preserving current resources', () => {

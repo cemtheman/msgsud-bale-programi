@@ -35,6 +35,7 @@ import {
 import {
   validateManagementWorkspaceV1,
   type ManagementWorkspaceValidationIssueV1,
+  type ManagementWorkspaceValidationResultV1,
 } from '@/lib/managementWorkspaceValidation';
 
 export type ManagementWorkspaceCommandV1 =
@@ -421,6 +422,7 @@ export function previewManagementWorkspaceCommandsV1(
   snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   commands: ManagementWorkspaceCommandV1[],
+  prevalidatedCurrent?: ManagementWorkspaceValidationResultV1,
 ): ManagementWorkspaceBatchCommandResultV1 {
   if (commands.length === 0) {
     return {
@@ -442,12 +444,13 @@ export function previewManagementWorkspaceCommandsV1(
     return [];
   });
 
-  const currentValidation = validateManagementWorkspaceV1(
-    snapshot,
-    workingCopy,
-    'EDIT',
-    coordinatedCardIds,
-  );
+  const currentValidation =
+    prevalidatedCurrent ?? validateManagementWorkspaceV1(
+      snapshot,
+      workingCopy,
+      'EDIT',
+      coordinatedCardIds,
+    );
 
   for (const command of commands) {
     applyCommand(trialCopy, trialHistory, command);

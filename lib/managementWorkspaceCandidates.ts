@@ -2,6 +2,7 @@ import type { ManagementCandidateDetail } from '@/lib/managementBoard';
 import type { ManagementWorkspaceSnapshotV1 } from '@/lib/managementWorkspace';
 import type { ManagementWorkspaceWorkingCopyV1 } from '@/lib/managementWorkspaceWorkingCopy';
 import { previewManagementWorkspaceCommandsV1 } from '@/lib/managementWorkspaceCommands';
+import { validateManagementWorkspaceV1 } from '@/lib/managementWorkspaceValidation';
 
 function workspaceRequirementForCandidates(
   workingCopy: ManagementWorkspaceWorkingCopyV1,
@@ -131,6 +132,13 @@ export function buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
     }),
   ) as Record<string, ManagementCandidateDetail>;
 
+  const currentValidation = validateManagementWorkspaceV1(
+    snapshot,
+    workingCopy,
+    'EDIT',
+    uniqueCardIds,
+  );
+
   for (const dayOfWeek of snapshot.hardConstraintContract.days) {
     if (activeDay !== undefined && dayOfWeek !== activeDay) continue;
 
@@ -191,6 +199,7 @@ export function buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
             roomId: assessment!.roomId,
           },
         })),
+        currentValidation,
       );
 
       if (preview.applied) continue;
