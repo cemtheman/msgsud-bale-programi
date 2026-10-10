@@ -841,6 +841,9 @@ describe('management workspace local validation v1', () => {
     expect(prepared.preview.canApply).toBe(false);
     expect(prepared.preview.blockReasons).toContain('TEACHER_CONFLICT');
     expect(prepared.preview.conflicts.length).toBeGreaterThan(0);
+    // Conflict attribution belongs to the proposed final teacher, not the
+    // current teacher of the lexicographically first baseline card.
+    expect(prepared.preview.conflicts.every(conflict => conflict.teacherId === 'teacher-2')).toBe(true);
   });
 
 

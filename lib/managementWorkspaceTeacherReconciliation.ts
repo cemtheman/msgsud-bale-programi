@@ -26,10 +26,10 @@ function teacherName(
 }
 
 function requirementCards(
-  snapshot: ManagementWorkspaceSnapshotV1,
+  workingCopy: ManagementWorkspaceWorkingCopyV1,
   requirementId: string,
 ) {
-  return snapshot.cards
+  return Object.values(workingCopy.cardsById)
     .filter((card) => card.requirementId === requirementId)
     .sort((left, right) =>
       left.blockIndex - right.blockIndex
@@ -49,43 +49,54 @@ function reconciliationToken(
     )
     .map((assignment) => {
       const placements = requirementCards(
-        snapshot,
+        workingCopy,
         assignment.requirementId,
       ).map((card) => {
         const placement = workingCopy.placementsByCardId[card.id];
         return [
           card.id,
+          card.blockIndex,
+          card.durationPeriods,
+          card.locked,
+          card.timePinned === true,
+          card.teacherPinned === true,
+          card.roomPinned === true,
           placement?.dayOfWeek ?? '',
           placement?.startPeriod ?? '',
           placement?.teacherId ?? '',
           placement?.roomId ?? '',
-        ].join(':');
-      }).join(',');
+        ];
+      });
+      const resource = workingCopy.requirementResourcesById[assignment.requirementId];
       return [
         assignment.requirementId,
         assignment.teacherId,
+        workingCopy.requirementStructureById[assignment.requirementId]?.termStatus ?? '',
+        resource?.teacherAssignmentScope ?? '',
+        resource?.teacherContinuity ?? '',
+        [...(resource?.teacherIds ?? [])].sort((a, b) => a.localeCompare(b)),
+        workingCopy.resourceLifecycleById[assignment.teacherId]?.exists === true,
+        workingCopy.teacherInventoryById[assignment.teacherId]?.operationalStatus ?? '',
         placements,
-      ].join('|');
-    })
-    .join('||');
+      ];
+    });
 
   return [
-    'LOCAL_TEACHER_RECONCILIATION_V1',
+    'LOCAL_TEACHER_RECONCILIATION_V2',
     snapshot.identity.revisionId,
     snapshot.identity.snapshotHash,
-    assignmentPart,
+    JSON.stringify(assignmentPart),
   ].join('|');
 }
 
 function commandsForAssignments(
-  snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   assignments: ManagementCoordinatedTeacherAssignmentInput[],
 ) {
   const commands: ManagementWorkspaceCommandV1[] = [];
 
   assignments.forEach((assignment) => {
-    requirementCards(snapshot, assignment.requirementId).forEach((card) => {
+    requirementCards(workingCopy, assignment.requirementId).forEach((card) => {
       const placement = workingCopy.placementsByCardId[card.id];
       if (
         !placement
@@ -125,19 +136,16 @@ function assignmentIsEligible(
 }
 
 function conflictMetadata(
-  snapshot: ManagementWorkspaceSnapshotV1,
   workingCopy: ManagementWorkspaceWorkingCopyV1,
   leftCardId: string,
   rightCardId: string,
 ) {
-  const leftCard = snapshot.cards.find((card) => card.id === leftCardId);
-  const rightCard = snapshot.cards.find((card) => card.id === rightCardId);
-  const leftRequirement = snapshot.requirements.find(
-    (requirement) => requirement.id === leftCard?.requirementId,
-  );
-  const rightRequirement = snapshot.requirements.find(
-    (requirement) => requirement.id === rightCard?.requirementId,
-  );
+  const leftCard = workingCopy.cardsById[leftCardId];
+  const rightCard = workingCopy.cardsById[rightCardId];
+  const leftRequirement = leftCard
+    ? workingCopy.requirementCatalogById[leftCard.requirementId] : null;
+  const rightRequirement = rightCard
+    ? workingCopy.requirementCatalogById[rightCard.requirementId] : null;
   const leftPlacement = workingCopy.placementsByCardId[leftCardId];
   const rightPlacement = workingCopy.placementsByCardId[rightCardId];
 
@@ -173,15 +181,12 @@ export function prepareManagementWorkspaceTeacherReconciliationV1(
   commands: ManagementWorkspaceCommandV1[];
   preview: ManagementTeacherReconciliationPreview;
 } {
-  const requirement = snapshot.requirements.find(
-    (item) => item.id === requirementId,
-  );
+  const requirement = workingCopy.requirementCatalogById[requirementId];
   if (!requirement) throw new Error('Ders gereksinimi bulunamadı.');
 
   const assignment = { requirementId, teacherId };
-  const cards = requirementCards(snapshot, requirementId);
+  const cards = requirementCards(workingCopy, requirementId);
   const commands = commandsForAssignments(
-    snapshot,
     workingCopy,
     [assignment],
   );
@@ -251,17 +256,11 @@ export function prepareManagementWorkspaceTeacherReconciliationV1(
         const blockingCardId =
           issue.cardIds.find((cardId) => cardId !== targetCardId)
           ?? issue.cardIds[1];
-        const targetCard = snapshot.cards.find(
-          (card) => card.id === targetCardId,
-        );
         const targetPlacement =
           workingCopy.placementsByCardId[targetCardId];
-        const blockingCard = snapshot.cards.find(
-          (card) => card.id === blockingCardId,
-        );
-        const blockingRequirement = snapshot.requirements.find(
-          (item) => item.id === blockingCard?.requirementId,
-        );
+        const blockingCard = workingCopy.cardsById[blockingCardId];
+        const blockingRequirement = blockingCard
+          ? workingCopy.requirementCatalogById[blockingCard.requirementId] : null;
 
         return {
           cardId: targetCardId,
@@ -337,10 +336,14 @@ export function prepareManagementWorkspaceCoordinatedTeacherReconciliationV1(
   }
 
   const commands = commandsForAssignments(
-    snapshot,
     workingCopy,
     normalized,
   );
+  const proposedTeacherByCardId = new Map(commands.flatMap((command) => (
+    command.type === 'SET_PLACEMENT'
+      ? [[command.placement.cardId, command.placement.teacherId] as const]
+      : []
+  )));
   const validation = previewManagementWorkspaceCommandsV1(
     snapshot,
     workingCopy,
@@ -355,13 +358,11 @@ export function prepareManagementWorkspaceCoordinatedTeacherReconciliationV1(
   );
 
   const summaries = normalized.map((assignment) => {
-    const requirement = snapshot.requirements.find(
-      (item) => item.id === assignment.requirementId,
-    );
+    const requirement = workingCopy.requirementCatalogById[assignment.requirementId];
     if (!requirement) {
       throw new Error('Koordineli planda ders gereksinimi bulunamadı.');
     }
-    const cards = requirementCards(snapshot, assignment.requirementId);
+    const cards = requirementCards(workingCopy, assignment.requirementId);
     const placements = cards
       .map((card) => workingCopy.placementsByCardId[card.id])
       .filter((placement) =>
@@ -396,7 +397,6 @@ export function prepareManagementWorkspaceCoordinatedTeacherReconciliationV1(
       )
       .map((issue) => {
         const metadata = conflictMetadata(
-          snapshot,
           workingCopy,
           issue.cardIds[0],
           issue.cardIds[1],
@@ -404,7 +404,9 @@ export function prepareManagementWorkspaceCoordinatedTeacherReconciliationV1(
         if (!metadata) return null;
 
         const teacherId =
-          workingCopy.placementsByCardId[issue.cardIds[0]]?.teacherId
+          proposedTeacherByCardId.get(issue.cardIds[0])
+          ?? workingCopy.placementsByCardId[issue.cardIds[0]]?.teacherId
+          ?? proposedTeacherByCardId.get(issue.cardIds[1])
           ?? workingCopy.placementsByCardId[issue.cardIds[1]]?.teacherId
           ?? '';
 
@@ -412,13 +414,13 @@ export function prepareManagementWorkspaceCoordinatedTeacherReconciliationV1(
           teacherId,
           dayOfWeek: metadata.leftPlacement.dayOfWeek,
           leftCardId: metadata.leftCard.id,
-          leftRequirementId: metadata.leftRequirement.id,
+          leftRequirementId: metadata.leftRequirement.requirementId,
           leftSubjectName: metadata.leftRequirement.subjectName,
           leftGroupName: metadata.leftRequirement.groupName,
           leftStartPeriod: metadata.leftPlacement.startPeriod,
           leftDurationPeriods: metadata.leftCard.durationPeriods,
           rightCardId: metadata.rightCard.id,
-          rightRequirementId: metadata.rightRequirement.id,
+          rightRequirementId: metadata.rightRequirement.requirementId,
           rightSubjectName: metadata.rightRequirement.subjectName,
           rightGroupName: metadata.rightRequirement.groupName,
           rightStartPeriod: metadata.rightPlacement.startPeriod,

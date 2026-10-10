@@ -33,31 +33,39 @@ function stateToken(
   continuity: ManagementTeacherContinuity,
 ) {
   const resource = workingCopy.requirementResourcesById[requirementId];
-  const cardStates = snapshot.cards
+  const cardStates = Object.values(workingCopy.cardsById)
     .filter((card) => card.requirementId === requirementId)
-    .sort((left, right) => left.blockIndex - right.blockIndex)
+    .sort((left, right) =>
+      left.blockIndex - right.blockIndex || left.id.localeCompare(right.id),
+    )
     .map((card) => {
       const placement = workingCopy.placementsByCardId[card.id];
       return [
         card.id,
+        card.blockIndex,
+        card.durationPeriods,
+        card.locked,
+        card.timePinned === true,
+        card.teacherPinned === true,
+        card.roomPinned === true,
         placement?.dayOfWeek ?? '',
         placement?.startPeriod ?? '',
         placement?.teacherId ?? '',
         placement?.roomId ?? '',
-      ].join(':');
-    })
-    .join(',');
+      ];
+    });
 
   return [
-    'LOCAL_TEACHER_POLICY_V1',
+    'LOCAL_TEACHER_POLICY_V2',
     snapshot.identity.revisionId,
     snapshot.identity.snapshotHash,
     requirementId,
     resource?.teacherAssignmentScope ?? '',
     resource?.teacherContinuity ?? '',
+    workingCopy.requirementStructureById[requirementId]?.termStatus ?? '',
     scope,
     continuity,
-    cardStates,
+    JSON.stringify(cardStates),
   ].join('|');
 }
 
@@ -68,9 +76,7 @@ export function prepareManagementWorkspaceTeacherPolicyV1(
   scope: ManagementTeacherAssignmentScope,
   continuity: ManagementTeacherContinuity,
 ): ManagementWorkspaceTeacherPolicyPlanV1 {
-  const requirement = snapshot.requirements.find(
-    (item) => item.id === requirementId,
-  );
+  const requirement = workingCopy.requirementCatalogById[requirementId];
   const resource = workingCopy.requirementResourcesById[requirementId];
 
   if (!requirement || !resource) {
@@ -82,16 +88,14 @@ export function prepareManagementWorkspaceTeacherPolicyV1(
   }
 
   const teacherById = new Map(
-    snapshot.teachers.map((teacher) => [teacher.id, teacher.name]),
+    Object.values(workingCopy.teacherInventoryById)
+      .map((teacher) => [teacher.resourceId, teacher.displayName]),
   );
-
-  const roomById = new Map(
-    snapshot.rooms.map((room) => [room.id, room.name]),
-  );
-
-  const placedBlocks = snapshot.cards
+  const placedBlocks = Object.values(workingCopy.cardsById)
     .filter((card) => card.requirementId === requirementId)
-    .sort((left, right) => left.blockIndex - right.blockIndex)
+    .sort((left, right) =>
+      left.blockIndex - right.blockIndex || left.id.localeCompare(right.id),
+    )
     .flatMap((card) => {
       const placement = workingCopy.placementsByCardId[card.id];
       if (
