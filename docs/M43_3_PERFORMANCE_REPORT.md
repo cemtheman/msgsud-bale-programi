@@ -2,8 +2,16 @@
 
 Date: 10 October 2026 (Europe/Istanbul).
 
-**Engineering gate: CODE/PERFORMANCE GATE PASS — BROWSER ACCEPTANCE PENDING.**
-**Overall M43.3 closure: BLOCKED — canonical AWS reconciliation and browser acceptance not performed.**
+**Current M43.3 status (11 October 2026): CLOSED / PASS.**
+
+Canonical acceptance is recorded at source `6dd5dff` and documentation checkpoint `4552528`: AWS 339/339 tests, 43/43 equivalence and 320 deterministic comparisons, TypeScript and isolated production build PASS. Promoted release `/home/ubuntu/partisyon-m43-build-6dd5dff`, Build ID `nND5t_DJLmV8WUnxUYhon`, serves `msgsud-dev.service` on port 3000. The user subsequently confirmed smooth drag on port 3000 in the next autonomous-run request. Numeric browser profiling remains optional and was not collected.
+
+The original report below is historical evidence from the isolated 10 October run. Its PENDING/BLOCKED labels and access/reconciliation steps do **not** reopen the accepted milestone. The new M42 pin/resource hardening is separate; see `M42_PIN_RESOURCE_ACCEPTANCE_REPORT.md`.
+
+## Historical 10 October engineering report
+
+**Engineering gate at that time: CODE/PERFORMANCE GATE PASS — BROWSER ACCEPTANCE PENDING.**
+**Overall closure at that time: BLOCKED — canonical AWS reconciliation and browser acceptance not performed.**
 
 ## Source and access evidence
 
@@ -101,7 +109,7 @@ Do not run the last command in the live AWS service tree without first arranging
 
 Implementation and documentation are separate feature-branch checkpoints. Terminal HTTPS push lacked credentials; the connected GitHub API published the exact local implementation tree (`dbd9cd42a16f9bea7185fd8ee9baa9ba9ea3f58b`) with an expected-parent check and a non-force ref update. No merge to main, DB write, migration, dependency change, public deploy or service restart.
 
-### M43.3 roadmap / acceptance gates
+### Historical M43.3 roadmap / acceptance gates — superseded by current status above
 
 | Gate | State |
 |---|---|

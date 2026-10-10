@@ -2,14 +2,15 @@
 
 > Not: Dosya adı tarihsel olarak `MAC_CONTINUATION.md` kaldı. Aktif çalışma ortamı AWS EC2 / Ubuntu / code-server'dır (9 Ekim 2026).
 
-Güncel durum tarihi: 10 Ekim 2026 (önceki ürün kayıtları tarihsel olarak korunur)
+Güncel durum tarihi: 11 Ekim 2026 (önceki ürün kayıtları tarihsel olarak korunur)
 
 ## 1. Aktif çalışma ortamı
 
 - Ortam: **AWS EC2 / Ubuntu 26.04 / code-server**
 - Çalışma dizini: `/home/ubuntu/msgsud-bale-programi`
 - Shell: Linux/bash
-- Branch: `feat/m43-3-fast-slot-validation`
+- Canonical AWS branch: `feat/m43-3-fast-slot-validation`
+- Isolated Codex follow-up branch: `feat/m42-pin-resource-acceptance`
 - Komut biçimi: `npm`, `npx`
 - Kullanıcı yeni ortam bildirmedikçe AWS/code-server geçerli kabul edilir; Codespaces yalnız fallback'tir
 
@@ -28,7 +29,9 @@ cat docs/MAC_CONTINUATION.md
 
 ## 2. Güncel doğrulanmış durum
 
-M43.3 implementation `123fae6e190f1ee99b1fb64a9b4441d93d7d3c19`: **isolated CODE/PERFORMANCE GATE PASS — BROWSER ACCEPTANCE PENDING**. Overall closure **BLOCKED** by AWS access. AWS remains canonical; current AWS working tree contains uncommitted edits and must be inspected/reconciled before pull. See `docs/M43_3_PERFORMANCE_REPORT.md` and 10 October entry below. Historical milestone results follow.
+**M43.3 CLOSED / PASS** — source `6dd5dff`, GitHub documentation checkpoint `4552528`, AWS tests 339/339, equivalence 43/43, TypeScript/build PASS. User confirmed smooth drag on promoted port 3000. Release `/home/ubuntu/partisyon-m43-build-6dd5dff`, Build ID `nND5t_DJLmV8WUnxUYhon`, `msgsud-dev.service` remains canonical. Earlier 10 October PENDING/BLOCKED entries are historical and superseded.
+
+**Current follow-up: M42 pin/resource acceptance hardening**, implementation `9aafec4ada6674c43fe06c5aab317064e1c549a7`, isolated branch `feat/m42-pin-resource-acceptance`. CODE GATE PASS — BROWSER ACCEPTANCE PENDING: 41 files / 350 tests PASS, TypeScript and isolated production build PASS. No AWS/DB/service changes. See `docs/M42_PIN_RESOURCE_ACCEPTANCE_REPORT.md`. M43.4 is mentioned only as planning, not defined; no new numbered milestone was invented. Historical milestone results follow.
 
 ### M33.2 — CLOSED / PASS
 - hard-rule valid
@@ -151,7 +154,7 @@ A'nın daha fazla değişiklik yapabilmesi; B'nin daha muhafazakâr kalması bek
 - M22 UNKNOWN != ABSENT != UNAVAILABLE
 - Solver snapshot + in-memory
 - no automatic apply
-- kullanıcı yeni ortam bildirmedikçe Codespaces/Linux
+- canonical ortam AWS EC2 / Ubuntu / code-server; Codespaces yalnız tarihsel fallback
 
 
 ## 7. M33.3 production A/B smoke ve multi-seed düzeltmesi
@@ -2014,6 +2017,16 @@ Suggested later sequence:
 - M42: fine-grained pin model
 - then revisit stronger/full-auto generation against immutable snapshot
 
+### Current roadmap reconciliation — 11 October 2026
+
+- Teacher-load inputs/objective/provenance: CLOSED / PASS in later acceptance records.
+- Subject time preferences and workspace v12 Save: CLOSED / PASS in later records.
+- M42 pin foundation/local code gate and two notice fixes: PASS; full teacher/room/linked/Undo/Redo/Save/reload acceptance is still open.
+- M43.3 performance and promoted AWS port 3000 drag: CLOSED / PASS.
+- No M43.4 scope or acceptance criteria were defined. “M43.4 planning” is not an implementation package.
+- Selected next work: harden the existing M42 pin/resource acceptance chain. Reproduced defects use stale snapshot policy/card identity in resource expansion and stale snapshot policy in continuity validation. Fix these, then run the remaining M42 browser acceptance before defining stronger/full-auto or team-teaching work.
+- Engineering checkpoint `9aafec4`: CODE GATE PASS — BROWSER ACCEPTANCE PENDING. No new DB migration or milestone number.
+
 Rule:
 - preserve M33 solver snapshot/in-memory/no-trial-write architecture
 - preserve human review + explicit commit
@@ -3533,7 +3546,7 @@ Status: CLOSED / PASS
 - Performance acceptance: PASS.
 - M43.3 closed; future numeric browser profiling optional.
 
-Next: controlled service promotion and M43.4 planning.
+Historical next step: controlled service promotion (completed below) and M43.4 planning (no package definition was recorded).
 
 ### 11 Oct 2026 — M43.3 production promotion
 
@@ -3557,4 +3570,19 @@ Status: AWS PROMOTION PASS
 - Previous AWS stash, build and backups preserved
 
 M43.3 code/performance and AWS promotion gates: PASS.
-Port 3000 post-promotion drag acceptance: not yet separately confirmed.
+Historical note at promotion time: port 3000 post-promotion drag acceptance had not yet been separately confirmed. The 11 October autonomous-run request subsequently confirms smooth drag on port 3000; M43.3 remains CLOSED / PASS.
+
+
+### 11 Oct 2026 — M42 pin/resource acceptance hardening — CODE GATE PASS / BROWSER PENDING
+
+- M43.3 is CLOSED / PASS, accepted source `6dd5dff`, docs `4552528`; the user confirmed smooth port-3000 drag after promotion. Old 10 Oct PENDING/BLOCKED records are historical, not active blockers.
+- No M43.4 scope exists: only a planning mention. Selected the still-open M42 teacher/room/linked/Undo/Redo/Save acceptance debt rather than inventing a milestone or repeating closed load/time-preference work.
+- Starting remote HEAD `4552528737e5c43b8a08cbdcc9ecf8ea3fe12352`; isolated branch `feat/m42-pin-resource-acceptance`.
+- Published implementation `9aafec4ada6674c43fe06c5aab317064e1c549a7`; native Git push and matching remote HEAD verified. Documentation is a separate following checkpoint; resolve the final branch tip with `git rev-parse HEAD`.
+- Reproduced and fixed stale snapshot teacher-policy use in resource expansion and requirement-wide continuity validation. Current working-copy policy/cards now govern resource editing; local structural cards participate. Pins/policy are included in ephemeral preview freshness; raw pin/full-lock reasons receive actionable Turkish copy.
+- Resource regressions 15/15 PASS (11 new); focused nine-file gate 141/141 PASS; full suite 41 files / 350 tests PASS, one opt-in timing test intentionally skipped; frozen equivalence 43/43 (320 seeded comparisons), preview isolation 2/2 PASS; TypeScript PASS; targeted lint zero errors / one pre-existing validator warning; diff check PASS.
+- Isolated Next 16.3.4 production build PASS, 9/9 pages, Build ID `AoHAFZVV8fCLqjxqQkqdz`; `/workspace/partisyon-pin-policy-build-4552528`, separate local port 3002, anonymous `/`, `/yonetim`, manifest HTTP 200. Source runtime files matched built copies. Existing running `.next` was not rebuilt.
+- Same-process accepted-4552528 vs corrected 517-card pipeline: median 48.79->49.95 ms single, 47.11->47.89 multi, 47.26->47.83 parallel, 63.70->64.33 dense; +1.0–2.4%, no material observed regression. AMD/Node24.19 container measurements; not AWS/browser or directly comparable with earlier Intel/t3.small times. Separate benchmark 1/1 PASS.
+- Canonical HTTP probe returned proxy 403; no AWS SSH identity/Tailscale/usable AWS credential profile/browser connector. AWS tests and authenticated browser acceptance NOT RUN. No service restart, migration/DB write, main merge or deploy. All named AWS stash/backups/release/rollback assets untouched by this run.
+- Full technical report/acceptance criteria/next safe runtime checks: `docs/M42_PIN_RESOURCE_ACCEPTANCE_REPORT.md`; raw samples `docs/M42_PIN_RESOURCE_BENCHMARK.json`.
+- Decision: **CODE GATE PASS — BROWSER ACCEPTANCE PENDING**. Next: separate canonical release and remaining M42 pin/linked/history/persistence browser acceptance, preserving port 3000; do not close M42 or define M43.4 before actual acceptance.
