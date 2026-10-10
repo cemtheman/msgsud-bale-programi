@@ -3510,3 +3510,51 @@ Next: remove the test time pin, Save, refresh, and verify baseline restoration; 
 - Comparable 517-card synthetic full drag pipeline median/p95: single 75.28/78.60 -> 52.00/54.90 ms; multi 78.25/129.48 -> 52.33/89.08; parallel 95.76/194.79 -> 61.98/101.02; dense 488.72/521.11 -> 67.73/71.53. Container Linux/Node24.19/Xeon; **not AWS/browser**, historical183ms not comparable.
 - CODE/PERFORMANCE GATE PASS — BROWSER ACCEPTANCE PENDING. Overall M43.3 **BLOCKED**, not CLOSED. Remaining gate: AWS dirty-tree reconciliation, canonical tests/build/real-data timing, actual browser acceptance.
 - Full methodology, rejected alternatives, fixture limits, raw data, scoped roadmap and safe continuation: `docs/M43_3_PERFORMANCE_REPORT.md`, `docs/M43_3_BENCHMARK.json`. No main merge, migration, deploy or dependency update.
+
+### 11 Oct 2026 — M43.3 final acceptance
+
+Status: CLOSED / PASS
+
+- Canonical environment: AWS EC2 Stockholm.
+- Feature branch: feat/m43-3-fast-slot-validation.
+- Verified HEAD: 6dd5dff.
+- Full tests: 339/339 PASS.
+- Equivalence: 43/43 PASS.
+- Deterministic comparisons: 320 PASS.
+- TypeScript: PASS.
+- Isolated production build: PASS, 9/9 pages.
+- Optimized preview: localhost:3001 HTTP 200.
+- Original application: localhost:3000 remained active.
+- User confirmed drag interaction is faster than before.
+- Browser numeric profiling: not collected.
+- Synthetic benchmark improvements: 30.9%-86.1%.
+- No main merge, DB migration or production deployment.
+- AWS pre-integration stash and backups preserved.
+- Performance acceptance: PASS.
+- M43.3 closed; future numeric browser profiling optional.
+
+Next: controlled service promotion and M43.4 planning.
+
+### 11 Oct 2026 — M43.3 production promotion
+
+Status: AWS PROMOTION PASS
+
+- Branch: feat/m43-3-fast-slot-validation
+- Source HEAD: 6dd5dff
+- Full tests: 339/339 PASS
+- Reference equivalence: 43/43 PASS
+- TypeScript: PASS
+- Isolated production build: PASS, 9/9 pages
+- Build ID: nND5t_DJLmV8WUnxUYhon
+- Optimized release directory:
+  /home/ubuntu/partisyon-m43-build-6dd5dff
+- Main service: msgsud-dev, port 3000
+- Main service: active, HTTP 200
+- Temporary port 3001 preview stopped successfully
+- User confirmed faster drag behavior on preview
+- Browser numeric profiling: not collected
+- No main merge or database migration
+- Previous AWS stash, build and backups preserved
+
+M43.3 code/performance and AWS promotion gates: PASS.
+Port 3000 post-promotion drag acceptance: not yet separately confirmed.
