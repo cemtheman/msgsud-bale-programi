@@ -2191,7 +2191,9 @@ export default function ManagementPage() {
           return;
         }
 
-        const validationStartedAt = performance.now();
+        const profileDrag = process.env.NODE_ENV === 'development'
+          && process.env.NEXT_PUBLIC_M43_PROFILE === '1';
+        const validationStartedAt = profileDrag ? performance.now() : 0;
         const validated =
           buildManagementWorkspacePrevalidatedMoveCandidateDetailsV1(
             localSnapshot,
@@ -2200,13 +2202,15 @@ export default function ManagementPage() {
             validationOffsets,
             activeDay,
           );
-        console.info(
-          '[M43 drag prevalidation]',
-          Math.round(performance.now() - validationStartedAt),
-          'ms',
-          'cards:',
-          validationIds.length,
-        );
+        if (profileDrag) {
+          console.info(
+            '[M43 drag prevalidation]',
+            Math.round(performance.now() - validationStartedAt),
+            'ms',
+            'cards:',
+            validationIds.length,
+          );
+        }
 
         if (
           dragSequenceRef.current !== validationSequence

@@ -1,3 +1,4 @@
+// Frozen test-only commands from 2c1cdb426084a244d0ecbbe79e88793b66f4ece7.
 import type {
   ManagementWorkspaceSnapshotV1,
 } from '@/lib/managementWorkspace';
@@ -36,7 +37,7 @@ import {
   validateManagementWorkspaceV1,
   type ManagementWorkspaceValidationIssueV1,
   type ManagementWorkspaceValidationResultV1,
-} from '@/lib/managementWorkspaceValidation';
+} from './referenceValidation';
 
 export type ManagementWorkspaceCommandV1 =
   | {
@@ -432,15 +433,7 @@ export function previewManagementWorkspaceCommandsV1(
     };
   }
 
-  // Placement setters replace entries and never mutate shared card/resource
-  // objects. Copy only that map for drag previews; other commands keep the
-  // full isolated clone. Execute/Undo/Redo retain their existing clone paths.
-  const placementsOnly = commands.every((command) => (
-    command.type === 'SET_PLACEMENT' || command.type === 'REMOVE_PLACEMENT'
-  ));
-  const trialCopy = placementsOnly
-    ? { ...workingCopy, placementsByCardId: { ...workingCopy.placementsByCardId } }
-    : cloneWorkingCopy(workingCopy);
+  const trialCopy = cloneWorkingCopy(workingCopy);
   const trialHistory = createManagementWorkspaceHistoryV1();
   const coordinatedCardIds = commands.flatMap((command) => {
     if (command.type === 'SET_PLACEMENT') {

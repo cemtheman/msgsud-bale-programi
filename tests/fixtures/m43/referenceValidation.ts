@@ -1,3 +1,4 @@
+// Frozen test-only validator from 2c1cdb426084a244d0ecbbe79e88793b66f4ece7.
 import type {
   ManagementWorkspaceSnapshotV1,
 } from '@/lib/managementWorkspace';
@@ -309,7 +310,6 @@ function baselinePlacementMap(
 
 function pushIssue(
   issues: ManagementWorkspaceValidationIssueV1[],
-  issueKeys: Set<string>,
   issue: ManagementWorkspaceValidationIssueV1,
 ) {
   const cardIds = [...issue.cardIds].sort((a, b) => a.localeCompare(b));
@@ -320,8 +320,14 @@ function pushIssue(
     cardIds.join(','),
   ].join('|');
 
-  if (!issueKeys.has(key)) {
-    issueKeys.add(key);
+  const exists = issues.some((current) => [
+    current.code,
+    current.requirementId ?? '',
+    current.dayOfWeek ?? '',
+    [...current.cardIds].sort((a, b) => a.localeCompare(b)).join(','),
+  ].join('|') === key);
+
+  if (!exists) {
     issues.push({
       ...issue,
       cardIds,
@@ -336,7 +342,6 @@ export function validateManagementWorkspaceV1(
   coordinatedCardIds: readonly string[] = [],
 ): ManagementWorkspaceValidationResultV1 {
   const issues: ManagementWorkspaceValidationIssueV1[] = [];
-  const issueKeys = new Set<string>();
   const coordinatedCards = new Set(coordinatedCardIds);
   const requirements = new Map(
     Object.values(workingCopy.requirementCatalogById)
@@ -520,7 +525,7 @@ export function validateManagementWorkspaceV1(
       && !teacherDepartureOnly
       && !roomDepartureOnly
     ) {
-      pushIssue(issues, issueKeys, {
+      pushIssue(issues, {
         code: 'REQUIREMENT_RESOURCES_REQUIRE_UNPLACED',
         cardIds: snapshot.cards
           .filter((card) => card.requirementId === change.requirementId)
@@ -582,7 +587,7 @@ export function validateManagementWorkspaceV1(
       );
 
       if (moved) {
-        pushIssue(issues, issueKeys, {
+        pushIssue(issues, {
           code: 'LOCKED_CARD_MOVED',
           cardIds: [card.id],
           requirementId: requirement.id,
@@ -597,7 +602,7 @@ export function validateManagementWorkspaceV1(
           || placement.startPeriod !== original.startPeriod
         )
       ) {
-        pushIssue(issues, issueKeys, {
+        pushIssue(issues, {
           code: 'TIME_PINNED_CHANGED',
           cardIds: [card.id],
           requirementId: requirement.id,
@@ -609,7 +614,7 @@ export function validateManagementWorkspaceV1(
         card.teacherPinned === true
         && placement.teacherId !== original.teacherId
       ) {
-        pushIssue(issues, issueKeys, {
+        pushIssue(issues, {
           code: 'TEACHER_PINNED_CHANGED',
           cardIds: [card.id],
           requirementId: requirement.id,
@@ -621,7 +626,7 @@ export function validateManagementWorkspaceV1(
         card.roomPinned === true
         && placement.roomId !== original.roomId
       ) {
-        pushIssue(issues, issueKeys, {
+        pushIssue(issues, {
           code: 'ROOM_PINNED_CHANGED',
           cardIds: [card.id],
           requirementId: requirement.id,
@@ -644,7 +649,7 @@ export function validateManagementWorkspaceV1(
       || !allowedPeriods.includes(placement.startPeriod)
       || endPeriod > lastPeriod
     ) {
-      pushIssue(issues, issueKeys, {
+      pushIssue(issues, {
         code: 'TIME_OUTSIDE_DAY',
         cardIds: [card.id],
         requirementId: requirement.id,
@@ -656,7 +661,7 @@ export function validateManagementWorkspaceV1(
       placement.startPeriod <= LUNCH_LEFT_PERIOD
       && endPeriod >= LUNCH_RIGHT_PERIOD
     ) {
-      pushIssue(issues, issueKeys, {
+      pushIssue(issues, {
         code: 'LUNCH_BREAK_CROSSING',
         cardIds: [card.id],
         requirementId: requirement.id,
@@ -681,7 +686,7 @@ export function validateManagementWorkspaceV1(
       );
 
       if (!departureGap) {
-        pushIssue(issues, issueKeys, {
+        pushIssue(issues, {
           code: 'TEACHER_REQUIRED',
           cardIds: [card.id],
           requirementId: requirement.id,
@@ -701,7 +706,7 @@ export function validateManagementWorkspaceV1(
         );
 
         if (!preservedDepartureAssignment) {
-          pushIssue(issues, issueKeys, {
+          pushIssue(issues, {
             code: 'TEACHER_INACTIVE',
             cardIds: [card.id],
             requirementId: requirement.id,
@@ -716,7 +721,7 @@ export function validateManagementWorkspaceV1(
         && pool
         && !pool.has(placement.teacherId)
       ) {
-        pushIssue(issues, issueKeys, {
+        pushIssue(issues, {
           code: 'TEACHER_NOT_ELIGIBLE',
           cardIds: [card.id],
           requirementId: requirement.id,
@@ -734,7 +739,7 @@ export function validateManagementWorkspaceV1(
             `${placement.teacherId}|${placement.dayOfWeek}|${period}`,
           )
         ) {
-          pushIssue(issues, issueKeys, {
+          pushIssue(issues, {
             code: 'TEACHER_UNAVAILABLE',
             cardIds: [card.id],
             requirementId: requirement.id,
@@ -762,7 +767,7 @@ export function validateManagementWorkspaceV1(
       );
 
       if (!departureGap) {
-        pushIssue(issues, issueKeys, {
+        pushIssue(issues, {
           code: 'ROOM_REQUIRED',
           cardIds: [card.id],
           requirementId: requirement.id,
@@ -784,7 +789,7 @@ export function validateManagementWorkspaceV1(
         );
 
         if (!preservedDepartureAssignment) {
-          pushIssue(issues, issueKeys, {
+          pushIssue(issues, {
             code: 'ROOM_INACTIVE',
             cardIds: [card.id],
             requirementId: requirement.id,
@@ -804,7 +809,7 @@ export function validateManagementWorkspaceV1(
             || room.knowledgeStatus !== 'CONFIRMED'
           )
         ) {
-          pushIssue(issues, issueKeys, {
+          pushIssue(issues, {
             code: 'ROOM_CAPABILITY_MISMATCH',
             cardIds: [card.id],
             requirementId: requirement.id,
@@ -818,7 +823,7 @@ export function validateManagementWorkspaceV1(
           && roomPools.has(requirement.id)
           && !roomPools.get(requirement.id)?.has(room.id)
         ) {
-          pushIssue(issues, issueKeys, {
+          pushIssue(issues, {
             code: 'ROOM_NOT_ELIGIBLE',
             cardIds: [card.id],
             requirementId: requirement.id,
@@ -838,60 +843,12 @@ export function validateManagementWorkspaceV1(
     });
   });
 
-  // Only integer, bounded footprints are indexed. Unusual intervals retain
-  // the reference overlap predicate, including fractional/reversed ranges.
-  // Bound the extra indexing work independently of untrusted duration values.
-  const occupiedIndices = new Map<number, Map<number, number[]>>();
-  const malformedIndices: number[] = [];
-  const indexable = placed.map((item, index) => {
-    const start = item.placement.startPeriod;
-    const end = start + item.durationPeriods - 1;
-    if (
-      !Number.isSafeInteger(start)
-      || !Number.isSafeInteger(end)
-      || end < start
-      || end - start > 256
-    ) {
-      malformedIndices.push(index);
-      return false;
-    }
-    let day = occupiedIndices.get(item.placement.dayOfWeek);
-    if (!day) {
-      day = new Map<number, number[]>();
-      occupiedIndices.set(item.placement.dayOfWeek, day);
-    }
-    for (let period = start; period <= end; period += 1) {
-      const indices = day.get(period) ?? [];
-      indices.push(index);
-      day.set(period, indices);
-    }
-    return true;
-  });
-
   for (let index = 0; index < placed.length; index += 1) {
     const left = placed[index];
     const leftEnd =
       left.placement.startPeriod + left.durationPeriods - 1;
 
-    const possibleIndices = new Set<number>();
-    if (!indexable[index]) {
-      for (let otherIndex = index + 1; otherIndex < placed.length; otherIndex += 1) {
-        possibleIndices.add(otherIndex);
-      }
-    } else {
-      const day = occupiedIndices.get(left.placement.dayOfWeek);
-      for (let period = left.placement.startPeriod; period <= leftEnd; period += 1) {
-        for (const otherIndex of day?.get(period) ?? []) {
-          if (otherIndex > index) possibleIndices.add(otherIndex);
-        }
-      }
-      for (const otherIndex of malformedIndices) {
-        if (otherIndex > index) possibleIndices.add(otherIndex);
-      }
-    }
-
-    // Preserve reference pair traversal and therefore tie/issue ordering.
-    for (const otherIndex of [...possibleIndices].sort((a, b) => a - b)) {
+    for (let otherIndex = index + 1; otherIndex < placed.length; otherIndex += 1) {
       const right = placed[otherIndex];
       if (
         coordinatedCards.has(left.cardId)
@@ -915,7 +872,7 @@ export function validateManagementWorkspaceV1(
         left.placement.teacherId !== null
         && left.placement.teacherId === right.placement.teacherId
       ) {
-        pushIssue(issues, issueKeys, {
+        pushIssue(issues, {
           code: 'TEACHER_CONFLICT',
           cardIds: [left.cardId, right.cardId],
           requirementId: null,
@@ -927,7 +884,7 @@ export function validateManagementWorkspaceV1(
         left.roomConflictKey !== null
         && left.roomConflictKey === right.roomConflictKey
       ) {
-        pushIssue(issues, issueKeys, {
+        pushIssue(issues, {
           code: 'ROOM_CONFLICT',
           cardIds: [left.cardId, right.cardId],
           requirementId: null,
@@ -943,7 +900,7 @@ export function validateManagementWorkspaceV1(
           descendants,
         )
       ) {
-        pushIssue(issues, issueKeys, {
+        pushIssue(issues, {
           code: 'GROUP_CONFLICT',
           cardIds: [left.cardId, right.cardId],
           requirementId: null,
@@ -960,7 +917,7 @@ export function validateManagementWorkspaceV1(
     }));
 
     if (current.some(({ placement }) => !placement || !isPlaced(placement))) {
-      pushIssue(issues, issueKeys, {
+      pushIssue(issues, {
         code: 'PARALLEL_BUNDLE_BROKEN',
         cardIds: bundle.cardIds,
         requirementId: null,
@@ -981,7 +938,7 @@ export function validateManagementWorkspaceV1(
     );
 
     if (days.size !== 1) {
-      pushIssue(issues, issueKeys, {
+      pushIssue(issues, {
         code: 'PARALLEL_BUNDLE_BROKEN',
         cardIds: bundle.cardIds,
         requirementId: null,
@@ -999,7 +956,7 @@ export function validateManagementWorkspaceV1(
     ));
 
     if (geometryChanged) {
-      pushIssue(issues, issueKeys, {
+      pushIssue(issues, {
         code: 'PARALLEL_BUNDLE_BROKEN',
         cardIds: bundle.cardIds,
         requirementId: null,
@@ -1008,14 +965,10 @@ export function validateManagementWorkspaceV1(
     }
   });
 
-  const placedByRequirement = new Map<string, typeof placed>();
-  placed.forEach((item) => {
-    const items = placedByRequirement.get(item.requirementId) ?? [];
-    items.push(item);
-    placedByRequirement.set(item.requirementId, items);
-  });
   snapshot.requirements.forEach((requirement) => {
-    const requirementPlacements = placedByRequirement.get(requirement.id) ?? [];
+    const requirementPlacements = placed.filter(
+      (item) => item.requirementId === requirement.id,
+    );
 
     if (
       requirement.teacherAssignmentScope === 'REQUIREMENT'
@@ -1028,7 +981,7 @@ export function validateManagementWorkspaceV1(
       );
 
       if (teacherIds.size > 1) {
-        pushIssue(issues, issueKeys, {
+        pushIssue(issues, {
           code: 'TEACHER_CONTINUITY',
           cardIds: requirementPlacements.map((item) => item.cardId),
           requirementId: requirement.id,
@@ -1048,7 +1001,7 @@ export function validateManagementWorkspaceV1(
 
       countByDay.forEach((cardIds, dayOfWeek) => {
         if (cardIds.length > (requirement.maxBlocksPerDay as number)) {
-          pushIssue(issues, issueKeys, {
+          pushIssue(issues, {
             code: 'MAX_BLOCKS_PER_DAY',
             cardIds,
             requirementId: requirement.id,
@@ -1086,7 +1039,7 @@ export function validateManagementWorkspaceV1(
           longestConsecutiveRun(occupied)
           > (requirement.maxConsecutivePeriods as number)
         ) {
-          pushIssue(issues, issueKeys, {
+          pushIssue(issues, {
             code: 'MAX_CONSECUTIVE_PERIODS',
             cardIds: items.map((item) => item.cardId),
             requirementId: requirement.id,
@@ -1102,7 +1055,7 @@ export function validateManagementWorkspaceV1(
       );
 
       if (distinctDays.size < requirement.minDistinctDays) {
-        pushIssue(issues, issueKeys, {
+        pushIssue(issues, {
           code: 'MIN_DISTINCT_DAYS',
           cardIds: cardsForRequirement(workingCopy, requirement.id),
           requirementId: requirement.id,
