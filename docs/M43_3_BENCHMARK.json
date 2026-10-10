@@ -1,0 +1,151 @@
+{
+  "environment": {
+    "node": "v24.19.0",
+    "platform": "linux",
+    "arch": "x64",
+    "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+    "logicalCpus": 9,
+    "canonicalAWS": false
+  },
+  "cards": 517,
+  "requirements": 517,
+  "groups": 16,
+  "teachers": 16,
+  "rooms": 16,
+  "fixture": "synthetic, not production data",
+  "warmup": 15,
+  "repetitions": 70,
+  "profiling": "disabled; external end-to-end timing only; frozen baseline validation reused on both sides",
+  "rows": [
+    {
+      "scenario": "single",
+      "candidates": 1,
+      "before": {
+        "medianMs": 6.507524000000103,
+        "p95Ms": 11.019765000000007
+      },
+      "after": {
+        "medianMs": 3.9036279999997987,
+        "p95Ms": 6.310750000000098
+      }
+    },
+    {
+      "scenario": "multi-period",
+      "candidates": 1,
+      "before": {
+        "medianMs": 5.646070000000009,
+        "p95Ms": 7.859284000000116
+      },
+      "after": {
+        "medianMs": 3.883681000000024,
+        "p95Ms": 5.776344000000108
+      }
+    },
+    {
+      "scenario": "parallel-coordinated",
+      "candidates": 1,
+      "before": {
+        "medianMs": 5.942579000000023,
+        "p95Ms": 7.0335809999996854
+      },
+      "after": {
+        "medianMs": 3.988112000000001,
+        "p95Ms": 4.68660699999964
+      }
+    },
+    {
+      "scenario": "dense-slot",
+      "candidates": 1,
+      "before": {
+        "medianMs": 39.744228999999905,
+        "p95Ms": 46.994911000000684
+      },
+      "after": {
+        "medianMs": 5.32210699999996,
+        "p95Ms": 7.2826160000004165
+      }
+    },
+    {
+      "scenario": "empty-slot",
+      "candidates": 1,
+      "before": {
+        "medianMs": 5.68210900000031,
+        "p95Ms": 6.361274999999296
+      },
+      "after": {
+        "medianMs": 3.843454999999267,
+        "p95Ms": 4.634337999999843
+      }
+    },
+    {
+      "scenario": "consecutive-12-candidates",
+      "candidates": 12,
+      "before": {
+        "medianMs": 70.87738600000012,
+        "p95Ms": 82.40084399999978
+      },
+      "after": {
+        "medianMs": 48.57904499999859,
+        "p95Ms": 59.40581999999995
+      }
+    }
+  ],
+  "dragPipeline": {
+    "warmup": 10,
+    "repetitions": 30,
+    "rows": [
+      {
+        "scenario": "single",
+        "activeDay": 5,
+        "evaluatedPeriods": 12,
+        "before": {
+          "medianMs": 75.27916800000094,
+          "p95Ms": 78.60043700000097
+        },
+        "after": {
+          "medianMs": 51.996658000000025,
+          "p95Ms": 54.89596500000334
+        }
+      },
+      {
+        "scenario": "multi-period",
+        "activeDay": 5,
+        "evaluatedPeriods": 12,
+        "before": {
+          "medianMs": 78.25365999999849,
+          "p95Ms": 129.4831239999985
+        },
+        "after": {
+          "medianMs": 52.331396000001405,
+          "p95Ms": 89.07723199999964
+        }
+      },
+      {
+        "scenario": "parallel",
+        "activeDay": 5,
+        "evaluatedPeriods": 12,
+        "before": {
+          "medianMs": 95.75678100000368,
+          "p95Ms": 194.78798700000334
+        },
+        "after": {
+          "medianMs": 61.975303999999596,
+          "p95Ms": 101.02364999999554
+        }
+      },
+      {
+        "scenario": "dense-slot",
+        "activeDay": 5,
+        "evaluatedPeriods": 12,
+        "before": {
+          "medianMs": 488.72293499999796,
+          "p95Ms": 521.1090910000057
+        },
+        "after": {
+          "medianMs": 67.7305389999965,
+          "p95Ms": 71.53265499999543
+        }
+      }
+    ]
+  }
+}

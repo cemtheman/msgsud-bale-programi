@@ -12,13 +12,13 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Aktif çalışma ortamı | `AWS EC2 / Ubuntu 26.04 / code-server` |
 | Aktif çalışma dizini | `/home/ubuntu/msgsud-bale-programi` |
-| Aktif branch | `feat/management-workspace-v1` |
+| Aktif branch | `feat/m43-3-fast-slot-validation` |
 | Son doğrulanmış implementation checkpoint | `7d92c2ceacdbd94abf40a43a5e998b8c2333af6d` — v11 lifecycle browser acceptance CLOSED / PASS; server STRUCTURE undo leak blocked, 36/36 files, 241/241 tests, production build PASS |
-| Aktif implementation checkpoint | `d1c34a4b9bcf7d8d8591e655e2d00c21a4624d7f` — M42 notice semantics fixed; re-test pending |
-| Implementation commit | `revert: restore M39.1 stable application code` + `revert: restore M39.1 database behavior` |
-| Son documentation checkpoint | v11 ACTIVE/INACTIVE lifecycle browser/runtime acceptance and STRUCTURE undo-leak fix documented |
+| Aktif implementation checkpoint | `123fae6e190f1ee99b1fb64a9b4441d93d7d3c19` — M43.3 isolated code/performance gate PASS; canonical AWS/browser PENDING |
+| Implementation commit | `perf: index slot conflicts and isolate placement-only previews` — isolated validation gate; AWS integration pending |
+| Son documentation checkpoint | M43.3 performance/equivalence evidence and AWS/browser blockers documented; scoped roadmap in `docs/M43_3_PERFORMANCE_REPORT.md` |
 | Son kullanıcı/QA kabulü | **AWS code gate PASS** — 39/39 files, 292/292 tests, production build PASS; M42 targeted browser acceptance remains REOPENED |
-| Sıradaki iş paketi | **M42 notice browser gate PASS; verify test-pin restoration, teacher/room pins and Undo/Redo** |
+| Sıradaki iş paketi | **M43.3: preserve/reconcile AWS dirty tree, then canonical tests/build/benchmark and browser acceptance; overall BLOCKED** |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -44,10 +44,10 @@ Yeni oturumda ilk iş bu dosya okunur. 9 Ekim 2026 itibarıyla aktif ortam AWS E
 ```bash
 cd /home/ubuntu/msgsud-bale-programi
 git fetch origin
-git switch feat/management-workspace-v1
-git pull --ff-only
+git rev-parse --abbrev-ref HEAD
 git rev-parse HEAD
 git status --short
+git diff --stat
 ```
 
 **Ortam sürekliliği sözleşmesi:** Son bildirilen çalışma ortamı yeni bir bildirim gelene kadar geçerlidir. Asistan eski Windows/Mac komutlarına kendiliğinden dönmez. Kullanıcı ortam değişikliğini bildirdiğinde bu bölüm ve continuation handoff aynı oturumda güncellenir.
@@ -9716,3 +9716,16 @@ Both previously rejected notice defects are CLOSED / PASS on the AWS built previ
 Scope: screenshots verify correct blocked-drag reason and successful pin-only Save count. They do not independently prove all teacher/room pin paths, linked-card behavior, persistence after refresh, or baseline restoration. Full M42 acceptance remains pending those checks; do not infer overall closure from the two notice screenshots.
 
 Next: remove the test time pin, Save, refresh, and verify baseline restoration; then targeted teacher/room pin and Undo/Redo checks. No new source or migration change is required by these screenshots.
+
+
+### 10 Oct 2026 — M43.3 autonomous performance run — AWS/BROWSER BLOCKED
+
+- Branch: `feat/m43-3-fast-slot-validation`; starting HEAD `2c1cdb426084a244d0ecbbe79e88793b66f4ece7`; published implementation `123fae6e190f1ee99b1fb64a9b4441d93d7d3c19`.
+- Canonical environment remains AWS EC2 Stockholm / Ubuntu / code-server. This run used an isolated GitHub clone; HTTP/SSH/cloud-browser canonical access failed. No AWS filesystem/service/.next/DB changes.
+- AWS dirty validation/commands/continuation and `managementWorkspaceValidation.ts.backup-m43-20261010200603` remain untouched and unverified. Do not pull blindly; inspect and reconcile all existing edits first.
+- Optimizations: bounded day/period index + one malformed-index list; exact issue-key Set; per-requirement placement index; placement-only preview map copy (full clone fallback for other commands); development opt-in drag profiling. Hard rules, order, pin/parallel/Save/history behavior preserved.
+- Reference equivalence 43/43 PASS; deterministic seed 0x4332 (160 x 2 modes); frozen preview/candidate source-isolation tests 2/2 PASS; validation 17/17 and commands 12/12 PASS.
+- Full suite 41 files / 339 tests PASS; opt-in benchmark separately 1/1 PASS; TypeScript PASS; isolated Next 16.3.4 production build PASS, 9/9 pages.
+- Comparable 517-card synthetic full drag pipeline median/p95: single 75.28/78.60 -> 52.00/54.90 ms; multi 78.25/129.48 -> 52.33/89.08; parallel 95.76/194.79 -> 61.98/101.02; dense 488.72/521.11 -> 67.73/71.53. Container Linux/Node24.19/Xeon; **not AWS/browser**, historical183ms not comparable.
+- CODE/PERFORMANCE GATE PASS — BROWSER ACCEPTANCE PENDING. Overall M43.3 **BLOCKED**, not CLOSED. Remaining gate: AWS dirty-tree reconciliation, canonical tests/build/real-data timing, actual browser acceptance.
+- Full methodology, rejected alternatives, fixture limits, raw data, scoped roadmap and safe continuation: `docs/M43_3_PERFORMANCE_REPORT.md`, `docs/M43_3_BENCHMARK.json`. No main merge, migration, deploy or dependency update.

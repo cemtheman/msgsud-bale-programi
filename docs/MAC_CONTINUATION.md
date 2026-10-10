@@ -2,14 +2,14 @@
 
 > Not: Dosya adı tarihsel olarak `MAC_CONTINUATION.md` kaldı. Aktif çalışma ortamı AWS EC2 / Ubuntu / code-server'dır (9 Ekim 2026).
 
-Güncel ortam tarihi: 9 Ekim 2026 (önceki ürün kayıtları tarihsel olarak korunur)
+Güncel durum tarihi: 10 Ekim 2026 (önceki ürün kayıtları tarihsel olarak korunur)
 
 ## 1. Aktif çalışma ortamı
 
 - Ortam: **AWS EC2 / Ubuntu 26.04 / code-server**
 - Çalışma dizini: `/home/ubuntu/msgsud-bale-programi`
 - Shell: Linux/bash
-- Branch: `feat/management-workspace-v1`
+- Branch: `feat/m43-3-fast-slot-validation`
 - Komut biçimi: `npm`, `npx`
 - Kullanıcı yeni ortam bildirmedikçe AWS/code-server geçerli kabul edilir; Codespaces yalnız fallback'tir
 
@@ -18,15 +18,17 @@ Başlangıç:
 ```bash
 cd /home/ubuntu/msgsud-bale-programi
 git fetch origin
-git switch feat/management-workspace-v1
-git pull --ff-only
+git rev-parse --abbrev-ref HEAD
 git rev-parse HEAD
 git status --short
+git diff --stat
 cat AGENTS.md
 cat docs/MAC_CONTINUATION.md
 ```
 
 ## 2. Güncel doğrulanmış durum
+
+M43.3 implementation `123fae6e190f1ee99b1fb64a9b4441d93d7d3c19`: **isolated CODE/PERFORMANCE GATE PASS — BROWSER ACCEPTANCE PENDING**. Overall closure **BLOCKED** by AWS access. AWS remains canonical; current AWS working tree contains uncommitted edits and must be inspected/reconciled before pull. See `docs/M43_3_PERFORMANCE_REPORT.md` and 10 October entry below. Historical milestone results follow.
 
 ### M33.2 — CLOSED / PASS
 - hard-rule valid
@@ -3495,3 +3497,16 @@ Both previously rejected notice defects are CLOSED / PASS on the AWS built previ
 Scope: screenshots verify correct blocked-drag reason and successful pin-only Save count. They do not independently prove all teacher/room pin paths, linked-card behavior, persistence after refresh, or baseline restoration. Full M42 acceptance remains pending those checks; do not infer overall closure from the two notice screenshots.
 
 Next: remove the test time pin, Save, refresh, and verify baseline restoration; then targeted teacher/room pin and Undo/Redo checks. No new source or migration change is required by these screenshots.
+
+
+### 10 Oct 2026 — M43.3 autonomous performance run — AWS/BROWSER BLOCKED
+
+- Branch: `feat/m43-3-fast-slot-validation`; starting HEAD `2c1cdb426084a244d0ecbbe79e88793b66f4ece7`; published implementation `123fae6e190f1ee99b1fb64a9b4441d93d7d3c19`.
+- Canonical environment remains AWS EC2 Stockholm / Ubuntu / code-server. This run used an isolated GitHub clone; HTTP/SSH/cloud-browser canonical access failed. No AWS filesystem/service/.next/DB changes.
+- AWS dirty validation/commands/continuation and `managementWorkspaceValidation.ts.backup-m43-20261010200603` remain untouched and unverified. Do not pull blindly; inspect and reconcile all existing edits first.
+- Optimizations: bounded day/period index + one malformed-index list; exact issue-key Set; per-requirement placement index; placement-only preview map copy (full clone fallback for other commands); development opt-in drag profiling. Hard rules, order, pin/parallel/Save/history behavior preserved.
+- Reference equivalence 43/43 PASS; deterministic seed 0x4332 (160 x 2 modes); frozen preview/candidate source-isolation tests 2/2 PASS; validation 17/17 and commands 12/12 PASS.
+- Full suite 41 files / 339 tests PASS; opt-in benchmark separately 1/1 PASS; TypeScript PASS; isolated Next 16.3.4 production build PASS, 9/9 pages.
+- Comparable 517-card synthetic full drag pipeline median/p95: single 75.28/78.60 -> 52.00/54.90 ms; multi 78.25/129.48 -> 52.33/89.08; parallel 95.76/194.79 -> 61.98/101.02; dense 488.72/521.11 -> 67.73/71.53. Container Linux/Node24.19/Xeon; **not AWS/browser**, historical183ms not comparable.
+- CODE/PERFORMANCE GATE PASS — BROWSER ACCEPTANCE PENDING. Overall M43.3 **BLOCKED**, not CLOSED. Remaining gate: AWS dirty-tree reconciliation, canonical tests/build/real-data timing, actual browser acceptance.
+- Full methodology, rejected alternatives, fixture limits, raw data, scoped roadmap and safe continuation: `docs/M43_3_PERFORMANCE_REPORT.md`, `docs/M43_3_BENCHMARK.json`. No main merge, migration, deploy or dependency update.
