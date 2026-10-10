@@ -92,6 +92,12 @@ export interface ManagementPlacementResourcePreview {
 export function translateManagementPlacementResourceBlockReason(
   reason: string,
 ) {
+  if (reason === 'CARD_NOT_FOUND') {
+    return 'Seçilen derslerden biri artık mevcut değil. Dersleri yeniden seçin.';
+  }
+  if (reason === 'CARD_NOT_PLACED') {
+    return 'Kaynak değişikliği için seçilen derslerin tamamı yerleşmiş olmalı. Dersleri yeniden seçin.';
+  }
   if (reason === 'TEACHER_CONFLICT') {
     return 'Öğretmen aynı saatte başka derste.';
   }

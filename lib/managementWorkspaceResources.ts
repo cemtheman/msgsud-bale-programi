@@ -112,8 +112,20 @@ export function prepareManagementWorkspaceResourceEditV1(
   const cardById = new Map(
     Object.values(workingCopy.cardsById).map((card) => [card.id, card]),
   );
-  const normalizedRequested = Array.from(new Set(requestedCardIds))
-    .filter((cardId) => cardById.has(cardId));
+  const normalizedRequested = Array.from(new Set(requestedCardIds));
+  // A resource edit applies to the complete selection. Never turn a stale
+  // grouped selection into a successful partial assignment.
+  const selectionBlockReasons = Array.from(new Set(
+    normalizedRequested.flatMap((cardId) => {
+      if (!cardById.has(cardId)) return ['CARD_NOT_FOUND'];
+      const placement = workingCopy.placementsByCardId[cardId];
+      return !placement
+        || placement.dayOfWeek === null
+        || placement.startPeriod === null
+        ? ['CARD_NOT_PLACED']
+        : [];
+    }),
+  ));
 
   const targetCardIds = expandedCardIds(
     workingCopy,
@@ -121,7 +133,9 @@ export function prepareManagementWorkspaceResourceEditV1(
     resourceType,
   );
 
-  const commands: ManagementWorkspaceCommandV1[] = targetCardIds.flatMap((cardId) => {
+  const commands: ManagementWorkspaceCommandV1[] = selectionBlockReasons.length > 0
+    ? []
+    : targetCardIds.flatMap((cardId) => {
     const placement = workingCopy.placementsByCardId[cardId];
     if (
       !placement
@@ -193,7 +207,9 @@ export function prepareManagementWorkspaceResourceEditV1(
       resourceName: resourceName ?? resourceId,
       hasChanges: commands.length > 0,
       canApply: commands.length > 0 && validation.applied,
-      blockReasons: commands.length === 0 ? ['NO_CHANGES'] : blockReasons,
+      blockReasons: selectionBlockReasons.length > 0
+        ? selectionBlockReasons
+        : commands.length === 0 ? ['NO_CHANGES'] : blockReasons,
       conflicts: [],
       affectedCardCount: commands.length,
       affectedRequirementCount,

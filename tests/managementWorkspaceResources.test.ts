@@ -205,6 +205,62 @@ function snapshot(): ManagementWorkspaceSnapshotV1 {
 }
 
 describe('management workspace placement resource edits', () => {
+  it.each(['TEACHER', 'ROOM'] as const)('rejects an entire %s selection if a requested card is missing', (type) => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+    const before = structuredClone({ copy, history });
+    const id = type === 'TEACHER' ? 'teacher-2' : 'room-2';
+    const plan = prepareManagementWorkspaceResourceEditV1(
+      source, copy, ['card-main-1', 'removed-card'], type, id,
+    );
+    expect(plan.preview.requestedCardIds).toEqual(['card-main-1', 'removed-card']);
+    expect(plan.preview.canApply).toBe(false);
+    expect(plan.preview.blockReasons).toContain('CARD_NOT_FOUND');
+    expect(plan.commands).toEqual([]);
+    // Even an accidental execution of the blocked plan cannot apply a subset.
+    executeManagementWorkspaceCommandsV1(source, copy, history, plan.commands);
+    expect({ copy, history }).toEqual(before);
+    const valid = prepareManagementWorkspaceResourceEditV1(source, copy, ['card-main-1'], type, id);
+    expect(valid.preview.stateToken).not.toBe(plan.preview.stateToken);
+    expect(translateManagementPlacementResourceBlockReason('CARD_NOT_FOUND')).toContain('yeniden');
+  });
+
+  it.each(['missing', 'unplaced', 'partial'] as const)('rejects a whole selection with a %s placement', (state) => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    if (state === 'missing') delete copy.placementsByCardId['card-main-2'];
+    else copy.placementsByCardId['card-main-2'] = {
+      ...copy.placementsByCardId['card-main-2'], dayOfWeek: null,
+      startPeriod: state === 'partial' ? 2 : null,
+    };
+    const before = structuredClone(copy);
+    const plan = prepareManagementWorkspaceResourceEditV1(
+      source, copy, ['card-main-1', 'card-main-2'], 'ROOM', 'room-2',
+    );
+    expect(plan.preview.canApply).toBe(false);
+    expect(plan.preview.blockReasons).toContain('CARD_NOT_PLACED');
+    expect(plan.commands).toEqual([]);
+    expect(copy).toEqual(before);
+    expect(translateManagementPlacementResourceBlockReason('CARD_NOT_PLACED')).toContain('yerleşmiş');
+  });
+
+  it('deduplicates a complete selection and permits an already-correct member in the batch', () => {
+    const source = snapshot();
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    copy.placementsByCardId['card-main-2'].roomId = 'room-2';
+    const plan = prepareManagementWorkspaceResourceEditV1(
+      source, copy, ['card-main-1', 'card-main-2', 'card-main-1'], 'ROOM', 'room-2',
+    );
+    expect(plan.preview.canApply).toBe(true);
+    expect(plan.preview.requestedCardIds).toEqual(['card-main-1', 'card-main-2']);
+    expect(plan.commands).toHaveLength(1);
+    expect(plan.preview.affectedCardCount).toBe(1);
+    const empty = prepareManagementWorkspaceResourceEditV1(source, copy, [], 'ROOM', 'room-2');
+    expect(empty.preview.canApply).toBe(false);
+    expect(empty.commands).toEqual([]);
+  });
+
   it.each([
     ['teacherPinned', 'TEACHER', 'teacher-2', 'TEACHER_PINNED_CHANGED', 'Öğretmen sabitlemesini kaldırın'],
     ['roomPinned', 'ROOM', 'room-2', 'ROOM_PINNED_CHANGED', 'Salon sabitlemesini kaldırın'],
