@@ -1,0 +1,10 @@
+{
+  "baselineCommit": "fe074099f955713d76ca84836044c31202c6b735",
+  "baselineErrors": 42,
+  "baselineWarnings": 8,
+  "currentErrors": 42,
+  "currentWarnings": 8,
+  "newDiagnostics": 0,
+  "method": "SequenceMatcher unchanged-line mapping; compare position, column, rule, severity, nodeType and message first line. Diagnostic embedded code-frame paths/line numbers are environment-dependent.",
+  "implementationCommit": "5791e09d13e6952e1cc95f4dd0917c0deaf51f08"
+}

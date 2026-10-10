@@ -31,7 +31,7 @@ cat docs/MAC_CONTINUATION.md
 
 **M42 CLOSED / PASS; M43.3 CLOSED / PASS.** Güncel canonical GitHub başlangıcı `24101f6e96914a32097965a4e1cb6f498244536a`. AWS 350/350 test, reference equivalence 43/43, TypeScript ve isolated build PASS; browser 5/5 ve Save / Reload / Restore / Reload PASS. Aktif release `/home/ubuntu/partisyon-m42-acceptance`, Build ID `FWDpU_8fSNVyi-jkEaLdP`, `msgsud-dev.service` port 3000 aktif/HTTP 200; geçici port 3001 kapalı. Bunlar son canonical kabul kaydıdır; bu Codex run AWS'ye erişemedi. Eski M42/M43.3 PENDING/BLOCKED kayıtları tarihsel ve superseded.
 
-**Overnight engineering:** `feat/overnight-workspace-integrity`, son implementation `3abab3f`: toplu kaynak seçimi, aktif yerel derslerin toplu kuralları ve yerel öğretmen önizlemeleri **CODE GATE PASS — BROWSER ACCEPTANCE PENDING**. Son full suite 371/371, tsc/isolated production build PASS; aynı ortamda accepted drag medyanı -%1,71 ila +%0,71. Raporlar `WORKSPACE_BULK_SELECTION_INTEGRITY_REPORT.md`, `WORKSPACE_ACTIVE_REQUIREMENT_VALIDATION_REPORT.md`. No deploy/DB/migration/main merge. M43.4 kapsamı yok; bu paket mevcut atomik işlem sözleşmesindeki yeniden üretilmiş hata düzeltmesidir.
+**Overnight engineering:** `feat/overnight-workspace-integrity`, son implementation `5791e09`: toplu kaynak seçimi, aktif yerel derslerin toplu kuralları, yerel öğretmen önizlemeleri ve asenkron read bütünlüğü **CODE GATE PASS — BROWSER ACCEPTANCE PENDING**. Son full suite 386/386, tsc/isolated production build PASS; aynı ortamda accepted drag medyanı -%1,71 ila +%0,71. Birleşik sabah raporu `OVERNIGHT_ENGINEERING_REPORT.md`; dört ayrı teknik rapor içerir. No deploy/DB/migration/main merge. M43.4 kapsamı yok; bu paket mevcut atomik işlem sözleşmesindeki yeniden üretilmiş hata düzeltmesidir.
 
 ### M33.2 — CLOSED / PASS
 - hard-rule valid
@@ -2026,7 +2026,8 @@ Suggested later sequence:
 - User's overnight priority 1/2 selects reproduced defects in existing functions before extending the solver. First bounded package: bulk resource selections must never silently apply a subset. Code checkpoint `b1e5200`, 356 tests/tsc/build PASS; new browser acceptance PENDING.
 - Second bounded package: active/inactive local requirement aggregate validation at Save, reproduced five defects and corrected at `7690062`; 361 tests/tsc/build and same-environment drag comparison PASS, new browser acceptance PENDING.
 - Third bounded package: current local cards/catalogue in teacher policy and reconciliation preview; 10 baseline regressions reproduced, fixed at `3abab3f`, 371 tests/tsc/build PASS, new browser acceptance PENDING.
-- Next investigation: late asynchronous workspace/catalogue reads overwriting unsaved local edits/history. This remains an existing integrity correction, not a new solver milestone.
+- Fourth bounded package: late asynchronous workspace/catalogue reads overwriting unsaved local edits/history; eight reproductions, 15 focused regressions, fixed at `5791e09`, 386 tests/tsc/build PASS, authenticated browser acceptance PENDING.
+- Next gate: disposable authenticated browser acceptance for the four new corrections; preserve accepted canonical port 3000. Stronger/full-auto and role-aware work remains future design scope, not an invented M43.4. Full delivery matrix: `OVERNIGHT_ENGINEERING_REPORT.md`.
 
 Rule:
 - preserve M33 solver snapshot/in-memory/no-trial-write architecture
@@ -3636,3 +3637,15 @@ Baseline `8f31267`, implementation/push `3abab3f`, remote HEAD verified. Ten new
 Teacher file 15/15, nine-file focused 155/155, full suite 371/371 PASS. Equivalence 43/43 / preview isolation 2/2 PASS; final tsc/targeted lint/diff check PASS. Test fixture union-type issue and random UUID conflict orientation were corrected, then scoped checks/build repeated. Isolated production build 9/9 PASS, `Ucjq7c-GPQGtr7I4RtPOQ`. Existing benchmarked drag source fingerprints unchanged.
 
 CODE GATE PASS — BROWSER ACCEPTANCE PENDING. AWS/browser NOT RUN; no production writes/deploy/service mutation/migration/main merge. Technical criteria/history/payload/token evidence: `WORKSPACE_TEACHER_PREVIEW_REPORT.md`. Existing M42/M43.3 CLOSED / PASS remain accepted. Next: inspect async refresh/hydration overwrite behavior, preserve the three successful checkpoints.
+
+### 11 Oct 2026 — Overnight asynchronous-read integrity code gate / handoff
+
+Baseline `fe07409`, implementation/push `5791e09`, remote HEAD verified. Eight initial failures against an exact extraction of prior loader logic/current hydrator proved pending read installation could discard new edits; repeated catalogue hydration overwrote preference/history and changed captured before-values. Refresh preparation now checks live diff at response installation and preserves old snapshot/copy/history before publishing any server board/overview. Different/missing incoming revisions never erase dirty local work. Clean reload behavior remains unchanged.
+
+Captured catalogue rows are immutable until a fresh copy is installed; new rows can still be discovered. Preference edit preparation distinguishes not-yet-loaded input from explicit empty preference, waiting for real before-values. Deferred-promise tests exercise placement/pin/preference/inventory edits during reads, exact history/commit identity, hydration clearing, external row changes and fresh-baseline capture.
+
+Refresh 15/15; ten-file focused 156/156; full 386/386 PASS (42 files, 1 benchmark skip). Equivalence 43/43 and preview isolation 2/2 PASS. TypeScript/diff check PASS; module lint 0 errors/1 pre-existing warning. Whole page lint is NOT PASS: baseline and final both 42 errors/8 warnings, zero introduced diagnostics after unchanged-line/rule/position comparison. Existing refs/hook warnings remain out of scope.
+
+Isolated build 9/9 PASS, `rGM8I4IPSVjZ-T8Lbbmer`; port 3003 anonymous smoke 3/3 HTTP 200, timed local server shut down. Runtime/build sources match. Benchmarked drag modules unchanged. No authenticated browser/AWS test, deployment, production Save/DB migration, canonical restart or main merge. M42/M43.3 remain CLOSED / PASS.
+
+**Four packages: CODE GATE PASS — BROWSER ACCEPTANCE PENDING.** Reports: `WORKSPACE_ASYNC_READ_INTEGRITY_REPORT.md`, `OVERNIGHT_ENGINEERING_REPORT.md`. Next: disposable browser acceptance (no real school Save), then explicit design scope for stronger generation/roles if prioritized. Do not blindly pull into AWS dirty workspace or alter current release/worktree relationships.

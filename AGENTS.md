@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/home/ubuntu/msgsud-bale-programi` |
 | Aktif branch | `feat/overnight-workspace-integrity` (Codex engineering); canonical AWS/GitHub başlangıcı `feat/m42-pin-resource-acceptance` |
 | Son doğrulanmış implementation checkpoint | `24101f6e96914a32097965a4e1cb6f498244536a` — M42 CLOSED / PASS; M43.3 CLOSED / PASS; AWS 350/350, equivalence 43/43, build/browser/Save–Reload–Restore–Reload PASS |
-| Aktif implementation checkpoint | `3abab3f` — yerel kart/katalog ile öğretmen önizlemeleri; üç overnight paket CODE GATE PASS — BROWSER ACCEPTANCE PENDING |
-| Implementation commit | `fix: include local cards in teacher policy and reconciliation previews` |
-| Son documentation checkpoint | Overnight raporları: `docs/WORKSPACE_BULK_SELECTION_INTEGRITY_REPORT.md`, `docs/WORKSPACE_ACTIVE_REQUIREMENT_VALIDATION_REPORT.md`; kesin docs SHA için branch tipini okuyun |
+| Aktif implementation checkpoint | `5791e09` — asenkron workspace/catalog read bütünlüğü; dört overnight paket CODE GATE PASS — BROWSER ACCEPTANCE PENDING |
+| Implementation commit | `fix: preserve local edits across asynchronous workspace reads` |
+| Son documentation checkpoint | Overnight teslimat: `docs/OVERNIGHT_ENGINEERING_REPORT.md`; dört paket raporu ve kesin SHA/checkpoint bilgisi bu raporda ve branch tipinde |
 | Son kullanıcı/QA kabulü | **M42 CLOSED / PASS; M43.3 CLOSED / PASS** — canonical kabul `24101f6`; yeni paketlerin kabulü ayrı izlenir |
-| Sıradaki iş paketi | Üç code gate tamamlandı; asenkron yenileme/hydration tamamlanırken yerel değişikliklerin korunmasını incele. M43.4 tanımlı değil; yeni milestone numarası üretilmedi |
+| Sıradaki iş paketi | Dört code/build gate tamamlandı; disposable ortamda yeni paketlerin browser kabulü bekliyor. Sonra daha güçlü üretim kapsamı tasarlanabilir; M43.4 tanımlı değil, numara üretilmedi |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9777,3 +9777,14 @@ Next: remove the test time pin, Save, refresh, and verify baseline restoration; 
 - İzole build `/workspace/partisyon-overnight-teacher-build-8f31267`, ID `Ucjq7c-GPQGtr7I4RtPOQ`, 9/9 PASS. Ölçülmüş validation/commands/candidates runtime SHA256 değerleri ikinci paketle aynı; drag hot path değişmedi.
 - Rapor `WORKSPACE_TEACHER_PREVIEW_REPORT.md`; CODE GATE PASS — BROWSER ACCEPTANCE PENDING. AWS/browser NOT RUN, deployment/DB/migration/main merge yok; M42/M43.3 CLOSED / PASS korunur.
 - Sonraki araştırma: geç gelen workspace/catalog read sonuçları yeni yerel düzenlemeyi veya zaman tercihi geçmişini üzerine yazabiliyor mu? Somut reproduction olursa ayrı integrity paketi.
+
+### 11 Ekim 2026 — Overnight: asenkron workspace/catalog read bütünlüğü
+
+- Paket başlangıcı `fe07409`; code/push `5791e09`, remote HEAD doğrulandı. İlk refresh kararı mevcut loader'ın aynen çıkarılmış davranışıydı; düzeltmeden önce 8 gerçek race/hydration regression FAIL. Test parametrizasyonu hatası düzeltilip aynı 8 alanın FAIL olduğu tekrar doğrulandı.
+- Tamamlanan asynchronous read, React dirty flag'ine değil o andaki gerçek snapshot/copy diff'ine bakar. Yeni yerel edit varsa eski snapshot/copy/history/board korunur; incoming revision farklı veya yanıt eksik olsa da üzerine yazılmaz. Türkçe bilgi verilir. Clean matching read için mevcut fresh-copy/empty-history akışı korunur.
+- Katalog satırı baseline başına bir defa yakalanır; tekrar hydration preference/history veya before-values'i rebase etmez. Yeni inactive satırlar hâlâ keşfedilir; fresh copy yeni server girdilerini yakalar. Henüz okunmamış zaman tercihi UNKNOWN durumunda düzenleme engellenir; açıkça okunmuş empty preference geçerlidir.
+- Focused refresh 15/15, on dosya 156/156, final full 42 dosya / 386 test PASS; 1 opt-in benchmark skip. Equivalence 43/43, preview isolation 2/2, TypeScript/diff check PASS. Module lint 0 error / 1 unchanged unused-variable warning; page lint başlangıçta da finalde de 42 error / 8 warning, unchanged-line konumu/rule/severity/node/message karşılaştırması yeni diagnostic 0.
+- İzole production build `/workspace/partisyon-overnight-refresh-build-fe07409`, ID `rGM8I4IPSVjZ-T8Lbbmer`, 9/9 PASS; değişen runtime kaynakları byte-match. Port 3003 anonymous smoke `/`, `/yonetim`, `/manifest.webmanifest` HTTP 200. Geçici local smoke 45 saniyelik timeout ile kapatıldı; authenticated browser kabulü değildir.
+- Drag per-slot runtime değişmedi; ikinci paket ölçümündeki validation/commands/candidates SHA256 finalde aynı. Yeni diff yalnız read sonucu kurulurken bir kez çalışır, hydration/edit hazırlama hot path dışında.
+- AWS/browser NOT RUN; no production Save/DB/migration/deploy/main merge/service mutation. M42/M43.3 CLOSED / PASS korunur. Dört paket **CODE GATE PASS — BROWSER ACCEPTANCE PENDING**.
+- Rapor: `WORKSPACE_ASYNC_READ_INTEGRITY_REPORT.md`; sabah teslimat/tablo/runtime/acceptance sınırları: `OVERNIGHT_ENGINEERING_REPORT.md`. Daha geniş generation/role-aware çalışma için yeni resmî kapsam yok; mevcut canonical servisi koruyarak disposable browser acceptance sıradaki kapıdır.
