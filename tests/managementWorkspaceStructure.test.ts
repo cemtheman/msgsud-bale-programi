@@ -6,9 +6,12 @@ import {
   diffManagementWorkspaceV1,
   hydrateManagementWorkspaceRequirementCatalogV1,
   removeManagementWorkspacePlacementV1,
+  setManagementWorkspacePlacementV1,
+  type ManagementWorkspaceWorkingCopyV1,
 } from '@/lib/managementWorkspaceWorkingCopy';
 import {
   executeManagementWorkspaceCommandV1,
+  executeManagementWorkspaceCommandsV1,
 } from '@/lib/managementWorkspaceCommands';
 import {
   createManagementWorkspaceHistoryV1,
@@ -22,6 +25,9 @@ import {
 import {
   buildManagementWorkspacePlacementCandidateDetailV1,
 } from '@/lib/managementWorkspaceCandidates';
+
+import { prepareManagementWorkspaceCommitV1 } from '@/lib/managementWorkspaceCommit';
+import { validateManagementWorkspaceV1 } from '@/lib/managementWorkspaceValidation';
 
 function snapshot(
   placed = true,
@@ -146,6 +152,117 @@ function snapshot(
 }
 
 describe('management workspace active requirement structure', () => {
+  it('allows Save after removing placements and deactivating a requirement with a minimum-day rule', () => {
+    const baseline = snapshot(true);
+    const source: ManagementWorkspaceSnapshotV1 = {
+      ...baseline, requirements: baseline.requirements.map(row => ({ ...row, minDistinctDays: 1 })),
+    };
+    const copy = createManagementWorkspaceWorkingCopyV1(source);
+    const history = createManagementWorkspaceHistoryV1();
+    expect(validateManagementWorkspaceV1(source, copy, 'COMMIT').valid).toBe(true);
+    expect(executeManagementWorkspaceCommandV1(source, copy, history, {
+      type: 'REMOVE_PLACEMENT', cardId: 'card-1',
+    }).applied).toBe(true);
+    expect(prepareManagementWorkspaceCommitV1(source, copy).ready).toBe(false);
+    const input = {
+      requirementId: 'requirement-1', weeklyLoad: 0, preferredPartition: [],
+      allowedPartitions: [], termStatus: 'INACTIVE' as const,
+    };
+    const preview = previewManagementWorkspaceRequirementStructureV1(source, copy, input);
+    const plan = prepareManagementWorkspaceRequirementStructureV1(source, copy, input, preview.structureToken);
+    expect(executeManagementWorkspaceCommandV1(source, copy, history, plan.command).applied).toBe(true);
+    const commit = prepareManagementWorkspaceCommitV1(source, copy);
+    expect(commit.ready).toBe(true);
+    expect(commit.issues).toEqual([]);
+    expect(commit.payload?.structureChanges[0].after.term_status).toBe('INACTIVE');
+    expect(commit.payload?.changes).toHaveLength(1);
+    expect(commit.payload?.snapshotHash).toBe(source.identity.snapshotHash);
+    undoManagementWorkspaceOperationV1(copy, history);
+    // Restoring ACTIVE restores the rule, while the earlier removal remains.
+    expect(prepareManagementWorkspaceCommitV1(source, copy).issues.map(issue => issue.code)).toContain('MIN_DISTINCT_DAYS');
+    undoManagementWorkspaceOperationV1(copy, history);
+    expect(diffManagementWorkspaceV1(source, copy).hasChanges).toBe(false);
+    redoManagementWorkspaceOperationV1(copy, history);
+    redoManagementWorkspaceOperationV1(copy, history);
+    expect(prepareManagementWorkspaceCommitV1(source, copy).ready).toBe(true);
+  });
+
+  function hydrateInactive(copy: ManagementWorkspaceWorkingCopyV1, rule: string) {
+    hydrateManagementWorkspaceRequirementCatalogV1(copy, [{
+      requirementId: 'requirement-local', subjectId: 'subject-local', subjectName: 'B. Uygulama',
+      groupId: 'group-1', groupName: '5A', groupType: 'SECTION', classCodes: ['5A'],
+      weeklyLoad: 0, preferredPartition: [], allowedPartitions: [], termStatus: 'INACTIVE',
+      minDistinctDays: rule === 'MIN_DISTINCT_DAYS' ? 2 : null,
+      maxBlocksPerDay: rule === 'MAX_BLOCKS_PER_DAY' ? 1 : null,
+      maxConsecutivePeriods: rule === 'MAX_CONSECUTIVE_PERIODS' ? 1 : null,
+      courseCharacter: 'ART', deliveryMode: 'STANDARD', teacherRequirement: 'REQUIRED',
+      teacherMode: 'ELIGIBLE_POOL', teacherIds: ['teacher-1', 'teacher-2'],
+      teacherAssignmentScope: rule === 'TEACHER_CONTINUITY' ? 'REQUIREMENT' : 'BLOCK',
+      teacherContinuity: rule === 'TEACHER_CONTINUITY' ? 'REQUIRED' : 'NONE',
+      resourceMode: 'UNKNOWN', roomIds: [], requiredCapability: null,
+    }]);
+  }
+
+  it.each(['MAX_BLOCKS_PER_DAY', 'MAX_CONSECUTIVE_PERIODS', 'TEACHER_CONTINUITY', 'MIN_DISTINCT_DAYS'] as const)(
+    'enforces %s for a hydrated requirement activated after snapshot capture', (code) => {
+      const baseline = snapshot(false);
+      const source: ManagementWorkspaceSnapshotV1 = {
+        ...baseline, teachers: [...baseline.teachers, { id: 'teacher-2', name: 'Öğretmen 2', operationalStatus: 'ACTIVE' }],
+      };
+      const copy = createManagementWorkspaceWorkingCopyV1(source);
+      const history = createManagementWorkspaceHistoryV1();
+      hydrateInactive(copy, code);
+      expect(validateManagementWorkspaceV1(source, copy, 'COMMIT').valid).toBe(true);
+      const input = {
+        requirementId: 'requirement-local', weeklyLoad: 2, preferredPartition: [1, 1],
+        allowedPartitions: [[1, 1]], termStatus: 'ACTIVE' as const,
+      };
+      const preview = previewManagementWorkspaceRequirementStructureV1(source, copy, input);
+      const plan = prepareManagementWorkspaceRequirementStructureV1(source, copy, input, preview.structureToken);
+      expect(executeManagementWorkspaceCommandV1(source, copy, history, plan.command).applied).toBe(true);
+      const cards = Object.values(copy.cardsById).filter(card => card.requirementId === 'requirement-local');
+      const placements = cards.map((card, index) => ({
+        cardId: card.id, dayOfWeek: code === 'TEACHER_CONTINUITY' ? index + 1 : 1,
+        startPeriod: code === 'MAX_CONSECUTIVE_PERIODS' ? index + 1 : index * 2 + 1,
+        teacherId: code === 'TEACHER_CONTINUITY' && index === 1 ? 'teacher-2' : 'teacher-1', roomId: null,
+      }));
+      const before = structuredClone({ copy, history });
+      const result = executeManagementWorkspaceCommandsV1(source, copy, history,
+        placements.map(placement => ({ type: 'SET_PLACEMENT', placement })),
+      );
+      if (code === 'MIN_DISTINCT_DAYS') {
+        // Completion is still a Save rule, never an incremental edit blocker.
+        expect(result.applied).toBe(true);
+        expect(validateManagementWorkspaceV1(source, copy, 'EDIT').issues.map(issue => issue.code)).not.toContain(code);
+      } else {
+        expect(result.applied).toBe(false);
+        expect(result.issues.map(issue => issue.code)).toContain(code);
+        expect({ copy, history }).toEqual(before);
+        placements.forEach(placement => setManagementWorkspacePlacementV1(copy, placement));
+      }
+      const commit = prepareManagementWorkspaceCommitV1(source, copy);
+      expect(commit.ready).toBe(false);
+      expect(commit.issues).toContainEqual(expect.objectContaining({ code, requirementId: 'requirement-local' }));
+      expect(commit.payload).toBeNull();
+      // The same newly active course remains editable and committable when
+      // its declared rule is satisfied; there is no blanket activation block.
+      cards.forEach(card => removeManagementWorkspacePlacementV1(copy, card.id));
+      const valid = executeManagementWorkspaceCommandsV1(source, copy, history,
+        cards.map((card, index) => ({ type: 'SET_PLACEMENT', placement: {
+          cardId: card.id, dayOfWeek: code === 'MAX_CONSECUTIVE_PERIODS' ? 1 : index + 1,
+          startPeriod: index * 2 + 1, teacherId: 'teacher-1', roomId: null,
+        } })),
+      );
+      expect(valid.applied).toBe(true);
+      expect(validateManagementWorkspaceV1(source, copy, 'COMMIT').valid).toBe(true);
+      const validCommit = prepareManagementWorkspaceCommitV1(source, copy);
+      expect(validCommit.ready).toBe(true);
+      expect(validCommit.payload?.structureChanges).toHaveLength(1);
+      expect(validCommit.payload?.changes).toHaveLength(2);
+      expect(validCommit.payload?.revisionVersion).toBe(source.identity.revisionVersion);
+    },
+  );
+
   it('matches server duration-rank ambiguity and blocks shrinking equal-duration placed cards', () => {
     const source = snapshot(true);
     const copy = createManagementWorkspaceWorkingCopyV1(source);

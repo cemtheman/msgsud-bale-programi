@@ -1014,7 +1014,9 @@ export function validateManagementWorkspaceV1(
     items.push(item);
     placedByRequirement.set(item.requirementId, items);
   });
-  snapshot.requirements.forEach((requirement) => {
+  // Aggregate rules must use the same active local requirements as per-card
+  // checks: deactivated courses are absent, newly activated courses are present.
+  requirements.forEach((requirement) => {
     const requirementPlacements = placedByRequirement.get(requirement.id) ?? [];
     const teacherPolicy = workingCopy.requirementResourcesById[requirement.id]
       ?? requirement;
