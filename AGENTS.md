@@ -14,11 +14,11 @@
 | Aktif çalışma dizini | `/home/ubuntu/msgsud-bale-programi` |
 | Aktif branch | `feat/overnight-workspace-integrity` (Codex engineering); canonical AWS/GitHub başlangıcı `feat/m42-pin-resource-acceptance` |
 | Son doğrulanmış implementation checkpoint | `24101f6e96914a32097965a4e1cb6f498244536a` — M42 CLOSED / PASS; M43.3 CLOSED / PASS; AWS 350/350, equivalence 43/43, build/browser/Save–Reload–Restore–Reload PASS |
-| Aktif implementation checkpoint | `7690062` — aktif yerel derslerin toplu kuralları; iki overnight paket CODE GATE PASS — BROWSER ACCEPTANCE PENDING |
-| Implementation commit | `fix: validate aggregate rules against active local requirements` |
+| Aktif implementation checkpoint | `3abab3f` — yerel kart/katalog ile öğretmen önizlemeleri; üç overnight paket CODE GATE PASS — BROWSER ACCEPTANCE PENDING |
+| Implementation commit | `fix: include local cards in teacher policy and reconciliation previews` |
 | Son documentation checkpoint | Overnight raporları: `docs/WORKSPACE_BULK_SELECTION_INTEGRITY_REPORT.md`, `docs/WORKSPACE_ACTIVE_REQUIREMENT_VALIDATION_REPORT.md`; kesin docs SHA için branch tipini okuyun |
 | Son kullanıcı/QA kabulü | **M42 CLOSED / PASS; M43.3 CLOSED / PASS** — canonical kabul `24101f6`; yeni paketlerin kabulü ayrı izlenir |
-| Sıradaki iş paketi | Toplu seçim ve ACTIVE/INACTIVE Save doğrulaması code gate tamamlandı; öğretmen kuralı/uzlaştırma önizlemelerindeki yerel kart kapsamını incele. M43.4 tanımlı değil; yeni milestone numarası üretilmedi |
+| Sıradaki iş paketi | Üç code gate tamamlandı; asenkron yenileme/hydration tamamlanırken yerel değişikliklerin korunmasını incele. M43.4 tanımlı değil; yeni milestone numarası üretilmedi |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
@@ -9767,3 +9767,13 @@ Next: remove the test time pin, Save, refresh, and verify baseline restoration; 
 - Accepted `24101f6` vs yeni drag pipeline aynı process/517 fixture/10 warmup/50 alternating samples: medyan değişimi -%1,71 ila +%0,71; p95 -%10,42 ila +%5,25. Anlamlı yavaşlama gözlenmedi; browser/AWS performans iddiası yok. Raw+driver `WORKSPACE_ACTIVE_REQUIREMENT_BENCHMARK.json`.
 - Code/push `7690062`; remote HEAD eşit. AWS/browser NOT RUN; CODE GATE PASS — BROWSER ACCEPTANCE PENDING. Raporda Save payload/Undo/Redo ve sonraki kısa acceptance adımları mevcut. No DB/migration/deploy/main merge.
 - Sonraki bağımsız kusur: öğretmen kuralı ve uzlaştırma preview'larında snapshot kartlarının yeni yerel kartları veya aktive edilmiş dersleri dışlaması. Kabul kriterleri testle üretildikten sonra ayrı checkpoint.
+
+### 11 Ekim 2026 — Overnight: yerel öğretmen kuralı ve uzlaştırma önizlemeleri
+
+- Başlangıç `8f31267`, implementation/push `3abab3f`; remote HEAD eşit. Mevcut local-card authority sözleşmesindeki 10 yeni regression başlangıç kodunda FAIL.
+- Teacher policy ve tekli/koordineli uzlaştırma yerel cardsById/katalog ile çalışır; yeni blok ve yeni ACTIVE dersler sayılır/atanır. Yerel öğretmen adı gösterilir; conflict detayında yerel ders/grup ve proposed teacher kullanılır.
+- V2 ephemeral token yerel kart kimliği/blok/süre/pins/placement ve requirement durumu/policy'yi kapsar; uzlaştırma ayrıca eligible pool ve target existence/status içerir. Yapı/pin değişikliği token değiştirir; Undo eski token'a döner. Apply zaten regenerated token ve full batch validation kullanır.
+- Teacher focused 15/15, dokuz dosya 155/155, full suite 371/371 PASS. Equivalence 43/43, frozen preview 2/2; final tsc/ESLint/diff check PASS. Bir fixture string-union type hatası düzeltildi, scoped test/tsc/build tekrar PASS; random UUID conflict yönüne bağımlı test düzeltilerek iki yön de kabul edildi.
+- İzole build `/workspace/partisyon-overnight-teacher-build-8f31267`, ID `Ucjq7c-GPQGtr7I4RtPOQ`, 9/9 PASS. Ölçülmüş validation/commands/candidates runtime SHA256 değerleri ikinci paketle aynı; drag hot path değişmedi.
+- Rapor `WORKSPACE_TEACHER_PREVIEW_REPORT.md`; CODE GATE PASS — BROWSER ACCEPTANCE PENDING. AWS/browser NOT RUN, deployment/DB/migration/main merge yok; M42/M43.3 CLOSED / PASS korunur.
+- Sonraki araştırma: geç gelen workspace/catalog read sonuçları yeni yerel düzenlemeyi veya zaman tercihi geçmişini üzerine yazabiliyor mu? Somut reproduction olursa ayrı integrity paketi.
