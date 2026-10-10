@@ -12,18 +12,20 @@
 | Repository | `cemtheman/msgsud-bale-programi` |
 | Aktif çalışma ortamı | `AWS EC2 / Ubuntu 26.04 / code-server` |
 | Aktif çalışma dizini | `/home/ubuntu/msgsud-bale-programi` |
-| Aktif branch | `feat/m42-pin-resource-acceptance` (izole Codex dalı; canonical AWS dalı `feat/m43-3-fast-slot-validation`) |
-| Son doğrulanmış implementation checkpoint | `6dd5dff` — M43.3 CLOSED / PASS; AWS 339/339 test, equivalence 43/43, build ve kullanıcı drag kabulü PASS; documentation checkpoint `4552528` |
-| Aktif implementation checkpoint | `9aafec4ada6674c43fe06c5aab317064e1c549a7` — M42 pin/resource acceptance hardening; CODE GATE PASS — BROWSER ACCEPTANCE PENDING |
-| Implementation commit | `fix: honor local teacher policy and pins in resource edits` |
-| Son documentation checkpoint | 11 Ekim M42 hardening raporu: `docs/M42_PIN_RESOURCE_ACCEPTANCE_REPORT.md`; son docs SHA için `git rev-parse HEAD` |
-| Son kullanıcı/QA kabulü | **M43.3 CLOSED / PASS** — kullanıcı port 3000 drag akıcılığını doğruladı. M42 iki notice kabulü PASS; tam teacher/room/linked/persistence kabulü hâlâ PENDING |
-| Sıradaki iş paketi | **M42 pin/resource runtime/browser kabulü**; local code gate 41 dosya / 350 test PASS. Tanımlı M43.4 yok; yeni numara icat edilmedi |
+| Aktif branch | `feat/overnight-workspace-integrity` (Codex engineering); canonical AWS/GitHub başlangıcı `feat/m42-pin-resource-acceptance` |
+| Son doğrulanmış implementation checkpoint | `24101f6e96914a32097965a4e1cb6f498244536a` — M42 CLOSED / PASS; M43.3 CLOSED / PASS; AWS 350/350, equivalence 43/43, build/browser/Save–Reload–Restore–Reload PASS |
+| Aktif implementation checkpoint | `b1e5200` — toplu kaynak seçim bütünlüğü; CODE GATE PASS — BROWSER ACCEPTANCE PENDING |
+| Implementation commit | `fix: reject partial bulk resource selections` |
+| Son documentation checkpoint | Overnight raporu: `docs/WORKSPACE_BULK_SELECTION_INTEGRITY_REPORT.md`; kesin docs SHA için branch tipini okuyun |
+| Son kullanıcı/QA kabulü | **M42 CLOSED / PASS; M43.3 CLOSED / PASS** — canonical kabul `24101f6`; yeni paketlerin kabulü ayrı izlenir |
+| Sıradaki iş paketi | Toplu seçim code gate tamamlandı; yerel ACTIVE/INACTIVE ders Save doğrulamasındaki somut kusuru incele. M43.4 tanımlı değil; yeni milestone numarası üretilmedi |
 | Stack | Next.js 16.3.4, React 19, TypeScript, Vitest, Supabase |
 | Build | `npm run build` → `next build --webpack` |
 | Aktif dönem | 2026–2027 / 1. dönem |
 
 Tarihsel not: Aşağıdaki M40 rollback ve eski PENDING/BLOCKED kayıtları kendi tarihlerindeki durumu anlatır. Daha sonraki workspace/objective kabul kayıtları ve M43.3 CLOSED / PASS bunları güncel blocker olarak geçersiz kılar; geçmiş silinmez. M43.3 yeniden açılmadı. AWS canonical kalır; bu run erişim olmadığı için `/workspace/msgsud-bale-programi` içinde izole geliştirme yaptı.
+
+Canonical runtime (kullanıcı kabul kaydı, bu run bağımsız AWS doğrulaması yapmadı): `/home/ubuntu/partisyon-m42-acceptance`, Build ID `FWDpU_8fSNVyi-jkEaLdP`, `msgsud-dev.service` port 3000 aktif; geçici port 3001 kapalı. Eski M42 PENDING kayıtları da `24101f6` kabulüyle tarihsel hale geldi. Codex geliştirme dizini `/workspace/msgsud-bale-programi`.
 
 ## 2. Çalışma yöntemi — değişmez sözleşme
 
@@ -9744,3 +9746,14 @@ Next: remove the test time pin, Save, refresh, and verify baseline restoration; 
 - Canonical HTTP probe returned proxy 403; no AWS SSH identity/Tailscale/usable AWS credential profile/browser connector. AWS tests and authenticated browser acceptance NOT RUN. No service restart, migration/DB write, main merge or deploy. All named AWS stash/backups/release/rollback assets untouched by this run.
 - Full technical report/acceptance criteria/next safe runtime checks: `docs/M42_PIN_RESOURCE_ACCEPTANCE_REPORT.md`; raw samples `docs/M42_PIN_RESOURCE_BENCHMARK.json`.
 - Decision: **CODE GATE PASS — BROWSER ACCEPTANCE PENDING**. Next: separate canonical release and remaining M42 pin/linked/history/persistence browser acceptance, preserving port 3000; do not close M42 or define M43.4 before actual acceptance.
+
+### 11 Ekim 2026 — Overnight: toplu kaynak seçimi bütünlüğü
+
+- Doğrulanmış başlangıç `24101f6`; remote canonical HEAD eşleşti. Clean tree, tek worktree, stash yok. Yeni dal `feat/overnight-workspace-integrity`; eski dal/checkpoint korundu.
+- M42 ve M43.3 CLOSED / PASS. Yeni milestone tanımı yok; mevcut atomik toplu işlem sözleşmesindeki gerçek kusur öncelik 1/2 kapsamında seçildi.
+- Eksik/yerleşmemiş kartların seçimin içinden sessizce atılması yeniden üretildi: 5 yeni test başlangıç kodunda FAIL. Artık tüm seçime Türkçe engel gösterilir; bloklanan plan hiçbir komut üretmez, token eksik kartı da kapsar.
+- Resource focused 21/21, altı dosya focused 109/109, full 41 dosya / 356 test PASS; benchmark opt-in 1 skip. Equivalence 43/43, preview isolation 2/2, TypeScript, hedefli ESLint ve diff check PASS.
+- İzole build `/workspace/partisyon-overnight-selection-build-24101f6`, `iYDGrPB2fDxKnrewnYOZ4`, 9/9 sayfa PASS. Drag runtime modülleri değişmedi; bu pakette benchmark tekrarına ihtiyaç yok.
+- Code/push `b1e5200`; remote HEAD doğrulandı. AWS erişimi yok (profil dosyaları boş, SSH identity yok, canonical HTTP proxy 403); AWS/browser NOT RUN. Deploy/DB/migration/main merge yok.
+- Çalışma hatası: bir build yanlışlıkla yerel checkout'ta çalıştı ve yerel ignored `.next` yenilendi. Sonraki buildler yalnız izole dizinde. AWS release/servisi etkilenmedi; yerel serverlar yeniden başlatılmadı. Ayrıntı teknik raporda.
+- Karar: CODE GATE PASS — BROWSER ACCEPTANCE PENDING. Önceki kabul açılmadı. Sonraki araştırma: inactive dersin minDistinctDays Save kontrolü ve sonradan aktive edilen derslerin toplu kuralları.

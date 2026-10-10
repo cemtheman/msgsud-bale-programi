@@ -2,6 +2,17 @@
 
 Date: 11 October 2026, Europe/Istanbul.
 
+**Current M42 status: CLOSED / PASS.** Final canonical acceptance checkpoint
+`24101f6` supersedes every PENDING/NOT RUN label in the historical engineering
+report below. AWS full suite 350/350, equivalence 43/43, TypeScript/build 9/9,
+browser functional 5/5 and Save / Reload / Restore / Reload PASS. Promoted release
+`/home/ubuntu/partisyon-m42-acceptance`, Build ID `FWDpU_8fSNVyi-jkEaLdP`,
+`msgsud-dev.service` port 3000 active / HTTP 200; temporary port 3001 inactive.
+M43.3 remains CLOSED / PASS. This canonical result was supplied/recorded after
+the original isolated run; overnight Codex did not independently repeat it.
+
+## Historical engineering report before final AWS/browser acceptance
+
 **CODE GATE PASS — BROWSER ACCEPTANCE PENDING.**
 This does not close full M42 acceptance or reopen M43.3.
 

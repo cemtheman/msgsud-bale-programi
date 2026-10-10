@@ -9,8 +9,8 @@ Güncel durum tarihi: 11 Ekim 2026 (önceki ürün kayıtları tarihsel olarak k
 - Ortam: **AWS EC2 / Ubuntu 26.04 / code-server**
 - Çalışma dizini: `/home/ubuntu/msgsud-bale-programi`
 - Shell: Linux/bash
-- Canonical AWS branch: `feat/m43-3-fast-slot-validation`
-- Isolated Codex follow-up branch: `feat/m42-pin-resource-acceptance`
+- Canonical AWS/GitHub başlangıç branch: `feat/m42-pin-resource-acceptance`, checkpoint `24101f6`
+- Isolated Codex engineering branch: `feat/overnight-workspace-integrity`
 - Komut biçimi: `npm`, `npx`
 - Kullanıcı yeni ortam bildirmedikçe AWS/code-server geçerli kabul edilir; Codespaces yalnız fallback'tir
 
@@ -29,9 +29,9 @@ cat docs/MAC_CONTINUATION.md
 
 ## 2. Güncel doğrulanmış durum
 
-**M43.3 CLOSED / PASS** — source `6dd5dff`, GitHub documentation checkpoint `4552528`, AWS tests 339/339, equivalence 43/43, TypeScript/build PASS. User confirmed smooth drag on promoted port 3000. Release `/home/ubuntu/partisyon-m43-build-6dd5dff`, Build ID `nND5t_DJLmV8WUnxUYhon`, `msgsud-dev.service` remains canonical. Earlier 10 October PENDING/BLOCKED entries are historical and superseded.
+**M42 CLOSED / PASS; M43.3 CLOSED / PASS.** Güncel canonical GitHub başlangıcı `24101f6e96914a32097965a4e1cb6f498244536a`. AWS 350/350 test, reference equivalence 43/43, TypeScript ve isolated build PASS; browser 5/5 ve Save / Reload / Restore / Reload PASS. Aktif release `/home/ubuntu/partisyon-m42-acceptance`, Build ID `FWDpU_8fSNVyi-jkEaLdP`, `msgsud-dev.service` port 3000 aktif/HTTP 200; geçici port 3001 kapalı. Bunlar son canonical kabul kaydıdır; bu Codex run AWS'ye erişemedi. Eski M42/M43.3 PENDING/BLOCKED kayıtları tarihsel ve superseded.
 
-**Current follow-up: M42 pin/resource acceptance hardening**, implementation `9aafec4ada6674c43fe06c5aab317064e1c549a7`, isolated branch `feat/m42-pin-resource-acceptance`. CODE GATE PASS — BROWSER ACCEPTANCE PENDING: 41 files / 350 tests PASS, TypeScript and isolated production build PASS. No AWS/DB/service changes. See `docs/M42_PIN_RESOURCE_ACCEPTANCE_REPORT.md`. M43.4 is mentioned only as planning, not defined; no new numbered milestone was invented. Historical milestone results follow.
+**Overnight engineering:** `feat/overnight-workspace-integrity`, implementation `b1e5200`, toplu kaynak seçimi bütünlüğü: **CODE GATE PASS — BROWSER ACCEPTANCE PENDING**, 356/356 full suite, tsc/isolated production build PASS. Rapor `WORKSPACE_BULK_SELECTION_INTEGRITY_REPORT.md`. No deploy/DB/migration/main merge. M43.4 kapsamı yok; bu paket mevcut atomik işlem sözleşmesindeki yeniden üretilmiş hata düzeltmesidir.
 
 ### M33.2 — CLOSED / PASS
 - hard-rule valid
@@ -2017,15 +2017,14 @@ Suggested later sequence:
 - M42: fine-grained pin model
 - then revisit stronger/full-auto generation against immutable snapshot
 
-### Current roadmap reconciliation — 11 October 2026
+### Current roadmap reconciliation — 11 October 2026, overnight
 
-- Teacher-load inputs/objective/provenance: CLOSED / PASS in later acceptance records.
-- Subject time preferences and workspace v12 Save: CLOSED / PASS in later records.
-- M42 pin foundation/local code gate and two notice fixes: PASS; full teacher/room/linked/Undo/Redo/Save/reload acceptance is still open.
-- M43.3 performance and promoted AWS port 3000 drag: CLOSED / PASS.
-- No M43.4 scope or acceptance criteria were defined. “M43.4 planning” is not an implementation package.
-- Selected next work: harden the existing M42 pin/resource acceptance chain. Reproduced defects use stale snapshot policy/card identity in resource expansion and stale snapshot policy in continuity validation. Fix these, then run the remaining M42 browser acceptance before defining stronger/full-auto or team-teaching work.
-- Engineering checkpoint `9aafec4`: CODE GATE PASS — BROWSER ACCEPTANCE PENDING. No new DB migration or milestone number.
+- Teacher-load inputs/objective/provenance, subject time preferences/workspace v12: CLOSED / PASS in later acceptance records.
+- **M42 CLOSED / PASS**, including teacher/room/linked/history/persistence browser and AWS promotion; final canonical acceptance `24101f6` supersedes earlier open labels.
+- **M43.3 CLOSED / PASS**; accepted drag performance preserved.
+- No M43.4 scope or acceptance definition exists. Stronger/full-auto generation and role-aware team teaching remain future design work; no numbered package was invented.
+- User's overnight priority 1/2 selects reproduced defects in existing functions before extending the solver. First bounded package: bulk resource selections must never silently apply a subset. Code checkpoint `b1e5200`, 356 tests/tsc/build PASS; new browser acceptance PENDING.
+- Next investigation: active/inactive local requirement aggregate validation at Save; then current local structural cards in teacher-policy preview. These are existing workspace behavior corrections, not a new roadmap milestone. Scope and criteria will be recorded only after reproduction.
 
 Rule:
 - preserve M33 solver snapshot/in-memory/no-trial-write architecture
@@ -3607,3 +3606,15 @@ Status: CLOSED / PASS
 - No main merge or database migration in this package
 
 M42 engineering, browser and AWS promotion gates: PASS.
+
+### 11 Oct 2026 — Overnight bulk selection integrity code gate
+
+Baseline `24101f6`, new branch `feat/overnight-workspace-integrity`, clean worktree/stash safety check. M42/M43.3 remain CLOSED / PASS; historical PENDING labels do not reopen them.
+
+Reproduced 5 failures: requested unknown/unplaced/missing/partial placement cards were silently excluded or triggered a low-level error while remaining selections were applicable. The planner now blocks the entire selection, retains requested IDs in its state token and returns no executable commands. Duplicate and already-correct members retain normal behavior. Turkish reasons added.
+
+Resource tests 21/21; focused six-file 109/109; full 41 files / 356 tests PASS, opt-in bench skipped. Equivalence 43/43, frozen preview isolation 2/2, tsc/ESLint/diff check PASS. Isolated production build 9/9 PASS, ID `iYDGrPB2fDxKnrewnYOZ4`. Drag modules unchanged. Implementation/push `b1e5200`, remote HEAD verified.
+
+AWS/browser NOT RUN: empty configured profiles, no SSH identity, canonical HTTP proxy 403. No deployment, DB writes/migration, main merge or canonical service mutation. One mistakenly launched local checkout build renewed local ignored `.next`; separately isolated build passed. AWS releases untouched and existing local servers not restarted.
+
+**CODE GATE PASS — BROWSER ACCEPTANCE PENDING.** Technical report: `WORKSPACE_BULK_SELECTION_INTEGRITY_REPORT.md`. Next: reproduce active/inactive aggregate Save rules; preserve this successful checkpoint.

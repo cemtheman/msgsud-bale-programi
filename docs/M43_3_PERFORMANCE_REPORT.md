@@ -4,7 +4,7 @@ Date: 10 October 2026 (Europe/Istanbul).
 
 **Current M43.3 status (11 October 2026): CLOSED / PASS.**
 
-Canonical acceptance is recorded at source `6dd5dff` and documentation checkpoint `4552528`: AWS 339/339 tests, 43/43 equivalence and 320 deterministic comparisons, TypeScript and isolated production build PASS. Promoted release `/home/ubuntu/partisyon-m43-build-6dd5dff`, Build ID `nND5t_DJLmV8WUnxUYhon`, serves `msgsud-dev.service` on port 3000. The user subsequently confirmed smooth drag on port 3000 in the next autonomous-run request. Numeric browser profiling remains optional and was not collected.
+Canonical acceptance is recorded at source `6dd5dff` and documentation checkpoint `4552528`: AWS 339/339 tests, 43/43 equivalence and 320 deterministic comparisons, TypeScript and isolated production build PASS. Promoted release `/home/ubuntu/partisyon-m43-build-6dd5dff`, Build ID `nND5t_DJLmV8WUnxUYhon`, served `msgsud-dev.service` on port 3000 at M43.3 promotion. The later M42 acceptance checkpoint `24101f6` records the current release `/home/ubuntu/partisyon-m42-acceptance`, Build ID `FWDpU_8fSNVyi-jkEaLdP`, on port 3000; the M43 release remains preserved. The user subsequently confirmed smooth drag on port 3000 in the next autonomous-run request. Numeric browser profiling remains optional and was not collected.
 
 The original report below is historical evidence from the isolated 10 October run. Its PENDING/BLOCKED labels and access/reconciliation steps do **not** reopen the accepted milestone. The new M42 pin/resource hardening is separate; see `M42_PIN_RESOURCE_ACCEPTANCE_REPORT.md`.
 
