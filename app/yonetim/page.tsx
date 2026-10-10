@@ -2153,12 +2153,18 @@ export default function ManagementPage() {
     }
 
     dragCardIdsRef.current = ready.ids;
-    setDragCardIds(ready.ids);
-    setDragStartOffsetsByCardId(ready.startOffsetsByCardId);
-    setDragCandidateDetails(ready.details);
-    setDragLoading(ready.needsPrevalidation);
-    setCandidateFocus(null);
-    setCommandNotice(null);
+
+    // Let Safari establish the native drag before updating the grid.
+    window.requestAnimationFrame(() => {
+      if (dragSequenceRef.current !== sequence) return;
+
+      setDragCardIds(ready.ids);
+      setDragStartOffsetsByCardId(ready.startOffsetsByCardId);
+      setDragCandidateDetails(ready.details);
+      setDragLoading(ready.needsPrevalidation);
+      setCandidateFocus(null);
+      setCommandNotice(null);
+    });
 
     if (!ready.needsPrevalidation) return;
 
